@@ -6,13 +6,20 @@ node_modules/
 .env.local
 .env.*.local
 
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
 # Build output
 dist/
 build/
-
-# Logs
-*.log
-npm-debug.log*
 
 # IDE
 .idea/
@@ -26,3 +33,8 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Generated data (for local testing)
+data/
+*.json.backup
+

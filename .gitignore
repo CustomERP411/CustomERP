@@ -1,0 +1,55 @@
+# ===================
+# CustomERP Root .gitignore
+# ===================
+
+# Dependencies
+node_modules/
+
+# Environment files (keep .example files)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.venv/
+ENV/
+
+# Logs
+logs/
+*.log
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.tar
+
+# Generated ERP artifacts (output folder)
+generated/*/
+
+# Test coverage
+coverage/
+.nyc_output/
+htmlcov/
+
+# Local data files
+*.json.backup
+platform/backend/data/
+

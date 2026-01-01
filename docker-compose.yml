@@ -1,0 +1,134 @@
+# =====================================================
+# CustomERP - Development Docker Compose
+# =====================================================
+# Usage:
+#   docker compose up        - Start all services
+#   docker compose up -d     - Start in background
+#   docker compose down      - Stop all services
+#   docker compose logs -f   - View logs
+#   docker compose ps        - List running services
+# =====================================================
+
+services:
+  # ─────────────────────────────────────────────────
+  # PostgreSQL Database
+  # ─────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: customwerp-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-customwerp}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./platform/backend/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - customwerp-network
+
+  # ─────────────────────────────────────────────────
+  # Backend API (Node.js/Express)
+  # ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./platform/backend
+      dockerfile: Dockerfile.dev
+    container_name: customwerp-backend
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-customwerp}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      AI_GATEWAY_URL: http://ai-gateway:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./platform/backend/src:/app/src:ro
+      - ./platform/backend/migrations:/app/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - customwerp-network
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────
+  # Frontend (React/Vite)
+  # ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./platform/frontend
+      dockerfile: Dockerfile.dev
+    container_name: customwerp-frontend
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./platform/frontend/src:/app/src:ro
+      - ./platform/frontend/public:/app/public:ro
+      - ./platform/frontend/index.html:/app/index.html:ro
+      - ./platform/frontend/vite.config.js:/app/vite.config.js:ro
+      - ./platform/frontend/tailwind.config.js:/app/tailwind.config.js:ro
+      - ./platform/frontend/postcss.config.js:/app/postcss.config.js:ro
+    depends_on:
+      - backend
+    networks:
+      - customwerp-network
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────
+  # AI Gateway (Python/FastAPI)
+  # ─────────────────────────────────────────────────
+  ai-gateway:
+    build:
+      context: ./platform/ai-gateway
+      dockerfile: Dockerfile.dev
+    container_name: customwerp-ai-gateway
+    environment:
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./platform/ai-gateway/src:/app/src:ro
+    networks:
+      - customwerp-network
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────
+  # pgAdmin (Optional - Database Management UI)
+  # ─────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: customwerp-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@customwerp.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - customwerp-network
+    profiles:
+      - tools
+
+networks:
+  customwerp-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+

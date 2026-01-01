@@ -1,0 +1,16 @@
+__pycache__
+*.py[cod]
+.git
+.gitignore
+.env
+.env.local
+Dockerfile*
+docker-compose*
+README.md
+.vscode
+.idea
+venv
+.venv
+*.log
+.pytest_cache
+

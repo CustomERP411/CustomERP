@@ -1,0 +1,563 @@
+
+ 
+
+First Increment Prototype
+Project Name 
+Team Number 
+
+
+
+
+
+Name  Surname, Student ID
+Name Surname, Student ID
+Name Surname, Student ID
+Name Surname, Student ID
+Name Surname, Student ID
+
+
+
+
+
+Bilkent University
+Department of Information Systems and Technologies
+
+10.11.2025  
+Change History
+File Name	Document Type	Deliverable	Version	Submission Date
+TeamX _Prototype_V1	MS Word 2013	2B	1	10.11.2025
+				
+
+
+
+ 
+1.	Use Cases and Functionalities Selected for First Increment Prototype
+Your whole document’s paragraph text starting from this point should be with font face Cambria, font size 12pt, line spacing of 1.5, paragraphs justified. The left, right, top and bottom margins of your pages should be 2 cm. There should be NO paragraph first line indentation.
+In this section you are required to select one or more Use Cases that you defined in your SRS document, that correspond to approximately 20% of your total functionality of your final product. These selected Use Case(s) will become your Requirements Prototype that you will describe in this document and your First Increment Product that you will Present on January 7, 2026. 
+You will not be allowed to change these Use Cases.
+After you have drawn your Use Case Diagram communicate with your Project Advisor (and your Sponsor Company, if there is one) and have a meeting and select together the Use Cases to implement as a Requirements Prototype here and as First Increment Product later.
+Clearly specify which Use Case(s) you have selected and the Functional Requirements that correspond to these Use Case(s). State that you have obtained the explicit approval of your Project Advisor.
+ 
+2.	First Increment Prototype
+Model the Functional Requirements / Use Cases that you selected in Section 1 with coding the interfaces or with the use of prototyping tools (such as: https://www.trustradius.com/prototyping#products ). 
+Your prototype should consist of screenshots / visuals of your software, accompanied with detailed textual description and explanation. Any prototype section which does not explain adequately the visuals given, will automatically receive 0 points. 
+The description should be numbered steps, specifying clearly how the operations with the prototype shall proceed. It is important that in the First Increment Prototype on January 7, 2026, you will be actually presenting the DEVELOPED (coded, implemented) versions of the Requirements Prototype that you have specified in this section.
+
+ 
+3.	System Model
+For the Functional Requirements / Use Cases that you selected in Section 1 and prototype in Section 2, draw the following logical and object-oriented diagrams. Please note that this diagrams should be at the Analysis Level and not the Design Level.
+--- Activity Diagrams (with partitions / swim-lanes) 
+--- Analysis Level System Sequence Diagrams 
+--- Analysis Level Class Diagram
+--- Database design (if relational, the database tables and their connections)
+
+3.5 Analysis Level Class Diagram — Inventory Prototype Meta Model
+The diagram below models the analysis level classes for a configurable inventory-only prototype. It provides a comprehensive lego style meta model so the generator can assemble only the needed parts while keeping all pieces available.
+
+```mermaid
+classDiagram
+
+%% --- Core platform and project model (CustomERP) ---
+
+class User {
+  userId
+  name
+  email
+}
+
+class Project {
+  projectId
+  name
+  status
+}
+
+class Approval {
+  approvalId
+  decision
+  timestamp
+}
+
+class LogEntry {
+  logId
+  timestamp
+  level
+  message
+}
+
+User --> Project : owns
+Project --> Approval : records
+Project --> LogEntry : writes
+
+%% --- AI-derived system definition (SDF) ---
+
+class SDF {
+  sdfId
+  version
+}
+
+class SDFEntity {
+  name
+}
+
+class SDFAttribute {
+  name
+  dataType
+}
+
+class SDFRelation {
+  name
+  relationType
+}
+
+class Question {
+  questionId
+  text
+}
+
+class Answer {
+  answerId
+  text
+}
+
+Project --> SDF : derives
+SDF --> SDFEntity : includes
+SDFEntity --> SDFAttribute : has
+SDF --> SDFRelation : defines
+SDF --> Question : clarifies
+Question --> Answer : collects
+
+%% --- Generator configuration and artifacts (Inventory prototype scope) ---
+
+class Module {
+  moduleId
+  name
+  type
+}
+
+class InventoryModule {
+  scope
+}
+
+class FlatFileSchema {
+  delimiter
+}
+
+class CRUDScaffold {
+  readOp
+  writeOp
+  listOp
+  deleteOp
+}
+
+class APIContract {
+  basePath
+  methodSet
+}
+
+class Visualization {
+  kind
+}
+
+Project --> Module : configures
+Module <|-- InventoryModule
+Module --> FlatFileSchema : produces
+Module --> CRUDScaffold : generates
+Module --> APIContract : exposes
+Module --> Visualization : renders
+
+%% --- Platform / service classes (CustomERP internal services) ---
+
+class AIServiceGateway {
+  apiKey
+  endpoint
+}
+
+class InventoryGenerator {
+  strategy
+}
+
+class FlatFileRepository {
+  rootPath
+}
+
+class AuditService {
+}
+
+class ProjectService {
+}
+
+AIServiceGateway --> SDF : produces
+InventoryGenerator --> InventoryModule : builds
+InventoryGenerator --> FlatFileSchema : outputs
+InventoryGenerator --> CRUDScaffold : outputs
+InventoryGenerator --> APIContract : outputs
+InventoryGenerator --> Visualization : outputs
+FlatFileRepository --> FlatFileSchema : stores
+AuditService --> LogEntry : creates
+ProjectService --> Project : manages
+```
+
+3.1 Activity Diagrams — UC-1 to UC-3 (Dashboard & SDF Generation)
+The following activity diagrams model the three dashboard/SDF use cases separately. Partitions are per system: CustomERP vs Anthropic API.
+
+**UC-1: View Project List**
+
+```mermaid
+flowchart TD
+
+  UC1_Label["UC-1: View Project List"]
+
+  Start1([Start])
+  End1([End])
+
+  %% Partitions (systems only)
+  subgraph CERP1[CustomERP System]
+    C1_Load[Load projects for user]
+    C1_Render[Render project list]
+    C1_ShowEmpty[Show empty state & CTA]
+  end
+
+  BU1_Open[Business User opens dashboard]
+  UC1_toNext[Continue in UC-2: Create New Project or UC-3: Generate SDF using Chatbot]
+
+  Start1 --> BU1_Open --> C1_Load --> C1_Render --> UC1_toNext --> End1
+  C1_Load --> C1_ShowEmpty --> UC1_toNext
+```
+
+**UC-2: Create New Project**
+
+```mermaid
+flowchart TD
+
+  UC2_Label["UC-2: Create New Project"]
+
+  Start2([Start])
+  End2([End])
+
+  subgraph CERP2[CustomERP System]
+    C2_Create[Create new Project in Draft status]
+    C2_UpdateList[Update project list]
+    C2_ShowInput[Show description input & guidelines]
+  end
+  BU2_Click[Business User clicks New Project]
+  UC2_toUC3[Continue in UC-3: Generate SDF using Chatbot]
+
+  Start2 --> BU2_Click --> C2_Create --> C2_UpdateList --> C2_ShowInput --> UC2_toUC3 --> End2
+```
+
+**UC-3: Generate SDF using Chatbot**
+
+```mermaid
+flowchart TD
+
+  UC3_Label["UC-3: Generate SDF using Chatbot"]
+
+  Start3([Start])
+  End3([End])
+
+  subgraph CERP3[CustomERP System]
+    C3_ShowInput[Show input & guidelines]
+    C3_Validate{Description valid?}
+    C3_Status[Show Analyzing status]
+    C3_SendReq[Send description & context]
+    C3_ShowQ[Display clarifying question]
+    C3_SaveSDF[Validate & save SDF]
+    C3_UpdateProject[Update project status & logs]
+    C3_ShowError[Show validation/system error]
+  end
+
+  subgraph AI3[Anthropic API]
+    A3_Process[Process request]
+    A3_NeedMore{Need clarification?}
+    A3_Return[Return final SDF JSON]
+  end
+
+  BU3_Enter[Business User enters description]
+  BU3_Answer[Business User answers question]
+  UC3_toUC4[Continue in UC-4: Generate Inventory Schema and CRUD from SDF]
+
+  Start3 --> C3_ShowInput --> BU3_Enter --> C3_Validate
+  C3_Validate -- "No" --> C3_ShowError --> BU3_Enter
+  C3_Validate -- "Yes" --> C3_Status --> C3_SendReq --> A3_Process --> A3_NeedMore
+
+  A3_NeedMore -- "Yes" --> C3_ShowQ --> BU3_Answer --> C3_SendReq
+  A3_NeedMore -- "No" --> A3_Return --> C3_SaveSDF --> C3_UpdateProject --> UC3_toUC4 --> End3
+```
+
+3.2 Activity Diagrams — UC-4 to UC-6 (Inventory Generation & Review)
+These activity diagrams model the three inventory-focused use cases separately, again partitioned only by CustomERP vs Anthropic API.
+
+**UC-4: Generate Inventory Schema & CRUD from SDF**
+
+```mermaid
+flowchart TD
+
+  UC4_Label["UC-4: Generate Inventory Schema & CRUD from SDF"]
+
+  Start4([Start])
+  End4([End])
+
+  subgraph CERP4[CustomERP System]
+    C4_Trigger[Receive Generate Inventory request]
+    C4_LoadSDF[Load SDF for project]
+    C4_CheckInv{Inventory section complete?}
+    C4_CallGen[Call InventoryGenerator]
+    C4_HandleErr[Show generation error]
+  end
+
+  BU4_Click[Business User triggers generation]
+  UC4_backToUC3[Return to UC-3: Generate SDF using Chatbot for re-analysis]
+  UC4_toUC5[Continue in UC-5: Review Inventory Schema and API Summary]
+
+  Start4 --> BU4_Click --> C4_Trigger --> C4_LoadSDF --> C4_CheckInv
+  C4_CheckInv -- "No" --> C4_HandleErr --> UC4_backToUC3 --> End4
+  C4_CheckInv -- "Yes" --> C4_CallGen --> UC4_toUC5 --> End4
+```
+
+**UC-5: Review Inventory Schema & API Summary**
+
+```mermaid
+flowchart TD
+
+  UC5_Label["UC-5: Review Inventory Schema & API Summary"]
+
+  Start5([Start])
+  End5([End])
+
+  subgraph CERP5[CustomERP System]
+    C5_Render[Render schema visualization & API summary]
+    C5_ApplyEdits[Apply non-breaking label edits]
+  end
+
+  BU5_Open[Business User opens inventory preview]
+  BU5_Edit[Business User proposes minor label edits]
+  UC5_toUC6[Continue in UC-6: Approve or Edit Inventory Module]
+
+  Start5 --> BU5_Open --> C5_Render --> BU5_Edit --> C5_ApplyEdits --> UC5_toUC6 --> End5
+```
+
+**UC-6: Approve or Edit Inventory Module**
+
+```mermaid
+flowchart TD
+
+  UC6_Label["UC-6: Approve or Edit Inventory Module"]
+
+  Start6([Start])
+  End6([End])
+
+  subgraph CERP6[CustomERP System]
+    C6_ShowDecision[Show approve/edit options]
+    C6_UpdateApproval[Update Project & Approval]
+    C6_Log[Write approval decision to logs]
+  end
+
+  BU6_Review[Business User reviews final module]
+  BU6_Decide{Approve or request edit?}
+  UC6_backToUC5[Return to UC-5: Review Inventory Schema and API Summary]
+
+  Start6 --> BU6_Review --> C6_ShowDecision --> BU6_Decide
+  BU6_Decide -- "Approve" --> C6_UpdateApproval --> C6_Log --> End6
+  BU6_Decide -- "Request Edit" --> C6_Log --> UC6_backToUC5 --> End6
+```
+
+3.3 System Sequence Diagrams — UC-1 to UC-3 (Dashboard & SDF Generation)
+The following sequence diagrams show object-level interactions for each of the three dashboard/SDF use cases.
+
+**UC-1: View Project List**
+
+```mermaid
+sequenceDiagram
+  Note over BU,PS: UC-1: View Project List
+  actor BU as Business User
+  participant PS as ProjectService
+  participant AUS as AuditService
+
+  BU->>PS: Open dashboard
+  PS->>PS: Load projects for user
+
+  alt No projects
+    PS-->>BU: Show empty state & "Create New Project"
+  else Projects exist
+    PS-->>BU: Show project list with status & timestamps
+  end
+
+  AUS->>AUS: Create LogEntry for dashboard view
+```
+
+**UC-2: Create New Project**
+
+```mermaid
+sequenceDiagram
+  Note over BU,PS: UC-2: Create New Project
+  actor BU as Business User
+  participant PS as ProjectService
+  participant AUS as AuditService
+
+  BU->>PS: Click "New Project"
+  PS->>PS: Create Project(status=Draft)
+  PS-->>BU: Refresh list with new project
+  PS-->>BU: Show description input & guidelines
+  AUS->>AUS: Create LogEntry for project creation
+```
+
+**UC-3: Generate SDF using Chatbot**
+
+```mermaid
+sequenceDiagram
+  Note over BU,PS: UC-3: Generate SDF using Chatbot
+  actor BU as Business User
+  participant PS as ProjectService
+  participant GW as AIServiceGateway
+  participant API as Anthropic API
+  participant FR as FlatFileRepository
+  participant AUS as AuditService
+
+  BU->>PS: Submit business description
+  PS->>PS: Validate description
+
+  alt Invalid input
+    PS-->>BU: Show validation error & guidelines
+    AUS->>AUS: Create LogEntry for validation error
+  else Valid input
+    PS-->>BU: Show "Analyzing" status
+    PS->>GW: sendDescription(projectId, description, priorAnswers)
+    GW->>API: Call /generateSDF
+
+    loop Clarifications
+      API-->>GW: Clarifying Question
+      GW-->>PS: Forward Question
+      PS-->>BU: Display question
+      BU-->>PS: Provide Answer
+      PS->>GW: sendUpdatedContext(Question, Answer)
+      GW->>API: Update context
+    end
+
+    API-->>GW: Final SDF JSON
+    GW-->>PS: Return SDF
+    PS->>FR: saveSDF(projectId, SDF)
+    AUS->>AUS: Create LogEntry for SDF stored
+    PS-->>BU: Indicate project ready for generation
+  end
+```
+
+3.4 System Sequence Diagrams — UC-4 to UC-6 (Inventory Generation & Review)
+These sequence diagrams show how the system handles inventory generation, review, and approval.
+
+**UC-4: Generate Inventory Schema & CRUD from SDF**
+
+```mermaid
+sequenceDiagram
+  Note over BU,PS: UC-4: Generate Inventory Schema & CRUD from SDF
+  actor BU as Business User
+  participant PS as ProjectService
+  participant IG as InventoryGenerator
+  participant FR as FlatFileRepository
+  participant AUS as AuditService
+
+  BU->>PS: Trigger "Generate Inventory (Prototype)"
+  PS->>FR: loadSDF(projectId)
+
+  alt Inventory section missing or inconsistent
+    PS-->>BU: Request re-analysis / clarification in UC-3
+    AUS->>AUS: Create LogEntry for missing inventory definition
+  else SDF OK
+    PS->>IG: generateInventoryModule(SDF)
+    IG->>IG: Isolate inventory entities & attributes
+    IG->>FR: writeFlatFileSchemas(FlatFileSchema)
+    IG->>FR: writeCRUDScaffolds(CRUDScaffold)
+    IG->>FR: writeAPIContract(APIContract)
+    IG->>FR: writeVisualization(Visualization)
+    AUS->>AUS: Create LogEntry for generation completed
+  end
+```
+
+**UC-5: Review Inventory Schema & API Summary**
+
+```mermaid
+sequenceDiagram
+  Note over BU,PS: UC-5: Review Inventory Schema & API Summary
+  actor BU as Business User
+  participant PS as ProjectService
+  participant FR as FlatFileRepository
+
+  BU->>PS: Open Inventory module preview
+  PS->>FR: Load schema/API artifacts
+  FR-->>PS: Return FlatFileSchema, CRUDScaffold, APIContract, Visualization
+  PS-->>BU: Render schema visualization & API summary
+
+  BU-->>PS: Propose non-breaking label edits
+  PS->>FR: Persist updated labels
+```
+
+**UC-6: Approve or Edit Inventory Module**
+
+```mermaid
+sequenceDiagram
+  Note over BU,PS: UC-6: Approve or Edit Inventory Module
+  actor BU as Business User
+  participant PS as ProjectService
+  participant AUS as AuditService
+
+  BU->>PS: Approve or request edit for Inventory module
+
+  alt Approve
+    PS->>PS: Update Project(status=Approved)
+    PS->>PS: Create Approval decision
+    AUS->>AUS: Create LogEntry for approval
+    PS-->>BU: Confirm approval stored
+  else Request edit
+    PS->>PS: Record requested changes
+    AUS->>AUS: Create LogEntry for revision request
+    PS-->>BU: Show next steps for edits
+  end
+```
+
+3.6 Relational Database Design (CustomERP Prototype)
+In the 2B prototype scope, CustomERP uses a relational database (e.g., PostgreSQL) to persist its own platform data such as users, projects, SDFs, questions/answers, modules, generation jobs, and logs.  
+The database design does **not** model the internal schema of any generated ERP; those target ERP tables are considered output artifacts and are out of scope for this section.
+
+The core tables and their connections are:
+
+- **USERS**
+  - Columns: `user_id (PK)`, `name`, `email`, `password_hash`, `created_at`
+- **ROLES**
+  - Columns: `role_id (PK)`, `name`, `description`
+- **USER_ROLES**
+  - Columns: `user_id (FK → USERS.user_id)`, `role_id (FK → ROLES.role_id)`
+  - Primary key: `(user_id, role_id)`; models the many-to-many between users and roles.
+- **PROJECTS**
+  - Columns: `project_id (PK)`, `owner_user_id (FK → USERS.user_id)`, `name`, `status`, `created_at`, `updated_at`
+- **APPROVALS**
+  - Columns: `approval_id (PK)`, `project_id (FK → PROJECTS.project_id)`, `decided_by_user_id (FK → USERS.user_id)`, `decision`, `timestamp`
+- **LOG_ENTRIES**
+  - Columns: `log_id (PK)`, `project_id (FK → PROJECTS.project_id, nullable)`, `user_id (FK → USERS.user_id, nullable)`, `level`, `message`, `created_at`
+
+- **SDFS**
+  - Columns: `sdf_id (PK)`, `project_id (FK → PROJECTS.project_id)`, `version`, `created_at`
+- **SDF_ENTITIES**
+  - Columns: `entity_id (PK)`, `sdf_id (FK → SDFS.sdf_id)`, `name`
+- **SDF_ATTRIBUTES**
+  - Columns: `attribute_id (PK)`, `entity_id (FK → SDF_ENTITIES.entity_id)`, `name`, `data_type`
+- **SDF_RELATIONS**
+  - Columns: `relation_id (PK)`, `sdf_id (FK → SDFS.sdf_id)`, `name`, `relation_type`, `source_entity_id (FK → SDF_ENTITIES.entity_id)`, `target_entity_id (FK → SDF_ENTITIES.entity_id)`
+- **QUESTIONS**
+  - Columns: `question_id (PK)`, `project_id (FK → PROJECTS.project_id)`, `text`, `created_at`
+- **ANSWERS**
+  - Columns: `answer_id (PK)`, `question_id (FK → QUESTIONS.question_id)`, `project_id (FK → PROJECTS.project_id)`, `text`, `created_at`
+
+- **MODULES**
+  - Columns: `module_id (PK)`, `project_id (FK → PROJECTS.project_id)`, `name`, `type`
+- **SCHEMA_ARTIFACTS**
+  - Columns: `artifact_id (PK)`, `module_id (FK → MODULES.module_id)`, `path`, `format`
+- **GENERATION_JOBS**
+  - Columns: `job_id (PK)`, `project_id (FK → PROJECTS.project_id)`, `status`, `started_at`, `finished_at`, `error_message`
+
+Key relationships:
+- One **User** can own many **Projects**; a **Project** belongs to exactly one owner.
+- A **User** can have multiple **Roles** through **USER_ROLES**.
+- Each **Project** can have multiple **SDFS**, **QUESTIONS**, **ANSWERS**, **MODULES**, **GENERATION_JOBS**, and **LOG_ENTRIES**.
+- Each **SDF** contains many **SDF_ENTITIES** and **SDF_RELATIONS**; each **SDF_ENTITY** contains many **SDF_ATTRIBUTES**.
+- Each **MODULE** can have multiple **SCHEMA_ARTIFACTS** that correspond to generated code/schema files for that project.
+
+This schema directly reflects the analysis-level class diagram: persistent classes (`User`, `Role`, `Project`, `Approval`, `LogEntry`, `SDF`, `SDFEntity`, `SDFAttribute`, `SDFRelation`, `Question`, `Answer`, `Module`, `SchemaArtifact`, `GenerationJob`) are mapped to tables, while service classes (e.g., `ProjectService`, `AIServiceGateway`, `InventoryGenerator`, `AuditService`) are implemented in application code and do not have their own tables.

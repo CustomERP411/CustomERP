@@ -1,0 +1,168 @@
+Use Case: UC-1 Project Intake & Analysis (Generate SDF using Chatbot)
+
+Primary Actor
+- Business User
+
+Supporting Actors
+- Anthropic API (external AI service)
+
+Goal
+- Allow the user to generate a System Definition File (SDF) for an ERP project via chatbot interaction (validate → clarify → AI generates SDF), and view/manage previously created projects.
+
+Scope
+- CustomERP Platform
+
+Level
+- User goal
+
+Preconditions
+- The user is authenticated and has access to the dashboard.
+
+Trigger
+- The user opens the dashboard and chooses to create a new project or analyze an existing one.
+
+Main Success Scenario
+1. The system displays a list of the user’s projects with name, status (Draft/Approved/Deployed), and last updated time (FR-4.7).
+2. The user clicks “New Project” to start a new ERP generation or selects an existing project to continue.
+3. The system displays an input area with guidelines; the user enters a business description (500–5000 words) (FR-1.1).
+4. The user submits the description; the system stores it as the project’s raw requirements artifact and confirms submission (FR-1.1).
+5. The user clicks “Analyze Description”.
+6. The system validates the input length and basic criteria (FR-1.2) and shows “Analyzing” status (FR-1.6).
+7. The system presents clarifying questions (if needed); the user answers; answers are stored (FR-3.3, FR-3.4).
+8. The system packages the description plus answers and sends the request securely to the Anthropic API (FR-1.3).
+9. The system receives the System Definition File (SDF) as JSON from the AI (FR-1.4) representing entities, attributes, relationships, and module intents identified/inferred by the AI (FR-3.1, FR-3.2).
+10. The system validates SDF structure and stores it as the project’s structured artifact/staging data (FR-1.5).
+11. The system updates the project context and logs actions (FR-4.4). The project is now ready for code generation (UC-2).
+
+Alternate / Exception Flows
+A1: Description too short/long
+  - At step 3–6, the system prevents submission/analysis and displays corrective guidance (FR-1.2).
+A2: No projects yet
+  - At step 1, the system shows an empty state and a “Create New Project” call-to-action.
+A3: Access to non-owned project
+  - At step 5, the system denies access (RBAC) and logs the attempt (FR-4.3, FR-4.4).
+A4: Network/API unavailable or timeout
+  - At step 7, the system shows a clear error, logs details, and preserves state for retry (FR-6.1, FR-6.2, FR-3.5).
+A5: Invalid/Unexpected JSON or missing fields
+  - At step 8, the system flags the response as invalid, logs details, and halts processing.
+A6: Inconsistent clarifications
+  - At step 10, the system highlights conflicts and requests confirmation or correction.
+
+Postconditions
+- Success: A new or existing project has a validated SDF stored as the basis for downstream generation.
+- Minimal Guarantee: On failure, the on-screen description remains; audit logs capture attempts; no partial corruption of the SDF store.
+
+Non-Functional Notes
+- Usability: Clear guidance, validation messages; searchable/sortable project list (UR-2, UR-7, UR-10, UR-11).
+- Performance: UI feedback ≤3s for list and submission (PR-6, PR-11).
+
+Related Requirements
+- FR-1.1, FR-1.2, FR-1.3, FR-1.4, FR-1.5, FR-1.6; FR-3.1, FR-3.2, FR-3.3, FR-3.4, FR-3.5; FR-4.1, FR-4.3, FR-4.4, FR-4.7; FR-6.1; PR-6, PR-11, PR-13
+
+Cross-References
+- SRS Section 5.2 Use Case Diagram: UC-1
+- SRS Section 5.3 Mapping: FR-1.1..1.6, FR-3.1..3.5, FR-4.1, FR-4.7, FR-6.1 ↔ UC-1
+
+@startuml
+left to right direction
+
+actor "Business User" as BU
+
+rectangle "CustomERP System" {
+    (UC-1: View Project List) as UC1_ViewList
+    (UC-2: Create New Project) as UC2_CreateProj
+    (UC-3: Generate SDF using Chatbot) as UC3_GenerateSDF
+}
+
+actor "Anthropic API" as API
+
+title UCD_1-3 – Project Intake & Analysis
+
+' Business User links (normal order)
+BU -- UC1_ViewList
+BU -- UC2_CreateProj
+BU -- UC3_GenerateSDF
+
+' **Force Anthropic API to the RIGHT** by reversing the link and using a long line
+UC3_GenerateSDF --- API
+
+@enduml
+
+
+Use Case: UC-2 (2B Prototype) Generate Inventory Module from SDF (Flat File)
+
+Primary Actor
+- Business User (review/approval)
+
+Supporting Actors
+- (None)
+
+Goal
+- From the AI-produced System Definition File (SDF), generate the Inventory Management module artifacts using flat-file storage (no relational schema), show schema/API summary, and get user approval.
+
+Scope
+- CustomERP Platform (Prototype Scope for Deliverable 2B)
+
+Level
+- User goal
+
+Preconditions
+- UC-1 has produced a validated SDF and clarifications for the project.
+- Selected module scope for prototype: Inventory Management only.
+
+Trigger
+- The user selects “Generate Inventory (Prototype)” or proceeds from analysis to prototype generation.
+
+Main Success Scenario
+1. The system loads the SDF and isolates Inventory-related entities/attributes.
+2. The system generates flat-file schemas (JSON/CSV definitions) for Inventory entities (e.g., products, stock entries).
+3. The system scaffolds CRUD operations that read/write these flat files (no database).
+4. The system generates API endpoint definitions and example payloads for Inventory (REST over local server assumptions for later integration).
+5. The system renders a schema visualization (ERD-style conceptual view from SDF) and an API summary for Inventory.
+6. The Business User reviews the Inventory schema/API summary and optionally edits non-breaking labels.
+7. The Business User approves the Inventory module; the system locks configuration and logs the decision.
+
+Alternate / Exception Flows
+A1: Missing or inconsistent SDF sections for Inventory
+  - At step 1–2, the system flags the issue and requests re-analysis/clarification (UC-1).
+A2: Flat-file write/validation error
+  - At step 2–3, the system reports error details, preserves prior state, and logs the incident.
+
+Postconditions
+- Success: Inventory module flat-file schemas and CRUD scaffolds are generated from the SDF and approved; ready for packaging/export.
+- Minimal Guarantee: On failure, no corrupted artifacts persist; logs are retained.
+
+Non-Functional Notes
+- Reliability: Recovery on error without data loss.
+- Maintainability: Clear artifact structure (module folder, file formats).
+
+Related Requirements (Prototype Scope)
+- FR-3.1, FR-3.2 (AI extracts entities/relations → SDF in UC-1)
+- FR-2.2 (CRUD operations for Inventory using flat files)
+- FR-2.5 (Schema/API summary for review and approval)
+- FR-4.3, FR-4.4 (RBAC/logging for approval)
+
+Cross-References
+- SRS Section 5.2 Use Case Diagram: UC-2 (Prototype)
+- SRS Section 5.3 Mapping (Prototype): FR-2.2, FR-2.5 ↔ UC-2 (Prototype)
+
+@startuml
+left to right direction
+
+title UCD_B_4-6 – Inventory Schema & CRUD from SDF and Review
+
+actor "Business User" as BU
+
+rectangle "CustomERP System (Prototype Scope)" {
+
+    (UC-4: Generate Inventory Schema & CRUD from SDF) as UC4_GenerateInv
+    (UC-5: Review Inventory Schema & API Summary) as UC5_ReviewInv
+    (UC-6: Approve or Edit Inventory Module) as UC6_ApproveInv
+
+}
+
+BU -- UC4_GenerateInv
+BU -- UC5_ReviewInv
+BU -- UC6_ApproveInv
+
+@enduml

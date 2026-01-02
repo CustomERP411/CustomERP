@@ -1,0 +1,60 @@
+// Note the placeholders: {{EntityName}}, {{entitySlug}}
+const FlatFileProvider = require('../repository/FlatFileProvider');
+
+class {{EntityName}}Controller {
+  constructor() {
+    this.repository = new FlatFileProvider('./data');
+    this.entitySlug = '{{entitySlug}}';
+  }
+
+  async getAll(req, res) {
+    try {
+      const items = await this.repository.findAll(this.entitySlug);
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async getById(req, res) {
+    try {
+      const item = await this.repository.findById(this.entitySlug, req.params.id);
+      if (!item) return res.status(404).json({ error: 'Not found' });
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async create(req, res) {
+    try {
+      const item = await this.repository.create(this.entitySlug, req.body);
+      res.status(201).json(item);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async update(req, res) {
+    try {
+      const item = await this.repository.update(this.entitySlug, req.params.id, req.body);
+      if (!item) return res.status(404).json({ error: 'Not found' });
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async delete(req, res) {
+    try {
+      const deleted = await this.repository.delete(this.entitySlug, req.params.id);
+      if (!deleted) return res.status(404).json({ error: 'Not found' });
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+}
+
+module.exports = {{EntityName}}Controller;
+

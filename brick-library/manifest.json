@@ -1,0 +1,10 @@
+{
+  "inventory": {
+    "feature_flag": "stock_tracking",
+    "backend_files": [
+      { "src": "services/InventoryService.js.hbs", "dest": "src/services/{{EntityName}}InventoryService.js" }
+    ],
+    "dependencies": ["uuid"]
+  }
+}
+

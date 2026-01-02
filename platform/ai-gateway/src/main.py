@@ -15,11 +15,14 @@ Future endpoints (Task D3):
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import os
 
 from .config import settings
+from .services.gemini_client import GeminiClient
+from .services.sdf_service import SDFService
+from .schemas.sdf import SystemDefinitionFile
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -40,7 +43,8 @@ app.add_middleware(
 )
 
 # Lazy-loaded Gemini client (initialized on first use)
-_gemini_client = None
+_gemini_client: Optional[GeminiClient] = None
+_sdf_service: Optional[SDFService] = None
 
 
 def get_gemini_client():
@@ -52,6 +56,17 @@ def get_gemini_client():
         from .services.gemini_client import GeminiClient
         _gemini_client = GeminiClient()
     return _gemini_client
+
+
+def get_sdf_service() -> Optional[SDFService]:
+    """Get or create the SDF service singleton"""
+    global _sdf_service
+    if _sdf_service is None:
+        client = get_gemini_client()
+        if not client:
+            return None
+        _sdf_service = SDFService(client)
+    return _sdf_service
 
 
 # ─────────────────────────────────────────────────────────────
@@ -207,13 +222,30 @@ async def test_ai(request: TestRequest):
 # Placeholder endpoints for future tasks
 # ─────────────────────────────────────────────────────────────
 
-@app.post("/ai/analyze")
-async def analyze():
-    """Placeholder for Task D3 - Analyze business description"""
-    raise HTTPException(
-        status_code=501,
-        detail="Not implemented yet. Coming in Task D3."
-    )
+class AnalyzeRequest(BaseModel):
+    """Request model for the analysis endpoint"""
+    business_description: str = Field(..., min_length=50, description="A detailed description of the business requirements.")
+
+
+@app.post("/ai/analyze", response_model=SystemDefinitionFile)
+async def analyze(request: AnalyzeRequest):
+    """
+    Analyzes a business description and generates a System Definition File (SDF).
+    """
+    sdf_service = get_sdf_service()
+    if not sdf_service:
+        raise HTTPException(
+            status_code=503,
+            detail="AI service is not configured or failed to initialize."
+        )
+
+    try:
+        sdf = await sdf_service.generate_sdf_from_description(request.business_description)
+        return sdf
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Failed to generate a valid SDF: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
 @app.post("/ai/clarify")

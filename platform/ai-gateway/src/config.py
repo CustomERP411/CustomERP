@@ -20,7 +20,7 @@ class Settings:
     
     # Google AI Configuration
     GOOGLE_AI_API_KEY: str = os.getenv("GOOGLE_AI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-pro-preview-05-06")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "")
     
     # Request Configuration
     AI_TIMEOUT_SECONDS: int = int(os.getenv("AI_TIMEOUT_SECONDS", "60"))

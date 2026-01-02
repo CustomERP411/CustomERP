@@ -49,25 +49,33 @@ class GeminiClient:
             cls._instance = cls()
         return cls._instance
     
-    async def generate(self, prompt: str, temperature: float = 0.7) -> str:
+    async def generate(
+        self, 
+        prompt: str, 
+        temperature: float = 0.7, 
+        json_mode: bool = False
+    ) -> str:
         """
-        Generate a response from the AI model
-        
+        Generate a response from the AI model.
+
         Args:
-            prompt: The input prompt
-            temperature: Creativity level (0.0 = deterministic, 1.0 = creative)
-        
+            prompt: The input prompt.
+            temperature: Creativity level (0.0 = deterministic, 1.0 = creative).
+            json_mode: If True, configure the model for JSON output.
+
         Returns:
-            The generated text response
+            The generated text response.
         """
         try:
-            # Configure generation settings
-            generation_config = genai.GenerationConfig(
-                temperature=temperature,
-                max_output_tokens=8192,
-            )
-            
-            # Generate content (synchronous call wrapped for async)
+            config_params = {
+                "temperature": temperature,
+                "max_output_tokens": 8192,
+            }
+            if json_mode:
+                config_params["response_mime_type"] = "application/json"
+
+            generation_config = genai.GenerationConfig(**config_params)
+
             response = await asyncio.to_thread(
                 self.model.generate_content,
                 prompt,
@@ -80,30 +88,13 @@ class GeminiClient:
             print(f"[GeminiClient] Generation error: {e}")
             raise
     
-    async def generate_json(self, prompt: str, temperature: float = 0.3) -> str:
-        """
-        Generate a JSON response from the AI model
-        Uses lower temperature for more consistent JSON output
-        
-        Args:
-            prompt: The input prompt (should request JSON output)
-            temperature: Creativity level (default lower for JSON)
-        
-        Returns:
-            The generated JSON string
-        """
-        # Add JSON instruction to prompt
-        json_prompt = f"""{prompt}
-
-IMPORTANT: Respond with valid JSON only. No markdown, no explanations, just the JSON object."""
-        
-        return await self.generate(json_prompt, temperature=temperature)
     
     async def generate_with_retry(
         self, 
         prompt: str, 
         temperature: float = 0.7,
-        max_retries: Optional[int] = None
+        max_retries: Optional[int] = None,
+        json_mode: bool = False
     ) -> str:
         """
         Generate with automatic retry on failure
@@ -121,7 +112,7 @@ IMPORTANT: Respond with valid JSON only. No markdown, no explanations, just the 
         
         for attempt in range(retries):
             try:
-                return await self.generate(prompt, temperature)
+                return await self.generate(prompt, temperature, json_mode=json_mode)
             except Exception as e:
                 last_error = e
                 wait_time = 2 ** attempt  # Exponential backoff

@@ -60,7 +60,7 @@ services:
     restart: unless-stopped
 
   # ─────────────────────────────────────────────────
-  # Frontend (React/Vite)
+  # Frontend (React/Vite + TypeScript)
   # ─────────────────────────────────────────────────
   frontend:
     build:
@@ -75,9 +75,11 @@ services:
       - ./platform/frontend/src:/app/src:ro
       - ./platform/frontend/public:/app/public:ro
       - ./platform/frontend/index.html:/app/index.html:ro
-      - ./platform/frontend/vite.config.js:/app/vite.config.js:ro
+      - ./platform/frontend/vite.config.ts:/app/vite.config.ts:ro
       - ./platform/frontend/tailwind.config.js:/app/tailwind.config.js:ro
       - ./platform/frontend/postcss.config.js:/app/postcss.config.js:ro
+      - ./platform/frontend/tsconfig.json:/app/tsconfig.json:ro
+      - ./platform/frontend/tsconfig.node.json:/app/tsconfig.node.json:ro
     depends_on:
       - backend
     networks:

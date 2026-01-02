@@ -86,20 +86,33 @@ Each developer has isolated directories. Work freely within your domain.
 
 # DEV-A: Frontend (Elkhan Abbasov)
 
+## ⚠️ IMPORTANT: TypeScript Required
+
+All frontend code MUST be written in TypeScript (`.ts` / `.tsx` files).
+
+**Key Rules:**
+- Use `.tsx` for React components, `.ts` for utilities/services
+- Define types in `src/types/` directory
+- Use proper type annotations for props, state, and API responses
+- Avoid `any` type - use `unknown` if type is truly unknown
+- Import types with `import type { ... }` for type-only imports
+
 ## Domain Ownership
 
 ```
 platform/
 └── frontend/
     ├── src/
-    │   ├── components/     ← YOUR DOMAIN
-    │   ├── pages/          ← YOUR DOMAIN
-    │   ├── hooks/          ← YOUR DOMAIN
-    │   ├── context/        ← YOUR DOMAIN
-    │   ├── services/       ← YOUR DOMAIN (API calls)
+    │   ├── components/     ← YOUR DOMAIN (.tsx files)
+    │   ├── pages/          ← YOUR DOMAIN (.tsx files)
+    │   ├── hooks/          ← YOUR DOMAIN (.ts files)
+    │   ├── context/        ← YOUR DOMAIN (.tsx files)
+    │   ├── services/       ← YOUR DOMAIN (.ts files)
+    │   ├── types/          ← YOUR DOMAIN (type definitions)
     │   └── styles/         ← YOUR DOMAIN
     ├── package.json        ← YOUR DOMAIN
-    └── vite.config.js      ← YOUR DOMAIN
+    ├── tsconfig.json       ← YOUR DOMAIN
+    └── vite.config.ts      ← YOUR DOMAIN
 ```
 
 ---
@@ -112,22 +125,23 @@ platform/
 
 ### What to Do
 
-1. Initialize React project with Vite
+1. Initialize React project with Vite + TypeScript template
 2. Install and configure Tailwind CSS
 3. Set up folder structure as shown above
 4. Configure environment variables for API URL
-5. Create basic `App.jsx` with React Router
+5. Create basic `App.tsx` with React Router
 
 ### Commands
 
 ```bash
 cd platform
-npm create vite@latest frontend -- --template react
+npm create vite@latest frontend -- --template react-ts
 cd frontend
 npm install
 npm install -D tailwindcss postcss autoprefixer
 npx tailwindcss init -p
 npm install react-router-dom axios
+npm install -D @types/react @types/react-dom
 ```
 
 ### Files to Create
@@ -135,9 +149,12 @@ npm install react-router-dom axios
 ```
 frontend/
 ├── src/
-│   ├── App.jsx                 # Router setup
-│   ├── main.jsx                # Entry point
+│   ├── App.tsx                 # Router setup
+│   ├── main.tsx                # Entry point
 │   ├── index.css               # Tailwind imports
+│   ├── vite-env.d.ts           # Vite environment types
+│   ├── types/
+│   │   └── auth.ts             # Auth type definitions
 │   ├── components/
 │   │   └── .gitkeep
 │   ├── pages/
@@ -145,10 +162,12 @@ frontend/
 │   ├── hooks/
 │   │   └── .gitkeep
 │   ├── context/
-│   │   └── AuthContext.jsx     # Skeleton
+│   │   └── AuthContext.tsx     # Skeleton
 │   └── services/
-│       └── api.js              # Axios instance
+│       └── api.ts              # Axios instance
 ├── .env.example
+├── tsconfig.json
+├── tsconfig.node.json
 └── tailwind.config.js
 ```
 
@@ -156,15 +175,16 @@ frontend/
 
 **tailwind.config.js:**
 ```javascript
+/** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./src/**/*.{js,jsx}"],
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: { extend: {} },
   plugins: [],
 }
 ```
 
-**src/services/api.js:**
-```javascript
+**src/services/api.ts:**
+```typescript
 import axios from 'axios';
 
 const api = axios.create({
@@ -173,11 +193,37 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
 export default api;
+```
+
+**src/types/auth.ts:**
+```typescript
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role?: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<AuthResponse>;
+  register: (name: string, email: string, password: string) => Promise<AuthResponse>;
+  logout: () => void;
+}
 ```
 
 ### ⛔ Do NOT
@@ -203,79 +249,92 @@ export default api;
 
 ### What to Do
 
-1. Create `LoginPage.jsx` with email/password form
-2. Create `RegisterPage.jsx` with name/email/password form
-3. Implement `AuthContext.jsx` for token storage
-4. Create `ProtectedRoute.jsx` wrapper
+1. Create `LoginPage.tsx` with email/password form
+2. Create `RegisterPage.tsx` with name/email/password form
+3. Implement `AuthContext.tsx` for token storage with proper types
+4. Create `ProtectedRoute.tsx` wrapper
 5. Style with Tailwind (clean, modern look)
 
 ### Files to Create/Modify
 
 ```
 src/
+├── types/
+│   └── auth.ts                 # Type definitions
 ├── context/
-│   └── AuthContext.jsx         # Full implementation
+│   └── AuthContext.tsx         # Full implementation with types
 ├── pages/
-│   ├── LoginPage.jsx
-│   └── RegisterPage.jsx
+│   ├── LoginPage.tsx
+│   └── RegisterPage.tsx
 ├── components/
-│   ├── ProtectedRoute.jsx
+│   ├── ProtectedRoute.tsx
 │   └── ui/
-│       ├── Input.jsx           # Reusable input
-│       └── Button.jsx          # Reusable button
-└── App.jsx                     # Add auth routes
+│       ├── Input.tsx           # Reusable input with types
+│       └── Button.tsx          # Reusable button with types
+└── App.tsx                     # Add auth routes
 ```
 
 ### AuthContext Pattern
 
-```javascript
-// src/context/AuthContext.jsx
-import { createContext, useContext, useState, useEffect } from 'react';
+```typescript
+// src/context/AuthContext.tsx
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '../services/api';
+import type { User, AuthResponse, AuthContextType } from '../types/auth';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
-      // Verify token with backend (implement later)
-      setLoading(false);
-    } else {
-      setLoading(false);
+    const savedUser = localStorage.getItem('user');
+    if (token && savedUser) {
+      setUser(JSON.parse(savedUser) as User);
     }
+    setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
-    const res = await api.post('/auth/login', { email, password });
+  const login = async (email: string, password: string): Promise<AuthResponse> => {
+    const res = await api.post<AuthResponse>('/auth/login', { email, password });
     localStorage.setItem('token', res.data.token);
+    localStorage.setItem('user', JSON.stringify(res.data.user));
     setUser(res.data.user);
     return res.data;
   };
 
-  const register = async (name, email, password) => {
-    const res = await api.post('/auth/register', { name, email, password });
+  const register = async (name: string, email: string, password: string): Promise<AuthResponse> => {
+    const res = await api.post<AuthResponse>('/auth/register', { name, email, password });
     localStorage.setItem('token', res.data.token);
+    localStorage.setItem('user', JSON.stringify(res.data.user));
     setUser(res.data.user);
     return res.data;
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
+};
 ```
 
 ### ⛔ Do NOT
@@ -302,43 +361,68 @@ export const useAuth = () => useContext(AuthContext);
 
 ### What to Do
 
-1. Create `DashboardLayout.jsx` with sidebar + main area
-2. Create `ProjectListPage.jsx` showing user's projects
-3. Create `ProjectCard.jsx` component
-4. Create `NewProjectModal.jsx` for project creation
-5. Implement project list fetching
+1. Create `DashboardLayout.tsx` with sidebar + main area
+2. Create `ProjectListPage.tsx` showing user's projects
+3. Create `ProjectCard.tsx` component
+4. Create `NewProjectModal.tsx` for project creation
+5. Implement project list fetching with proper types
 
 ### Files to Create
 
 ```
 src/
+├── types/
+│   └── project.ts              # Project type definitions
 ├── components/
 │   ├── layout/
-│   │   ├── DashboardLayout.jsx
-│   │   ├── Sidebar.jsx
-│   │   └── Header.jsx
+│   │   ├── DashboardLayout.tsx
+│   │   ├── Sidebar.tsx
+│   │   └── Header.tsx
 │   ├── projects/
-│   │   ├── ProjectCard.jsx
-│   │   └── NewProjectModal.jsx
+│   │   ├── ProjectCard.tsx
+│   │   └── NewProjectModal.tsx
 ├── pages/
-│   └── ProjectListPage.jsx
+│   └── ProjectListPage.tsx
 └── services/
-    └── projectService.js       # API calls for projects
+    └── projectService.ts       # API calls for projects
+```
+
+### Type Definitions
+
+```typescript
+// src/types/project.ts
+export interface Project {
+  id: string;
+  name: string;
+  status: 'Draft' | 'Analyzing' | 'Ready' | 'Generated' | 'Approved';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+}
 ```
 
 ### Layout Structure
 
-```jsx
-// DashboardLayout.jsx
-<div className="flex h-screen">
-  <Sidebar />                    {/* Fixed left sidebar */}
-  <div className="flex-1 flex flex-col">
-    <Header />                   {/* Top bar with user menu */}
-    <main className="flex-1 overflow-auto p-6">
-      <Outlet />                 {/* Page content */}
-    </main>
-  </div>
-</div>
+```tsx
+// DashboardLayout.tsx
+import { Outlet } from 'react-router-dom';
+
+export default function DashboardLayout() {
+  return (
+    <div className="flex h-screen">
+      <Sidebar />                    {/* Fixed left sidebar */}
+      <div className="flex-1 flex flex-col">
+        <Header />                   {/* Top bar with user menu */}
+        <main className="flex-1 overflow-auto p-6">
+          <Outlet />                 {/* Page content */}
+        </main>
+      </div>
+    </div>
+  );
+}
 ```
 
 ### ⛔ Do NOT
@@ -363,26 +447,52 @@ src/
 
 ### What to Do
 
-1. Create `ProjectDetailPage.jsx` as main workspace
-2. Create `ChatPanel.jsx` for AI conversation
-3. Create `ClarificationDialog.jsx` for AI questions
-4. Create `MessageBubble.jsx` for chat messages
-5. Implement real-time status updates
+1. Create `ProjectDetailPage.tsx` as main workspace
+2. Create `ChatPanel.tsx` for AI conversation
+3. Create `ClarificationDialog.tsx` for AI questions
+4. Create `MessageBubble.tsx` for chat messages
+5. Implement real-time status updates with proper types
 
 ### Files to Create
 
 ```
 src/
+├── types/
+│   └── chat.ts                 # Chat/AI type definitions
 ├── components/
 │   ├── chat/
-│   │   ├── ChatPanel.jsx
-│   │   ├── MessageBubble.jsx
-│   │   ├── DescriptionInput.jsx
-│   │   └── ClarificationDialog.jsx
+│   │   ├── ChatPanel.tsx
+│   │   ├── MessageBubble.tsx
+│   │   ├── DescriptionInput.tsx
+│   │   └── ClarificationDialog.tsx
 ├── pages/
-│   └── ProjectDetailPage.jsx
+│   └── ProjectDetailPage.tsx
 └── services/
-    └── aiService.js            # API calls for AI operations
+    └── aiService.ts            # API calls for AI operations
+```
+
+### Type Definitions
+
+```typescript
+// src/types/chat.ts
+export interface Message {
+  id: string;
+  role: 'user' | 'ai';
+  content: string;
+  timestamp: string;
+}
+
+export interface ClarificationQuestion {
+  id: string;
+  question: string;
+  type: 'yes_no' | 'choice' | 'text';
+  options?: string[];
+}
+
+export interface AnalyzeResponse {
+  partial_sdf: Record<string, unknown>;
+  questions: ClarificationQuestion[];
+}
 ```
 
 ### Chat Flow
@@ -437,42 +547,75 @@ src/
 
 ### What to Do
 
-1. Create `PreviewPane.jsx` showing generated schema
-2. Create `ERDVisualization.jsx` (simple box diagram)
-3. Create `APIEndpointList.jsx` showing routes
-4. Create `ApprovalPanel.jsx` with approve/download buttons
-5. Implement download functionality
+1. Create `PreviewPane.tsx` showing generated schema
+2. Create `ERDVisualization.tsx` (simple box diagram)
+3. Create `APIEndpointList.tsx` showing routes
+4. Create `ApprovalPanel.tsx` with approve/download buttons
+5. Implement download functionality with proper types
 
 ### Files to Create
 
 ```
 src/
+├── types/
+│   └── schema.ts               # Schema/SDF type definitions
 ├── components/
 │   ├── preview/
-│   │   ├── PreviewPane.jsx
-│   │   ├── ERDVisualization.jsx
-│   │   ├── EntityCard.jsx
-│   │   ├── APIEndpointList.jsx
-│   │   └── ApprovalPanel.jsx
+│   │   ├── PreviewPane.tsx
+│   │   ├── ERDVisualization.tsx
+│   │   ├── EntityCard.tsx
+│   │   ├── APIEndpointList.tsx
+│   │   └── ApprovalPanel.tsx
 └── services/
-    └── downloadService.js      # Handle ZIP download
+    └── downloadService.ts      # Handle ZIP download
+```
+
+### Type Definitions
+
+```typescript
+// src/types/schema.ts
+export interface EntityField {
+  name: string;
+  type: 'string' | 'integer' | 'decimal' | 'boolean' | 'date' | 'uuid' | 'reference';
+  required: boolean;
+}
+
+export interface Entity {
+  slug: string;
+  display_name: string;
+  fields: EntityField[];
+}
+
+export interface SDFPreview {
+  entities: Entity[];
+  relations: Relation[];
+}
 ```
 
 ### ERD Visualization (Simple CSS Boxes)
 
 No external library needed. Use flexbox/grid with CSS arrows:
 
-```jsx
+```tsx
+interface EntityCardProps {
+  entity: Entity;
+}
+
 // Simple entity box
-<div className="border-2 border-gray-700 rounded-lg p-4 bg-white shadow">
-  <div className="font-bold text-lg border-b pb-2">Product</div>
-  <ul className="text-sm mt-2 space-y-1">
-    <li>🔑 id (uuid)</li>
-    <li>📝 name (string)</li>
-    <li>🔢 quantity (integer)</li>
-    <li>💲 price (decimal)</li>
-  </ul>
-</div>
+function EntityCard({ entity }: EntityCardProps) {
+  return (
+    <div className="border-2 border-gray-700 rounded-lg p-4 bg-white shadow">
+      <div className="font-bold text-lg border-b pb-2">{entity.display_name}</div>
+      <ul className="text-sm mt-2 space-y-1">
+        {entity.fields.map(field => (
+          <li key={field.name}>
+            {field.name === 'id' ? '🔑' : '📝'} {field.name} ({field.type})
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 ```
 
 ### ⛔ Do NOT
@@ -935,16 +1078,18 @@ brick-library/                  ← YOUR ENTIRE DOMAIN
 ├── frontend-bricks/
 └── templates/
 
-platform/backend/src/
-├── assembler/                  ← YOUR DOMAIN
+platform/backend/src/assembler/                  ← YOUR DOMAIN
 │   ├── ProjectAssembler.js
 │   ├── BrickRepository.js
-│   └── SDFInterpreter.js
+│   ├── TemplateEngine.js       ← NEW: Handle substitutions
+│   └── generators/             ← NEW: Logic for specific files
+│       ├── BackendGenerator.js
+│       └── FrontendGenerator.js
 ```
 
 ---
 
-## Task C1: Brick Library Structure + Base Bricks
+## Task C1: Brick Library Structure & Template Engine
 
 **Day:** 1 (Jan 1)  
 **Duration:** 6-8 hours  
@@ -952,111 +1097,60 @@ platform/backend/src/
 
 ### What to Do
 
-1. Create complete folder structure for brick library
-2. Create `BaseController.js` brick (generic CRUD)
-3. Create `RepositoryInterface.js` (DAL contract)
-4. Create Dockerfile and docker-compose templates
-5. Create package.json template
+1. Create folder structure for brick library
+2. Implement `TemplateEngine.js` (simple regex-based replacement)
+3. Create `BaseController.js.hbs` (Handlebars-style template)
+4. Create `RepositoryInterface.js` (DAL contract)
+5. Create `manifest.json` for bricks to declare dependencies
 
-### Folder Structure
+### The Architecture Change: "Bricks are Templates"
 
-```
-brick-library/
-├── backend-bricks/
-│   ├── controllers/
-│   │   └── BaseController.js
-│   ├── services/
-│   │   └── .gitkeep
-│   └── repository/
-│       ├── RepositoryInterface.js
-│       └── FlatFileProvider.js
-├── frontend-bricks/
-│   ├── layouts/
-│   │   └── .gitkeep
-│   ├── components/
-│   │   └── .gitkeep
-│   └── registry/
-│       └── .gitkeep
-└── templates/
-    ├── Dockerfile.template
-    ├── docker-compose.template.yml
-    ├── package.json.template
-    └── README.template.md
-```
+Instead of copying static files, we will treat bricks as templates.
 
-### BaseController.js
-
+**brick-library/backend-bricks/controllers/BaseController.js.hbs**
 ```javascript
-// brick-library/backend-bricks/controllers/BaseController.js
-class BaseController {
-  constructor(repository, entitySlug) {
-    this.repository = repository;
-    this.entitySlug = entitySlug;
+// Note the placeholders: {{EntityName}}, {{entitySlug}}
+const FlatFileProvider = require('../repository/FlatFileProvider');
+
+class {{EntityName}}Controller {
+  constructor() {
+    this.repository = new FlatFileProvider('./data');
+    this.entitySlug = '{{entitySlug}}';
   }
 
   async getAll(req, res) {
-    try {
-      const items = await this.repository.findAll(this.entitySlug);
-      res.json(items);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
+    const items = await this.repository.findAll(this.entitySlug);
+    res.json(items);
   }
-
-  async getById(req, res) {
-    try {
-      const item = await this.repository.findById(this.entitySlug, req.params.id);
-      if (!item) return res.status(404).json({ error: 'Not found' });
-      res.json(item);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  async create(req, res) {
-    try {
-      const item = await this.repository.create(this.entitySlug, req.body);
-      res.status(201).json(item);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  async update(req, res) {
-    try {
-      const item = await this.repository.update(this.entitySlug, req.params.id, req.body);
-      if (!item) return res.status(404).json({ error: 'Not found' });
-      res.json(item);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  async delete(req, res) {
-    try {
-      const deleted = await this.repository.delete(this.entitySlug, req.params.id);
-      if (!deleted) return res.status(404).json({ error: 'Not found' });
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
+  // ... other methods ...
 }
 
-module.exports = BaseController;
+module.exports = {{EntityName}}Controller;
+```
+
+### TemplateEngine.js
+
+```javascript
+// platform/backend/src/assembler/TemplateEngine.js
+class TemplateEngine {
+  static render(template, context) {
+    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+      return context[key] || match;
+    });
+  }
+}
+module.exports = TemplateEngine;
 ```
 
 ### ⛔ Do NOT
 
-- Do NOT modify platform backend files (DEV-B's domain)
-- Do NOT create AI-related files (DEV-D's domain)
+- Do NOT install a heavy template engine like EJS/Pug yet. Simple string replacement is enough for Increment 1.
 
 ### ✅ Definition of Done
 
-- [ ] Folder structure created
-- [ ] BaseController has all CRUD methods
-- [ ] RepositoryInterface defines contract
-- [ ] Templates have placeholders for dynamic values
+- [ ] `TemplateEngine.render("Hello {{name}}", {name: "World"})` returns "Hello World"
+- [ ] BaseController template created with placeholders
+- [ ] Folder structure ready
 
 ---
 
@@ -1068,107 +1162,22 @@ module.exports = BaseController;
 
 ### What to Do
 
-1. Implement full `FlatFileProvider.js`
-2. Add file locking for concurrent access (optional)
-3. Add data validation before write
-4. Create test JSON files for validation
+1. Implement full `FlatFileProvider.js` (static file, no template needed)
+2. Add `ensureDataDir` utility
+3. Implement `findAll`, `findById`, `create`, `update`, `delete`
+4. Add basic "transaction" safety (write to temp file then rename)
 
-### FlatFileProvider.js
-
-```javascript
-// brick-library/backend-bricks/repository/FlatFileProvider.js
-const fs = require('fs').promises;
-const path = require('path');
-const { v4: uuid } = require('uuid');
-
-class FlatFileProvider {
-  constructor(dataPath = './data') {
-    this.dataPath = dataPath;
-  }
-
-  _getFilePath(entitySlug) {
-    return path.join(this.dataPath, `${entitySlug}.json`);
-  }
-
-  async _ensureFile(entitySlug) {
-    const filePath = this._getFilePath(entitySlug);
-    try {
-      await fs.access(filePath);
-    } catch {
-      await fs.mkdir(this.dataPath, { recursive: true });
-      await fs.writeFile(filePath, '[]');
-    }
-  }
-
-  async findAll(entitySlug) {
-    await this._ensureFile(entitySlug);
-    const data = await fs.readFile(this._getFilePath(entitySlug), 'utf8');
-    return JSON.parse(data);
-  }
-
-  async findById(entitySlug, id) {
-    const items = await this.findAll(entitySlug);
-    return items.find(item => item.id === id) || null;
-  }
-
-  async create(entitySlug, data) {
-    const items = await this.findAll(entitySlug);
-    const newItem = {
-      id: uuid(),
-      ...data,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    items.push(newItem);
-    await fs.writeFile(this._getFilePath(entitySlug), JSON.stringify(items, null, 2));
-    return newItem;
-  }
-
-  async update(entitySlug, id, data) {
-    const items = await this.findAll(entitySlug);
-    const index = items.findIndex(item => item.id === id);
-    if (index === -1) return null;
-    
-    items[index] = {
-      ...items[index],
-      ...data,
-      id: items[index].id, // Prevent ID change
-      created_at: items[index].created_at, // Preserve original
-      updated_at: new Date().toISOString()
-    };
-    
-    await fs.writeFile(this._getFilePath(entitySlug), JSON.stringify(items, null, 2));
-    return items[index];
-  }
-
-  async delete(entitySlug, id) {
-    const items = await this.findAll(entitySlug);
-    const index = items.findIndex(item => item.id === id);
-    if (index === -1) return false;
-    
-    items.splice(index, 1);
-    await fs.writeFile(this._getFilePath(entitySlug), JSON.stringify(items, null, 2));
-    return true;
-  }
-}
-
-module.exports = FlatFileProvider;
-```
-
-### ⛔ Do NOT
-
-- Do NOT add PostgreSQL implementation yet (Increment 2)
+*Note: This task remains largely the same as the original plan, as the repository layer is generic.*
 
 ### ✅ Definition of Done
 
-- [ ] All CRUD operations work with JSON files
+- [ ] CRUD operations work with JSON files in `./data`
 - [ ] Auto-creates data directory and files
-- [ ] Adds `id`, `created_at`, `updated_at` automatically
-- [ ] Handles file not found gracefully
+- [ ] IDs are auto-generated (UUID)
 
 ---
 
-## Task C3: Inventory Service Bricks
+## Task C3: Inventory Service Bricks (Templates)
 
 **Day:** 3 (Jan 3)  
 **Duration:** 6-8 hours  
@@ -1176,222 +1185,123 @@ module.exports = FlatFileProvider;
 
 ### What to Do
 
-1. Create `InventoryService.js` (stock quantity management)
-2. Create `StockValidationLogic.js` (prevent negative stock)
-3. Create `AlertTriggerLogic.js` (low stock threshold)
-4. Create `AuditTrailLogic.js` (log all changes)
+1. Create `InventoryService.js.hbs`
+2. Create `StockValidation.js.hbs`
+3. Create `AlertLogic.js.hbs`
+4. Define the **"Brick Manifest"** for Inventory
 
-### Files to Create
+### The Brick Manifest Concept
 
+We need to know *when* to use a brick.
+
+**brick-library/manifest.json**
+```json
+{
+  "inventory": {
+    "feature_flag": "stock_tracking",
+    "backend_files": [
+      { "src": "services/InventoryService.js.hbs", "dest": "src/services/{{EntityName}}InventoryService.js" }
+    ],
+    "dependencies": ["uuid"]
+  }
+}
 ```
-brick-library/backend-bricks/services/
-├── InventoryService.js
-├── StockValidationLogic.js
-├── AlertTriggerLogic.js
-└── AuditTrailLogic.js
-```
 
-### InventoryService.js
+### InventoryService.js.hbs
 
 ```javascript
-class InventoryService {
-  constructor(repository, entitySlug) {
+class {{EntityName}}InventoryService {
+  constructor(repository) {
     this.repository = repository;
-    this.entitySlug = entitySlug;
+    this.slug = '{{entitySlug}}';
   }
-
-  async adjustStock(id, delta) {
-    const item = await this.repository.findById(this.entitySlug, id);
-    if (!item) throw new Error('Item not found');
-    
-    const newQuantity = (item.quantity || 0) + delta;
-    return this.repository.update(this.entitySlug, id, { quantity: newQuantity });
-  }
-
-  async setStock(id, quantity) {
-    return this.repository.update(this.entitySlug, id, { quantity });
-  }
-
-  async getStockLevel(id) {
-    const item = await this.repository.findById(this.entitySlug, id);
-    return item?.quantity || 0;
-  }
+  // ... logic ...
 }
-
-module.exports = InventoryService;
 ```
-
-### StockValidationLogic.js
-
-```javascript
-class StockValidationLogic {
-  static validate(currentQuantity, delta) {
-    const newQuantity = currentQuantity + delta;
-    if (newQuantity < 0) {
-      throw new Error(`Insufficient stock. Current: ${currentQuantity}, Requested: ${Math.abs(delta)}`);
-    }
-    return true;
-  }
-
-  static wrap(inventoryService) {
-    const originalAdjustStock = inventoryService.adjustStock.bind(inventoryService);
-    
-    inventoryService.adjustStock = async function(id, delta) {
-      const item = await this.repository.findById(this.entitySlug, id);
-      StockValidationLogic.validate(item?.quantity || 0, delta);
-      return originalAdjustStock(id, delta);
-    };
-    
-    return inventoryService;
-  }
-}
-
-module.exports = StockValidationLogic;
-```
-
-### ⛔ Do NOT
-
-- Do NOT add customer/invoice services (future increments)
 
 ### ✅ Definition of Done
 
-- [ ] InventoryService can adjust/set stock
-- [ ] StockValidation prevents negative quantities
-- [ ] AlertTrigger checks threshold on updates
-- [ ] AuditTrail logs changes to _audit_log.json
+- [ ] Inventory templates created with placeholders
+- [ ] Logic handles stock increment/decrement
+- [ ] Manifest defines when these bricks should be injected
 
 ---
 
-## Task C4: Project Assembler Engine
+## Task C4: Assembler Engine - The "Wiring" Logic
 
 **Day:** 4 (Jan 4)  
-**Duration:** 8 hours  
+**Duration:** 10 hours (Heavy Load)  
 **Dependencies:** C3 complete  
 
 ### What to Do
 
-1. Create `BrickRepository.js` (reads from brick-library)
-2. Create `SDFInterpreter.js` (parses SDF, extracts hints)
-3. Create `ProjectAssembler.js` (main orchestrator)
-4. Implement brick injection logic
-5. Generate output folder with assembled files
+This is the most critical task. You aren't just copying files; you are generating the **Glue Code**.
 
-### Files to Create
+1. **Scaffold:** Generate package.json, folders, server.js
+2. **Hydrate:** Loop through SDF entities, render Controller/Service templates
+3. **Wire Routes:** Generate `routes/index.js` that imports all entity routes
+4. **Wire Server:** Generate `index.js` that uses the aggregated routes
 
+### Key Challenge: Generating `routes/index.js`
+
+You need to dynamically build the route registry.
+
+**assembler/generators/BackendGenerator.js** (Pseudocode)
+```javascript
+async generateRoutesIndex(outputDir, entities) {
+  let imports = '';
+  let mappings = '';
+
+  entities.forEach(entity => {
+    // e.g. const productsRouter = require('./productsRoutes');
+    imports += `const ${entity.slug}Router = require('./${entity.slug}Routes');\n`;
+    // e.g. router.use('/products', productsRouter);
+    mappings += `router.use('/${entity.slug}', ${entity.slug}Router);\n`;
+  });
+
+  const template = `
+    const express = require('express');
+    const router = express.Router();
+    ${imports}
+    ${mappings}
+    module.exports = router;
+  `;
+
+  await writeFile(path.join(outputDir, 'src/routes/index.js'), template);
+}
 ```
-platform/backend/src/assembler/
-├── ProjectAssembler.js
-├── BrickRepository.js
-├── SDFInterpreter.js
-└── ConfigGenerator.js
-```
 
-### ProjectAssembler.js (Core Logic)
+### ProjectAssembler.js
 
 ```javascript
-const fs = require('fs').promises;
-const path = require('path');
-const BrickRepository = require('./BrickRepository');
-const SDFInterpreter = require('./SDFInterpreter');
-const ConfigGenerator = require('./ConfigGenerator');
-
-class ProjectAssembler {
-  constructor(brickLibraryPath, outputPath) {
-    this.brickRepo = new BrickRepository(brickLibraryPath);
-    this.outputPath = outputPath;
+async assemble(projectId, sdf) {
+  // 1. Prepare
+  const context = { projectId, entities: sdf.entities };
+  
+  // 2. Base Backend
+  await this.backendGenerator.scaffold(outputDir);
+  
+  // 3. Entity Loop
+  for (const entity of sdf.entities) {
+    await this.backendGenerator.generateEntity(outputDir, entity);
   }
-
-  async assemble(projectId, sdf) {
-    const interpreter = new SDFInterpreter(sdf);
-    const outputDir = path.join(this.outputPath, projectId);
-    
-    // Create output structure
-    await this._createStructure(outputDir);
-    
-    // Copy base files
-    await this._copyTemplates(outputDir, sdf);
-    
-    // Assemble backend
-    await this._assembleBackend(outputDir, interpreter);
-    
-    // Assemble frontend
-    await this._assembleFrontend(outputDir, interpreter);
-    
-    // Generate configs
-    await this._generateConfigs(outputDir, interpreter);
-    
-    return outputDir;
-  }
-
-  async _assembleBackend(outputDir, interpreter) {
-    const services = interpreter.getRequiredServices();
-    
-    // Always copy base controller
-    await this.brickRepo.copyBrick('BaseController.js', 
-      path.join(outputDir, 'src/controllers/'));
-    
-    // Always copy repository
-    await this.brickRepo.copyBrick('FlatFileProvider.js',
-      path.join(outputDir, 'src/repository/'));
-    
-    // Copy required services based on SDF
-    for (const service of services) {
-      await this.brickRepo.copyBrick(`${service}.js`,
-        path.join(outputDir, 'src/services/'));
-    }
-    
-    // Generate entity-specific routes
-    for (const entity of interpreter.getEntities()) {
-      await this._generateEntityRoutes(outputDir, entity);
-    }
-  }
-
-  async _generateEntityRoutes(outputDir, entity) {
-    const routeTemplate = `
-const express = require('express');
-const router = express.Router();
-const BaseController = require('../controllers/BaseController');
-const FlatFileProvider = require('../repository/FlatFileProvider');
-
-const repository = new FlatFileProvider('./data');
-const controller = new BaseController(repository, '${entity.slug}');
-
-router.get('/', (req, res) => controller.getAll(req, res));
-router.get('/:id', (req, res) => controller.getById(req, res));
-router.post('/', (req, res) => controller.create(req, res));
-router.put('/:id', (req, res) => controller.update(req, res));
-router.delete('/:id', (req, res) => controller.delete(req, res));
-
-module.exports = router;
-`;
-    
-    await fs.writeFile(
-      path.join(outputDir, `src/routes/${entity.slug}Routes.js`),
-      routeTemplate
-    );
-  }
-
-  // ... other methods
+  
+  // 4. THE GLUE (Crucial)
+  await this.backendGenerator.generateRoutesIndex(outputDir, sdf.entities);
+  await this.backendGenerator.generatePackageJson(outputDir, sdf.entities);
 }
-
-module.exports = ProjectAssembler;
 ```
-
-### ⛔ Do NOT
-
-- Do NOT modify platform API endpoints (DEV-B's domain)
-- Do NOT add new AI prompts (DEV-D's domain)
 
 ### ✅ Definition of Done
 
-- [ ] BrickRepository can list and copy bricks
-- [ ] SDFInterpreter extracts entities and hints
-- [ ] Assembler creates complete output folder
-- [ ] Generated code is valid JavaScript/JSX
+- [ ] Assembler creates a runnable Node.js project
+- [ ] `routes/index.js` automatically includes ALL entities from SDF
+- [ ] `npm install` and `npm start` work in the generated folder
+- [ ] API responds to GET /api/{entity} for all entities
 
 ---
 
-## Task C5: Frontend Bricks
+## Task C5: Frontend Generator - Routing & Sidebar
 
 **Day:** 5 (Jan 5)  
 **Duration:** 8 hours  
@@ -1399,93 +1309,72 @@ module.exports = ProjectAssembler;
 
 ### What to Do
 
-1. Create `BasicTableView.jsx` brick
-2. Create `EntityForm.jsx` brick
-3. Create `DashboardLayout.jsx` brick
-4. Create `EntityRegistry.js` for component mapping
-5. Create `ui-config.json` generator
+1. Create `App.tsx.hbs` (The frontend glue)
+2. Create `Sidebar.tsx.hbs` (The navigation glue)
+3. Create `EntityPage.tsx.hbs` (Generic list/edit view)
+4. Implement `FrontendGenerator.js`
 
-### Files to Create
+### The "Glue" Logic for Frontend
 
+Just like the backend, the hard part is the wiring.
+
+**assembler/generators/FrontendGenerator.js** (Pseudocode)
+```javascript
+async generateAppRoutes(outputDir, entities) {
+  // We need to inject <Route> components into App.tsx
+  const routeLines = entities.map(e => 
+    `<Route path="/${e.slug}" element={<EntityPage entity="${e.slug}" />} />`
+  ).join('\n');
+
+  // Render App.tsx template with this variable
+  await this.renderTemplate('App.tsx.hbs', { routeDefinitions: routeLines });
+}
+
+async generateSidebar(outputDir, entities) {
+  // Generate navigation links
+  const links = entities.map(e => 
+    `<Link to="/${e.slug}">${e.display_name}</Link>`
+  ).join('\n');
+  
+  await this.renderTemplate('Sidebar.tsx.hbs', { navLinks: links });
+}
 ```
-brick-library/frontend-bricks/
-├── layouts/
-│   └── DashboardLayout.jsx
-├── components/
-│   ├── BasicTableView.jsx
-│   ├── EntityForm.jsx
-│   └── AlertBanner.jsx
-└── registry/
-    └── EntityRegistry.js
-```
 
-### BasicTableView.jsx
+### EntityPage.tsx.hbs
 
-```jsx
-// brick-library/frontend-bricks/components/BasicTableView.jsx
-import React, { useState, useEffect } from 'react';
+This should be a "Smart Component" that takes the entity slug and configures the `BasicTableView` (from Day 5 original plan).
 
-function BasicTableView({ entitySlug, fields, apiUrl }) {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+```tsx
+import BasicTableView from '../components/BasicTableView';
 
-  useEffect(() => {
-    fetch(`${apiUrl}/api/${entitySlug}`)
-      .then(res => res.json())
-      .then(data => {
-        setItems(data);
-        setLoading(false);
-      });
-  }, [entitySlug, apiUrl]);
-
-  if (loading) return <div>Loading...</div>;
+export default function {{EntityName}}Page() {
+  const fields = [
+    {{#each fields}}
+    { key: '{{this.name}}', label: '{{this.name}}', type: '{{this.type}}' },
+    {{/each}}
+  ];
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full bg-white border">
-        <thead className="bg-gray-100">
-          <tr>
-            {fields.map(field => (
-              <th key={field.key} className="px-4 py-2 text-left">
-                {field.label}
-              </th>
-            ))}
-            <th className="px-4 py-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map(item => (
-            <tr key={item.id} className="border-t">
-              {fields.map(field => (
-                <td key={field.key} className="px-4 py-2">
-                  {item[field.key]}
-                </td>
-              ))}
-              <td className="px-4 py-2">
-                <button className="text-blue-600 mr-2">Edit</button>
-                <button className="text-red-600">Delete</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">{{DisplayName}}</h1>
+      <BasicTableView entitySlug="{{entitySlug}}" fields={fields} />
     </div>
   );
 }
-
-export default BasicTableView;
 ```
 
 ### ⛔ Do NOT
 
+- Do NOT skip implementing relationship handling. If a field is `reference`, the `BasicTableView` MUST render a link or a lookup name, not just the raw UUID.
 - Do NOT modify platform frontend (DEV-A's domain)
 
 ### ✅ Definition of Done
 
-- [ ] BasicTableView renders any entity dynamically
-- [ ] EntityForm creates forms from field definitions
-- [ ] Registry maps entity slugs to components
-- [ ] ui-config.json template generates correctly
+- [ ] Generated `App.tsx` has routes for all entities
+- [ ] Generated `Sidebar.tsx` has links for all entities
+- [ ] Generated `EntityPage` passes correct schema to BasicTableView
+- [ ] `BasicTableView` handles `reference` type fields correctly (displays name instead of ID if possible, or link)
+- [ ] Frontend compiles and runs
 
 ---
 

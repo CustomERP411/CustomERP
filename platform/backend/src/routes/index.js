@@ -1,23 +1,26 @@
 const express = require('express');
 const router = express.Router();
 
-// Import route modules (will be added in subsequent tasks)
-// const authRoutes = require('./authRoutes');
-// const projectRoutes = require('./projectRoutes');
+// Import route modules
+const authRoutes = require('./authRoutes');
+// const projectRoutes = require('./projectRoutes'); // Task B3
 
 // Route mounting
-// router.use('/auth', authRoutes);
-// router.use('/projects', projectRoutes);
+router.use('/auth', authRoutes);
+// router.use('/projects', projectRoutes); // Task B3
 
-// Placeholder route for testing
+// API info endpoint
 router.get('/', (req, res) => {
   res.json({ 
     message: 'CustomERP API v1.0',
+    version: '1.0.0',
     endpoints: {
       health: 'GET /health',
       auth: {
-        register: 'POST /api/auth/register (coming in Task B2)',
-        login: 'POST /api/auth/login (coming in Task B2)',
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login',
+        me: 'GET /api/auth/me (protected)',
+        logout: 'POST /api/auth/logout (protected)',
       },
       projects: {
         list: 'GET /api/projects (coming in Task B3)',
@@ -28,4 +31,3 @@ router.get('/', (req, res) => {
 });
 
 module.exports = router;
-

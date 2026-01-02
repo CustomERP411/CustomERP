@@ -96,7 +96,12 @@ services:
     container_name: customwerp-ai-gateway
     environment:
       GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
       PORT: 8000
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
+      AI_MAX_RETRIES: ${AI_MAX_RETRIES:-3}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-false}
     ports:
       - "8000:8000"
     volumes:

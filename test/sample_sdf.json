@@ -1,0 +1,92 @@
+{
+  "project_name": "Inventory Feature Test ERP",
+  "entities": [
+    {
+      "slug": "categories",
+      "display_name": "Categories",
+      "fields": [
+        { "name": "name", "type": "string", "required": true },
+        { "name": "description", "type": "text", "required": false },
+        { "name": "is_active", "type": "boolean", "required": false }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "suppliers",
+      "display_name": "Suppliers",
+      "fields": [
+        { "name": "name", "type": "string", "required": true },
+        { "name": "email", "type": "string", "required": false },
+        { "name": "phone", "type": "string", "required": false },
+        { "name": "is_active", "type": "boolean", "required": false }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "locations",
+      "display_name": "Warehouse Locations",
+      "fields": [
+        { "name": "name", "type": "string", "required": true },
+        { "name": "site", "type": "string", "required": false },
+        { "name": "zone", "type": "string", "required": false },
+        { "name": "bin", "type": "string", "required": false },
+        { "name": "is_active", "type": "boolean", "required": false }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "products",
+      "display_name": "Products",
+      "fields": [
+        { "name": "sku", "type": "string", "required": true },
+        { "name": "name", "type": "string", "required": true },
+        { "name": "description", "type": "text", "required": false },
+        { "name": "category_id", "type": "reference", "required": false },
+        { "name": "supplier_id", "type": "reference", "required": false },
+        { "name": "barcode", "type": "string", "required": false },
+        { "name": "uom", "type": "string", "required": false },
+        { "name": "unit_price", "type": "decimal", "required": true },
+        { "name": "reorder_point", "type": "integer", "required": false },
+        { "name": "quantity", "type": "integer", "required": false },
+        { "name": "is_active", "type": "boolean", "required": false }
+      ],
+      "features": {
+        "batch_tracking": true,
+        "audit_trail": true,
+        "multi_location": true
+      }
+    },
+    {
+      "slug": "devices",
+      "display_name": "Serialized Devices",
+      "fields": [
+        { "name": "sku", "type": "string", "required": true },
+        { "name": "name", "type": "string", "required": true },
+        { "name": "category_id", "type": "reference", "required": false },
+        { "name": "notes", "type": "text", "required": false }
+      ],
+      "features": {
+        "serial_tracking": true,
+        "audit_trail": true
+      }
+    },
+    {
+      "slug": "stock_movements",
+      "display_name": "Stock Movements",
+      "fields": [
+        { "name": "product_id", "type": "reference", "required": true },
+        { "name": "movement_type", "type": "string", "required": true },
+        { "name": "quantity", "type": "integer", "required": true },
+        { "name": "location_id", "type": "reference", "required": false },
+        { "name": "reason", "type": "string", "required": false },
+        { "name": "reference_number", "type": "string", "required": false },
+        { "name": "movement_date", "type": "date", "required": false },
+        { "name": "is_reversal", "type": "boolean", "required": false }
+      ],
+      "features": {
+        "audit_trail": true
+      }
+    }
+  ]
+}
+

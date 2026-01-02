@@ -1075,306 +1075,226 @@ async function download(req, res) {
 ```
 brick-library/                  ← YOUR ENTIRE DOMAIN
 ├── backend-bricks/
+│   ├── core/                   ← Base classes
+│   └── mixins/                 ← Feature traits (Batch, Serial, Audit)
 ├── frontend-bricks/
 └── templates/
 
 platform/backend/src/assembler/                  ← YOUR DOMAIN
 │   ├── ProjectAssembler.js
-│   ├── BrickRepository.js
-│   ├── TemplateEngine.js       ← NEW: Handle substitutions
-│   └── generators/             ← NEW: Logic for specific files
+│   ├── CodeWeaver.js           ← NEW: Advanced injection engine
+│   └── generators/
 │       ├── BackendGenerator.js
 │       └── FrontendGenerator.js
 ```
 
 ---
 
-## Task C1: Brick Library Structure & Template Engine
+## Task C1: Core Architecture & The "Code Weaver"
 
 **Day:** 1 (Jan 1)  
-**Duration:** 6-8 hours  
+**Duration:** 8 hours  
 **Dependencies:** None  
 
-### What to Do
-
-1. Create folder structure for brick library
-2. Implement `TemplateEngine.js` (simple regex-based replacement)
-3. Create `BaseController.js.hbs` (Handlebars-style template)
-4. Create `RepositoryInterface.js` (DAL contract)
-5. Create `manifest.json` for bricks to declare dependencies
-
-### The Architecture Change: "Bricks are Templates"
-
-Instead of copying static files, we will treat bricks as templates.
-
-**brick-library/backend-bricks/controllers/BaseController.js.hbs**
-```javascript
-// Note the placeholders: {{EntityName}}, {{entitySlug}}
-const FlatFileProvider = require('../repository/FlatFileProvider');
-
-class {{EntityName}}Controller {
-  constructor() {
-    this.repository = new FlatFileProvider('./data');
-    this.entitySlug = '{{entitySlug}}';
-  }
-
-  async getAll(req, res) {
-    const items = await this.repository.findAll(this.entitySlug);
-    res.json(items);
-  }
-  // ... other methods ...
-}
-
-module.exports = {{EntityName}}Controller;
-```
-
-### TemplateEngine.js
-
-```javascript
-// platform/backend/src/assembler/TemplateEngine.js
-class TemplateEngine {
-  static render(template, context) {
-    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      return context[key] || match;
-    });
-  }
-}
-module.exports = TemplateEngine;
-```
-
-### ⛔ Do NOT
-
-- Do NOT install a heavy template engine like EJS/Pug yet. Simple string replacement is enough for Increment 1.
-
-### ✅ Definition of Done
-
-- [ ] `TemplateEngine.render("Hello {{name}}", {name: "World"})` returns "Hello World"
-- [ ] BaseController template created with placeholders
-- [ ] Folder structure ready
-
----
-
-## Task C2: FlatFileProvider Implementation
-
-**Day:** 2 (Jan 2)  
-**Duration:** 6-8 hours  
-**Dependencies:** C1 complete  
+### Goal
+Build the engine that can inject code snippets ("Mixins") into base templates at specific "Hook Points."
 
 ### What to Do
 
-1. Implement full `FlatFileProvider.js` (static file, no template needed)
-2. Add `ensureDataDir` utility
-3. Implement `findAll`, `findById`, `create`, `update`, `delete`
-4. Add basic "transaction" safety (write to temp file then rename)
+1.  **Implement `CodeWeaver.js`**: A utility that reads a template and injects code at defined markers (e.g., `// @HOOK: BEFORE_CREATE`).
+2.  **Create `BaseService.js.hbs`**: The skeleton service with hook points.
+3.  **Create `RepositoryInterface.js`**: Extended to support query filters (needed for relations).
 
-*Note: This task remains largely the same as the original plan, as the repository layer is generic.*
+### Architecture: The Hook System
 
-### ✅ Definition of Done
-
-- [ ] CRUD operations work with JSON files in `./data`
-- [ ] Auto-creates data directory and files
-- [ ] IDs are auto-generated (UUID)
-
----
-
-## Task C3: Inventory Service Bricks (Templates)
-
-**Day:** 3 (Jan 3)  
-**Duration:** 6-8 hours  
-**Dependencies:** C2 complete  
-
-### What to Do
-
-1. Create `InventoryService.js.hbs`
-2. Create `StockValidation.js.hbs`
-3. Create `AlertLogic.js.hbs`
-4. Define the **"Brick Manifest"** for Inventory
-
-### The Brick Manifest Concept
-
-We need to know *when* to use a brick.
-
-**brick-library/manifest.json**
-```json
-{
-  "inventory": {
-    "feature_flag": "stock_tracking",
-    "backend_files": [
-      { "src": "services/InventoryService.js.hbs", "dest": "src/services/{{EntityName}}InventoryService.js" }
-    ],
-    "dependencies": ["uuid"]
-  }
-}
-```
-
-### InventoryService.js.hbs
-
+**brick-library/backend-bricks/core/BaseService.js.hbs**
 ```javascript
-class {{EntityName}}InventoryService {
+class {{EntityName}}Service {
   constructor(repository) {
     this.repository = repository;
-    this.slug = '{{entitySlug}}';
   }
-  // ... logic ...
+
+  async create(data) {
+    // @HOOK: BEFORE_CREATE_VALIDATION
+    
+    // @HOOK: BEFORE_CREATE_TRANSFORMATION
+    
+    const result = await this.repository.create(this.slug, data);
+    
+    // @HOOK: AFTER_CREATE_LOGGING
+    
+    return result;
+  }
+}
+```
+
+**platform/backend/src/assembler/CodeWeaver.js**
+```javascript
+class CodeWeaver {
+  constructor(baseTemplate) {
+    this.content = baseTemplate;
+  }
+
+  inject(hookName, codeSnippet) {
+    const marker = `// @HOOK: ${hookName}`;
+    this.content = this.content.replace(marker, `${marker}\n${codeSnippet}`);
+  }
 }
 ```
 
 ### ✅ Definition of Done
-
-- [ ] Inventory templates created with placeholders
-- [ ] Logic handles stock increment/decrement
-- [ ] Manifest defines when these bricks should be injected
+- [ ] `CodeWeaver` can inject strings into markers.
+- [ ] `BaseService` has hooks for all CRUD operations.
+- [ ] `BaseController` is created.
 
 ---
 
-## Task C4: Assembler Engine - The "Wiring" Logic
+## Task C2: Data Layer with Relations
 
-**Day:** 4 (Jan 4)  
-**Duration:** 10 hours (Heavy Load)  
-**Dependencies:** C3 complete  
+**Day:** 2 (Jan 2)  
+**Duration:** 8 hours  
+**Dependencies:** C1 complete  
+
+### Goal
+A `FlatFileProvider` that supports basic relational queries to handle the "Relationships" requirement.
 
 ### What to Do
 
-This is the most critical task. You aren't just copying files; you are generating the **Glue Code**.
+1.  **Implement `FlatFileProvider.js`**:
+    *   `findAll(entity, filter)`: Support `{ category_id: "123" }` filtering.
+    *   `findWithRelation(entity, id, relation)`: Simple join logic (e.g., get Product + its Category).
+2.  **Implement Transaction Safety**: Atomic writes (write-replace) to prevent corruption.
 
-1. **Scaffold:** Generate package.json, folders, server.js
-2. **Hydrate:** Loop through SDF entities, render Controller/Service templates
-3. **Wire Routes:** Generate `routes/index.js` that imports all entity routes
-4. **Wire Server:** Generate `index.js` that uses the aggregated routes
-
-### Key Challenge: Generating `routes/index.js`
-
-You need to dynamically build the route registry.
-
-**assembler/generators/BackendGenerator.js** (Pseudocode)
+### Key Logic: Filtering
 ```javascript
-async generateRoutesIndex(outputDir, entities) {
-  let imports = '';
-  let mappings = '';
-
-  entities.forEach(entity => {
-    // e.g. const productsRouter = require('./productsRoutes');
-    imports += `const ${entity.slug}Router = require('./${entity.slug}Routes');\n`;
-    // e.g. router.use('/products', productsRouter);
-    mappings += `router.use('/${entity.slug}', ${entity.slug}Router);\n`;
+async findAll(entitySlug, filter = {}) {
+  const items = await this._read(entitySlug);
+  if (Object.keys(filter).length === 0) return items;
+  
+  return items.filter(item => {
+    return Object.entries(filter).every(([key, val]) => item[key] === val);
   });
-
-  const template = `
-    const express = require('express');
-    const router = express.Router();
-    ${imports}
-    ${mappings}
-    module.exports = router;
-  `;
-
-  await writeFile(path.join(outputDir, 'src/routes/index.js'), template);
-}
-```
-
-### ProjectAssembler.js
-
-```javascript
-async assemble(projectId, sdf) {
-  // 1. Prepare
-  const context = { projectId, entities: sdf.entities };
-  
-  // 2. Base Backend
-  await this.backendGenerator.scaffold(outputDir);
-  
-  // 3. Entity Loop
-  for (const entity of sdf.entities) {
-    await this.backendGenerator.generateEntity(outputDir, entity);
-  }
-  
-  // 4. THE GLUE (Crucial)
-  await this.backendGenerator.generateRoutesIndex(outputDir, sdf.entities);
-  await this.backendGenerator.generatePackageJson(outputDir, sdf.entities);
 }
 ```
 
 ### ✅ Definition of Done
-
-- [ ] Assembler creates a runnable Node.js project
-- [ ] `routes/index.js` automatically includes ALL entities from SDF
-- [ ] `npm install` and `npm start` work in the generated folder
-- [ ] API responds to GET /api/{entity} for all entities
+- [ ] Provider supports filtering by fields.
+- [ ] Atomic writes prevent data corruption.
+- [ ] `ensureDataDir` creates folders automatically.
 
 ---
 
-## Task C5: Frontend Generator - Routing & Sidebar
+## Task C3: The Mixin Library (Inventory Features)
+
+**Day:** 3 (Jan 3)  
+**Duration:** 8 hours  
+**Dependencies:** C2 complete  
+
+### Goal
+Create the "Traits" that implement the features in `FUNCTIONAL_SCOPE.md`.
+
+### What to Do
+
+1.  **Create `InventoryMixin.js`**: Adds `quantity` field logic.
+2.  **Create `BatchTrackingMixin.js`**: 
+    *   Hook: `BEFORE_CREATE` -> Validate batch number & expiry.
+    *   Hook: `SCHEMA_EXTEND` -> Add `batch_number`, `expiry_date` fields.
+3.  **Create `AuditMixin.js`**:
+    *   Hook: `AFTER_*` -> Log action to `audit_logs` table.
+4.  **Create `LocationMixin.js`**:
+    *   Splits inventory by `location_id`.
+
+### Example: AuditMixin.js (Snippet)
+```javascript
+// stored in brick-library/backend-bricks/mixins/AuditMixin.js
+module.exports = {
+  hooks: {
+    'AFTER_CREATE_LOGGING': `
+      await this.auditRepo.log({
+        action: 'CREATE',
+        entity: '{{entitySlug}}',
+        user: context.user.id,
+        timestamp: new Date()
+      });
+    `
+  }
+}
+```
+
+### ✅ Definition of Done
+- [ ] Mixins created for: Inventory, Batch, Audit.
+- [ ] Mixins define clear code snippets for specific hooks.
+
+---
+
+## Task C4: The "Feature-Aware" Assembler
+
+**Day:** 4 (Jan 4)  
+**Duration:** 10 hours  
+**Dependencies:** C3 complete  
+
+### Goal
+The "Architect" that parses the SDF and weaves the correct Mixins.
+
+### What to Do
+
+1.  **Scaffolding**: Standard package.json, server.js generation.
+2.  **SDF Analysis Logic**:
+    *   If entity has `features: ["batch_tracking"]` -> Apply `BatchTrackingMixin`.
+    *   If entity has `features: ["audit"]` -> Apply `AuditMixin`.
+3.  **Code Weaving**: Use `CodeWeaver` to merge Mixins into `BaseService`.
+4.  **Route Wiring**: Auto-generate `routes/index.js`.
+
+### Logic Flow
+```javascript
+// inside BackendGenerator.js
+async generateService(entity, outputDir) {
+  let serviceCode = await this.repo.get('BaseService.js.hbs');
+  const weaver = new CodeWeaver(serviceCode);
+
+  // Apply Mixins
+  if (entity.features.includes('batch_tracking')) {
+    const mixin = require('../../brick-library/mixins/BatchTrackingMixin');
+    Object.entries(mixin.hooks).forEach(([hook, code]) => {
+      weaver.inject(hook, code);
+    });
+  }
+
+  // Write file
+  await fs.writeFile(dest, weaver.getContent());
+}
+```
+
+### ✅ Definition of Done
+- [ ] Assembler generates a Service file that contains logic from MULTIPLE mixins.
+- [ ] Routes are automatically wired.
+- [ ] Server starts and exposes endpoints.
+
+---
+
+## Task C5: "Widget-Based" Frontend Generator
 
 **Day:** 5 (Jan 5)  
 **Duration:** 8 hours  
 **Dependencies:** C4 complete  
 
+### Goal
+Generate a UI that adapts to the features (e.g., show a "Batch Selector" if batch tracking is on).
+
 ### What to Do
 
-1. Create `App.tsx.hbs` (The frontend glue)
-2. Create `Sidebar.tsx.hbs` (The navigation glue)
-3. Create `EntityPage.tsx.hbs` (Generic list/edit view)
-4. Implement `FrontendGenerator.js`
-
-### The "Glue" Logic for Frontend
-
-Just like the backend, the hard part is the wiring.
-
-**assembler/generators/FrontendGenerator.js** (Pseudocode)
-```javascript
-async generateAppRoutes(outputDir, entities) {
-  // We need to inject <Route> components into App.tsx
-  const routeLines = entities.map(e => 
-    `<Route path="/${e.slug}" element={<EntityPage entity="${e.slug}" />} />`
-  ).join('\n');
-
-  // Render App.tsx template with this variable
-  await this.renderTemplate('App.tsx.hbs', { routeDefinitions: routeLines });
-}
-
-async generateSidebar(outputDir, entities) {
-  // Generate navigation links
-  const links = entities.map(e => 
-    `<Link to="/${e.slug}">${e.display_name}</Link>`
-  ).join('\n');
-  
-  await this.renderTemplate('Sidebar.tsx.hbs', { navLinks: links });
-}
-```
-
-### EntityPage.tsx.hbs
-
-This should be a "Smart Component" that takes the entity slug and configures the `BasicTableView` (from Day 5 original plan).
-
-```tsx
-import BasicTableView from '../components/BasicTableView';
-
-export default function {{EntityName}}Page() {
-  const fields = [
-    {{#each fields}}
-    { key: '{{this.name}}', label: '{{this.name}}', type: '{{this.type}}' },
-    {{/each}}
-  ];
-
-  return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">{{DisplayName}}</h1>
-      <BasicTableView entitySlug="{{entitySlug}}" fields={fields} />
-    </div>
-  );
-}
-```
-
-### ⛔ Do NOT
-
-- Do NOT skip implementing relationship handling. If a field is `reference`, the `BasicTableView` MUST render a link or a lookup name, not just the raw UUID.
-- Do NOT modify platform frontend (DEV-A's domain)
+1.  **Create `FieldRegistry`**: Maps data types to UI Components.
+    *   `string` -> `Input`
+    *   `reference` -> `EntitySelect` (Dropdown)
+    *   `date` -> `DatePicker`
+2.  **Create `DynamicForm.tsx.hbs`**: Iterates through fields and renders correct widgets.
+3.  **Create `ReferenceWidget.tsx`**: Fetches related items for dropdowns.
+4.  **Wiring**: Generate `App.tsx` and `Sidebar.tsx`.
 
 ### ✅ Definition of Done
-
-- [ ] Generated `App.tsx` has routes for all entities
-- [ ] Generated `Sidebar.tsx` has links for all entities
-- [ ] Generated `EntityPage` passes correct schema to BasicTableView
-- [ ] `BasicTableView` handles `reference` type fields correctly (displays name instead of ID if possible, or link)
-- [ ] Frontend compiles and runs
+- [ ] Forms automatically include fields for Mixins (e.g., Expiry Date shows up if Batch Tracking is on).
+- [ ] Reference fields render as Dropdowns, not text IDs.
+- [ ] Sidebar links to all entities.
 
 ---
 
@@ -1386,16 +1306,53 @@ export default function {{EntityName}}Page() {
 
 ### What to Do
 
-1. Test full assembly pipeline
-2. Verify generated code runs in Docker
-3. Fix any brick bugs
-4. Ensure all templates have correct placeholders
+1.  **Generate a Complex ERP**: Feed a "Pharma Distributor" description (requires Batches + Expiry).
+2.  **Verify**:
+    *   Can I create a Batch?
+    *   Does Expiry validation work?
+    *   Does the Audit Log record my changes?
+3.  **Docker Test**: Ensure it runs in container.
 
 ### ✅ Definition of Done
+- [ ] "Pharma" scenario fully working.
+- [ ] "Electronics" scenario (Serials) fully working.
+- [ ] No manual code changes required after generation.
 
-- [ ] Assembled project runs with `docker compose up`
-- [ ] CRUD operations work on generated entities
-- [ ] UI renders all entities from config
+---
+
+## Task C7: Operations & Visual Polish (Bonus)
+
+**Day:** 6+ (Extension)
+**Focus:** Turning a CRUD app into a usable Product.
+
+### 1. Operation Bricks (Workflows)
+Instead of just tables, generate "Action Buttons" that open specific modals.
+*   **Stock Receive Wizard:** A simplified form that only asks for "Item", "Qty", "Batch" (hides internal IDs).
+*   **Stock Transfer Wizard:** "From Location" -> "To Location" -> "Qty".
+
+### 2. UI/UX Polish
+*   **Navigation:** Breadcrumbs, Active state on sidebar.
+*   **Feedback:** Toast notifications (Success/Error) instead of `alert()`.
+*   **Dashboard:** A home page with widgets (Low Stock Count, Recent Activity).
+
+### 3. Data Tools
+*   **CSV Import:** A generic `ImportModal` that accepts a CSV, maps headers to fields, and bulk-POSTs to the API.
+*   **PDF Export:** A button to render the current record as a clean HTML template and trigger `window.print()`.
+
+### Updated Frontend Structure
+```
+src/
+  components/
+    Wizards/
+      ReceiveStockWizard.tsx
+      TransferStockWizard.tsx
+    Tools/
+      ImportModal.tsx
+      PrintButton.tsx
+    Layout/
+      DashboardLayout.tsx (Better visuals)
+```
+
 
 ---
 

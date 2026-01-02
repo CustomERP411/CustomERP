@@ -1,0 +1,51 @@
+// brick-library/backend-bricks/core/BaseService.js.hbs
+class {{EntityName}}Service {
+  constructor(repository) {
+    this.repository = repository;
+    this.slug = '{{entitySlug}}';
+  }
+
+  async create(data) {
+    // @HOOK: BEFORE_CREATE_VALIDATION
+    
+    // @HOOK: BEFORE_CREATE_TRANSFORMATION
+    
+    const result = await this.repository.create(this.slug, data);
+    
+    // @HOOK: AFTER_CREATE_LOGGING
+    
+    return result;
+  }
+
+  async update(id, data) {
+    // @HOOK: BEFORE_UPDATE_VALIDATION
+    
+    const result = await this.repository.update(this.slug, id, data);
+    
+    // @HOOK: AFTER_UPDATE_LOGGING
+
+    return result;
+  }
+
+  async delete(id) {
+    // @HOOK: BEFORE_DELETE_VALIDATION
+
+    const result = await this.repository.delete(this.slug, id);
+    
+    // @HOOK: AFTER_DELETE_LOGGING
+
+    return result;
+  }
+
+  async findById(id) {
+    return this.repository.findById(this.slug, id);
+  }
+
+  async findAll(filter = {}) {
+    return this.repository.findAll(this.slug, filter);
+  }
+
+  // @HOOK: ADDITIONAL_METHODS
+}
+
+module.exports = {{EntityName}}Service;

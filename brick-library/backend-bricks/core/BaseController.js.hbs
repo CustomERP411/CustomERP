@@ -1,15 +1,16 @@
-// Note the placeholders: {{EntityName}}, {{entitySlug}}
+// brick-library/backend-bricks/core/BaseController.js.hbs
 const FlatFileProvider = require('../repository/FlatFileProvider');
+const {{EntityName}}Service = require('../services/{{EntityName}}Service');
 
 class {{EntityName}}Controller {
   constructor() {
     this.repository = new FlatFileProvider('./data');
-    this.entitySlug = '{{entitySlug}}';
+    this.service = new {{EntityName}}Service(this.repository);
   }
 
   async getAll(req, res) {
     try {
-      const items = await this.repository.findAll(this.entitySlug);
+      const items = await this.service.findAll(req.query);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -18,7 +19,7 @@ class {{EntityName}}Controller {
 
   async getById(req, res) {
     try {
-      const item = await this.repository.findById(this.entitySlug, req.params.id);
+      const item = await this.service.findById(req.params.id);
       if (!item) return res.status(404).json({ error: 'Not found' });
       res.json(item);
     } catch (error) {
@@ -28,27 +29,27 @@ class {{EntityName}}Controller {
 
   async create(req, res) {
     try {
-      const item = await this.repository.create(this.entitySlug, req.body);
+      const item = await this.service.create(req.body);
       res.status(201).json(item);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(400).json({ error: error.message });
     }
   }
 
   async update(req, res) {
     try {
-      const item = await this.repository.update(this.entitySlug, req.params.id, req.body);
+      const item = await this.service.update(req.params.id, req.body);
       if (!item) return res.status(404).json({ error: 'Not found' });
       res.json(item);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(400).json({ error: error.message });
     }
   }
 
   async delete(req, res) {
     try {
-      const deleted = await this.repository.delete(this.entitySlug, req.params.id);
-      if (!deleted) return res.status(404).json({ error: 'Not found' });
+      const result = await this.service.delete(req.params.id);
+      if (!result) return res.status(404).json({ error: 'Not found' });
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: error.message });

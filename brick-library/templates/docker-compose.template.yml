@@ -8,3 +8,4 @@ services:
       - ./data:/app/data
     environment:
       - PORT=3000
+

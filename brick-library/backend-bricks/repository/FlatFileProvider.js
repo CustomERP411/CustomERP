@@ -95,9 +95,15 @@ class FlatFileProvider {
 
   async create(entitySlug, data) {
     const items = await this._read(entitySlug);
+    // Prevent caller from setting protected fields like id/timestamps
+    const safeData = data && typeof data === 'object' ? { ...data } : {};
+    delete safeData.id;
+    delete safeData.created_at;
+    delete safeData.updated_at;
+
     const newItem = {
+      ...safeData,
       id: uuid(),
-      ...data,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

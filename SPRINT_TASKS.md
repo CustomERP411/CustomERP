@@ -1080,7 +1080,7 @@ brick-library/                  ← YOUR ENTIRE DOMAIN
 ├── frontend-bricks/
 └── templates/
 
-platform/backend/src/assembler/                  ← YOUR DOMAIN
+platform/assembler/                              ← YOUR DOMAIN
 │   ├── ProjectAssembler.js
 │   ├── CodeWeaver.js           ← NEW: Advanced injection engine
 │   └── generators/
@@ -1128,7 +1128,7 @@ class {{EntityName}}Service {
 }
 ```
 
-**platform/backend/src/assembler/CodeWeaver.js**
+**platform/assembler/CodeWeaver.js**
 ```javascript
 class CodeWeaver {
   constructor(baseTemplate) {
@@ -1137,7 +1137,9 @@ class CodeWeaver {
 
   inject(hookName, codeSnippet) {
     const marker = `// @HOOK: ${hookName}`;
-    this.content = this.content.replace(marker, `${marker}\n${codeSnippet}`);
+    // IMPORTANT: use function replacement so `$` in injected snippets is not treated specially
+    // by String.replace (e.g. regex patterns ending with `$`).
+    this.content = this.content.replace(marker, (match) => `${match}\n    ${codeSnippet}`);
   }
 }
 ```

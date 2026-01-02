@@ -1,54 +1,177 @@
 {
-  "project_name": "Inventory Feature Test ERP",
+  "project_name": "Inventory Feature Test ERP (Generator v2)",
+  "modules": {
+    "activity_log": { "enabled": true, "limit": 25 },
+    "inventory_dashboard": {
+      "low_stock": {
+        "enabled": true,
+        "entity": "products",
+        "quantity_field": "quantity",
+        "reorder_point_field": "reorder_point",
+        "limit": 10,
+        "suggestion_multiplier": 1
+      },
+      "expiry": {
+        "enabled": true,
+        "entity": "products",
+        "expiry_field": "expiry_date",
+        "within_days": 60,
+        "limit": 10
+      }
+    },
+    "scheduled_reports": {
+      "enabled": true,
+      "cron": "0 8 * * *",
+      "entities": ["products", "stock_movements", "locations"],
+      "target_slug": "__reports",
+      "report_type": "daily_summary",
+      "low_stock": {
+        "enabled": true,
+        "entity": "products",
+        "quantity_field": "quantity",
+        "reorder_point_field": "reorder_point",
+        "limit": 10
+      },
+      "expiry": {
+        "enabled": true,
+        "entity": "products",
+        "expiry_field": "expiry_date",
+        "within_days": 60,
+        "limit": 10
+      },
+      "inventory_value": {
+        "enabled": true,
+        "entity": "products",
+        "quantity_field": "quantity",
+        "unit_price_field": "unit_price",
+        "limit": 10
+      },
+      "movements": {
+        "enabled": true,
+        "entity": "stock_movements",
+        "type_field": "movement_type",
+        "quantity_field": "quantity",
+        "date_field": "movement_date",
+        "item_ref_field": "product_id",
+        "lookback_days": 30,
+        "limit": 25,
+        "in_types": ["IN", "TRANSFER_IN"],
+        "out_types": ["OUT", "TRANSFER_OUT"],
+        "adjust_types": ["ADJUSTMENT"]
+      }
+    }
+  },
   "entities": [
     {
       "slug": "categories",
       "display_name": "Categories",
+      "display_field": "name",
+      "ui": { "search": false, "csv_import": false, "csv_export": false, "print": false },
+      "list": { "columns": ["name", "description", "is_active"] },
       "fields": [
-        { "name": "name", "type": "string", "required": true },
-        { "name": "description", "type": "text", "required": false },
-        { "name": "is_active", "type": "boolean", "required": false }
+        { "name": "name", "type": "string", "label": "Name", "required": true, "min_length": 3, "max_length": 80, "unique": true },
+        { "name": "description", "type": "text", "label": "Description", "required": false, "max_length": 500 },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
       ],
       "features": {}
     },
     {
       "slug": "suppliers",
       "display_name": "Suppliers",
+      "display_field": "name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["name", "email", "phone", "is_active"] },
       "fields": [
-        { "name": "name", "type": "string", "required": true },
-        { "name": "email", "type": "string", "required": false },
-        { "name": "phone", "type": "string", "required": false },
-        { "name": "is_active", "type": "boolean", "required": false }
+        { "name": "name", "type": "string", "label": "Supplier Name", "required": true, "min_length": 3, "max_length": 120 },
+        { "name": "email", "type": "string", "label": "Email", "required": false, "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+        { "name": "phone", "type": "string", "label": "Phone", "required": false, "min_length": 7, "max_length": 20 },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
       ],
       "features": {}
     },
     {
       "slug": "locations",
       "display_name": "Warehouse Locations",
+      "display_field": "name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["name", "site", "zone", "bin", "is_active"] },
       "fields": [
-        { "name": "name", "type": "string", "required": true },
-        { "name": "site", "type": "string", "required": false },
-        { "name": "zone", "type": "string", "required": false },
-        { "name": "bin", "type": "string", "required": false },
-        { "name": "is_active", "type": "boolean", "required": false }
+        { "name": "name", "type": "string", "label": "Location Name", "required": true, "min_length": 3, "max_length": 80, "unique": true },
+        { "name": "site", "type": "string", "label": "Site", "required": false, "max_length": 40 },
+        { "name": "zone", "type": "string", "label": "Zone", "required": false, "max_length": 40 },
+        { "name": "bin", "type": "string", "label": "Bin", "required": false, "max_length": 40 },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "tags",
+      "display_name": "Product Tags",
+      "display_field": "name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": false },
+      "list": { "columns": ["name", "is_active"] },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Tag", "required": true, "min_length": 2, "max_length": 30, "unique": true, "pattern": "^[A-Z0-9_-]+$" },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
       ],
       "features": {}
     },
     {
       "slug": "products",
       "display_name": "Products",
+      "display_field": "sku",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["sku", "name", "category_id", "supplier_id", "unit_price", "quantity", "reorder_point", "location_ids", "tag_ids"] },
+      "bulk_actions": {
+        "enabled": true,
+        "delete": true,
+        "update_fields": ["is_active", "category_id", "supplier_id", "location_ids"]
+      },
+      "inventory_ops": {
+        "enabled": true,
+        "quantity_mode": "delta",
+        "movement_entity": "stock_movements",
+        "location_entity": "locations",
+        "quantity_field": "quantity",
+        "movement_types": {
+          "receive": "IN",
+          "issue": "OUT",
+          "adjust": "ADJUSTMENT",
+          "transfer_out": "TRANSFER_OUT",
+          "transfer_in": "TRANSFER_IN"
+        },
+        "issue": {
+          "enabled": true,
+          "label": "Sell",
+          "allow_negative_stock": false
+        },
+        "adjust": {
+          "reason_codes": ["COUNT", "DAMAGED", "EXPIRED", "RETURN", "OTHER"]
+        }
+      },
+      "labels": {
+        "enabled": true,
+        "type": "qrcode",
+        "value_field": "sku",
+        "text_fields": ["sku", "name", "uom"],
+        "columns": 3,
+        "size": 160,
+        "scan": true
+      },
       "fields": [
-        { "name": "sku", "type": "string", "required": true },
-        { "name": "name", "type": "string", "required": true },
-        { "name": "description", "type": "text", "required": false },
-        { "name": "category_id", "type": "reference", "required": false },
-        { "name": "supplier_id", "type": "reference", "required": false },
-        { "name": "barcode", "type": "string", "required": false },
-        { "name": "uom", "type": "string", "required": false },
-        { "name": "unit_price", "type": "decimal", "required": true },
-        { "name": "reorder_point", "type": "integer", "required": false },
-        { "name": "quantity", "type": "integer", "required": false },
-        { "name": "is_active", "type": "boolean", "required": false }
+        { "name": "sku", "type": "string", "label": "SKU", "required": true, "min_length": 3, "max_length": 32, "unique": true },
+        { "name": "name", "type": "string", "label": "Name", "required": true, "min_length": 3, "max_length": 120 },
+        { "name": "description", "type": "text", "label": "Description", "required": false, "max_length": 1000 },
+        { "name": "category_id", "type": "reference", "label": "Category", "required": false, "reference_entity": "categories" },
+        { "name": "supplier_id", "type": "reference", "label": "Supplier", "required": false, "reference_entity": "suppliers" },
+        { "name": "barcode", "type": "string", "label": "Barcode", "required": false, "max_length": 64 },
+        { "name": "uom", "type": "string", "label": "UOM", "required": false, "max_length": 16 },
+        { "name": "unit_price", "type": "decimal", "label": "Unit Price", "required": true, "min": 0 },
+        { "name": "reorder_point", "type": "integer", "label": "Reorder Point", "required": false, "min": 0 },
+        { "name": "quantity", "type": "integer", "label": "Quantity", "required": false, "min": 0 },
+        { "name": "location_ids", "type": "reference", "label": "Locations", "required": true, "reference_entity": "locations", "multiple": true },
+        { "name": "tag_ids", "type": "reference", "label": "Tags", "required": false, "reference_entity": "tags", "multiple": true },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
       ],
       "features": {
         "batch_tracking": true,
@@ -59,11 +182,14 @@
     {
       "slug": "devices",
       "display_name": "Serialized Devices",
+      "display_field": "sku",
+      "ui": { "search": true, "csv_import": false, "csv_export": true, "print": true },
+      "list": { "columns": ["sku", "name", "category_id", "serial_number", "notes"] },
       "fields": [
-        { "name": "sku", "type": "string", "required": true },
-        { "name": "name", "type": "string", "required": true },
-        { "name": "category_id", "type": "reference", "required": false },
-        { "name": "notes", "type": "text", "required": false }
+        { "name": "sku", "type": "string", "label": "SKU", "required": true, "min_length": 3, "max_length": 32, "unique": true },
+        { "name": "name", "type": "string", "label": "Name", "required": true, "min_length": 3, "max_length": 120 },
+        { "name": "category_id", "type": "reference", "label": "Category", "required": false, "reference_entity": "categories" },
+        { "name": "notes", "type": "text", "label": "Notes", "required": false, "max_length": 500 }
       ],
       "features": {
         "serial_tracking": true,
@@ -73,15 +199,20 @@
     {
       "slug": "stock_movements",
       "display_name": "Stock Movements",
+      "display_field": "reference_number",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["movement_type", "quantity", "product_id", "from_location_id", "to_location_id", "movement_date", "reference_number"] },
       "fields": [
-        { "name": "product_id", "type": "reference", "required": true },
-        { "name": "movement_type", "type": "string", "required": true },
-        { "name": "quantity", "type": "integer", "required": true },
-        { "name": "location_id", "type": "reference", "required": false },
-        { "name": "reason", "type": "string", "required": false },
-        { "name": "reference_number", "type": "string", "required": false },
-        { "name": "movement_date", "type": "date", "required": false },
-        { "name": "is_reversal", "type": "boolean", "required": false }
+        { "name": "product_id", "type": "reference", "label": "Product", "required": true, "reference_entity": "products" },
+        { "name": "movement_type", "type": "string", "label": "Movement Type", "required": true, "pattern": "^(IN|OUT|ADJUSTMENT|TRANSFER_OUT|TRANSFER_IN)$" },
+        { "name": "quantity", "type": "integer", "label": "Qty (delta)", "required": true, "min": -1000000000, "max": 1000000000 },
+        { "name": "location_id", "type": "reference", "label": "Location", "required": false, "reference_entity": "locations" },
+        { "name": "from_location_id", "type": "reference", "label": "From Location", "required": false, "reference_entity": "locations" },
+        { "name": "to_location_id", "type": "reference", "label": "To Location", "required": false, "reference_entity": "locations" },
+        { "name": "reason", "type": "string", "label": "Reason", "required": false, "max_length": 200 },
+        { "name": "reference_number", "type": "string", "label": "Reference #", "required": false, "max_length": 64 },
+        { "name": "movement_date", "type": "date", "label": "Movement Date", "required": false },
+        { "name": "is_reversal", "type": "boolean", "label": "Is Reversal", "required": false }
       ],
       "features": {
         "audit_trail": true

@@ -1,4 +1,4 @@
-// platform/backend/src/assembler/CodeWeaver.js
+// platform/assembler/CodeWeaver.js
 class CodeWeaver {
   constructor(baseTemplate) {
     this.content = baseTemplate;
@@ -14,11 +14,15 @@ class CodeWeaver {
     // Indent the injected code to match the marker's indentation level (basic heuristic)
     // For now, we just append it after the marker.
     // In a more robust version, we could detect indentation.
-    
+
     if (this.content.includes(marker)) {
-        this.content = this.content.replace(marker, `${marker}\n    ${codeSnippet}`);
+      // IMPORTANT:
+      // String.replace() treats `$` sequences in the replacement string as special tokens
+      // (e.g. `$&`, `$'`, `$1`). Injected code may legitimately contain `$` (regex patterns, template docs, etc),
+      // so we must use the function form to avoid accidental replacement expansion.
+      this.content = this.content.replace(marker, (match) => `${match}\n    ${codeSnippet}`);
     } else {
-        console.warn(`Hook point ${hookName} not found in template.`);
+      console.warn(`Hook point ${hookName} not found in template.`);
     }
   }
 
@@ -38,4 +42,3 @@ class CodeWeaver {
 }
 
 module.exports = CodeWeaver;
-

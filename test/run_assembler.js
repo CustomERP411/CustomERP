@@ -5,8 +5,8 @@ const path = require('path');
 const fs = require('fs').promises;
 
 // Import the assembler components
-const BrickRepository = require('../platform/backend/src/assembler/BrickRepository');
-const ProjectAssembler = require('../platform/backend/src/assembler/ProjectAssembler');
+const BrickRepository = require('../platform/assembler/BrickRepository');
+const ProjectAssembler = require('../platform/assembler/ProjectAssembler');
 
 async function main() {
   console.log('==============================================');
@@ -16,7 +16,8 @@ async function main() {
   // Paths
   const brickLibraryPath = path.resolve(__dirname, '../brick-library');
   const outputPath = path.resolve(__dirname, '../generated');
-  const sdfPath = path.resolve(__dirname, 'sample_sdf.json');
+  const argPath = process.argv[2];
+  const sdfPath = argPath ? path.resolve(process.cwd(), argPath) : path.resolve(__dirname, 'sample_sdf.json');
 
   // Load SDF
   console.log('1. Loading SDF from:', sdfPath);

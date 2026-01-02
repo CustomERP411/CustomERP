@@ -1,4 +1,4 @@
-// platform/backend/src/assembler/BrickRepository.js
+// platform/assembler/BrickRepository.js
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -36,11 +36,11 @@ class BrickRepository {
   async copyFile(sourcePath, destPath) {
     // sourcePath is relative to libraryPath
     const fullSource = path.join(this.libraryPath, sourcePath);
-    
+
     // Ensure destination directory exists
     const destDir = path.dirname(destPath);
     await fs.mkdir(destDir, { recursive: true });
-    
+
     await fs.copyFile(fullSource, destPath);
   }
 

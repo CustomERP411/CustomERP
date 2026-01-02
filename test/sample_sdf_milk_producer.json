@@ -1,0 +1,215 @@
+{
+  "project_name": "Milk Producer ERP (Perishables + Expiry)",
+  "modules": {
+    "activity_log": { "enabled": true, "limit": 25 },
+    "inventory_dashboard": {
+      "low_stock": {
+        "enabled": true,
+        "entity": "dairy_skus",
+        "quantity_field": "on_hand_units",
+        "reorder_point_field": "reorder_level",
+        "limit": 10,
+        "suggestion_multiplier": 1.25
+      },
+      "expiry": {
+        "enabled": true,
+        "entity": "dairy_skus",
+        "expiry_field": "best_before_date",
+        "within_days": 14,
+        "limit": 10
+      }
+    },
+    "scheduled_reports": {
+      "enabled": true,
+      "cron": "0 6 * * *",
+      "target_slug": "__reports",
+      "report_type": "daily_inventory_snapshot",
+      "entities": ["dairy_skus", "dairy_stock_moves", "cold_storage_locations"],
+      "low_stock": {
+        "enabled": true,
+        "entity": "dairy_skus",
+        "quantity_field": "on_hand_units",
+        "reorder_point_field": "reorder_level",
+        "limit": 10
+      },
+      "expiry": {
+        "enabled": true,
+        "entity": "dairy_skus",
+        "expiry_field": "best_before_date",
+        "within_days": 14,
+        "limit": 10
+      },
+      "inventory_value": {
+        "enabled": true,
+        "entity": "dairy_skus",
+        "quantity_field": "on_hand_units",
+        "unit_price_field": "wholesale_price",
+        "limit": 10
+      },
+      "movements": {
+        "enabled": true,
+        "entity": "dairy_stock_moves",
+        "type_field": "movement_type",
+        "quantity_field": "qty_delta",
+        "date_field": "moved_at",
+        "item_ref_field": "dairy_sku_id",
+        "location_entity": "cold_storage_locations",
+        "location_field": "location_id",
+        "quantity_mode": "delta",
+        "lookback_days": 14,
+        "limit": 25,
+        "in_types": ["IN", "TRANSFER_IN"],
+        "out_types": ["OUT", "TRANSFER_OUT"],
+        "adjust_types": ["ADJUSTMENT"]
+      }
+    }
+  },
+  "entities": [
+    {
+      "slug": "dairy_categories",
+      "display_name": "Dairy Categories",
+      "display_field": "name",
+      "ui": { "search": true, "csv_import": false, "csv_export": true, "print": true },
+      "list": { "columns": ["name", "requires_cold_chain", "is_active"] },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Category Name", "required": true, "min_length": 2, "max_length": 60, "unique": true },
+        { "name": "requires_cold_chain", "type": "boolean", "label": "Requires cold chain?", "required": false },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "packaging_suppliers",
+      "display_name": "Packaging Suppliers",
+      "display_field": "name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": false },
+      "list": { "columns": ["name", "email", "phone", "is_active"] },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Supplier Name", "required": true, "min_length": 3, "max_length": 120 },
+        { "name": "email", "type": "string", "label": "Email", "required": false, "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+        { "name": "phone", "type": "string", "label": "Phone", "required": false, "min_length": 7, "max_length": 20 },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "cold_storage_locations",
+      "display_name": "Cold Storage Locations",
+      "display_field": "name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["name", "facility", "room", "shelf", "is_active"] },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Location Name", "required": true, "min_length": 3, "max_length": 80, "unique": true },
+        { "name": "facility", "type": "string", "label": "Facility", "required": true, "min_length": 2, "max_length": 60 },
+        { "name": "room", "type": "string", "label": "Room", "required": false, "max_length": 40 },
+        { "name": "shelf", "type": "string", "label": "Shelf", "required": false, "max_length": 40 },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "dairy_skus",
+      "display_name": "Dairy SKUs",
+      "display_field": "sku_code",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": {
+        "columns": [
+          "sku_code",
+          "product_name",
+          "category_id",
+          "wholesale_price",
+          "on_hand_units",
+          "reorder_level",
+          "storage_location_ids",
+          "best_before_date"
+        ]
+      },
+      "bulk_actions": {
+        "enabled": true,
+        "delete": true,
+        "update_fields": ["category_id", "is_active", "storage_location_ids"]
+      },
+      "inventory_ops": {
+        "enabled": true,
+        "quantity_mode": "delta",
+        "movement_entity": "dairy_stock_moves",
+        "location_entity": "cold_storage_locations",
+        "location_ids_field": "storage_location_ids",
+        "quantity_field": "on_hand_units",
+        "fields": {
+          "item_ref": "dairy_sku_id",
+          "qty": "qty_delta",
+          "type": "movement_type",
+          "location": "location_id",
+          "date": "moved_at",
+          "reference_number": "reference_number",
+          "reason": "note"
+        },
+        "movement_types": {
+          "receive": "IN",
+          "issue": "OUT",
+          "adjust": "ADJUSTMENT",
+          "transfer_out": "TRANSFER_OUT",
+          "transfer_in": "TRANSFER_IN"
+        },
+        "issue": {
+          "enabled": true,
+          "label": "Dispatch",
+          "allow_negative_stock": false
+        },
+        "adjust": {
+          "reason_codes": ["COUNT", "DAMAGED", "EXPIRED", "SPILL", "OTHER"]
+        }
+      },
+      "labels": {
+        "enabled": true,
+        "type": "qrcode",
+        "value_field": "sku_code",
+        "text_fields": ["product_name", "best_before_date"],
+        "columns": 3,
+        "size": 160,
+        "scan": true
+      },
+      "fields": [
+        { "name": "sku_code", "type": "string", "label": "SKU Code", "required": true, "min_length": 3, "max_length": 24, "unique": true, "pattern": "^[A-Z0-9_-]+$" },
+        { "name": "product_name", "type": "string", "label": "Product Name", "required": true, "min_length": 3, "max_length": 120 },
+        { "name": "category_id", "type": "reference", "label": "Category", "required": true, "reference_entity": "dairy_categories" },
+        { "name": "packaging_supplier_id", "type": "reference", "label": "Packaging Supplier", "required": false, "reference_entity": "packaging_suppliers" },
+        { "name": "uom", "type": "string", "label": "UOM", "required": true, "min_length": 1, "max_length": 10 },
+        { "name": "wholesale_price", "type": "decimal", "label": "Wholesale Price", "required": true, "min": 0 },
+        { "name": "on_hand_units", "type": "integer", "label": "On Hand (Units)", "required": true, "min": 0 },
+        { "name": "reorder_level", "type": "integer", "label": "Reorder Level", "required": false, "min": 0 },
+        { "name": "storage_location_ids", "type": "reference", "label": "Storage Locations", "required": true, "reference_entity": "cold_storage_locations", "multiple": true },
+        { "name": "batch_number", "type": "string", "label": "Batch / Lot #", "required": true, "min_length": 4, "max_length": 40 },
+        { "name": "production_date", "type": "date", "label": "Production Date", "required": true },
+        { "name": "best_before_date", "type": "date", "label": "Best Before Date", "required": true },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
+      ],
+      "features": {
+        "batch_tracking": true,
+        "audit_trail": true
+      }
+    },
+    {
+      "slug": "dairy_stock_moves",
+      "display_name": "Dairy Stock Movements",
+      "display_field": "reference_number",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["movement_type", "qty_delta", "dairy_sku_id", "location_id", "moved_at", "reference_number"] },
+      "fields": [
+        { "name": "dairy_sku_id", "type": "reference", "label": "Dairy SKU", "required": true, "reference_entity": "dairy_skus" },
+        { "name": "movement_type", "type": "string", "label": "Movement Type", "required": true, "pattern": "^(IN|OUT|ADJUSTMENT|TRANSFER_OUT|TRANSFER_IN)$" },
+        { "name": "qty_delta", "type": "integer", "label": "Qty (delta)", "required": true, "min": -1000000000, "max": 1000000000 },
+        { "name": "location_id", "type": "reference", "label": "Location", "required": false, "reference_entity": "cold_storage_locations" },
+        { "name": "from_location_id", "type": "reference", "label": "From Location", "required": false, "reference_entity": "cold_storage_locations" },
+        { "name": "to_location_id", "type": "reference", "label": "To Location", "required": false, "reference_entity": "cold_storage_locations" },
+        { "name": "note", "type": "string", "label": "Note", "required": false, "max_length": 200 },
+        { "name": "reference_number", "type": "string", "label": "Reference #", "required": false, "max_length": 64 },
+        { "name": "moved_at", "type": "date", "label": "Movement Date", "required": false }
+      ],
+      "features": { "audit_trail": true }
+    }
+  ]
+}
+
+

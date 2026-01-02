@@ -3,6 +3,27 @@ const cors = require('cors');
 const routes = require('./routes');
 require('dotenv').config();
 
+// Optional runtime modules (scheduler, reports, etc.)
+let systemConfig = {};
+try {
+  // Generated only when needed by the assembler
+  // eslint-disable-next-line global-require
+  systemConfig = require('./systemConfig');
+} catch (e) {
+  systemConfig = {};
+}
+
+let cron = null;
+try {
+  // Installed only when scheduled reports are enabled
+  // eslint-disable-next-line global-require
+  cron = require('node-cron');
+} catch (e) {
+  cron = null;
+}
+
+const FlatFileProvider = require('./repository/FlatFileProvider');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -16,7 +37,258 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'generated-erp' });
 });
 
+// Scheduled reports (optional)
+const scheduleReports = () => {
+  const cfg = systemConfig?.modules?.scheduled_reports;
+  if (!cfg?.enabled) return;
+  if (!cron) {
+    console.warn('[REPORTS] scheduled_reports enabled but node-cron is not installed.');
+    return;
+  }
+
+  const repo = new FlatFileProvider('./data');
+
+  const job = async () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const reportDate = `${yyyy}-${mm}-${dd}`;
+    const generatedAt = now.toISOString();
+
+    const reportType = cfg.report_type || 'daily_summary';
+    const targetSlug = cfg.target_slug || '__reports';
+
+    try {
+      const data = {};
+
+      const entities = Array.isArray(cfg.entities) ? cfg.entities : [];
+      if (entities.length) {
+        const counts = {};
+        for (const slug of entities) {
+          try {
+            const rows = await repo.findAll(slug);
+            counts[slug] = Array.isArray(rows) ? rows.length : 0;
+          } catch (e) {
+            counts[slug] = 0;
+          }
+        }
+        data.entity_counts = counts;
+      }
+
+      if (cfg.low_stock?.enabled) {
+        const slug = cfg.low_stock.entity;
+        const qf = cfg.low_stock.quantity_field || 'quantity';
+        const rf = cfg.low_stock.reorder_point_field || 'reorder_point';
+        const limit = Number(cfg.low_stock.limit || 10);
+        const rows = await repo.findAll(slug);
+        const low = (Array.isArray(rows) ? rows : [])
+          .filter((r) => Number(r?.[qf] ?? 0) <= Number(r?.[rf] ?? 0))
+          .sort((a, b) => Number(a?.[qf] ?? 0) - Number(b?.[qf] ?? 0))
+          .slice(0, limit);
+        data.low_stock = {
+          entity: slug,
+          count: low.length,
+          preview: low.map((r) => ({ id: r.id, quantity: r?.[qf], reorder_point: r?.[rf] })),
+        };
+      }
+
+      if (cfg.expiry?.enabled) {
+        const slug = cfg.expiry.entity;
+        const ef = cfg.expiry.expiry_field || 'expiry_date';
+        const withinDays = Number(cfg.expiry.within_days || 30);
+        const limit = Number(cfg.expiry.limit || 10);
+        const rows = await repo.findAll(slug);
+        const nowT = Date.now();
+        const horizon = nowT + withinDays * 24 * 60 * 60 * 1000;
+        const expiring = (Array.isArray(rows) ? rows : [])
+          .filter((r) => {
+            const t = new Date(String(r?.[ef] || '')).getTime();
+            return Number.isFinite(t) && t <= horizon;
+          })
+          .sort((a, b) => new Date(String(a?.[ef] || '')).getTime() - new Date(String(b?.[ef] || '')).getTime())
+          .slice(0, limit);
+        data.expiry = {
+          entity: slug,
+          within_days: withinDays,
+          count: expiring.length,
+          preview: expiring.map((r) => ({ id: r.id, expiry_date: r?.[ef] })),
+        };
+      }
+
+      // Inventory valuation snapshot (optional)
+      if (cfg.inventory_value?.enabled) {
+        const slug = cfg.inventory_value.entity;
+        const qf = cfg.inventory_value.quantity_field || 'quantity';
+        const pf =
+          cfg.inventory_value.unit_price_field ||
+          cfg.inventory_value.unitPriceField ||
+          'unit_price';
+        const limit = Number(cfg.inventory_value.limit || 10);
+        const rows = await repo.findAll(slug);
+
+        let totalQty = 0;
+        let totalValue = 0;
+        const preview = (Array.isArray(rows) ? rows : [])
+          .map((r) => {
+            const qty = Number(r?.[qf] ?? 0);
+            const price = Number(r?.[pf] ?? 0);
+            if (!Number.isFinite(qty) || !Number.isFinite(price)) return null;
+            const value = qty * price;
+            totalQty += qty;
+            totalValue += value;
+            return { id: r.id, quantity: qty, unit_price: price, value };
+          })
+          .filter(Boolean)
+          .sort((a, b) => Number(b.value || 0) - Number(a.value || 0))
+          .slice(0, limit);
+
+        data.inventory_value = {
+          entity: slug,
+          quantity_field: qf,
+          unit_price_field: pf,
+          total_qty: totalQty,
+          total_value: totalValue,
+          preview,
+        };
+      }
+
+      // Movement summary (optional)
+      if (cfg.movements?.enabled) {
+        const slug = cfg.movements.entity || cfg.movements.movement_entity || 'stock_movements';
+        const tf = cfg.movements.type_field || cfg.movements.typeField || 'movement_type';
+        const qf = cfg.movements.quantity_field || cfg.movements.quantityField || cfg.movements.qty_field || cfg.movements.qtyField || 'quantity';
+        const df = cfg.movements.date_field || cfg.movements.dateField || cfg.movements.movement_date_field || cfg.movements.movementDateField || 'movement_date';
+        const itemRefField = cfg.movements.item_ref_field || cfg.movements.itemRefField || 'product_id';
+        const locationField = cfg.movements.location_field || cfg.movements.locationField || 'location_id';
+        const locationEntity = cfg.movements.location_entity || cfg.movements.locationEntity || null;
+        const qtyMode = String(cfg.movements.quantity_mode || cfg.movements.quantityMode || 'delta');
+        const lookbackDays = Number(cfg.movements.lookback_days || cfg.movements.lookbackDays || 7);
+        const limit = Number(cfg.movements.limit || 25);
+
+        const normalize = (v, fallback) => {
+          if (Array.isArray(v)) return v.map(String);
+          if (typeof v === 'string' && v.length) return [v];
+          return fallback;
+        };
+
+        const inTypes = normalize(cfg.movements.in_types || cfg.movements.inTypes, ['IN', 'TRANSFER_IN']);
+        const outTypes = normalize(cfg.movements.out_types || cfg.movements.outTypes, ['OUT', 'TRANSFER_OUT']);
+        const adjustTypes = normalize(cfg.movements.adjust_types || cfg.movements.adjustTypes, ['ADJUSTMENT']);
+
+        const rows = await repo.findAll(slug);
+        const nowT = Date.now();
+        const sinceT = nowT - lookbackDays * 24 * 60 * 60 * 1000;
+
+        let netQty = 0;
+        let inQty = 0;
+        let outQty = 0;
+        let inCount = 0;
+        let outCount = 0;
+        let adjustCount = 0;
+        let adjustNetQty = 0;
+        const byType = {};
+        const recent = [];
+
+        for (const r of (Array.isArray(rows) ? rows : [])) {
+          const rawAt = r?.[df] || r?.created_at || r?.updated_at;
+          const t = new Date(String(rawAt || '')).getTime();
+          if (!Number.isFinite(t) || t < sinceT) continue;
+
+          const type = String(r?.[tf] || '');
+          const qty = Number(r?.[qf] ?? 0);
+          if (!Number.isFinite(qty)) continue;
+
+          const absQty = Math.abs(qty);
+
+          byType[type] = byType[type] || { count: 0, qty: 0 };
+          byType[type].count += 1;
+          byType[type].qty += qty;
+
+          if (inTypes.includes(type)) {
+            inCount += 1;
+            inQty += absQty;
+            netQty += (qtyMode === 'absolute' ? absQty : qty);
+          } else if (outTypes.includes(type)) {
+            outCount += 1;
+            outQty += absQty;
+            netQty += (qtyMode === 'absolute' ? -absQty : qty);
+          } else if (adjustTypes.includes(type)) {
+            adjustCount += 1;
+            adjustNetQty += qty;
+            netQty += qty;
+          } else {
+            // Unknown type: treat as signed delta for net
+            netQty += qty;
+          }
+
+          recent.push({
+            id: r?.id,
+            at: rawAt,
+            type,
+            quantity: qty,
+            item_ref: r?.[itemRefField],
+            location_id: r?.[locationField] ?? r?.location_id,
+          });
+        }
+
+        recent.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+
+        data.movements = {
+          entity: slug,
+          lookback_days: lookbackDays,
+          quantity_mode: qtyMode,
+          in_types: inTypes,
+          out_types: outTypes,
+          adjust_types: adjustTypes,
+          location_entity: locationEntity,
+          location_field: locationField,
+          totals: {
+            net_qty: netQty,
+            in_qty: inQty,
+            out_qty: outQty,
+            in_count: inCount,
+            out_count: outCount,
+            adjust_count: adjustCount,
+            adjust_net_qty: adjustNetQty,
+          },
+          by_type: byType,
+          recent: recent.slice(0, limit),
+        };
+      }
+
+      // Upsert by (report_type, report_date)
+      const existing = await repo.findAll(targetSlug);
+      const found = (Array.isArray(existing) ? existing : []).find(
+        (r) => r?.report_type === reportType && r?.report_date === reportDate
+      );
+
+      const record = {
+        report_date: reportDate,
+        report_type: reportType,
+        generated_at: generatedAt,
+        data: JSON.stringify(data),
+      };
+
+      if (found?.id) {
+        await repo.update(targetSlug, found.id, record);
+        console.log(`[REPORTS] Updated ${reportType} for ${reportDate}`);
+      } else {
+        await repo.create(targetSlug, record);
+        console.log(`[REPORTS] Created ${reportType} for ${reportDate}`);
+      }
+    } catch (e) {
+      console.warn('[REPORTS] Failed to generate report:', e?.message || e);
+    }
+  };
+
+  // Schedule and also run once on startup
+  cron.schedule(cfg.cron || '0 0 * * *', job);
+  job();
+};
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  scheduleReports();
 });
 

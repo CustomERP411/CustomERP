@@ -32,7 +32,12 @@ class {{EntityName}}Controller {
       const item = await this.service.create(req.body);
       res.status(201).json(item);
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      const status = error.statusCode || error.status || 400;
+      res.status(status).json({
+        error: error.message,
+        field_errors: error.fieldErrors || undefined,
+        dependents: error.dependents || undefined,
+      });
     }
   }
 
@@ -42,7 +47,12 @@ class {{EntityName}}Controller {
       if (!item) return res.status(404).json({ error: 'Not found' });
       res.json(item);
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      const status = error.statusCode || error.status || 400;
+      res.status(status).json({
+        error: error.message,
+        field_errors: error.fieldErrors || undefined,
+        dependents: error.dependents || undefined,
+      });
     }
   }
 
@@ -52,7 +62,12 @@ class {{EntityName}}Controller {
       if (!result) return res.status(404).json({ error: 'Not found' });
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      const status = error.statusCode || error.status || 500;
+      res.status(status).json({
+        error: error.message,
+        field_errors: error.fieldErrors || undefined,
+        dependents: error.dependents || undefined,
+      });
     }
   }
 }

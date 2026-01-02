@@ -1,3 +1,4 @@
+// platform/assembler/TemplateEngine.js
 class TemplateEngine {
   static render(template, context) {
     return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
@@ -7,4 +8,3 @@ class TemplateEngine {
 }
 
 module.exports = TemplateEngine;
-

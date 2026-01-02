@@ -1,0 +1,198 @@
+{
+  "project_name": "Tire Business ERP (Non-Perishable, No Expiry)",
+  "modules": {
+    "activity_log": { "enabled": true, "limit": 25 },
+    "inventory_dashboard": {
+      "low_stock": {
+        "enabled": true,
+        "entity": "tire_skus",
+        "quantity_field": "on_hand_qty",
+        "reorder_point_field": "min_stock",
+        "limit": 10,
+        "suggestion_multiplier": 2
+      },
+      "expiry": { "enabled": false }
+    },
+    "scheduled_reports": {
+      "enabled": true,
+      "cron": "0 7 * * *",
+      "target_slug": "__reports",
+      "report_type": "daily_inventory_snapshot",
+      "entities": ["tire_skus", "tire_movements", "storage_bins"],
+      "low_stock": {
+        "enabled": true,
+        "entity": "tire_skus",
+        "quantity_field": "on_hand_qty",
+        "reorder_point_field": "min_stock",
+        "limit": 10
+      },
+      "inventory_value": {
+        "enabled": true,
+        "entity": "tire_skus",
+        "quantity_field": "on_hand_qty",
+        "unit_price_field": "unit_cost",
+        "limit": 10
+      },
+      "movements": {
+        "enabled": true,
+        "entity": "tire_movements",
+        "type_field": "movement_type",
+        "quantity_field": "qty",
+        "date_field": "moved_at",
+        "item_ref_field": "tire_sku_id",
+        "location_entity": "storage_bins",
+        "location_field": "bin_id",
+        "quantity_mode": "absolute",
+        "lookback_days": 30,
+        "limit": 25,
+        "in_types": ["RECEIPT", "TRANSFER_IN", "ADJUST_IN"],
+        "out_types": ["SALE", "TRANSFER_OUT", "ADJUST_OUT"],
+        "adjust_types": []
+      }
+    }
+  },
+  "entities": [
+    {
+      "slug": "tire_brands",
+      "display_name": "Tire Brands",
+      "display_field": "name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": false },
+      "list": { "columns": ["name", "country", "is_active"] },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Brand", "required": true, "min_length": 2, "max_length": 60, "unique": true },
+        { "name": "country", "type": "string", "label": "Country", "required": false, "max_length": 40 },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "storage_bins",
+      "display_name": "Warehouse Bins",
+      "display_field": "code",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["code", "warehouse", "aisle", "rack", "bin", "is_active"] },
+      "fields": [
+        { "name": "code", "type": "string", "label": "Bin Code", "required": true, "min_length": 3, "max_length": 30, "unique": true },
+        { "name": "warehouse", "type": "string", "label": "Warehouse", "required": true, "min_length": 2, "max_length": 60 },
+        { "name": "aisle", "type": "string", "label": "Aisle", "required": false, "max_length": 10 },
+        { "name": "rack", "type": "string", "label": "Rack", "required": false, "max_length": 10 },
+        { "name": "bin", "type": "string", "label": "Bin", "required": false, "max_length": 10 },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "tire_skus",
+      "display_name": "Tire SKUs",
+      "display_field": "sku",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": {
+        "columns": [
+          "sku",
+          "brand_id",
+          "model_name",
+          "size_code",
+          "season",
+          "unit_cost",
+          "on_hand_qty",
+          "min_stock",
+          "bin_ids"
+        ]
+      },
+      "bulk_actions": {
+        "enabled": true,
+        "delete": true,
+        "update_fields": ["brand_id", "is_active", "bin_ids"]
+      },
+      "inventory_ops": {
+        "enabled": true,
+        "quantity_mode": "absolute",
+        "movement_entity": "tire_movements",
+        "location_entity": "storage_bins",
+        "location_ids_field": "bin_ids",
+        "quantity_field": "on_hand_qty",
+        "fields": {
+          "item_ref": "tire_sku_id",
+          "qty": "qty",
+          "type": "movement_type",
+          "location": "bin_id",
+          "from_location": "from_bin_id",
+          "to_location": "to_bin_id",
+          "date": "moved_at",
+          "reference_number": "reference_number",
+          "reason": "note"
+        },
+        "movement_types": {
+          "receive": "RECEIPT",
+          "issue": "SALE",
+          "adjust": "ADJUSTMENT",
+          "adjust_in": "ADJUST_IN",
+          "adjust_out": "ADJUST_OUT",
+          "transfer_out": "TRANSFER_OUT",
+          "transfer_in": "TRANSFER_IN"
+        },
+        "issue": {
+          "enabled": true,
+          "label": "Sell",
+          "allow_negative_stock": false
+        },
+        "adjust": {
+          "reason_codes": ["COUNT", "DAMAGE", "RETURN", "THEFT", "OTHER"]
+        },
+        "transfer": { "enabled": true }
+      },
+      "labels": {
+        "enabled": true,
+        "type": "qrcode",
+        "value_field": "sku",
+        "text_fields": ["brand_id", "model_name", "size_code"],
+        "columns": 3,
+        "size": 160,
+        "scan": true
+      },
+      "fields": [
+        { "name": "sku", "type": "string", "label": "SKU", "required": true, "min_length": 3, "max_length": 32, "unique": true, "pattern": "^[A-Z0-9_-]+$" },
+        { "name": "brand_id", "type": "reference", "label": "Brand", "required": true, "reference_entity": "tire_brands" },
+        { "name": "model_name", "type": "string", "label": "Model", "required": true, "min_length": 2, "max_length": 80 },
+        { "name": "size_code", "type": "string", "label": "Size Code", "required": true, "min_length": 3, "max_length": 20, "pattern": "^[0-9]{3}/[0-9]{2}R[0-9]{2}$" },
+        { "name": "season", "type": "string", "label": "Season", "required": true, "pattern": "^(SUMMER|WINTER|ALL_SEASON)$" },
+        { "name": "load_index", "type": "integer", "label": "Load Index", "required": false, "min": 0, "max": 200 },
+        { "name": "speed_rating", "type": "string", "label": "Speed Rating", "required": false, "max_length": 5, "pattern": "^[A-Z]{1,2}$" },
+        { "name": "unit_cost", "type": "decimal", "label": "Unit Cost", "required": true, "min": 0 },
+        { "name": "unit_price", "type": "decimal", "label": "Unit Price", "required": true, "min": 0 },
+        { "name": "on_hand_qty", "type": "integer", "label": "On Hand", "required": true, "min": 0 },
+        { "name": "min_stock", "type": "integer", "label": "Min Stock", "required": false, "min": 0 },
+        { "name": "bin_ids", "type": "reference", "label": "Bins", "required": false, "reference_entity": "storage_bins", "multiple": true },
+        { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
+      ],
+      "features": { "audit_trail": true }
+    },
+    {
+      "slug": "tire_movements",
+      "display_name": "Tire Movements",
+      "display_field": "reference_number",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["movement_type", "qty", "tire_sku_id", "from_bin_id", "to_bin_id", "moved_at", "reference_number"] },
+      "fields": [
+        { "name": "tire_sku_id", "type": "reference", "label": "Tire SKU", "required": true, "reference_entity": "tire_skus" },
+        {
+          "name": "movement_type",
+          "type": "string",
+          "label": "Movement Type",
+          "required": true,
+          "pattern": "^(RECEIPT|SALE|ADJUSTMENT|ADJUST_IN|ADJUST_OUT|TRANSFER_OUT|TRANSFER_IN)$"
+        },
+        { "name": "qty", "type": "integer", "label": "Qty", "required": true, "min": 1, "max": 1000000000 },
+        { "name": "bin_id", "type": "reference", "label": "Bin (optional)", "required": false, "reference_entity": "storage_bins" },
+        { "name": "from_bin_id", "type": "reference", "label": "From Bin", "required": false, "reference_entity": "storage_bins" },
+        { "name": "to_bin_id", "type": "reference", "label": "To Bin", "required": false, "reference_entity": "storage_bins" },
+        { "name": "note", "type": "string", "label": "Note", "required": false, "max_length": 200 },
+        { "name": "reference_number", "type": "string", "label": "Reference #", "required": false, "max_length": 64 },
+        { "name": "moved_at", "type": "date", "label": "Movement Date", "required": false }
+      ],
+      "features": { "audit_trail": true }
+    }
+  ]
+}
+
+

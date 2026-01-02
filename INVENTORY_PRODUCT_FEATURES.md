@@ -38,13 +38,15 @@ This list focuses on **small/medium business** inventory needs and on turning th
   - Bulk update (status/category/location)
 - **Activity log**
   - Recent changes feed (from audit trail)
+- **Scheduled reports** (daily summaries)
+
+- **qrcode labels** (print templates; scan support with pc camera)
+
 
 ## Tier 3 (Nice-to-have / Later)
 
-- **Barcode labels** (print templates; future scan support)
 - **XLSX import/export** (true Excel files via `xlsx` lib; heavier than CSV)
 - **Role-based permissions** (admin vs staff)
-- **Scheduled reports** (email, daily summaries)
 
 ## Recommended Implementation Order
 

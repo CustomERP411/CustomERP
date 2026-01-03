@@ -367,31 +367,23 @@ CustomERP/
 │   └── dev.sh                  # Bash commands (Linux/macOS)
 │
 ├── 📁 platform/
-│   ├── 📁 backend/             # Node.js/Express API
+│   ├── 📁 assembler/           # NEW: Decoupled Assembly Engine
+│   │   ├── ProjectAssembler.js
+│   │   ├── CodeWeaver.js
+│   │   └── generators/         # Modular generators
+│   │
+│   ├── 📁 backend/             # Node.js/Express API (Platform)
 │   │   ├── src/
 │   │   │   ├── controllers/
 │   │   │   ├── services/
-│   │   │   ├── middleware/
-│   │   │   ├── routes/
-│   │   │   └── config/
-│   │   ├── migrations/
-│   │   ├── Dockerfile
-│   │   └── Dockerfile.dev
+│   │   │   └── ...
 │   │
-│   ├── 📁 frontend/            # React Dashboard
+│   ├── 📁 frontend/            # React Dashboard (Platform)
 │   │   ├── src/
-│   │   │   ├── components/
-│   │   │   ├── pages/
-│   │   │   ├── context/
-│   │   │   └── services/
-│   │   ├── Dockerfile
-│   │   └── Dockerfile.dev
+│   │   └── ...
 │   │
 │   └── 📁 ai-gateway/          # Python/FastAPI AI Service
-│       ├── src/
-│       ├── requirements.txt
-│       ├── Dockerfile
-│       └── Dockerfile.dev
+│       └── src/
 │
 ├── 📁 brick-library/           # Pre-built code modules
 │   ├── backend-bricks/
@@ -421,12 +413,17 @@ The first increment focuses on demonstrating the core assembly pipeline with **I
 | UC-5 | Review Schema & API | Visual preview of generated entities and endpoints |
 | UC-6 | Approve/Edit Module | Final review and configuration lock |
 
-### Functional Scope
+### Functional Scope (Implemented)
 
-- **Module Focus:** Inventory Management (stock tracking, low-stock alerts)
+- **Module Focus:** Inventory Management (Stock wizards, Low-stock alerts, Expiry tracking)
 - **AI Target:** 70% accuracy in SDF form completion
-- **Data Strategy:** DAL-abstracted JSON flat-files (PostgreSQL-ready for Increment 2)
-- **Frontend:** Metadata-driven React components adapting to user-defined fields
+- **Data Strategy:** JSON Flat-Files with **Referential Integrity Protection**
+- **Frontend:** Metadata-driven React components with **Modular Page Builders**
+- **Key Features:**
+    - **Inventory Wizards:** specialized UI for Receive, Issue (Sell), Transfer, Adjust.
+    - **Reports Dashboard:** Time-travel diffs (Added/Removed/Changed) and Valuation.
+    - **QR Code Support:** Label generation + In-browser scanning.
+    - **Configurable UI:** Per-entity toggles for Search, Print, CSV Import/Export.
 - **Output:** Standalone Docker container with assembled code
 
 ---

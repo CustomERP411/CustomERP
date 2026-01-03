@@ -1080,12 +1080,19 @@ brick-library/                  ← YOUR ENTIRE DOMAIN
 ├── frontend-bricks/
 └── templates/
 
-platform/assembler/                              ← YOUR DOMAIN
+platform/assembler/                              ← YOUR DOMAIN (MOVED from backend)
 │   ├── ProjectAssembler.js
-│   ├── CodeWeaver.js           ← NEW: Advanced injection engine
+│   ├── CodeWeaver.js           ← Advanced injection engine (Robust String Replacement)
+│   ├── BrickRepository.js
+│   ├── TemplateEngine.js
 │   └── generators/
 │       ├── BackendGenerator.js
-│       └── FrontendGenerator.js
+│       ├── FrontendGenerator.js           ← Main orchestrator
+│       └── frontend/                      ← NEW: Modular Page Builders
+│           ├── dashboardHome.js
+│           ├── reportsPage.js
+│           ├── entityPages.js             ← Wizard generators (Issue, Receive, etc.)
+│           └── ...
 ```
 
 ---
@@ -1097,13 +1104,14 @@ platform/assembler/                              ← YOUR DOMAIN
 **Dependencies:** None  
 
 ### Goal
-Build the engine that can inject code snippets ("Mixins") into base templates at specific "Hook Points."
+Build the decoupled assembly engine in `platform/assembler` that can safely inject code snippets.
 
 ### What to Do
 
-1.  **Implement `CodeWeaver.js`**: A utility that reads a template and injects code at defined markers (e.g., `// @HOOK: BEFORE_CREATE`).
-2.  **Create `BaseService.js.hbs`**: The skeleton service with hook points.
-3.  **Create `RepositoryInterface.js`**: Extended to support query filters (needed for relations).
+1.  **Implement `CodeWeaver.js`**: A utility that reads a template and injects code at defined markers.
+    *   *Update:* Must use function-based replacement `str.replace(marker, () => ...)` to prevent regex `$` injection attacks.
+2.  **Create `BaseService.js.hbs`**: The skeleton service with hook points (`BEFORE_CREATE_VALIDATION`, `AFTER_DELETE`, etc.).
+3.  **Create `RepositoryInterface.js`**: Base interface for data access.
 
 ### Architecture: The Hook System
 
@@ -1117,8 +1125,6 @@ class {{EntityName}}Service {
   async create(data) {
     // @HOOK: BEFORE_CREATE_VALIDATION
     
-    // @HOOK: BEFORE_CREATE_TRANSFORMATION
-    
     const result = await this.repository.create(this.slug, data);
     
     // @HOOK: AFTER_CREATE_LOGGING
@@ -1130,93 +1136,91 @@ class {{EntityName}}Service {
 
 **platform/assembler/CodeWeaver.js**
 ```javascript
-class CodeWeaver {
-  constructor(baseTemplate) {
-    this.content = baseTemplate;
-  }
-
-  inject(hookName, codeSnippet) {
-    const marker = `// @HOOK: ${hookName}`;
-    // IMPORTANT: use function replacement so `$` in injected snippets is not treated specially
-    // by String.replace (e.g. regex patterns ending with `$`).
-    this.content = this.content.replace(marker, (match) => `${match}\n    ${codeSnippet}`);
-  }
+inject(hookName, codeSnippet) {
+  const marker = `// @HOOK: ${hookName}`;
+  // CRITICAL: Use callback to handle special chars like '$' in the snippet
+  this.content = this.content.replace(marker, (match) => `${match}\n    ${codeSnippet}`);
 }
 ```
 
 ### ✅ Definition of Done
-- [ ] `CodeWeaver` can inject strings into markers.
-- [ ] `BaseService` has hooks for all CRUD operations.
-- [ ] `BaseController` is created.
+- [x] `CodeWeaver` correctly handles snippets with `$` characters (regex/template literals).
+- [x] `BaseService` has comprehensive hooks.
+- [x] Assembler core is isolated in `platform/assembler`.
 
 ---
 
-## Task C2: Data Layer with Relations
+## Task C2: Data Layer with Referential Integrity
 
 **Day:** 2 (Jan 2)  
 **Duration:** 8 hours  
 **Dependencies:** C1 complete  
 
 ### Goal
-A `FlatFileProvider` that supports basic relational queries to handle the "Relationships" requirement.
+A `FlatFileProvider` that supports relational queries, atomic writes, and **Referential Integrity Protection**.
 
 ### What to Do
 
 1.  **Implement `FlatFileProvider.js`**:
-    *   `findAll(entity, filter)`: Support `{ category_id: "123" }` filtering.
-    *   `findWithRelation(entity, id, relation)`: Simple join logic (e.g., get Product + its Category).
-2.  **Implement Transaction Safety**: Atomic writes (write-replace) to prevent corruption.
+    *   `findAll`, `create`, `update`, `delete`.
+    *   **Upsert Logic**: `create` must ignore system fields (`id`, `created_at`) to allow safe CSV imports.
+2.  **Implement Delete Protection**:
+    *   Before deleting, check if other entities reference this ID.
+    *   If referenced, block delete and return 409 with a list of dependent records.
+3.  **Implement Reference Resolution**:
+    *   Helper to fetch "Display Fields" (e.g., product names instead of IDs) for UI.
 
-### Key Logic: Filtering
+### Key Logic: Delete Protection
 ```javascript
-async findAll(entitySlug, filter = {}) {
-  const items = await this._read(entitySlug);
-  if (Object.keys(filter).length === 0) return items;
-  
-  return items.filter(item => {
-    return Object.entries(filter).every(([key, val]) => item[key] === val);
-  });
+async delete(slug, id) {
+  const dependencies = await this._findDependencies(slug, id);
+  if (dependencies.length > 0) {
+    throw new Error(`Cannot delete: Referenced by ${dependencies.length} records in ${dependencies[0].entity}`);
+  }
+  // ... proceed to delete
 }
 ```
 
 ### ✅ Definition of Done
-- [ ] Provider supports filtering by fields.
-- [ ] Atomic writes prevent data corruption.
-- [ ] `ensureDataDir` creates folders automatically.
+- [x] Provider ignores system fields on create (safe import).
+- [x] Deletion is blocked if foreign key constraints exist.
+- [x] "Display Field" lookup logic implemented.
 
 ---
 
-## Task C3: The Mixin Library (Inventory Features)
+## Task C3: The Mixin Library (Features & System Entities)
 
 **Day:** 3 (Jan 3)  
 **Duration:** 8 hours  
 **Dependencies:** C2 complete  
 
 ### Goal
-Create the "Traits" that implement the features in `FUNCTIONAL_SCOPE.md`.
+Create Traits that implement features like Audit Logging and Location Management, interacting with **System Entities**.
 
 ### What to Do
 
-1.  **Create `InventoryMixin.js`**: Adds `quantity` field logic.
-2.  **Create `BatchTrackingMixin.js`**: 
-    *   Hook: `BEFORE_CREATE` -> Validate batch number & expiry.
-    *   Hook: `SCHEMA_EXTEND` -> Add `batch_number`, `expiry_date` fields.
-3.  **Create `AuditMixin.js`**:
-    *   Hook: `AFTER_*` -> Log action to `audit_logs` table.
-4.  **Create `LocationMixin.js`**:
-    *   Splits inventory by `location_id`.
+1.  **Create `AuditMixin.js`**:
+    *   Intercepts `AFTER_CREATE`, `AFTER_UPDATE`, `AFTER_DELETE`.
+    *   Writes to system entity `__audit_logs` (not just console).
+2.  **Create `LocationMixin.js`**:
+    *   Validates location references for `multi_location` enabled entities.
+3.  **Define System Entities**:
+    *   `__audit_logs`: Stores activity history.
+    *   `__reports`: Stores scheduled report snapshots.
 
-### Example: AuditMixin.js (Snippet)
+### Example: AuditMixin.js (Real Implementation)
 ```javascript
-// stored in brick-library/backend-bricks/mixins/AuditMixin.js
+// brick-library/backend-bricks/mixins/AuditMixin.js
 module.exports = {
   hooks: {
     'AFTER_CREATE_LOGGING': `
-      await this.auditRepo.log({
+      const auditRepo = this.repository.getSystemRepository('__audit_logs');
+      await auditRepo.create({
         action: 'CREATE',
-        entity: '{{entitySlug}}',
-        user: context.user.id,
-        timestamp: new Date()
+        entity: this.slug,
+        entity_id: result.id,
+        message: \`Created \${this.slug} \${result.id}\`,
+        at: new Date().toISOString(),
       });
     `
   }
@@ -1224,79 +1228,88 @@ module.exports = {
 ```
 
 ### ✅ Definition of Done
-- [ ] Mixins created for: Inventory, Batch, Audit.
-- [ ] Mixins define clear code snippets for specific hooks.
+- [x] `AuditMixin` writes to `__audit_logs` table.
+- [x] System entities (`__audit_logs`, `__reports`) are supported by the repository.
 
 ---
 
-## Task C4: The "Feature-Aware" Assembler
+## Task C4: The Modular Assembler Engine
 
 **Day:** 4 (Jan 4)  
 **Duration:** 10 hours  
 **Dependencies:** C3 complete  
 
 ### Goal
-The "Architect" that parses the SDF and weaves the correct Mixins.
+The "Architect" that parses the advanced SDF (`modules`, `inventory_ops`, `scheduled_reports`) and orchestrates generation.
 
 ### What to Do
 
-1.  **Scaffolding**: Standard package.json, server.js generation.
-2.  **SDF Analysis Logic**:
-    *   If entity has `features: ["batch_tracking"]` -> Apply `BatchTrackingMixin`.
-    *   If entity has `features: ["audit"]` -> Apply `AuditMixin`.
-3.  **Code Weaving**: Use `CodeWeaver` to merge Mixins into `BaseService`.
-4.  **Route Wiring**: Auto-generate `routes/index.js`.
+1.  **Decouple Generators**: Move logic out of backend source into `platform/assembler/generators/`.
+2.  **Implement Global Module Support**:
+    *   Check `sdf.modules.activity_log` -> Inject `AuditMixin` globally.
+    *   Check `sdf.modules.scheduled_reports` -> Inject Cron jobs in `index.js`.
+3.  **Implement Report Snapshotting**:
+    *   Backend logic to calculate "Low Stock", "Inventory Value", and "Movements" summaries daily.
+    *   Support `entity_snapshots` for time-travel diffs.
 
 ### Logic Flow
 ```javascript
-// inside BackendGenerator.js
-async generateService(entity, outputDir) {
-  let serviceCode = await this.repo.get('BaseService.js.hbs');
-  const weaver = new CodeWeaver(serviceCode);
-
-  // Apply Mixins
-  if (entity.features.includes('batch_tracking')) {
-    const mixin = require('../../brick-library/mixins/BatchTrackingMixin');
-    Object.entries(mixin.hooks).forEach(([hook, code]) => {
-      weaver.inject(hook, code);
-    });
-  }
-
-  // Write file
-  await fs.writeFile(dest, weaver.getContent());
+// platform/assembler/ProjectAssembler.js
+async assemble(projectId, sdf) {
+  // 1. Generate Backend (Services, Controllers, Cron Jobs)
+  await this.backendGenerator.generate(sdf);
+  
+  // 2. Generate Frontend (Pages, Dashboards, Wizards)
+  await this.frontendGenerator.generate(sdf);
+  
+  // 3. Package and ZIP
 }
 ```
 
 ### ✅ Definition of Done
-- [ ] Assembler generates a Service file that contains logic from MULTIPLE mixins.
-- [ ] Routes are automatically wired.
-- [ ] Server starts and exposes endpoints.
+- [x] Assembler respects global `modules` config.
+- [x] Backend generates scheduled report snapshots (Value, Movements, Diffs).
+- [x] Generators are decoupled from the template code.
 
 ---
 
-## Task C5: "Widget-Based" Frontend Generator
+## Task C5: Modular Frontend Generator
 
 **Day:** 5 (Jan 5)  
 **Duration:** 8 hours  
 **Dependencies:** C4 complete  
 
 ### Goal
-Generate a UI that adapts to the features (e.g., show a "Batch Selector" if batch tracking is on).
+Generate a sophisticated React application with dynamic routing, wizards, and dashboards.
 
 ### What to Do
 
-1.  **Create `FieldRegistry`**: Maps data types to UI Components.
-    *   `string` -> `Input`
-    *   `reference` -> `EntitySelect` (Dropdown)
-    *   `date` -> `DatePicker`
-2.  **Create `DynamicForm.tsx.hbs`**: Iterates through fields and renders correct widgets.
-3.  **Create `ReferenceWidget.tsx`**: Fetches related items for dropdowns.
-4.  **Wiring**: Generate `App.tsx` and `Sidebar.tsx`.
+1.  **Modular Page Builders** (`generators/frontend/`):
+    *   `dashboardHome.js`: Generates widgets for Low Stock, Expiry, Activity.
+    *   `reportsPage.js`: Generates the **Date-Range Diff UI** and charts.
+    *   `entityPages.js`: Generates standard CRUD + **Inventory Wizards**.
+2.  **Inventory Wizards**:
+    *   Generate `IssuePage` (Sell), `ReceivePage`, `TransferPage` based on `inventory_ops` config.
+    *   Handle `quantity_mode` ("delta" vs "absolute").
+3.  **UI Configuration**:
+    *   Respect `ui.search`, `ui.print`, `ui.csv_import` flags.
+    *   Generate **QR Code Labels** if `labels.enabled` is true (with scanning support).
+
+### Key: Builder Pattern
+```javascript
+// generators/frontend/entityPages.js
+function buildIssuePage(entity, config) {
+  // Generates a specialized "Sell/Issue" wizard 
+  // with validation against current stock levels
+  // and support for "absolute" or "delta" quantity modes.
+}
+```
 
 ### ✅ Definition of Done
-- [ ] Forms automatically include fields for Mixins (e.g., Expiry Date shows up if Batch Tracking is on).
-- [ ] Reference fields render as Dropdowns, not text IDs.
-- [ ] Sidebar links to all entities.
+- [x] Frontend code is generated via modular builders, not giant strings.
+- [x] **Inventory Wizards** (Receive, Issue, Adjust) are fully functional.
+- [x] **Reports Page** allows diffing between two historical snapshots.
+- [x] **Dashboard** widgets (Low Stock, Expiry) use real API data.
 
 ---
 
@@ -1308,52 +1321,42 @@ Generate a UI that adapts to the features (e.g., show a "Batch Selector" if batc
 
 ### What to Do
 
-1.  **Generate a Complex ERP**: Feed a "Pharma Distributor" description (requires Batches + Expiry).
+1.  **Generate Complex ERPs**:
+    *   **Milk Producer** (Perishables, Expiry, Batch Tracking).
+    *   **Tire Business** (Non-perishable, Bin Locations, Absolute Quantities).
 2.  **Verify**:
-    *   Can I create a Batch?
-    *   Does Expiry validation work?
-    *   Does the Audit Log record my changes?
-3.  **Docker Test**: Ensure it runs in container.
+    *   Can I "Sell" an item via the Issue Wizard?
+    *   Does the Report show what changed between yesterday and today?
+    *   Does the QR Scanner work?
+3.  **Run Tests**: Use `test/run_assembler.js` with specific SDFs.
 
 ### ✅ Definition of Done
-- [ ] "Pharma" scenario fully working.
-- [ ] "Electronics" scenario (Serials) fully working.
-- [ ] No manual code changes required after generation.
+- [x] Multiple business domains (Milk, Tires) generated successfully.
+- [x] Advanced inventory features (Wizards, Reports) verified.
 
 ---
 
-## Task C7: Operations & Visual Polish (Bonus)
+## Task C7: Advanced Features (Implemented)
 
-**Day:** 6+ (Extension)
-**Focus:** Turning a CRUD app into a usable Product.
+**Day:** 6+ (Completed)
+**Focus:** Delivery of High-Value ERP Features.
 
-### 1. Operation Bricks (Workflows)
-Instead of just tables, generate "Action Buttons" that open specific modals.
-*   **Stock Receive Wizard:** A simplified form that only asks for "Item", "Qty", "Batch" (hides internal IDs).
-*   **Stock Transfer Wizard:** "From Location" -> "To Location" -> "Qty".
+### 1. Operation Wizards
+Instead of generic CRUD, we now generate specialized workflows:
+*   **Receive Stock:** Updates inventory + creates `IN` movement.
+*   **Issue/Sell Stock:** checks availability -> updates inventory -> creates `OUT` movement.
+*   **Transfer Stock:** Move between locations (with validation).
+*   **Adjust Stock:** Reason codes + audit trail.
 
-### 2. UI/UX Polish
-*   **Navigation:** Breadcrumbs, Active state on sidebar.
-*   **Feedback:** Toast notifications (Success/Error) instead of `alert()`.
-*   **Dashboard:** A home page with widgets (Low Stock Count, Recent Activity).
+### 2. Intelligent Reports
+*   **Snapshot Engine:** Backend saves daily state.
+*   **Diff UI:** Compare any two dates to see Added/Removed/Changed records.
+*   **Valuation:** Real-time inventory value calculation.
 
 ### 3. Data Tools
-*   **CSV Import:** A generic `ImportModal` that accepts a CSV, maps headers to fields, and bulk-POSTs to the API.
-*   **PDF Export:** A button to render the current record as a clean HTML template and trigger `window.print()`.
-
-### Updated Frontend Structure
-```
-src/
-  components/
-    Wizards/
-      ReceiveStockWizard.tsx
-      TransferStockWizard.tsx
-    Tools/
-      ImportModal.tsx
-      PrintButton.tsx
-    Layout/
-      DashboardLayout.tsx (Better visuals)
-```
+*   **QR Labels:** Generate printable labels with QR codes.
+*   **QR Scanning:** Built-in scanner using `BarcodeDetector` (with `jsQR` fallback).
+*   **Smart CSV:** Upsert capability (Update existing IDs, Create new ones).
 
 
 ---

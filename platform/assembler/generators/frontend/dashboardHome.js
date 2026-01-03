@@ -19,6 +19,18 @@ const getEntityDisplay = (entitySlug: string, row: any) => {
   return String(v ?? '');
 };
 
+const toNumber = (v: any): number | null => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  const normalized = s.replace(/,/g, '.');
+  const n = Number(normalized);
+  if (Number.isFinite(n)) return n;
+  const pf = parseFloat(normalized);
+  return Number.isFinite(pf) ? pf : null;
+};
+
 export default function DashboardHome() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loadingCounts, setLoadingCounts] = useState(true);
@@ -58,8 +70,13 @@ export default function DashboardHome() {
               const qf = LOW_STOCK.quantity_field;
               const rf = LOW_STOCK.reorder_point_field;
               const low = rows
-                .filter((r: any) => Number(r?.[qf] ?? 0) <= Number(r?.[rf] ?? 0))
-                .sort((a: any, b: any) => Number(a?.[qf] ?? 0) - Number(b?.[qf] ?? 0))
+                .filter((r: any) => {
+                  const q = toNumber(r?.[qf]);
+                  const rp = toNumber(r?.[rf]);
+                  if (q === null || rp === null) return false;
+                  return q <= rp;
+                })
+                .sort((a: any, b: any) => (toNumber(a?.[qf]) ?? 0) - (toNumber(b?.[qf]) ?? 0))
                 .slice(0, LOW_STOCK.limit);
               setLowStockItems(low);
             })().finally(() => setLoadingLowStock(false))
@@ -116,8 +133,8 @@ export default function DashboardHome() {
     const rf = LOW_STOCK.reorder_point_field;
     const map: Record<string, number> = {};
     for (const it of lowStockItems) {
-      const q = Number(it?.[qf] ?? 0);
-      const rp = Number(it?.[rf] ?? 0);
+      const q = toNumber(it?.[qf]) ?? 0;
+      const rp = toNumber(it?.[rf]) ?? 0;
       const suggested = Math.max(0, Math.ceil((rp - q) * multiplier));
       map[String(it?.id)] = suggested;
     }

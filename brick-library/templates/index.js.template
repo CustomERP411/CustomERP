@@ -61,6 +61,17 @@ const scheduleReports = () => {
 
     try {
       const data = {};
+      const toNumber = (v) => {
+        if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+        if (v === null || v === undefined) return null;
+        const s = String(v).trim();
+        if (!s) return null;
+        const normalized = s.replace(/,/g, '.');
+        const n = Number(normalized);
+        if (Number.isFinite(n)) return n;
+        const pf = parseFloat(normalized);
+        return Number.isFinite(pf) ? pf : null;
+      };
 
       const entities = Array.isArray(cfg.entities) ? cfg.entities : [];
       if (entities.length) {
@@ -83,8 +94,17 @@ const scheduleReports = () => {
         const limit = Number(cfg.low_stock.limit || 10);
         const rows = await repo.findAll(slug);
         const low = (Array.isArray(rows) ? rows : [])
-          .filter((r) => Number(r?.[qf] ?? 0) <= Number(r?.[rf] ?? 0))
-          .sort((a, b) => Number(a?.[qf] ?? 0) - Number(b?.[qf] ?? 0))
+          .filter((r) => {
+            const q = toNumber(r?.[qf]);
+            const rp = toNumber(r?.[rf]);
+            if (q === null || rp === null) return false;
+            return q <= rp;
+          })
+          .sort((a, b) => {
+            const aq = toNumber(a?.[qf]) ?? 0;
+            const bq = toNumber(b?.[qf]) ?? 0;
+            return aq - bq;
+          })
           .slice(0, limit);
         data.low_stock = {
           entity: slug,
@@ -131,9 +151,9 @@ const scheduleReports = () => {
         let totalValue = 0;
         const preview = (Array.isArray(rows) ? rows : [])
           .map((r) => {
-            const qty = Number(r?.[qf] ?? 0);
-            const price = Number(r?.[pf] ?? 0);
-            if (!Number.isFinite(qty) || !Number.isFinite(price)) return null;
+            const qty = toNumber(r?.[qf]);
+            const price = toNumber(r?.[pf]);
+            if (qty === null || price === null) return null;
             const value = qty * price;
             totalQty += qty;
             totalValue += value;
@@ -196,8 +216,8 @@ const scheduleReports = () => {
           if (!Number.isFinite(t) || t < sinceT) continue;
 
           const type = String(r?.[tf] || '');
-          const qty = Number(r?.[qf] ?? 0);
-          if (!Number.isFinite(qty)) continue;
+          const qty = toNumber(r?.[qf]);
+          if (qty === null) continue;
 
           const absQty = Math.abs(qty);
 
@@ -255,6 +275,70 @@ const scheduleReports = () => {
           by_type: byType,
           recent: recent.slice(0, limit),
         };
+      }
+
+      // Entity snapshots for date-range diff reports (optional)
+      const snapshotSpecsRaw = cfg.entity_snapshots || cfg.entitySnapshots || [];
+      const snapshotSpecs = Array.isArray(snapshotSpecsRaw) ? snapshotSpecsRaw : [];
+      if (snapshotSpecs.length) {
+        const entitySnapshots = {};
+        for (const spec of snapshotSpecs) {
+          if (!spec) continue;
+          const slug = spec.entity || spec.slug;
+          if (!slug) continue;
+
+          const fields = Array.isArray(spec.fields) ? spec.fields : [];
+          const displayField = spec.display_field || spec.displayField || 'name';
+          const limit = Number(spec.limit || 500);
+
+          const sortField =
+            spec.sort_field ||
+            spec.sortField ||
+            (spec.sort_by && (spec.sort_by.field || spec.sort_by.key)) ||
+            (spec.sortBy && (spec.sortBy.field || spec.sortBy.key)) ||
+            null;
+          const sortDirRaw =
+            spec.sort_dir ||
+            spec.sortDir ||
+            (spec.sort_by && (spec.sort_by.direction || spec.sort_by.dir)) ||
+            (spec.sortBy && (spec.sortBy.direction || spec.sortBy.dir)) ||
+            'asc';
+          const sortDir = String(sortDirRaw || 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
+
+          const rows = await repo.findAll(slug);
+          let items = (Array.isArray(rows) ? rows : []).map((r) => {
+            const out = { id: r?.id };
+            const display = r?.[displayField] ?? r?.name ?? r?.sku ?? r?.code ?? r?.id;
+            out.display = display;
+            for (const f of fields) out[f] = r?.[f];
+            return out;
+          });
+
+          if (sortField) {
+            items.sort((a, b) => {
+              const av = a?.[sortField];
+              const bv = b?.[sortField];
+              const an = toNumber(av);
+              const bn = toNumber(bv);
+              if (an !== null && bn !== null) return an - bn;
+              return String(av ?? '').localeCompare(String(bv ?? ''), undefined, { numeric: true, sensitivity: 'base' });
+            });
+            if (sortDir === 'desc') items.reverse();
+          }
+
+          if (Number.isFinite(limit) && limit > 0) items = items.slice(0, limit);
+
+          entitySnapshots[String(slug)] = {
+            entity: String(slug),
+            display_field: String(displayField),
+            fields,
+            limit,
+            sort_field: sortField,
+            sort_dir: sortDir,
+            items,
+          };
+        }
+        data.entity_snapshots = entitySnapshots;
       }
 
       // Upsert by (report_type, report_date)

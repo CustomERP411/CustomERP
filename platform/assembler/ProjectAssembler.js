@@ -240,6 +240,10 @@ chmod +x dev.sh
             scheduled.movement_summary ||
             scheduled.movementSummary ||
             null,
+          entity_snapshots:
+            (Array.isArray(scheduled.entity_snapshots) ? scheduled.entity_snapshots : null) ||
+            (Array.isArray(scheduled.entitySnapshots) ? scheduled.entitySnapshots : []) ||
+            [],
         },
       },
     };

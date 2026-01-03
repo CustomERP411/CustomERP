@@ -61,7 +61,16 @@
         "in_types": ["IN", "TRANSFER_IN"],
         "out_types": ["OUT", "TRANSFER_OUT"],
         "adjust_types": ["ADJUSTMENT"]
-      }
+      },
+      "entity_snapshots": [
+        {
+          "entity": "dairy_skus",
+          "display_field": "sku_code",
+          "fields": ["product_name", "on_hand_units", "reorder_level", "wholesale_price", "best_before_date", "is_active"],
+          "limit": 500,
+          "sort_by": { "field": "product_name", "direction": "asc" }
+        }
+      ]
     }
   },
   "entities": [

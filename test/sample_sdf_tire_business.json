@@ -48,7 +48,16 @@
         "in_types": ["RECEIPT", "TRANSFER_IN", "ADJUST_IN"],
         "out_types": ["SALE", "TRANSFER_OUT", "ADJUST_OUT"],
         "adjust_types": []
-      }
+      },
+      "entity_snapshots": [
+        {
+          "entity": "tire_skus",
+          "display_field": "sku",
+          "fields": ["brand_id", "model_name", "size_code", "season", "on_hand_qty", "min_stock", "unit_cost", "unit_price", "is_active"],
+          "limit": 500,
+          "sort_by": { "field": "sku", "direction": "asc" }
+        }
+      ]
     }
   },
   "entities": [

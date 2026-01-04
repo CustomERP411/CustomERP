@@ -7,7 +7,9 @@ WORKDIR /app
 
 # Install dependencies only
 COPY package*.json ./
-RUN npm ci --only=production
+# Note: use npm install here (not npm ci) because in development we may bump dependencies
+# without immediately regenerating/committing package-lock.json. This keeps production builds working.
+RUN npm install --omit=dev
 
 # Copy source
 COPY src/ ./src/

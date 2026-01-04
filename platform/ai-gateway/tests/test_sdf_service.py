@@ -22,30 +22,29 @@ def sample_business_description() -> str:
 def valid_sdf_json() -> str:
     """A valid SDF JSON string that the mock AI will return."""
     data = {
-        "schema_name": "Electronics Shop Inventory",
+        "project_name": "Electronics Shop Inventory",
+        "modules": {
+            "activity_log": {"enabled": True}
+        },
         "entities": [
             {
                 "slug": "products",
-                "display_name": "Product",
-                "description": "Represents an item in the inventory.",
+                "display_name": "Products",
+                "display_field": "name",
+                "ui": {"search": True, "csv_import": True, "csv_export": True, "print": True},
+                "list": {"columns": ["name"]},
                 "fields": [
-                    {
-                        "name": "id",
-                        "type": "uuid",
-                        "required": True,
-                        "description": "Unique identifier for the product.",
-                        "is_primary_key": True
-                    },
                     {
                         "name": "name",
                         "type": "string",
                         "required": True,
-                        "description": "The name of the product."
+                        "label": "Name",
+                        "min_length": 2
                     }
                 ]
             }
         ],
-        "relations": []
+        "clarifications_needed": []
     }
     return json.dumps(data)
 
@@ -65,7 +64,7 @@ async def test_generate_sdf_success(
 
     # Assert: Check that the result is a valid, parsed Pydantic model
     assert isinstance(result, SystemDefinitionFile)
-    assert result.schema_name == "Electronics Shop Inventory"
+    assert result.project_name == "Electronics Shop Inventory"
     assert len(result.entities) == 1
     assert result.entities[0].slug == "products"
     mock_gemini_client.generate_with_retry.assert_awaited_once()
@@ -97,8 +96,6 @@ async def test_generate_sdf_schema_validation_error(
         "entities": [
             {
                 "slug": "products",
-                "display_name": "Product",
-                "description": "Represents an item in the inventory.",
                 "fields": []
             }
         ]

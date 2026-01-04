@@ -461,7 +461,21 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       issueCfg.display_name ||
       issueCfg.displayName ||
       issueCfg.name ||
-      'Issue';
+      'Sell';
+    const quickCfg = inv.quick_actions || inv.quickActions || {};
+    const quickAll = quickCfg === true;
+    const enableQuickReceive =
+      enableReceive &&
+      (quickAll ||
+        quickCfg.receive === true ||
+        quickCfg.add === true ||
+        quickCfg.in === true);
+    const enableQuickIssue =
+      enableIssue &&
+      (quickAll ||
+        quickCfg.issue === true ||
+        quickCfg.sell === true ||
+        quickCfg.out === true);
     const canTransfer =
       enableInventoryOps &&
       (inv.transfer?.enabled === true ||
@@ -494,7 +508,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       enableCsvExport,
       enablePrint,
       enableReceive,
+      enableQuickReceive,
       enableIssue,
+      enableQuickIssue,
       issueLabel,
       enableAdjust,
       canTransfer,
@@ -529,12 +545,15 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     // ===================== Tier 2: Inventory ops wizards (optional) =====================
     if (enableInventoryOps) {
       const singular = String(entity.slug).endsWith('s') ? String(entity.slug).slice(0, -1) : String(entity.slug);
+      const rawMode = inv.quantity_mode || inv.quantityMode || inv.movement_quantity_mode || inv.movementQuantityMode || 'delta';
+      const modeStr = String(rawMode || 'delta').toLowerCase();
+      const normalizedMode = (modeStr === 'absolute' || modeStr === 'abs') ? 'absolute' : 'delta';
       const invCfg = {
         movement_entity: inv.movement_entity || inv.movementEntity || 'stock_movements',
         location_entity: inv.location_entity || inv.locationEntity || 'locations',
         quantity_field: inv.quantity_field || inv.quantityField || 'quantity',
         location_ids_field: inv.location_ids_field || inv.locationIdsField || 'location_ids',
-        quantity_mode: inv.quantity_mode || inv.quantityMode || inv.movement_quantity_mode || inv.movementQuantityMode || 'delta',
+        quantity_mode: normalizedMode,
         issue: {
           allow_negative_stock:
             issueCfg.allow_negative_stock === true ||
@@ -673,7 +692,36 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     for (const field of fields) {
       if (!field || ['id', 'created_at', 'updated_at'].includes(field.name)) continue;
 
-      const widget = field.widget || this._getWidgetForType(field.type);
+      const rawOptions = field.options ?? field.enum ?? field.allowed_values ?? field.allowedValues;
+      const options = Array.isArray(rawOptions)
+        ? rawOptions.map((x) => String(x)).map((s) => s.trim()).filter(Boolean)
+        : null;
+
+      let widget = field.widget || this._getWidgetForType(field.type);
+      if (typeof widget === 'string' && widget.length) {
+        const w = widget.trim();
+        const wNorm = w.toLowerCase();
+        const widgetMap = {
+          input: 'Input',
+          textinput: 'Input',
+          textarea: 'TextArea',
+          number: 'NumberInput',
+          numberinput: 'NumberInput',
+          checkbox: 'Checkbox',
+          date: 'DatePicker',
+          datepicker: 'DatePicker',
+          select: 'Select',
+          dropdown: 'Select',
+          radiogroup: 'RadioGroup',
+          radio: 'RadioGroup',
+          entityselect: 'EntitySelect',
+        };
+        widget = widgetMap[wNorm] || w;
+      }
+      if (!field.widget && options && options.length) {
+        // Fast tap-friendly UX for small enums, dropdown for larger.
+        widget = options.length <= 4 ? 'RadioGroup' : 'Select';
+      }
       const label = this._escapeJsString(field.label ? String(field.label) : this._formatLabel(field.name));
 
       const extraParts = [];
@@ -691,6 +739,11 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       if (typeof max === 'number') extraParts.push(`max: ${max}`);
       if (typeof pattern === 'string' && pattern.length) extraParts.push(`pattern: '${this._escapeJsString(pattern)}'`);
       if (unique) extraParts.push(`unique: true`);
+
+      if (options && options.length) {
+        const opts = options.map((v) => `'${this._escapeJsString(v)}'`).join(', ');
+        extraParts.push(`options: [${opts}]`);
+      }
 
       const isReference = field.type === 'reference' || field.name.endsWith('_id') || field.name.endsWith('_ids');
       if (isReference) {

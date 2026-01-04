@@ -31,7 +31,7 @@ export default function LoginPage() {
 
   // Get the page user was trying to access before login
   const state = location.state as LocationState;
-  const from = state?.from?.pathname || '/dashboard';
+  const from = state?.from?.pathname || '/projects';
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

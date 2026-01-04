@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Plus, Loader2 } from 'lucide-react';
 import { projectService } from '../services/projectService';
 import ProjectCard from '../components/projects/ProjectCard';
 import NewProjectModal from '../components/projects/NewProjectModal';
@@ -36,7 +35,7 @@ export default function ProjectListPage() {
   if (loading && projects.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
       </div>
     );
   }
@@ -49,7 +48,6 @@ export default function ProjectListPage() {
           <p className="text-slate-500">Manage your ERP generation projects</p>
         </div>
         <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
           New Project
         </Button>
       </div>
@@ -63,7 +61,7 @@ export default function ProjectListPage() {
       {projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-20 text-center">
           <div className="rounded-full bg-white p-4 shadow-sm">
-            <Plus className="h-8 w-8 text-slate-400" />
+            <div className="h-8 w-8 rounded-full bg-slate-100" />
           </div>
           <h3 className="mt-4 text-lg font-semibold text-slate-900">No projects yet</h3>
           <p className="mt-1 text-sm text-slate-500 max-w-sm">

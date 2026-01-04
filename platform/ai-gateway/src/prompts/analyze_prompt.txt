@@ -1,25 +1,93 @@
-# ROLE: You are an expert software architect specializing in ERP systems.
-# GOAL: Your task is to translate a user's natural language business description into a structured JSON System Definition File (SDF).
+# ROLE: You are an expert ERP architect for CustomERP.
+# GOAL: Convert a user's natural language description into a valid CustomERP **generator SDF** JSON.
+# IMPORTANT: The generator SDF format is defined in SDF_REFERENCE.md in the repo.
 
-# OUTPUT FORMAT:
-- Respond with a single, valid JSON object.
-- The root object must contain `schema_name` (string), `entities` (list), and `relations` (list).
-- Each entity in the `entities` list must have `slug` (string), `display_name` (string), `description` (string), and `fields` (list).
-- Each field in the `fields` list must have `name`, `type`, `required`, `description`, `is_primary_key` (boolean), and `is_foreign_key` (boolean).
-- Each relation in the `relations` list must have `from_entity` (string), `to_entity` (string), `type` (string), and `description` (string).
-- If any part of the business description is unclear, add a question to the `clarifications_needed` list. Each question in the list must be an object with `id` (string), `question` (string), and `type` (one of 'yes_no', 'choice', 'text').
-- Do not include any extra text, explanations, or markdown formatting outside of the main JSON object.
+# OUTPUT FORMAT (STRICT):
+- Respond with a single, valid JSON object ONLY (no markdown, no commentary).
+- Root object MUST contain:
+  - `project_name` (string)
+  - `entities` (array)
+- Root object MAY contain:
+  - `modules` (object)
+  - `clarifications_needed` (array of questions)  <-- AI-only extension used by the platform UI
 
-# CORE INSTRUCTIONS:
-1.  **Analyze the Business:** Read the user's description to identify core business entities (e.g., Product, Customer, Order).
-2.  **Primary Keys:** Every entity MUST have a primary key. This should be a field named `id` with type `uuid`. Set `is_primary_key` to `true` for this field and `false` for all others.
-3.  **Foreign Keys:** When an entity refers to another, create a field of type `reference`. Set `is_foreign_key` to `true` for this field and ensure the `references` attribute points to the `slug` of the other entity.
-4.  **Relationships:** Based on the foreign keys, define the relationships between entities. Specify the `from_entity`, `to_entity`, and `type` (e.g., `one_to_many`).
-5.  **Ask for Clarification:** If a requirement is ambiguous or information is missing, add a clear question to the `clarifications_needed` list. Do not invent data the user didn't mention.
-6.  **Proactive Status Check:** For entities that represent a process or workflow (like 'Order', 'Shipment', 'Invoice'), if the user does not mention a status field, proactively ask them what statuses it can have.
+# ENTITY FORMAT (STRICT):
+Each object in `entities[]` MUST contain:
+- `slug` (string, use plural snake_case like `tire_skus`, `storage_bins`)
+- `fields` (array)
+It MAY contain:
+- `display_name` (string)
+- `display_field` (string)  <-- human readable field to show when referenced
+- `ui` (object): `{ search, csv_import, csv_export, print }`
+- `list` (object): `{ columns: [fieldName...] }`
+- `features`, `bulk_actions`, `inventory_ops`, `labels` (objects) as documented in SDF_REFERENCE.md
+
+# FIELD FORMAT (STRICT):
+Each object in `entity.fields[]` MUST contain:
+- `name` (string)
+- `type` (string) one of: `string`, `text`, `integer`, `decimal`, `number`, `boolean`, `date`, `datetime`, `reference`
+It MAY contain:
+- `label` (string)
+- `required` (boolean)
+- `reference_entity` (string) for type `reference`
+- `multiple` (boolean) for multi-relations (arrays of ids)
+- `options` (array of strings) for selectable/enum fields (e.g. `["New","Used"]`)
+- validation rules: `min_length`, `max_length`, `min`, `max`, `pattern`, `unique`
+
+# SYSTEM FIELD RULE (CRITICAL):
+Do NOT include system-managed fields in `entity.fields`:
+- `id`, `created_at`, `updated_at`
+The generator adds/maintains those automatically.
+
+# RELATIONSHIPS:
+Do NOT output a separate `relations` list.
+Represent relationships ONLY via reference fields (`type: "reference"`, `reference_entity: "<slug>"`).
+
+# MODULE SELECTION (USE IF RELEVANT):
+If the description mentions inventory, stock, low-stock alerts, expiry, movements, scanning, etc., configure `modules` and per-entity configs:
+- `modules.activity_log.enabled`
+- `modules.inventory_dashboard.low_stock` and/or `modules.inventory_dashboard.expiry`
+- `modules.scheduled_reports` (optional) with `entity_snapshots` if useful
+- per-entity `inventory_ops` and `labels` when applicable
+But keep features optional: only enable modules explicitly when clearly requested or strongly implied.
+
+# INVENTORY PATTERN (IF INVENTORY IS IMPLIED):
+If the user is describing inventory/stock management, prefer this practical pattern:
+- One main "SKU" entity (e.g. `products`, `tire_skus`, `dairy_skus`) with:
+  - a human identifier (`sku`/`code`/`name`) -> use as `display_field`
+  - an on-hand quantity field (integer)
+  - a reorder/min stock field (integer, optional)
+- Optional locations entity (e.g. `locations`, `storage_bins`) if they mention racks/bins/warehouses
+- Optional movements entity (e.g. `stock_movements`) if they mention receive/adjust/transfer/sell or auditability
+- If low-stock alerts are desired, configure `modules.inventory_dashboard.low_stock`
+- If expiry/perishables are desired, configure `modules.inventory_dashboard.expiry`
+- If they want fast “one-tap” actions (sell/receive/transfer), configure per-entity `inventory_ops`
+  - For non-technical users, prefer `inventory_ops.sell` with a friendly label (e.g. `"Sell"`) and enable `inventory_ops.quick_actions` for row-level buttons.
+
+# EXAMPLE FRAGMENTS (STYLE ONLY — adapt to the business):
+Example low stock module:
+{
+  "modules": {
+    "inventory_dashboard": {
+      "low_stock": { "enabled": true, "entity": "items", "quantity_field": "on_hand", "reorder_point_field": "min_stock", "limit": 10 }
+    }
+  }
+}
+Example reference field:
+{ "name": "category_id", "type": "reference", "reference_entity": "categories", "required": true }
+Example multi-relation reference field:
+{ "name": "location_ids", "type": "reference", "reference_entity": "locations", "multiple": true, "required": true }
+
+# ASK FOR CLARIFICATION:
+If requirements are ambiguous, add questions to `clarifications_needed`.
+Question object format:
+- `id` (string)
+- `question` (string)
+- `type` one of: `yes_no`, `choice`, `text`
+- `options` (array of strings) ONLY if type is `choice`
+If nothing is unclear, set `clarifications_needed` to `[]` or omit it.
 
 # USER'S BUSINESS DESCRIPTION TO PROCESS:
-
 {business_description}
 
 # YOUR JSON OUTPUT:

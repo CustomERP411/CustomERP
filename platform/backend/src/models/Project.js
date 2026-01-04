@@ -1,7 +1,7 @@
 const db = require('../config/database');
 
 class Project {
-  static async create({ name, userId }) {
+  static async create({ name, userId, description = null }) {
     // We let DB generate UUID via default if we want, or generate here.
     // Migration says: project_id UUID PRIMARY KEY DEFAULT uuid_generate_v4()
     // So we can skip ID generation or do it here. Let's do it here to return it immediately if needed, 
@@ -9,10 +9,10 @@ class Project {
     // Let's use DB default for ID, but we need to pass owner_user_id.
     
     const result = await db.query(
-      `INSERT INTO projects (name, owner_user_id, status)
-       VALUES ($1, $2, 'Draft')
+      `INSERT INTO projects (name, owner_user_id, description, status)
+       VALUES ($1, $2, $3, 'Draft')
        RETURNING *`,
-      [name, userId]
+      [name, userId, description]
     );
     return this._transform(result.rows[0]);
   }
@@ -34,13 +34,15 @@ class Project {
   }
 
   static async update(id, userId, updates) {
-    const { name } = updates;
+    const { name, description, status } = updates;
     const result = await db.query(
       `UPDATE projects
-       SET name = COALESCE($1, name)
-       WHERE project_id = $2 AND owner_user_id = $3
+       SET name = COALESCE($1, name),
+           description = COALESCE($2, description),
+           status = COALESCE($3, status)
+       WHERE project_id = $4 AND owner_user_id = $5
        RETURNING *`, // Trigger updates updated_at automatically via DB trigger
-      [name, id, userId]
+      [name, description, status, id, userId]
     );
     return result.rows[0] ? this._transform(result.rows[0]) : null;
   }
@@ -61,6 +63,7 @@ class Project {
       id: row.project_id,
       name: row.name,
       status: row.status,
+      description: row.description,
       created_at: row.created_at,
       updated_at: row.updated_at,
       // owner_user_id: row.owner_user_id // internal

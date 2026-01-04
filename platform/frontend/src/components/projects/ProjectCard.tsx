@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, ArrowRight } from 'lucide-react';
 import type { Project } from '../../types/project';
 
 interface ProjectCardProps {
@@ -37,11 +36,9 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         
         <div className="mt-4 flex items-center gap-4 text-xs text-slate-500">
           <div className="flex items-center gap-1">
-            <Calendar size={14} />
             <span>{new Date(project.created_at).toLocaleDateString()}</span>
           </div>
           <div className="flex items-center gap-1">
-            <Clock size={14} />
             <span>{new Date(project.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
         </div>
@@ -49,7 +46,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
       
       <div className="mt-4 flex items-center justify-end border-t pt-3 opacity-0 transition-opacity group-hover:opacity-100">
         <span className="flex items-center gap-1 text-sm font-medium text-blue-600">
-          Open Project <ArrowRight size={16} />
+          Open Project →
         </span>
       </div>
     </div>

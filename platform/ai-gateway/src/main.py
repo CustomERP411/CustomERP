@@ -6,8 +6,8 @@ FastAPI service for AI-powered SDF generation using Google Gemini
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, AliasChoices
+from typing import Optional, Union, Any, Dict
 import os
 import asyncio
 from fastapi.responses import PlainTextResponse
@@ -79,10 +79,29 @@ async def health_check():
 
 class AnalyzeRequest(BaseModel):
     """Request model for the analysis endpoint"""
-    business_description: str = Field(..., min_length=50, description="A detailed description of the business requirements.")
+    # Compatibility:
+    # - Sprint plan uses `description`
+    # - Current gateway uses `business_description`
+    business_description: str = Field(
+        ...,
+        min_length=50,
+        description="A detailed description of the business requirements.",
+        validation_alias=AliasChoices("business_description", "description"),
+    )
+    prior_context: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Optional prior context for the AI (reserved for future use).",
+    )
 
 
-@app.post("/ai/analyze", response_model=SystemDefinitionFile, tags=["SDF Generation"])
+class EditRequest(BaseModel):
+    """Request model for applying change instructions to an existing SDF."""
+    business_description: Optional[str] = None
+    current_sdf: SystemDefinitionFile
+    instructions: str = Field(..., min_length=3)
+
+
+@app.post("/ai/analyze", response_model=SystemDefinitionFile, response_model_exclude_none=True, tags=["SDF Generation"])
 async def analyze(request: AnalyzeRequest):
     """
     Analyzes a business description and generates a System Definition File (SDF).
@@ -104,7 +123,7 @@ async def analyze(request: AnalyzeRequest):
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
-@app.post("/ai/clarify", response_model=SystemDefinitionFile, tags=["SDF Generation"])
+@app.post("/ai/clarify", response_model=SystemDefinitionFile, response_model_exclude_none=True, tags=["SDF Generation"])
 async def clarify_sdf_endpoint(request: ClarifyRequest):
     """
     Refines an SDF based on user answers to clarification questions.
@@ -117,7 +136,7 @@ async def clarify_sdf_endpoint(request: ClarifyRequest):
         )
     try:
         refined_sdf = await sdf_service.clarify_sdf(
-            business_description=request.business_description,
+            business_description=request.business_description or "",
             partial_sdf=request.partial_sdf,
             answers=request.answers
         )
@@ -129,15 +148,43 @@ async def clarify_sdf_endpoint(request: ClarifyRequest):
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
-@app.post("/ai/finalize", response_model=SystemDefinitionFile, tags=["SDF Generation"])
-async def finalize_sdf_endpoint(sdf: SystemDefinitionFile):
+@app.post("/ai/finalize", response_model=SystemDefinitionFile, response_model_exclude_none=True, tags=["SDF Generation"])
+async def finalize_sdf_endpoint(payload: Union[SystemDefinitionFile, ClarifyRequest]):
     """
     Accepts a finalized SDF. In a real system, this might trigger
     the next stage of the ERP generation process. For now, it just validates
     and returns the SDF.
     """
     print("[FINALIZE] Received final SDF.")
-    return sdf
+    if isinstance(payload, ClarifyRequest):
+        return payload.partial_sdf
+    return payload
+
+
+@app.post("/ai/edit", response_model=SystemDefinitionFile, response_model_exclude_none=True, tags=["SDF Generation"])
+async def edit_sdf_endpoint(request: EditRequest):
+    """
+    Applies a change request (instructions) to an existing generator SDF.
+    """
+    sdf_service = get_sdf_service()
+    if not sdf_service:
+        raise HTTPException(
+            status_code=503,
+            detail="AI service is not configured or failed to initialize."
+        )
+
+    try:
+        updated = await sdf_service.edit_sdf(
+            business_description=request.business_description or "",
+            current_sdf=request.current_sdf,
+            instructions=request.instructions
+        )
+        return updated
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"[ERROR] Unexpected error in /ai/edit: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
 @app.get("/test", tags=["Testing"], response_class=PlainTextResponse)

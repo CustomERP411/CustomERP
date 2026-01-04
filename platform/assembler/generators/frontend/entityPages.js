@@ -8,8 +8,10 @@ function buildEntityListPage({
   enableCsvExport,
   enablePrint,
   enableReceive,
+  enableQuickReceive,
   enableAdjust,
   enableIssue,
+  enableQuickIssue,
   issueLabel,
   canTransfer,
   enableQrLabels,
@@ -78,7 +80,7 @@ const getEntityDisplay = (entitySlug: string, row: any) => {
   return String(v ?? '');
 };
 
-const ISSUE_LABEL = '${escapeJsString(issueLabel || 'Issue')}' as const;
+const ISSUE_LABEL = '${escapeJsString(issueLabel || 'Sell')}' as const;
 
 export default function ${entityName}Page() {
   const { toast } = useToast();
@@ -619,8 +621,22 @@ ${enableBulkActions ? `                <td className="px-6 py-4 whitespace-nowra
                   </td>
                 ))}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm no-print">
-                  <Link to={'/${entity.slug}/' + item.id + '/edit'} className="text-blue-600 hover:underline mr-4">Edit</Link>
-                  <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:underline">Delete</button>
+                  <div className="flex justify-end gap-3">
+${enableQuickReceive ? `                    <Link
+                      to={'/${entity.slug}/receive?itemId=' + item.id}
+                      className="text-emerald-700 hover:underline"
+                    >
+                      Receive
+                    </Link>` : ''}
+${enableQuickIssue ? `                    <Link
+                      to={'/${entity.slug}/issue?itemId=' + item.id}
+                      className="text-emerald-700 hover:underline"
+                    >
+                      {ISSUE_LABEL}
+                    </Link>` : ''}
+                    <Link to={'/${entity.slug}/' + item.id + '/edit'} className="text-blue-600 hover:underline">Edit</Link>
+                    <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:underline">Delete</button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -757,7 +773,7 @@ export default function ${entityName}ImportPage() {
 
 function buildReceivePage({ entity, entityName, invCfg, entityLocationField }) {
   return `import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { ENTITIES } from '../config/entities';
 import { useToast } from '../components/ui/toast';
@@ -779,6 +795,7 @@ const getEntityDisplay = (entitySlug: string, row: any) => {
 export default function ${entityName}ReceivePage() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [items, setItems] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
@@ -790,6 +807,11 @@ export default function ${entityName}ReceivePage() {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [movementDate, setMovementDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState('');
+
+  useEffect(() => {
+    const pre = searchParams.get('itemId');
+    if (pre) setItemId(String(pre));
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -933,7 +955,7 @@ export default function ${entityName}ReceivePage() {
 
 function buildIssuePage({ entity, entityName, invCfg, entityLocationField, issueLabel, escapeJsString }) {
   return `import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { ENTITIES } from '../config/entities';
 import { useToast } from '../components/ui/toast';
@@ -941,7 +963,7 @@ import { useToast } from '../components/ui/toast';
 const INV = ${JSON.stringify(invCfg, null, 2)} as const;
 const ENTITY_SLUG = '${entity.slug}' as const;
 const ENTITY_LOCATION_FIELD = ${entityLocationField ? `'${entityLocationField}'` : 'null'} as any;
-const ISSUE_LABEL = '${escapeJsString(issueLabel || 'Issue')}' as const;
+const ISSUE_LABEL = '${escapeJsString(issueLabel || 'Sell')}' as const;
 
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(
   ENTITIES.map((e) => [e.slug, e.displayField])
@@ -956,6 +978,7 @@ const getEntityDisplay = (entitySlug: string, row: any) => {
 export default function ${entityName}IssuePage() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [items, setItems] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
@@ -967,6 +990,11 @@ export default function ${entityName}IssuePage() {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [movementDate, setMovementDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState('');
+
+  useEffect(() => {
+    const pre = searchParams.get('itemId');
+    if (pre) setItemId(String(pre));
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1146,7 +1174,7 @@ export default function ${entityName}AdjustPage() {
   const [loading, setLoading] = useState(true);
 
   const [itemId, setItemId] = useState('');
-  const [delta, setDelta] = useState<number>(0);
+  const [qtyChange, setQtyChange] = useState<number>(0);
   const [reasonCode, setReasonCode] = useState<string>(INV.adjust.reason_codes?.[0] || 'COUNT');
   const [note, setNote] = useState('');
   const [movementDate, setMovementDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
@@ -1173,8 +1201,8 @@ export default function ${entityName}AdjustPage() {
       toast({ title: 'Select an item', variant: 'warning' });
       return;
     }
-    if (!Number.isFinite(delta) || delta === 0) {
-      toast({ title: 'Delta must be non-zero', description: 'Use positive for increase, negative for decrease', variant: 'warning' });
+    if (!Number.isFinite(qtyChange) || qtyChange === 0) {
+      toast({ title: 'Quantity change must be non-zero', description: 'Use + for increase, - for decrease', variant: 'warning' });
       return;
     }
 
@@ -1183,10 +1211,10 @@ export default function ${entityName}AdjustPage() {
       const movement: any = {};
       movement[INV.fields.item_ref] = itemId;
       let movementType = INV.movement_types.adjust;
-      let movementQty: number = delta;
+      let movementQty: number = qtyChange;
       if (mode !== 'delta') {
-        movementQty = Math.abs(delta);
-        if (delta >= 0) {
+        movementQty = Math.abs(qtyChange);
+        if (qtyChange >= 0) {
           movementType = (INV.movement_types.adjust_in || INV.movement_types.receive);
         } else {
           movementType = (INV.movement_types.adjust_out || INV.movement_types.issue || INV.movement_types.transfer_out || 'OUT');
@@ -1201,7 +1229,7 @@ export default function ${entityName}AdjustPage() {
 
       const current = Number(selectedItem?.[INV.quantity_field] ?? 0) || 0;
       const patch: any = {};
-      patch[INV.quantity_field] = current + delta;
+      patch[INV.quantity_field] = current + qtyChange;
       await api.put('/' + ENTITY_SLUG + '/' + itemId, patch);
 
       toast({ title: 'Stock adjusted', variant: 'success' });
@@ -1218,7 +1246,7 @@ export default function ${entityName}AdjustPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Adjust stock</h1>
-          <p className="text-sm text-slate-600">Use delta (positive/negative) + a reason code.</p>
+          <p className="text-sm text-slate-600">Use a quantity change (+/-) and a reason code (for non-sales corrections).</p>
         </div>
         <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 no-print">
           Back
@@ -1238,8 +1266,8 @@ export default function ${entityName}AdjustPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Delta</label>
-            <input type="number" value={delta} onChange={(e) => setDelta(e.target.valueAsNumber)} className="w-full rounded border px-3 py-2" />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity change</label>
+            <input type="number" value={qtyChange} onChange={(e) => setQtyChange(e.target.valueAsNumber)} className="w-full rounded border px-3 py-2" />
             <div className="mt-1 text-xs text-slate-500">Example: -5 (shrinkage), +10 (found stock)</div>
           </div>
           <div>

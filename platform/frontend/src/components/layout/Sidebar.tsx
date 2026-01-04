@@ -1,6 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, FolderPlus, LogOut, Settings } from 'lucide-react';
 
 export default function Sidebar() {
   const { logout } = useAuth();
@@ -24,7 +23,6 @@ export default function Sidebar() {
           to="/" 
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white"
         >
-          <Home size={20} />
           <span>Projects</span>
         </Link>
         
@@ -36,7 +34,6 @@ export default function Sidebar() {
           disabled
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-slate-500 cursor-not-allowed"
         >
-          <Settings size={20} />
           <span>Settings</span>
         </button>
       </div>
@@ -46,7 +43,6 @@ export default function Sidebar() {
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white"
         >
-          <LogOut size={20} />
           <span>Logout</span>
         </button>
       </div>

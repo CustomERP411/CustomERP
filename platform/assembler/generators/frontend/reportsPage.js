@@ -365,7 +365,7 @@ export default function ReportsPage() {
                                   </div>
                                   {typeof delta === 'number' ? (
                                     <div className={'text-xs ' + (delta > 0 ? 'text-emerald-700' : delta < 0 ? 'text-red-700' : 'text-slate-500')}>
-                                      Δ {String(delta)}
+                                      Change: {delta > 0 ? '+' : ''}{String(delta)}
                                     </div>
                                   ) : null}
                                 </td>

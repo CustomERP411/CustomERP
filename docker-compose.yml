@@ -47,11 +47,15 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-customwerp}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       AI_GATEWAY_URL: http://ai-gateway:8000
+      ASSEMBLER_PATH: /app/assembler
+      BRICK_LIBRARY_PATH: /app/brick-library
     ports:
       - "3000:3000"
     volumes:
       - ./platform/backend/src:/app/src:ro
       - ./platform/backend/migrations:/app/migrations:ro
+      - ./platform/assembler:/app/assembler:ro
+      - ./brick-library:/app/brick-library:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,7 +102,7 @@ services:
     container_name: customwerp-ai-gateway
     environment:
       GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash-002}
       PORT: 8000
       AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
       AI_MAX_RETRIES: ${AI_MAX_RETRIES:-3}

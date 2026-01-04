@@ -164,7 +164,7 @@
         { "name": "brand_id", "type": "reference", "label": "Brand", "required": true, "reference_entity": "tire_brands" },
         { "name": "model_name", "type": "string", "label": "Model", "required": true, "min_length": 2, "max_length": 80 },
         { "name": "size_code", "type": "string", "label": "Size Code", "required": true, "min_length": 3, "max_length": 20, "pattern": "^[0-9]{3}/[0-9]{2}R[0-9]{2}$" },
-        { "name": "season", "type": "string", "label": "Season", "required": true, "pattern": "^(SUMMER|WINTER|ALL_SEASON)$" },
+        { "name": "season", "type": "string", "label": "Season", "required": true, "options": ["SUMMER", "WINTER", "ALL_SEASON"] },
         { "name": "load_index", "type": "integer", "label": "Load Index", "required": false, "min": 0, "max": 200 },
         { "name": "speed_rating", "type": "string", "label": "Speed Rating", "required": false, "max_length": 5, "pattern": "^[A-Z]{1,2}$" },
         { "name": "unit_cost", "type": "decimal", "label": "Unit Cost", "required": true, "min": 0 },

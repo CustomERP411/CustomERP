@@ -21,9 +21,8 @@ export default function PublicOnlyRoute({ children }: PublicOnlyRouteProps) {
   }
 
   if (user) {
-    // User is already logged in, redirect them
-    // Check if there was a redirect destination in state, otherwise go to dashboard
-    const from = (location.state as any)?.from?.pathname || '/dashboard';
+    // User is already logged in, redirect them to their projects
+    const from = (location.state as any)?.from?.pathname || '/projects';
     return <Navigate to={from} replace />;
   }
 

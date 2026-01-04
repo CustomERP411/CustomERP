@@ -55,7 +55,7 @@
         "item_ref_field": "dairy_sku_id",
         "location_entity": "cold_storage_locations",
         "location_field": "location_id",
-        "quantity_mode": "delta",
+        "quantity_mode": "change",
         "lookback_days": 14,
         "limit": 25,
         "in_types": ["IN", "TRANSFER_IN"],
@@ -140,7 +140,7 @@
       },
       "inventory_ops": {
         "enabled": true,
-        "quantity_mode": "delta",
+        "quantity_mode": "change",
         "movement_entity": "dairy_stock_moves",
         "location_entity": "cold_storage_locations",
         "location_ids_field": "storage_location_ids",
@@ -208,7 +208,7 @@
       "fields": [
         { "name": "dairy_sku_id", "type": "reference", "label": "Dairy SKU", "required": true, "reference_entity": "dairy_skus" },
         { "name": "movement_type", "type": "string", "label": "Movement Type", "required": true, "pattern": "^(IN|OUT|ADJUSTMENT|TRANSFER_OUT|TRANSFER_IN)$" },
-        { "name": "qty_delta", "type": "integer", "label": "Qty (delta)", "required": true, "min": -1000000000, "max": 1000000000 },
+        { "name": "qty_delta", "type": "integer", "label": "Quantity change", "required": true, "min": -1000000000, "max": 1000000000 },
         { "name": "location_id", "type": "reference", "label": "Location", "required": false, "reference_entity": "cold_storage_locations" },
         { "name": "from_location_id", "type": "reference", "label": "From Location", "required": false, "reference_entity": "cold_storage_locations" },
         { "name": "to_location_id", "type": "reference", "label": "To Location", "required": false, "reference_entity": "cold_storage_locations" },

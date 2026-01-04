@@ -77,8 +77,9 @@ Enable “Receive / Adjust / Transfer / Sell(Issue)” wizard pages on an entity
 
 - **`inventory_ops.enabled`** *(boolean)*: Master switch.
 
-- **`inventory_ops.quantity_mode`** *(string, default `"delta"`)*:
-  - **`"delta"`**: movement quantity may be negative/positive; net quantity = sum of deltas.
+- **`inventory_ops.quantity_mode`** *(string, default `"change"`)*:
+  - **`"change"`** *(recommended)*: movement quantity is a signed **quantity change** (positive = add stock, negative = remove stock).
+    - Legacy alias: `"delta"` is accepted and treated the same as `"change"`.
   - **`"absolute"`**: movement quantity is always positive; “in/out” semantics come from movement type.
 
 - **`inventory_ops.movement_entity`** *(string, default `"stock_movements"`)*:
@@ -96,7 +97,7 @@ Enable “Receive / Adjust / Transfer / Sell(Issue)” wizard pages on an entity
 
 - **`inventory_ops.fields`** *(object, optional)*: Field mapping **inside the movement entity**.
   - **`item_ref`** *(string)*: main entity id reference field (default inferred like `product_id`, `dairy_sku_id`, etc.)
-  - **`qty`** *(string, default `"quantity"`)*: quantity/delta field
+  - **`qty`** *(string, default `"quantity"`)*: quantity field (represents a **quantity change** in `"change"` mode)
   - **`type`** *(string, default `"movement_type"`)*: movement type field
   - **`location`** *(string, default `"location_id"`)*: optional location field
   - **`from_location`** *(string, default `"from_location_id"`)*: transfer “from”
@@ -109,8 +110,8 @@ Enable “Receive / Adjust / Transfer / Sell(Issue)” wizard pages on an entity
   - **`receive`** *(string, default `"IN"`)*
   - **`issue`** *(string, default `"OUT"`)*
   - **`adjust`** *(string, default `"ADJUSTMENT"`)*
-  - **`adjust_in`** *(string, optional)*: only used when `quantity_mode="absolute"` and delta is positive
-  - **`adjust_out`** *(string, optional)*: only used when `quantity_mode="absolute"` and delta is negative
+  - **`adjust_in`** *(string, optional)*: only used when `quantity_mode="absolute"` and the adjustment is positive
+  - **`adjust_out`** *(string, optional)*: only used when `quantity_mode="absolute"` and the adjustment is negative
   - **`transfer_out`** *(string, default `"TRANSFER_OUT"`)*
   - **`transfer_in`** *(string, default `"TRANSFER_IN"`)*
 
@@ -122,11 +123,21 @@ Enable “Receive / Adjust / Transfer / Sell(Issue)” wizard pages on an entity
   - Enables `/entity/issue` wizard.
   - You can alias with `inventory_ops.sell.enabled` (the generator treats sell/issue as the same concept).
 
-- **`inventory_ops.issue.label`** *(string, default `"Issue"`)*:
+- **`inventory_ops.issue.label`** *(string, default `"Sell"`)*:
   - Button/page label (e.g. `"Sell"`, `"Dispatch"`).
 
 - **`inventory_ops.issue.allow_negative_stock`** *(boolean, default `false`)*:
   - If `false`, the Issue/Sell wizard blocks issuing more than current on-hand.
+
+### Inventory quick actions (row actions on list table)
+
+If you want “one-click” actions **per row** (next to Edit/Delete), configure:
+
+- **`inventory_ops.quick_actions`** *(boolean or object)*:
+  - If `true`: enables quick actions for the enabled ops (Receive + Sell/Issue).
+  - If object: enable individually:
+    - `quick_actions.receive` / `quick_actions.add` *(boolean)*
+    - `quick_actions.issue` / `quick_actions.sell` *(boolean)*
 
 - **`inventory_ops.adjust.reason_codes`** *(array of strings)*:
   - Used by Adjust wizard dropdown.
@@ -186,6 +197,19 @@ Supported properties (snake_case or camelCase accepted):
 - **`pattern` / `regex`** *(string)*: JavaScript RegExp pattern string (no surrounding slashes).
 - **`unique`** *(boolean)*: uniqueness checked on create/update.
 
+### Selectable / enum fields (backend enforced; frontend renders select/toggle)
+
+For string-like fields where you want users to pick from a fixed set (no free text),
+use **`options`**:
+
+- **`options`** *(array of strings)*: allowed values for the field.
+  - Example: `"options": ["New", "Used"]`
+  - Backend will reject any value not in the list (HTTP 400 + `field_errors`)
+  - Frontend will render a selection UI automatically:
+    - If `options.length <= 4` → button-style `RadioGroup`
+    - Else → dropdown `Select`
+  - You can override with `widget` (e.g. `"widget": "Select"` or `"widget": "RadioGroup"`).
+
 ---
 
 ## Global modules (`modules`)
@@ -234,7 +258,7 @@ Optional snapshot sections:
   - `enabled`, `entity`
   - `type_field`, `quantity_field`, `date_field`, `item_ref_field`
   - `location_entity`, `location_field`
-  - `quantity_mode`: `"delta"` or `"absolute"`
+  - `quantity_mode`: `"change"` (alias `"delta"`) or `"absolute"`
   - `lookback_days`, `limit`
   - `in_types`, `out_types`, `adjust_types`
 

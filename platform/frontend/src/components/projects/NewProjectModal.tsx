@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { projectService } from '../../services/projectService';
@@ -42,7 +41,7 @@ export default function NewProjectModal({ isOpen, onClose, onProjectCreated }: N
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-slate-900">New Project</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X size={24} />
+            <span aria-hidden="true" className="text-2xl leading-none">×</span>
           </button>
         </div>
 
@@ -67,7 +66,7 @@ export default function NewProjectModal({ isOpen, onClose, onProjectCreated }: N
               Cancel
             </Button>
             <Button type="submit" disabled={loading || !name.trim()}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {loading && <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />}
               Create Project
             </Button>
           </div>

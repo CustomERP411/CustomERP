@@ -23,8 +23,17 @@ router.get('/', (req, res) => {
         logout: 'POST /api/auth/logout (protected)',
       },
       projects: {
-        list: 'GET /api/projects (coming in Task B3)',
-        create: 'POST /api/projects (coming in Task B3)',
+        list: 'GET /api/projects (protected)',
+        create: 'POST /api/projects (protected)',
+        get: 'GET /api/projects/:id (protected)',
+        update: 'PUT /api/projects/:id (protected)',
+        delete: 'DELETE /api/projects/:id (protected)',
+        analyze: 'POST /api/projects/:id/analyze (protected)',
+        clarify: 'POST /api/projects/:id/clarify (protected)',
+        sdf_latest: 'GET /api/projects/:id/sdf/latest (protected)',
+        sdf_save: 'POST /api/projects/:id/sdf/save (protected)',
+        sdf_ai_edit: 'POST /api/projects/:id/sdf/ai-edit (protected)',
+        generate_zip: 'POST /api/projects/:id/generate (protected, returns zip)',
       }
     }
   });

@@ -20,6 +20,7 @@ interface FieldDefinition {
   required?: boolean;
   referenceEntity?: string;
   multiple?: boolean;
+  options?: string[];
   minLength?: number;
   maxLength?: number;
   min?: number;
@@ -93,6 +94,14 @@ export default function DynamicForm({ fields, initialData = {}, onSubmit, onCanc
       if (typeof field.max === 'number' && num > field.max) return field.label + ' must be ≤ ' + field.max;
     }
 
+    if (Array.isArray(field.options) && field.options.length > 0) {
+      const allowed = new Set(field.options.map(String));
+      if (!allowed.has(str)) {
+        const preview = field.options.slice(0, 8).join(', ');
+        return field.label + ' must be one of: ' + preview;
+      }
+    }
+
     if (typeof field.pattern === 'string' && field.pattern.length) {
       try {
         const re = new RegExp(field.pattern);
@@ -132,8 +141,49 @@ export default function DynamicForm({ fields, initialData = {}, onSubmit, onCanc
   const renderWidget = (field: FieldDefinition) => {
     const raw = formData[field.name];
     const value = raw ?? '';
+    const options = Array.isArray(field.options) ? field.options : [];
 
     switch (field.widget) {
+      case 'RadioGroup':
+        return (
+          <div className="flex flex-wrap gap-2">
+            {options.map((opt) => {
+              const selected = String(value) === String(opt);
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setField(field, opt)}
+                  className={
+                    'px-3 py-2 rounded border text-sm font-medium transition ' +
+                    (selected
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : 'bg-white border-slate-300 text-slate-900 hover:bg-slate-50')
+                  }
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        );
+
+      case 'Select':
+        return (
+          <select
+            value={value}
+            onChange={(e) => setField(field, e.target.value)}
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {field.required ? null : <option value="">Select...</option>}
+            {options.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        );
+
       case 'NumberInput':
         return (
           <input
@@ -161,7 +211,7 @@ export default function DynamicForm({ fields, initialData = {}, onSubmit, onCanc
         );
 
       case 'EntitySelect':
-        const options = referenceOptions[field.name] || [];
+        const refOptions = referenceOptions[field.name] || [];
         const selectValue = field.multiple ? (Array.isArray(raw) ? raw : raw ? [raw] : []) : value;
         return (
           <select
@@ -178,7 +228,7 @@ export default function DynamicForm({ fields, initialData = {}, onSubmit, onCanc
             className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {field.multiple ? null : <option value="">Select...</option>}
-            {options.map((opt: any) => (
+            {refOptions.map((opt: any) => (
               <option key={opt.id} value={opt.id}>
                 {field.referenceEntity ? getEntityDisplay(field.referenceEntity, opt) : opt.name || opt.sku || opt.id}
               </option>

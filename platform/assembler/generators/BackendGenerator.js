@@ -329,6 +329,15 @@ module.exports = router;
       if (!isMissing(${accessor}) && String(${accessor}).length > ${r.maxLength}) fieldErrors['${fieldKey}'] = '${label} must be at most ${r.maxLength} characters';
 `;
       }
+      if (Array.isArray(r.options) && r.options.length) {
+        const varName = `__allowed_${String(r.name).replace(/[^a-zA-Z0-9_]/g, '_')}`;
+        const list = r.options.map((v) => `'${this._escapeJsString(v)}'`).join(', ');
+        const preview = this._escapeJsString(r.options.slice(0, 10).join(', '));
+        code += `
+      const ${varName} = [${list}];
+      if (!isMissing(${accessor}) && !${varName}.includes(String(${accessor}))) fieldErrors['${fieldKey}'] = '${label} must be one of: ${preview}';
+`;
+      }
       if (typeof r.pattern === 'string' && r.pattern.length) {
         code += `
       if (!isMissing(${accessor})) {
@@ -484,6 +493,15 @@ module.exports = router;
       if (typeof r.maxLength === 'number') {
         code += `
       if (!isMissing(${accessor}) && String(${accessor}).length > ${r.maxLength}) fieldErrors['${fieldKey}'] = '${label} must be at most ${r.maxLength} characters';
+`;
+      }
+      if (Array.isArray(r.options) && r.options.length) {
+        const varName = `__allowed_${String(r.name).replace(/[^a-zA-Z0-9_]/g, '_')}`;
+        const list = r.options.map((v) => `'${this._escapeJsString(v)}'`).join(', ');
+        const preview = this._escapeJsString(r.options.slice(0, 10).join(', '));
+        code += `
+      const ${varName} = [${list}];
+      if (!isMissing(${accessor}) && !${varName}.includes(String(${accessor}))) fieldErrors['${fieldKey}'] = '${label} must be one of: ${preview}';
 `;
       }
       if (typeof r.pattern === 'string' && r.pattern.length) {
@@ -657,6 +675,10 @@ module.exports = router;
       .map((f) => {
         const type = String(f.type || 'string');
         const label = f.label ? String(f.label) : this._formatLabel(f.name);
+        const rawOptions = f.options ?? f.enum ?? f.allowed_values ?? f.allowedValues;
+        const options = Array.isArray(rawOptions)
+          ? rawOptions.map((x) => String(x)).map((s) => s.trim()).filter(Boolean)
+          : undefined;
         const rule = {
           name: f.name,
           type,
@@ -668,6 +690,7 @@ module.exports = router;
           min: typeof f.min === 'number' ? f.min : (typeof f.min_value === 'number' ? f.min_value : (typeof f.minValue === 'number' ? f.minValue : undefined)),
           max: typeof f.max === 'number' ? f.max : (typeof f.max_value === 'number' ? f.max_value : (typeof f.maxValue === 'number' ? f.maxValue : undefined)),
           pattern: typeof f.pattern === 'string' ? f.pattern : (typeof f.regex === 'string' ? f.regex : undefined),
+          options,
           referenceEntity: this._resolveReferenceEntitySlug(f, allEntities),
           multiple: this._isFieldMultiple(f),
         };

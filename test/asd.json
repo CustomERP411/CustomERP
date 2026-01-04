@@ -1,0 +1,110 @@
+{
+  "project_name": "GreaseMonkeyTires",
+  "modules": {
+    "activity_log": { "enabled": true, "limit": 25 },
+    "inventory_dashboard": {
+      "low_stock": {
+        "enabled": true,
+        "entity": "tires",
+        "quantity_field": "on_hand",
+        "reorder_point_field": "min_stock",
+        "limit": 10,
+        "suggestion_multiplier": 1.5
+      }
+    }
+  },
+  "entities": [
+    {
+      "slug": "suppliers",
+      "display_name": "Suppliers",
+      "display_field": "name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": false },
+      "list": { "columns": ["name", "contact_person", "phone", "email"] },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Supplier Name", "required": true, "min_length": 2, "max_length": 120, "unique": true },
+        { "name": "contact_person", "type": "string", "label": "Contact Person", "required": false, "max_length": 120 },
+        { "name": "phone", "type": "string", "label": "Phone", "required": false, "max_length": 30 },
+        { "name": "email", "type": "string", "label": "Email", "required": false, "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "tires",
+      "display_name": "Tires",
+      "display_field": "full_tire_name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": {
+        "columns": [
+          "full_tire_name",
+          "size",
+          "brand",
+          "condition",
+          "on_hand",
+          "min_stock",
+          "selling_price",
+          "last_purchase_price",
+          "supplier_id"
+        ]
+      },
+      "inventory_ops": {
+        "enabled": true,
+        "quantity_mode": "change",
+        "movement_entity": "tire_movements",
+        "quantity_field": "on_hand",
+        "fields": {
+          "item_ref": "tire_id",
+          "qty": "quantity_change",
+          "type": "movement_type",
+          "date": "moved_at",
+          "reference_number": "reference_number",
+          "reason": "note"
+        },
+        "movement_types": {
+          "receive": "RECEIVE",
+          "issue": "SALE",
+          "adjust": "ADJUSTMENT"
+        },
+        "sell": {
+          "enabled": true,
+          "label": "Sell",
+          "allow_negative_stock": false
+        },
+        "adjust": {
+          "reason_codes": ["COUNT", "DAMAGED", "RETURN", "THEFT", "OTHER"]
+        },
+        "quick_actions": { "receive": true, "sell": true }
+      },
+      "fields": [
+        { "name": "full_tire_name", "type": "string", "label": "Tire Description", "required": true, "min_length": 3, "max_length": 200, "unique": true },
+        { "name": "size", "type": "string", "label": "Tire Size", "required": true, "min_length": 3, "max_length": 20 },
+        { "name": "brand", "type": "string", "label": "Brand", "required": true, "min_length": 2, "max_length": 60 },
+        { "name": "condition", "type": "string", "label": "Condition", "required": true, "options": ["New", "Used"] },
+        { "name": "tread_depth", "type": "decimal", "label": "Tread Depth (Used)", "required": false, "min": 0, "max": 15 },
+        { "name": "on_hand", "type": "integer", "label": "On Hand", "required": true, "min": 0 },
+        { "name": "min_stock", "type": "integer", "label": "Min Stock", "required": true, "min": 0 },
+        { "name": "last_purchase_price", "type": "decimal", "label": "Last Purchase Price", "required": true, "min": 0 },
+        { "name": "selling_price", "type": "decimal", "label": "Selling Price", "required": true, "min": 0 },
+        { "name": "supplier_id", "type": "reference", "label": "Last Supplier", "required": true, "reference_entity": "suppliers" },
+        { "name": "notes", "type": "text", "label": "Notes (e.g., Used Tire Details)", "required": false }
+      ],
+      "features": { "audit_trail": true }
+    },
+    {
+      "slug": "tire_movements",
+      "display_name": "Tire Movements",
+      "display_field": "reference_number",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["movement_type", "quantity_change", "tire_id", "moved_at", "reference_number"] },
+      "fields": [
+        { "name": "tire_id", "type": "reference", "label": "Tire", "required": true, "reference_entity": "tires" },
+        { "name": "movement_type", "type": "string", "label": "Movement Type", "required": true, "options": ["RECEIVE", "SALE", "ADJUSTMENT"] },
+        { "name": "quantity_change", "type": "integer", "label": "Quantity change", "required": true, "min": -1000000000, "max": 1000000000 },
+        { "name": "note", "type": "string", "label": "Note", "required": false, "max_length": 200 },
+        { "name": "reference_number", "type": "string", "label": "Reference #", "required": false, "max_length": 64 },
+        { "name": "moved_at", "type": "date", "label": "Movement Date", "required": false }
+      ],
+      "features": { "audit_trail": true }
+    }
+  ]
+}
+

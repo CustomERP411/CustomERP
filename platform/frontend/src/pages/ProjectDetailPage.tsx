@@ -23,6 +23,16 @@ export default function ProjectDetailPage() {
   const [draftError, setDraftError] = useState('');
   const [aiEditText, setAiEditText] = useState('');
 
+  const filterQuestions = (raw: any[]): ClarificationQuestion[] => {
+    const arr = Array.isArray(raw) ? raw : [];
+    return arr.filter((q: any) => {
+      const id = String(q?.id || '');
+      const text = String(q?.question || '');
+      // Don't ask about features we explicitly don't support (chatbot).
+      return !/chat\s*bot|chatbot|sohbet\s*botu|sohbetbot/i.test(id + ' ' + text);
+    }) as ClarificationQuestion[];
+  };
+
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -38,7 +48,7 @@ export default function ProjectDetailPage() {
         setDescription(String(p.description || ''));
         if (latest?.sdf) {
           setSdf(latest.sdf);
-          setQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []);
+          setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
         }
       } catch (err: any) {
         if (cancelled) return;
@@ -76,6 +86,8 @@ export default function ProjectDetailPage() {
 
     const entities = Array.isArray((sdf as any).entities) ? (sdf as any).entities : [];
     const modules = (sdf as any).modules && typeof (sdf as any).modules === 'object' ? (sdf as any).modules : {};
+    const warningsRaw = (sdf as any).warnings;
+    const warnings = Array.isArray(warningsRaw) ? warningsRaw.map(String).map((s) => s.trim()).filter(Boolean) : [];
 
     const entityBySlug: Record<string, any> = Object.fromEntries(
       entities
@@ -301,6 +313,7 @@ export default function ProjectDetailPage() {
       entityCount: entitySummaries.length,
       screensTotal,
       enabledModules,
+      warnings,
       entities: entitySummaries,
     };
   }, [sdf]);
@@ -313,7 +326,7 @@ export default function ProjectDetailPage() {
       const res = await projectService.analyzeProject(projectId, description.trim());
       setProject(res.project);
       setSdf(res.sdf);
-      setQuestions(res.questions || []);
+      setQuestions(filterQuestions(res.questions || []));
       setAnswersById({});
     } catch (err: any) {
       setError(err?.response?.data?.error || err?.message || 'Analyze failed');
@@ -334,7 +347,7 @@ export default function ProjectDetailPage() {
       const res = await projectService.clarifyProject(projectId, sdf, answers, description.trim());
       setProject(res.project);
       setSdf(res.sdf);
-      setQuestions(res.questions || []);
+      setQuestions(filterQuestions(res.questions || []));
       setAnswersById({});
     } catch (err: any) {
       setError(err?.response?.data?.error || err?.message || 'Clarify failed');
@@ -360,7 +373,7 @@ export default function ProjectDetailPage() {
       const res = await projectService.saveSdf(projectId, parsed);
       setProject(res.project);
       setSdf(res.sdf);
-      setQuestions(res.questions || []);
+      setQuestions(filterQuestions(res.questions || []));
       setAnswersById({});
       setDraftJson(JSON.stringify(res.sdf, null, 2));
     } catch (err: any) {
@@ -378,7 +391,7 @@ export default function ProjectDetailPage() {
       const res = await projectService.aiEditSdf(projectId, aiEditText.trim(), sdf || undefined);
       setProject(res.project);
       setSdf(res.sdf);
-      setQuestions(res.questions || []);
+      setQuestions(filterQuestions(res.questions || []));
       setAnswersById({});
       setAiEditText('');
     } catch (err: any) {
@@ -499,18 +512,30 @@ export default function ProjectDetailPage() {
                       <option value="no">No</option>
                     </select>
                   ) : q.type === 'choice' && Array.isArray(q.options) && q.options.length ? (
-                    <select
-                      value={answersById[q.id] || ''}
-                      onChange={(e) => setAnswersById((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                      className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
-                    >
-                      <option value="">Select...</option>
-                      {q.options.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="space-y-2">
+                      <select
+                        value={q.options.includes(answersById[q.id] || '') ? (answersById[q.id] || '') : ''}
+                        onChange={(e) => setAnswersById((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="">Select...</option>
+                        {q.options.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                      <textarea
+                        value={q.options.includes(answersById[q.id] || '') ? '' : (answersById[q.id] || '')}
+                        onChange={(e) => setAnswersById((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                        rows={2}
+                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                        placeholder="Custom answer (use this for “Other”, or type multiple options separated by commas)…"
+                      />
+                      <div className="text-xs text-slate-500">
+                        Tip: you can type something like “Remove X, add Y, add Z”.
+                      </div>
+                    </div>
                   ) : (
                     <input
                       value={answersById[q.id] || ''}
@@ -575,6 +600,20 @@ export default function ProjectDetailPage() {
                   </Button>
                 </div>
               </div>
+
+              {preview.warnings?.length ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <div className="text-sm font-semibold text-amber-900">Warnings / limitations</div>
+                  <ul className="mt-2 list-disc pl-5 text-sm text-amber-900 space-y-1">
+                    {preview.warnings.slice(0, 8).map((w: string) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                    {preview.warnings.length > 8 ? (
+                      <li>+ {preview.warnings.length - 8} more… (open JSON to see all)</li>
+                    ) : null}
+                  </ul>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border bg-white p-4">

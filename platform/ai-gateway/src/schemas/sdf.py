@@ -94,6 +94,10 @@ class Entity(BaseModel):
     bulk_actions: Optional[Dict[str, Any]] = None
     inventory_ops: Optional[Dict[str, Any]] = None
     labels: Optional[Dict[str, Any]] = None
+    children: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Optional parent->children (line items) configuration for embedding child lists in the parent form UI.",
+    )
 
     fields: List[EntityField] = Field(..., description="Entity fields (excluding system-managed fields).")
 
@@ -115,6 +119,12 @@ class SystemDefinitionFile(BaseModel):
     clarifications_needed: Optional[List[ClarificationQuestion]] = Field(
         default=None,
         description="Questions to ask the user to resolve ambiguities.",
+    )
+
+    # AI/Platform extension: non-blocking warnings (unsupported requests, auto-normalizations, etc.)
+    warnings: Optional[List[str]] = Field(
+        default=None,
+        description="Non-blocking warnings and limitations to show in the UI.",
     )
 
     # Backwards-compat: old AI schema used `relations`; we accept but ignore.

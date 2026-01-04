@@ -522,10 +522,76 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       escapeJsString: (s) => this._escapeJsString(s),
     });
 
+    // Optional embedded children/line-items sections (generic)
+    const childSections = [];
+    if (Array.isArray(entity.children) && entity.children.length) {
+      for (const ch of entity.children) {
+        if (!ch || typeof ch !== 'object') continue;
+        const childSlug = String(ch.entity || ch.slug || '').trim();
+        const foreignKey = String(ch.foreign_key || ch.foreignKey || '').trim();
+        if (!childSlug || !foreignKey) continue;
+
+        const childEntity = (allEntities || []).find((e) => e && String(e.slug) === childSlug);
+        if (!childEntity) continue;
+
+        const childFields = Array.isArray(childEntity.fields) ? childEntity.fields : [];
+        const rawCols = Array.isArray(ch.columns) ? ch.columns : (Array.isArray(childEntity.list && childEntity.list.columns) ? childEntity.list.columns : null);
+        const fallbackCols = childFields.filter((f) => f && f.name !== 'id' && f.name !== foreignKey).slice(0, 4).map((f) => f.name);
+        const cols = (rawCols && rawCols.length ? rawCols : fallbackCols)
+          .map(String)
+          .filter((c) => c && c !== 'id');
+
+        const columnDefs = cols.map((colName) => {
+          const defField = childFields.find((f) => f && f.name === colName);
+          const label = this._escapeJsString(defField && defField.label ? String(defField.label) : this._formatLabel(colName));
+          const rawOptions = defField ? (defField.options ?? defField.enum ?? defField.allowed_values ?? defField.allowedValues) : null;
+          const options = Array.isArray(rawOptions) ? rawOptions.map((x) => String(x)).map((s) => s.trim()).filter(Boolean) : null;
+          const isReference = defField && (defField.type === 'reference' || String(defField.name || '').endsWith('_id') || String(defField.name || '').endsWith('_ids'));
+          let referenceEntity = null;
+          if (isReference) {
+            const explicitRef = defField.reference_entity || defField.referenceEntity;
+            const inferredBase = String(defField.name).replace(/_ids?$/, '');
+            const baseName = String(explicitRef || inferredBase);
+            const targetEntity = (allEntities || []).find((e) =>
+              e.slug === baseName ||
+              e.slug === baseName + 's' ||
+              e.slug === baseName + 'es' ||
+              (baseName.endsWith('y') && e.slug === baseName.slice(0, -1) + 'ies') ||
+              e.slug.startsWith(baseName)
+            );
+            referenceEntity = targetEntity ? targetEntity.slug : (explicitRef ? String(explicitRef) : null);
+          }
+          const multiple = defField && (defField.multiple === true || defField.is_array === true || String(defField.name || '').endsWith('_ids'));
+          return {
+            key: colName,
+            label,
+            referenceEntity,
+            multiple,
+          };
+        });
+
+        // DynamicForm field defs for child create/edit in modal (exclude FK; we'll enforce it in submit)
+        const childFormFields = this._generateFieldDefinitions(
+          childFields.filter((f) => f && f.name !== foreignKey),
+          childEntity.features || {},
+          allEntities
+        );
+
+        childSections.push({
+          childSlug,
+          foreignKey,
+          label: String(ch.label || childEntity.display_name || this._formatLabel(childSlug)),
+          columns: columnDefs,
+          formFields: childFormFields,
+        });
+      }
+    }
+
     const formPageContent = buildEntityFormPage({
       entity,
       entityName,
       fieldDefs,
+      childSections,
       escapeJsString: (s) => this._escapeJsString(s),
     });
 

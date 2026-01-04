@@ -11,6 +11,20 @@
 - For `choice` questions you MAY include `options` (array of strings).
 - Do not include any extra text, explanations, or markdown formatting outside of the main JSON object.
 
+# FIELD TYPE RULES (CRITICAL):
+- Each field MUST have `type` that is one of:
+  `string`, `text`, `integer`, `decimal`, `number`, `boolean`, `date`, `datetime`, `reference`
+- Selectable/enum fields: use `type: "string"` with `options: [...]` (do NOT use `type: "enum"`).
+
+# LINE ITEMS RULE (CRITICAL):
+If a requirement implies “a record contains a list of rows” (shipments -> many products with quantities),
+model it as TWO entities (parent + child with reference fields), not nested objects.
+You may add optional `children` config on the parent to embed the child list in the parent form.
+
+# OUT-OF-SCOPE REQUESTS (IMPORTANT):
+If the user asked for something not supported by the generator (example: chatbot),
+DO NOT add clarification questions about that unsupported feature. Keep the SDF in scope and proceed.
+
 # CURRENT CONTEXT:
 
 ## Business Description:

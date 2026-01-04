@@ -53,6 +53,19 @@ Each entry in `entities[]` defines one API resource + UI pages.
 
 - **`fields`** *(array, required)*: List of field definitions (see “Field object”).
 
+### Children / line items (optional, generic)
+
+If one entity “contains a list of rows” (e.g., a shipment has many shipment items, a sales order has many order items),
+the generator supports an optional **embedded child list** inside the parent create/edit screen.
+
+This is purely a UI convenience: the underlying data model is still **two entities** linked by a reference field.
+
+- **`children`** *(array, optional)*: list of embedded child sections. Each entry:
+  - **`entity`** *(string, required)*: child entity slug (e.g. `shipment_items`)
+  - **`foreign_key`** *(string, required)*: field on child pointing to the parent (e.g. `shipment_id`)
+  - **`label`** *(string, optional)*: UI label for the embedded section (default: derived from child slug)
+  - **`columns`** *(array of field names, optional)*: which child fields to show in the embedded table
+
 ### Features (per-entity)
 
 - **`features`** *(object, optional)*:
@@ -204,6 +217,7 @@ use **`options`**:
 
 - **`options`** *(array of strings)*: allowed values for the field.
   - Example: `"options": ["New", "Used"]`
+  - **Important**: Keep `type` as `"string"` (do **not** use `type: "enum"`).
   - Backend will reject any value not in the list (HTTP 400 + `field_errors`)
   - Frontend will render a selection UI automatically:
     - If `options.length <= 4` → button-style `RadioGroup`

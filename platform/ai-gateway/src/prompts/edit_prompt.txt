@@ -8,6 +8,7 @@
 #   - entities (array)
 #   - optional modules (object)
 #   - optional clarifications_needed (array)
+#   - optional warnings (array of strings)
 #
 # CLARIFICATIONS FORMAT (CRITICAL):
 # If you include `clarifications_needed`, it MUST be an array of objects (NOT strings):
@@ -21,18 +22,34 @@
 # - Do NOT add system-managed fields to entity.fields: id, created_at, updated_at
 # - Do NOT output a separate relations list; use reference fields instead.
 # - Preserve existing slugs/fields unless the user explicitly asks to rename/remove them.
+# - If the user explicitly asks to remove something, you MUST remove it (or ask a clarification if removal would break references / workflows).
+# - To REMOVE a FIELD, include it in the entity's fields list with a remove marker:
+#   { "name": "field_name", "remove": true }
+# - To REMOVE an ENTITY, include it in entities with:
+#   { "slug": "entity_slug", "remove": true }
 # - If the user's instruction is ambiguous or risky (e.g., renaming a field used in many places),
 #   add a clarification question instead of guessing.
+# - If the user requests an unsupported feature (example: chatbot), DO NOT add clarification questions about it.
+#   Add a short note to `warnings` and proceed with the best in-scope result.
 #
 # SDF FEATURE RULES (CustomERP generator):
 # - `ui.search`, `ui.csv_import`, `ui.csv_export`, `ui.print` are booleans (not nested objects).
 # - List/table columns are controlled by `list.columns`.
-# - Selectable fields (enums): use `options: ["A","B"]` (no free-text).
+# - Selectable fields (enums): use `type: "string"` with `options: ["A","B"]` (do NOT use `type: "enum"`).
 # - Inventory ops:
 #   - Enable via `inventory_ops.enabled: true`
 #   - Sell is `inventory_ops.sell` (alias `inventory_ops.issue`) with a friendly label (default: "Sell")
 #   - Row quick actions (next to Edit/Delete): `inventory_ops.quick_actions` (true or {receive:true, sell:true})
 # - Quantity wording: prefer `quantity_mode: "change"` (alias "delta") for signed quantity change UX.
+#
+# COMPLETENESS RULE (CRITICAL):
+# Your output must be a COMPLETE SDF. Every entity MUST include a `fields` array.
+# Do not omit entities or omit fields for “unchanged” entities — always include them.
+#
+# LINE ITEMS (PARENT->CHILD LISTS):
+# If the user wants “a shipment contains multiple products with quantities”, keep it as two entities:
+# `shipments` + `shipment_items` with reference fields, and add optional `children` config on the parent:
+# "children": [{ "entity": "shipment_items", "foreign_key": "shipment_id", "label": "Items", "columns": ["product_id","quantity","cost_per_unit"] }]
 #
 # CONTEXT:
 ## Business description (optional):

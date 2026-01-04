@@ -21,6 +21,7 @@ export interface AiGatewaySdf {
   relations?: unknown[];
   schema_name?: string;
   clarifications_needed?: ClarificationQuestion[] | null;
+  warnings?: string[] | null;
 }
 
 export interface AnalyzeProjectResponse {

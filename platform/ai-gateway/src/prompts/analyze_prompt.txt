@@ -10,6 +10,7 @@
 - Root object MAY contain:
   - `modules` (object)
   - `clarifications_needed` (array of questions)  <-- AI-only extension used by the platform UI
+  - `warnings` (array of strings) <-- non-blocking limitations/notes to show in the UI
 
 # ENTITY FORMAT (STRICT):
 Each object in `entities[]` MUST contain:
@@ -32,6 +33,7 @@ It MAY contain:
 - `reference_entity` (string) for type `reference`
 - `multiple` (boolean) for multi-relations (arrays of ids)
 - `options` (array of strings) for selectable/enum fields (e.g. `["New","Used"]`)
+- IMPORTANT: Do NOT use `type: "enum"`. Selectable fields must be `type: "string"` with `options: [...]`.
 - validation rules: `min_length`, `max_length`, `min`, `max`, `pattern`, `unique`
 
 # SYSTEM FIELD RULE (CRITICAL):
@@ -64,6 +66,18 @@ If the user is describing inventory/stock management, prefer this practical patt
 - If they want fast “one-tap” actions (sell/receive/transfer), configure per-entity `inventory_ops`
   - For non-technical users, prefer `inventory_ops.sell` with a friendly label (e.g. `"Sell"`) and enable `inventory_ops.quick_actions` for row-level buttons.
 
+# ONE-TO-MANY “LIST INSIDE A RECORD” PATTERN (LINE ITEMS):
+If the business describes a record that contains a list of rows (e.g. shipments containing multiple products with quantities),
+DO NOT try to nest complex objects inside a field.
+Instead:
+- Create a parent entity (e.g. `shipments`)
+- Create a child entity (e.g. `shipment_items`) with:
+  - `shipment_id` as `type: "reference"` to `shipments`
+  - `product_id` as `type: "reference"` to `products`
+  - fields like `quantity`, `cost_per_unit`
+- Optionally add `children` config on the parent to embed child rows in the parent form UI:
+  - `"children": [{ "entity": "shipment_items", "foreign_key": "shipment_id", "label": "Items", "columns": ["product_id","quantity","cost_per_unit"] }]`
+
 # EXAMPLE FRAGMENTS (STYLE ONLY — adapt to the business):
 Example low stock module:
 {
@@ -86,6 +100,11 @@ Question object format:
 - `type` one of: `yes_no`, `choice`, `text`
 - `options` (array of strings) ONLY if type is `choice`
 If nothing is unclear, set `clarifications_needed` to `[]` or omit it.
+
+# OUT-OF-SCOPE REQUESTS (IMPORTANT):
+If the user asks for something not supported by the generator (example: an in-app chatbot),
+DO NOT add clarification questions about that feature. Instead add a human-readable note to `warnings`
+and continue generating the best possible ERP within scope.
 
 # USER'S BUSINESS DESCRIPTION TO PROCESS:
 {business_description}

@@ -25,3 +25,14 @@ The implementation meets the spirit and goals of the D2 task, but uses more mode
 
 *   **Plan (`SPRINT_TASKS.md`):** Included a `clarifications_needed` field in the schema.
 *   **Actual Implementation:** This was fully implemented. The Pydantic models were updated to include the `ClarificationQuestion` model, and the `analyze_prompt.txt` was updated to instruct the AI to generate these questions when it encounters ambiguity.
+
+## D4: Error Handling + Retry Logic
+
+The implementation follows the spirit of the D4 task but uses a more modular design by separating concerns between the API client and the application service.
+
+*   **Plan (`SPRINT_TASKS.md`):** Suggested a single `analyze_with_retry` function that would handle API retries, JSON parsing, and JSON repair logic all in one place.
+*   **Actual Implementation:** The logic was split into two layers:
+    1.  **`GeminiClient`:** This client is responsible *only* for API-level concerns. It handles timeouts and retries with exponential backoff for transient network errors (e.g., `ServiceUnavailable`, `DeadlineExceeded`). This keeps the client generic and reusable.
+    2.  **`SDFService`:** This service handles the *application-specific* error handling. It contains the self-healing logic to re-prompt the AI and fix malformed JSON, as this is a problem specific to the SDF generation task.
+
+*   **Rationale:** This separation of concerns is a better software design pattern. It makes the code cleaner, more maintainable, and easier to test. The `GeminiClient` remains a general-purpose tool for communicating with the API, while the `SDFService` contains the specialized logic required for its particular task.

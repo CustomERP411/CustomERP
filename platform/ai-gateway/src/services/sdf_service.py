@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from .gemini_client import GeminiClient
 import json
 
-from src.prompts.sdf_generation import get_sdf_prompt, get_clarify_prompt
+from src.prompts.sdf_generation import get_sdf_prompt, get_clarify_prompt, get_fix_json_prompt
 from src.schemas.sdf import SystemDefinitionFile
 from src.schemas.clarify import ClarificationAnswer
 
@@ -50,17 +50,23 @@ class SDFService:
 
         # 3. Clean and parse the JSON response
         try:
-            start = json_response.find('{')
-            end = json_response.rfind('}')
-            if start == -1 or end == -1:
-                raise json.JSONDecodeError("Could not find JSON object in response", json_response, 0)
-            
-            cleaned_json = json_response[start:end+1]
-            data = json.loads(cleaned_json)
+            data = self._parse_and_clean_json(json_response)
         except json.JSONDecodeError as e:
-            print(f"[SDFService] JSON Decode Error: {e}")
-            print(f"[SDFService] Raw AI Response:\n{json_response}")
-            raise ValueError("AI returned an invalid JSON format.") from e
+            print(f"[SDFService] Initial JSON parsing failed: {e}. Attempting self-healing...")
+            # Attempt to fix the JSON by re-prompting the AI
+            fix_prompt = get_fix_json_prompt(json_response)
+            repaired_json_response = await self.gemini_client.generate_with_retry(
+                fix_prompt,
+                temperature=0.0, # Be deterministic for fixing
+                json_mode=True
+            )
+            print(f"[SDFService] AI response after repair attempt:\n{repaired_json_response}")
+            try:
+                data = self._parse_and_clean_json(repaired_json_response)
+                print("[SDFService] JSON self-healing successful.")
+            except json.JSONDecodeError as final_e:
+                print(f"[SDFService] Self-healing failed. Final JSON Decode Error: {final_e}")
+                raise ValueError("AI returned an invalid JSON format, and self-healing failed.") from final_e
 
         # 4. Validate the data against the Pydantic schema
         try:
@@ -71,6 +77,17 @@ class SDFService:
             print(f"[SDFService] SDF Validation Error: {e}")
             print(f"[SDFService] Raw AI Data:\n{data}")
             raise ValueError(f"AI response did not match the required SDF schema: {e}") from e
+
+    def _parse_and_clean_json(self, json_string: str) -> dict:
+        """Finds and parses a JSON object from a string, stripping markdown."""
+        # Find the start and end of the JSON object to handle markdown fences
+        start = json_string.find('{')
+        end = json_string.rfind('}')
+        if start == -1 or end == -1:
+            raise json.JSONDecodeError("Could not find JSON object in response", json_string, 0)
+        
+        cleaned_json = json_string[start:end+1]
+        return json.loads(cleaned_json)
 
     async def clarify_sdf(
         self, 
@@ -101,17 +118,22 @@ class SDFService:
 
         # 4. Clean, parse, and validate the response (reusing the same logic)
         try:
-            start = json_response.find('{')
-            end = json_response.rfind('}')
-            if start == -1 or end == -1:
-                raise json.JSONDecodeError("Could not find JSON object in response", json_response, 0)
-            
-            cleaned_json = json_response[start:end+1]
-            data = json.loads(cleaned_json)
+            data = self._parse_and_clean_json(json_response)
         except json.JSONDecodeError as e:
-            print(f"[SDFService] JSON Decode Error: {e}")
-            print(f"[SDFService] Raw AI Response:\n{json_response}")
-            raise ValueError("AI returned an invalid JSON format.") from e
+            print(f"[SDFService] Clarify JSON parsing failed: {e}. Attempting self-healing...")
+            fix_prompt = get_fix_json_prompt(json_response)
+            repaired_json_response = await self.gemini_client.generate_with_retry(
+                fix_prompt,
+                temperature=0.0,
+                json_mode=True
+            )
+            print(f"[SDFService] AI response after repair attempt:\n{repaired_json_response}")
+            try:
+                data = self._parse_and_clean_json(repaired_json_response)
+                print("[SDFService] JSON self-healing successful.")
+            except json.JSONDecodeError as final_e:
+                print(f"[SDFService] Self-healing failed. Final JSON Decode Error: {final_e}")
+                raise ValueError("AI returned an invalid JSON format, and self-healing failed.") from final_e
 
         try:
             validated_sdf = SystemDefinitionFile.model_validate(data)

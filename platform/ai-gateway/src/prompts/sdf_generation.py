@@ -34,3 +34,13 @@ def get_clarify_prompt(business_description: str, partial_sdf: str, answers: str
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."
+
+def get_fix_json_prompt(invalid_json: str) -> str:
+    """Loads the JSON fix prompt and injects the invalid JSON string."""
+    try:
+        prompt_template_path = PROMPT_DIR / "fix_json_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+        return prompt_template.format(invalid_json=invalid_json)
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found at {prompt_template_path}")
+        return "Error: Could not load prompt."

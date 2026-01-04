@@ -5,10 +5,14 @@ Handles communication with Google's Gemini 2.5 Pro API
 
 import os
 import asyncio
+import time
 from typing import Optional
-import google.generativeai as genai
 
-from ..config import settings
+import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
+from google.generativeai.types import GenerationConfig
+
+from src.config import settings
 
 
 class GeminiClient:
@@ -32,10 +36,8 @@ class GeminiClient:
                 "Please set it in your .env file or environment variables."
             )
         
-        # Configure the API
         genai.configure(api_key=api_key)
         
-        # Initialize the model
         self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
         self.timeout = settings.AI_TIMEOUT_SECONDS
         self.max_retries = settings.AI_MAX_RETRIES
@@ -52,19 +54,18 @@ class GeminiClient:
     async def generate(
         self, 
         prompt: str, 
-        temperature: float = 0.7, 
-        json_mode: bool = False
+        temperature: float, 
+        json_mode: bool = False, 
+        request_options: dict = None
     ) -> str:
         """
-        Generate a response from the AI model.
+        Generates content using the Gemini model.
 
         Args:
             prompt: The input prompt.
             temperature: Creativity level (0.0 = deterministic, 1.0 = creative).
             json_mode: If True, configure the model for JSON output.
-
-        Returns:
-            The generated text response.
+            request_options: Additional options for the request.
         """
         try:
             config_params = {
@@ -74,12 +75,12 @@ class GeminiClient:
             if json_mode:
                 config_params["response_mime_type"] = "application/json"
 
-            generation_config = genai.GenerationConfig(**config_params)
+            generation_config = GenerationConfig(**config_params)
 
-            response = await asyncio.to_thread(
-                self.model.generate_content,
+            response = await self.model.generate_content_async(
                 prompt,
-                generation_config=generation_config
+                generation_config=generation_config,
+                request_options=request_options
             )
             
             return response.text
@@ -88,39 +89,46 @@ class GeminiClient:
             print(f"[GeminiClient] Generation error: {e}")
             raise
     
-    
     async def generate_with_retry(
         self, 
         prompt: str, 
-        temperature: float = 0.7,
-        max_retries: Optional[int] = None,
+        temperature: float,
         json_mode: bool = False
     ) -> str:
-        """
-        Generate with automatic retry on failure
-        
-        Args:
-            prompt: The input prompt
-            temperature: Creativity level
-            max_retries: Number of retries (defaults to settings.AI_MAX_RETRIES)
-        
-        Returns:
-            The generated text response
-        """
-        retries = max_retries or self.max_retries
-        last_error = None
-        
-        for attempt in range(retries):
+        """Generates content with a retry mechanism for transient errors."""
+        last_exception = None
+        for attempt in range(self.max_retries):
             try:
-                return await self.generate(prompt, temperature, json_mode=json_mode)
+                print(f"[GeminiClient] Generating content (Attempt {attempt + 1}/{self.max_retries})...")
+                request_options = {"timeout": self.timeout}
+                response = await self.generate(
+                    prompt,
+                    temperature,
+                    json_mode,
+                    request_options=request_options
+                )
+                return response
+            except (
+                google_exceptions.ServiceUnavailable,
+                google_exceptions.DeadlineExceeded,
+                asyncio.TimeoutError
+            ) as e:
+                print(f"[GeminiClient] Attempt {attempt + 1} failed with transient error: {e}")
+                last_exception = e
+                if attempt == self.max_retries - 1:
+                    print("[GeminiClient] Max retries reached. Failing.")
+                    break
+                
+                backoff_time = 2 ** (attempt + 1)
+                print(f"[GeminiClient] Retrying in {backoff_time} seconds...")
+                await asyncio.sleep(backoff_time)
             except Exception as e:
-                last_error = e
-                wait_time = 2 ** attempt  # Exponential backoff
-                print(f"[GeminiClient] Attempt {attempt + 1} failed: {e}")
-                print(f"[GeminiClient] Retrying in {wait_time}s...")
-                await asyncio.sleep(wait_time)
+                print(f"[GeminiClient] An non-retriable error occurred: {e}")
+                last_exception = e
+                break
         
-        raise Exception(f"All {retries} attempts failed. Last error: {last_error}")
+        print("[GeminiClient] All retry attempts failed.")
+        raise last_exception
     
     async def test_connection(self) -> bool:
         """

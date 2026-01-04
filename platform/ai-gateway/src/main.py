@@ -1,23 +1,16 @@
 """
 CustomERP AI Gateway
 FastAPI service for AI-powered SDF generation using Google Gemini
-
-Endpoints:
-    GET  /health     - Health check with AI connection status
-    GET  /           - API info and available endpoints
-    POST /ai/test    - Test AI generation (development only)
-    
-Future endpoints (Task D3):
-    POST /ai/analyze  - Analyze business description
-    POST /ai/clarify  - Process clarification answers
-    POST /ai/finalize - Generate final SDF
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from typing import Optional
 import os
+import asyncio
+from fastapi.responses import PlainTextResponse
 
 from .config import settings
 from .services.gemini_client import GeminiClient
@@ -55,7 +48,7 @@ def get_gemini_client():
         if not settings.GOOGLE_AI_API_KEY:
             return None
         from .services.gemini_client import GeminiClient
-        _gemini_client = GeminiClient()
+        _gemini_client = GeminiClient.get_instance()
     return _gemini_client
 
 
@@ -74,153 +67,14 @@ def get_sdf_service() -> Optional[SDFService]:
 # Health & Info Endpoints
 # ─────────────────────────────────────────────────────────────
 
-@app.get("/health")
-async def health():
-    """
-    Health check endpoint with AI connection status
-    
-    Returns:
-        status: ok/degraded/error
-        service: service name
-        ai_status: connected/disconnected/not_configured
-    """
-    ai_status = "not_configured"
-    ai_error = None
-    
-    if settings.GOOGLE_AI_API_KEY:
-        try:
-            client = get_gemini_client()
-            if client:
-                # Quick connection test
-                connected = await client.test_connection()
-                ai_status = "connected" if connected else "disconnected"
-            else:
-                ai_status = "initialization_failed"
-        except Exception as e:
-            ai_status = "error"
-            ai_error = str(e)
-    
-    status = "ok" if ai_status == "connected" else "degraded"
-    if ai_status == "not_configured":
-        status = "degraded"
-    
-    response = {
-        "status": status,
-        "service": "ai-gateway",
-        "version": "1.0.0",
-        "ai_provider": "google-gemini",
-        "ai_status": ai_status,
-        "model": settings.GEMINI_MODEL,
-    }
-    
-    if ai_error:
-        response["ai_error"] = ai_error
-    
-    return response
-
-
-@app.get("/")
-def root():
-    """Root endpoint with API information"""
-    return {
-        "service": "CustomERP AI Gateway",
-        "version": "1.0.0",
-        "description": "AI-powered requirement analysis and SDF generation",
-        "ai_provider": "Google Gemini 2.5 Pro",
-        "api_configured": bool(settings.GOOGLE_AI_API_KEY),
-        "endpoints": {
-            "health": {
-                "method": "GET",
-                "path": "/health",
-                "description": "Health check with AI connection status"
-            },
-            "docs": {
-                "method": "GET", 
-                "path": "/docs",
-                "description": "Interactive API documentation (Swagger UI)"
-            },
-            "test": {
-                "method": "POST",
-                "path": "/ai/test",
-                "description": "Test AI generation (development only)"
-            },
-            "analyze": {
-                "method": "POST",
-                "path": "/ai/analyze",
-                "description": "Analyze business description (coming in Task D3)"
-            },
-            "clarify": {
-                "method": "POST",
-                "path": "/ai/clarify",
-                "description": "Process clarification answers (coming in Task D3)"
-            },
-            "finalize": {
-                "method": "POST",
-                "path": "/ai/finalize",
-                "description": "Generate final SDF (coming in Task D3)"
-            }
-        }
-    }
+@app.get("/health", tags=["Monitoring"])
+async def health_check():
+    """Simple health check endpoint for Docker."""
+    return {"status": "ok"}
 
 
 # ─────────────────────────────────────────────────────────────
-# Test Endpoint (Development Only)
-# ─────────────────────────────────────────────────────────────
-
-class TestRequest(BaseModel):
-    """Request model for AI test endpoint"""
-    prompt: str
-    temperature: Optional[float] = 0.7
-
-
-class TestResponse(BaseModel):
-    """Response model for AI test endpoint"""
-    success: bool
-    response: Optional[str] = None
-    error: Optional[str] = None
-    model: str
-
-
-@app.post("/ai/test", response_model=TestResponse)
-async def test_ai(request: TestRequest):
-    """
-    Test AI generation with a custom prompt
-    
-    This endpoint is for development/testing purposes only.
-    It allows you to verify the AI connection and test prompts.
-    """
-    if not settings.GOOGLE_AI_API_KEY:
-        raise HTTPException(
-            status_code=503,
-            detail="AI service not configured. Set GOOGLE_AI_API_KEY environment variable."
-        )
-    
-    try:
-        client = get_gemini_client()
-        if not client:
-            raise HTTPException(
-                status_code=503,
-                detail="Failed to initialize AI client"
-            )
-        
-        response = await client.generate(request.prompt, request.temperature)
-        
-        return TestResponse(
-            success=True,
-            response=response,
-            model=settings.GEMINI_MODEL
-        )
-        
-    except Exception as e:
-        return TestResponse(
-            success=False,
-            error=str(e),
-            model=settings.GEMINI_MODEL
-        )
-
-
-# ─────────────────────────────────────────────────────────────
-# Placeholder endpoints for future tasks
+# Core AI Endpoints
 # ─────────────────────────────────────────────────────────────
 
 class AnalyzeRequest(BaseModel):
@@ -228,7 +82,7 @@ class AnalyzeRequest(BaseModel):
     business_description: str = Field(..., min_length=50, description="A detailed description of the business requirements.")
 
 
-@app.post("/ai/analyze", response_model=SystemDefinitionFile)
+@app.post("/ai/analyze", response_model=SystemDefinitionFile, tags=["SDF Generation"])
 async def analyze(request: AnalyzeRequest):
     """
     Analyzes a business description and generates a System Definition File (SDF).
@@ -250,13 +104,18 @@ async def analyze(request: AnalyzeRequest):
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
-@app.post("/ai/clarify", response_model=SystemDefinitionFile)
+@app.post("/ai/clarify", response_model=SystemDefinitionFile, tags=["SDF Generation"])
 async def clarify_sdf_endpoint(request: ClarifyRequest):
     """
     Refines an SDF based on user answers to clarification questions.
     """
+    sdf_service = get_sdf_service()
+    if not sdf_service:
+        raise HTTPException(
+            status_code=503,
+            detail="AI service is not configured or failed to initialize."
+        )
     try:
-        sdf_service = get_sdf_service()
         refined_sdf = await sdf_service.clarify_sdf(
             business_description=request.business_description,
             partial_sdf=request.partial_sdf,
@@ -270,7 +129,7 @@ async def clarify_sdf_endpoint(request: ClarifyRequest):
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
-@app.post("/ai/finalize", response_model=SystemDefinitionFile)
+@app.post("/ai/finalize", response_model=SystemDefinitionFile, tags=["SDF Generation"])
 async def finalize_sdf_endpoint(sdf: SystemDefinitionFile):
     """
     Accepts a finalized SDF. In a real system, this might trigger
@@ -278,10 +137,43 @@ async def finalize_sdf_endpoint(sdf: SystemDefinitionFile):
     and returns the SDF.
     """
     print("[FINALIZE] Received final SDF.")
-    # In a real-world scenario, this endpoint would trigger a new process
-    # (e.g., storing the SDF, starting code generation, etc.).
-    # For now, we just return the validated SDF to confirm receipt.
     return sdf
+
+
+@app.get("/test", tags=["Testing"], response_class=PlainTextResponse)
+async def run_integration_test():
+    """
+    Triggers the integration test suite.
+    
+    This endpoint runs the `test_integration.py` script in a separate process.
+    The output of the test will be streamed to the Docker logs for this service.
+    """
+    print("\n" + "="*60)
+    print("  🚀 TRIGGERING INTEGRATION TEST VIA API ENDPOINT 🚀")
+    print("="*60)
+    
+    process = await asyncio.create_subprocess_exec(
+        "python", "-u", "tests/test_integration.py",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+
+    async def stream_logs(stream, prefix):
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            print(f"{prefix}: {line.decode().strip()}")
+
+    # Run streamers in parallel
+    await asyncio.gather(
+        stream_logs(process.stdout, "[TEST_STDOUT]"),
+        stream_logs(process.stderr, "[TEST_STDERR]")
+    )
+
+    await process.wait()
+    
+    return "Integration test started. Check Docker logs for output."
 
 
 # ─────────────────────────────────────────────────────────────
@@ -294,19 +186,18 @@ async def startup_event():
     print("=" * 60)
     print("  CustomERP AI Gateway Starting...")
     print("=" * 60)
-    print(f"  Model: {settings.GEMINI_MODEL}")
-    print(f"  API Key configured: {bool(settings.GOOGLE_AI_API_KEY)}")
-    print(f"  Timeout: {settings.AI_TIMEOUT_SECONDS}s")
-    print(f"  Max retries: {settings.AI_MAX_RETRIES}")
+    # Attempt to initialize the client on startup to check config
+    get_gemini_client()
+    client = get_gemini_client()
+    if client:
+        info = client.get_model_info()
+        print(f"  Model: {info.get('model')}")
+        print(f"  API Key configured: {info.get('api_configured')}")
+        print(f"  Timeout: {info.get('timeout_seconds')}s")
+        print(f"  Max retries: {info.get('max_retries')}")
+    else:
+        print("  ⚠️  AI Client could not be initialized. Check GOOGLE_AI_API_KEY.")
     print("=" * 60)
-    
-    # Validate configuration
-    errors = settings.validate()
-    if errors:
-        print("  ⚠️  Configuration warnings:")
-        for error in errors:
-            print(f"     - {error}")
-        print("=" * 60)
 
 
 @app.on_event("shutdown")

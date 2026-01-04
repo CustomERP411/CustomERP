@@ -55,6 +55,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      ai-gateway:
+        condition: service_healthy
     networks:
       - customwerp-network
     restart: unless-stopped
@@ -106,6 +108,7 @@ services:
       - "8000:8000"
     volumes:
       - ./platform/ai-gateway/src:/app/src:ro
+      - ./platform/ai-gateway/tests:/app/tests:ro
     networks:
       - customwerp-network
     restart: unless-stopped

@@ -23,6 +23,7 @@ from .config import settings
 from .services.gemini_client import GeminiClient
 from .services.sdf_service import SDFService
 from .schemas.sdf import SystemDefinitionFile
+from .schemas.clarify import ClarifyRequest
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -245,25 +246,42 @@ async def analyze(request: AnalyzeRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Failed to generate a valid SDF: {str(e)}")
     except Exception as e:
+        print(f"[ERROR] Unexpected error in /ai/analyze: {e}")
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
-@app.post("/ai/clarify")
-async def clarify():
-    """Placeholder for Task D3 - Process clarification answers"""
-    raise HTTPException(
-        status_code=501,
-        detail="Not implemented yet. Coming in Task D3."
-    )
+@app.post("/ai/clarify", response_model=SystemDefinitionFile)
+async def clarify_sdf_endpoint(request: ClarifyRequest):
+    """
+    Refines an SDF based on user answers to clarification questions.
+    """
+    try:
+        sdf_service = get_sdf_service()
+        refined_sdf = await sdf_service.clarify_sdf(
+            business_description=request.business_description,
+            partial_sdf=request.partial_sdf,
+            answers=request.answers
+        )
+        return refined_sdf
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"[ERROR] Unexpected error in /ai/clarify: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
-@app.post("/ai/finalize")
-async def finalize():
-    """Placeholder for Task D3 - Generate final SDF"""
-    raise HTTPException(
-        status_code=501,
-        detail="Not implemented yet. Coming in Task D3."
-    )
+@app.post("/ai/finalize", response_model=SystemDefinitionFile)
+async def finalize_sdf_endpoint(sdf: SystemDefinitionFile):
+    """
+    Accepts a finalized SDF. In a real system, this might trigger
+    the next stage of the ERP generation process. For now, it just validates
+    and returns the SDF.
+    """
+    print("[FINALIZE] Received final SDF.")
+    # In a real-world scenario, this endpoint would trigger a new process
+    # (e.g., storing the SDF, starting code generation, etc.).
+    # For now, we just return the validated SDF to confirm receipt.
+    return sdf
 
 
 # ─────────────────────────────────────────────────────────────

@@ -25,9 +25,9 @@ class EntityField(BaseModel):
     type: FieldType = Field(..., description="The data type of the field")
     required: bool = Field(True, description="Whether the field is mandatory")
     description: str = Field(..., description="A brief, user-friendly description of the field")
-    is_primary_key: Optional[bool] = Field(False, description="Indicates if this field is the primary key")
-    is_foreign_key: Optional[bool] = Field(False, description="Indicates if this field is a foreign key")
-    references: Optional[str] = Field(None, description="If a foreign key, slug of the entity it references")
+    is_primary_key: bool = Field(default=False, description="Indicates if this field is the primary key for the entity.")
+    is_foreign_key: bool = Field(default=False, description="Indicates if this field is a foreign key referencing another entity.")
+    references: Optional[str] = Field(default=None, description="If a foreign key, the slug of the entity it references.")
 
 class Entity(BaseModel):
     """Represents a business entity (like a database table)"""

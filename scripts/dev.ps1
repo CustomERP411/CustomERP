@@ -77,7 +77,7 @@ switch ($Command.ToLower()) {
     "build" { docker compose up -d --build }
     "clean" { docker compose down -v --remove-orphans }
     "migrate" { docker compose exec backend npm run migrate }
-    "db" { docker compose exec postgres psql -U postgres -d customwerp }
+    "db" { docker compose exec postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' }
     "pgadmin" { 
         docker compose --profile tools up pgadmin -d
         Write-Host "pgAdmin available at http://localhost:5050" -ForegroundColor Cyan

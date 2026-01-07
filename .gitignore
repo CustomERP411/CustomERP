@@ -53,3 +53,4 @@ htmlcov/
 *.json.backup
 platform/backend/data/
 
+env.example

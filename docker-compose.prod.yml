@@ -20,6 +20,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-customwerp}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Initialize schema on first boot (fresh volume)
+      - ./platform/backend/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -42,11 +44,20 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-customwerp}
       JWT_SECRET: ${JWT_SECRET}
-      AI_GATEWAY_URL: http://ai-gateway:8000
+      AI_GATEWAY_URL: ${AI_GATEWAY_URL:-http://ai-gateway:8000}
+      # Generator resources (required for /api/projects/:id/generate)
+      ASSEMBLER_PATH: /app/assembler
+      BRICK_LIBRARY_PATH: /app/brick-library
     expose:
       - "3000"
+    volumes:
+      # Required for generation: platform backend dynamically requires the assembler and loads brick templates
+      - ./platform/assembler:/app/assembler:ro
+      - ./brick-library:/app/brick-library:ro
     depends_on:
       postgres:
+        condition: service_healthy
+      ai-gateway:
         condition: service_healthy
     networks:
       - customwerp-network
@@ -80,6 +91,12 @@ services:
     container_name: customwerp-ai-gateway
     environment:
       GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash-002}
+      PORT: 8000
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
+      AI_MAX_RETRIES: ${AI_MAX_RETRIES:-3}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-false}
     expose:
       - "8000"
     networks:
@@ -94,7 +111,8 @@ services:
     container_name: customwerp-nginx
     ports:
       - "80:80"
-      - "443:443"
+      # Enable only if you add certs + enable the HTTPS server block in nginx/nginx.conf
+      # - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro

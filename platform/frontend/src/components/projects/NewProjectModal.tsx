@@ -36,7 +36,7 @@ export default function NewProjectModal({ isOpen, onClose, onProjectCreated }: N
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm !m-0">
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-slate-900">New Project</h2>

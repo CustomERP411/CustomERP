@@ -75,7 +75,8 @@ case $COMMAND in
         docker compose exec backend npm run migrate
         ;;
     db)
-        docker compose exec postgres psql -U postgres -d customwerp
+        # Use container env so custom POSTGRES_* in `.env` works
+        docker compose exec postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
         ;;
     pgadmin)
         docker compose --profile tools up pgadmin -d

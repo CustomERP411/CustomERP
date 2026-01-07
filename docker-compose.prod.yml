@@ -20,8 +20,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-customwerp}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Initialize schema on first boot (fresh volume)
-      - ./platform/backend/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      # NOTE:
+      # We intentionally do NOT mount the init SQL here because the backend runs migrations on startup.
+      # Mounting both causes "already exists" errors (indexes/triggers) on fresh volumes.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -42,7 +43,12 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-customwerp}
+      # Prefer discrete PG* vars (avoids DATABASE_URL URL-encoding issues for passwords)
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-customwerp}
       JWT_SECRET: ${JWT_SECRET}
       AI_GATEWAY_URL: ${AI_GATEWAY_URL:-http://ai-gateway:8000}
       # Generator resources (required for /api/projects/:id/generate)

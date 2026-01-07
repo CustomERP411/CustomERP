@@ -54,3 +54,4 @@ htmlcov/
 platform/backend/data/
 
 env.example
+.env.dev

@@ -44,7 +44,12 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-customwerp}
+      # Prefer discrete PG* vars (avoids DATABASE_URL URL-encoding issues for passwords)
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATABASE: ${POSTGRES_DB:-customwerp}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       AI_GATEWAY_URL: http://ai-gateway:8000
       ASSEMBLER_PATH: /app/assembler

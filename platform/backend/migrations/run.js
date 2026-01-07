@@ -9,9 +9,32 @@ const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+function buildPgConfigFromEnv() {
+  const hasDiscrete =
+    !!process.env.PGHOST ||
+    !!process.env.PGUSER ||
+    !!process.env.PGPASSWORD ||
+    !!process.env.PGDATABASE ||
+    !!process.env.PGPORT;
+
+  if (hasDiscrete) {
+    const cfg = {
+      host: process.env.PGHOST || undefined,
+      port: process.env.PGPORT ? Number(process.env.PGPORT) : undefined,
+      user: process.env.PGUSER || undefined,
+      password: process.env.PGPASSWORD || undefined,
+      database: process.env.PGDATABASE || undefined,
+    };
+    if (cfg.port !== undefined && !Number.isFinite(cfg.port)) {
+      delete cfg.port;
+    }
+    return cfg;
+  }
+
+  return { connectionString: process.env.DATABASE_URL };
+}
+
+const pool = new Pool(buildPgConfigFromEnv());
 
 async function runMigrations() {
   const client = await pool.connect();

@@ -183,7 +183,7 @@ git status
 git add test/sample_sdf_feature_verification_ea.json
 git add test/verify_features_ea.js
 git add docs/EA_Phase2_Verification_Report.md
-git add docs/after_prompt_care/after_prompt_care_20260222_1430_EA.md
+git add docs/after_prompt_care/after_prompt_care_20260222_2231_EA.md
 git commit -m "EA Phase 2: Verify SDF feature coverage (children, bulk_actions, quantity_mode, quick_actions)"
 git push -u origin HEAD
 ```

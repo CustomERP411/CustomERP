@@ -1,0 +1,207 @@
+{
+  "project_name": "EA Feature Verification ERP",
+  "modules": {
+    "activity_log": { "enabled": true, "limit": 30 },
+    "inventory_dashboard": {
+      "low_stock": {
+        "enabled": true,
+        "entity": "products",
+        "quantity_field": "quantity_on_hand",
+        "reorder_point_field": "reorder_level",
+        "limit": 15,
+        "suggestion_multiplier": 1.5
+      },
+      "expiry": {
+        "enabled": true,
+        "entity": "products",
+        "expiry_field": "expiry_date",
+        "within_days": 45,
+        "limit": 10
+      }
+    },
+    "scheduled_reports": {
+      "enabled": true,
+      "cron": "0 9 * * *",
+      "entities": ["products", "shipments", "stock_movements"],
+      "target_slug": "__reports",
+      "report_type": "daily_summary"
+    }
+  },
+  "entities": [
+    {
+      "slug": "categories",
+      "display_name": "Product Categories",
+      "display_field": "name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": false },
+      "list": { "columns": ["name", "description", "is_active"] },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Category Name", "required": true, "min_length": 2, "max_length": 100, "unique": true },
+        { "name": "description", "type": "text", "label": "Description", "required": false, "max_length": 500 },
+        { "name": "is_active", "type": "boolean", "label": "Active", "required": false, "default": true }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "suppliers",
+      "display_name": "Suppliers",
+      "display_field": "company_name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["company_name", "contact_name", "email", "phone", "is_active"] },
+      "fields": [
+        { "name": "company_name", "type": "string", "label": "Company Name", "required": true, "min_length": 2, "max_length": 150, "unique": true },
+        { "name": "contact_name", "type": "string", "label": "Contact Person", "required": false, "max_length": 100 },
+        { "name": "email", "type": "string", "label": "Email", "required": false, "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+        { "name": "phone", "type": "string", "label": "Phone", "required": false, "min_length": 7, "max_length": 25 },
+        { "name": "address", "type": "text", "label": "Address", "required": false, "max_length": 300 },
+        { "name": "is_active", "type": "boolean", "label": "Active", "required": false, "default": true }
+      ],
+      "features": { "audit_trail": true }
+    },
+    {
+      "slug": "warehouses",
+      "display_name": "Warehouses",
+      "display_field": "name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["name", "location", "manager", "is_active"] },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Warehouse Name", "required": true, "min_length": 2, "max_length": 120, "unique": true },
+        { "name": "location", "type": "string", "label": "Location", "required": false, "max_length": 200 },
+        { "name": "manager", "type": "string", "label": "Manager Name", "required": false, "max_length": 100 },
+        { "name": "is_active", "type": "boolean", "label": "Active", "required": false, "default": true }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "products",
+      "display_name": "Products",
+      "display_field": "sku",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["sku", "product_name", "category_id", "supplier_id", "unit_price", "quantity_on_hand", "reorder_level", "warehouse_ids"] },
+      "bulk_actions": {
+        "enabled": true,
+        "delete": true,
+        "update_fields": ["is_active", "category_id", "supplier_id", "warehouse_ids", "reorder_level"]
+      },
+      "inventory_ops": {
+        "enabled": true,
+        "quantity_mode": "change",
+        "movement_entity": "stock_movements",
+        "location_entity": "warehouses",
+        "quantity_field": "quantity_on_hand",
+        "movement_types": {
+          "receive": "RECEIVE",
+          "issue": "ISSUE",
+          "adjust": "ADJUSTMENT",
+          "transfer_out": "TRANSFER_OUT",
+          "transfer_in": "TRANSFER_IN"
+        },
+        "issue": {
+          "enabled": true,
+          "label": "Issue",
+          "allow_negative_stock": false
+        },
+        "adjust": {
+          "reason_codes": ["COUNT", "DAMAGED", "EXPIRED", "LOST", "RETURN", "OTHER"]
+        },
+        "quick_actions": {
+          "receive": true,
+          "issue": true
+        }
+      },
+      "fields": [
+        { "name": "sku", "type": "string", "label": "SKU", "required": true, "min_length": 3, "max_length": 50, "unique": true, "pattern": "^[A-Z0-9-]+$" },
+        { "name": "product_name", "type": "string", "label": "Product Name", "required": true, "min_length": 3, "max_length": 200 },
+        { "name": "description", "type": "text", "label": "Description", "required": false, "max_length": 1000 },
+        { "name": "category_id", "type": "reference", "label": "Category", "required": true, "reference_entity": "categories" },
+        { "name": "supplier_id", "type": "reference", "label": "Primary Supplier", "required": false, "reference_entity": "suppliers" },
+        { "name": "unit_price", "type": "decimal", "label": "Unit Price", "required": true, "min": 0, "max": 999999.99 },
+        { "name": "quantity_on_hand", "type": "integer", "label": "Quantity On Hand", "required": true, "min": 0, "default": 0 },
+        { "name": "reorder_level", "type": "integer", "label": "Reorder Level", "required": false, "min": 0, "default": 10 },
+        { "name": "warehouse_ids", "type": "reference", "label": "Warehouses", "required": false, "reference_entity": "warehouses", "multiple": true },
+        { "name": "expiry_date", "type": "date", "label": "Expiry Date", "required": false },
+        { "name": "is_active", "type": "boolean", "label": "Active", "required": false, "default": true }
+      ],
+      "features": {
+        "audit_trail": true,
+        "batch_tracking": false,
+        "serial_tracking": false,
+        "multi_location": true
+      }
+    },
+    {
+      "slug": "stock_movements",
+      "display_name": "Stock Movements",
+      "display_field": "reference_number",
+      "ui": { "search": true, "csv_import": false, "csv_export": true, "print": true },
+      "list": { "columns": ["reference_number", "movement_type", "product_id", "quantity_change", "movement_date", "warehouse_id", "notes"] },
+      "fields": [
+        { "name": "reference_number", "type": "string", "label": "Reference Number", "required": true, "min_length": 3, "max_length": 50, "unique": true },
+        { "name": "movement_type", "type": "string", "label": "Movement Type", "required": true, "options": ["RECEIVE", "ISSUE", "ADJUSTMENT", "TRANSFER_OUT", "TRANSFER_IN"] },
+        { "name": "product_id", "type": "reference", "label": "Product", "required": true, "reference_entity": "products" },
+        { "name": "quantity_change", "type": "integer", "label": "Quantity Change (+ or -)", "required": true },
+        { "name": "movement_date", "type": "datetime", "label": "Movement Date", "required": true },
+        { "name": "warehouse_id", "type": "reference", "label": "Warehouse", "required": false, "reference_entity": "warehouses" },
+        { "name": "reason_code", "type": "string", "label": "Reason Code", "required": false, "options": ["COUNT", "DAMAGED", "EXPIRED", "LOST", "RETURN", "OTHER"] },
+        { "name": "notes", "type": "text", "label": "Notes", "required": false, "max_length": 500 }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "customers",
+      "display_name": "Customers",
+      "display_field": "customer_name",
+      "ui": { "search": true, "csv_import": true, "csv_export": true, "print": true },
+      "list": { "columns": ["customer_name", "email", "phone", "credit_limit", "is_active"] },
+      "fields": [
+        { "name": "customer_name", "type": "string", "label": "Customer Name", "required": true, "min_length": 2, "max_length": 150 },
+        { "name": "email", "type": "string", "label": "Email", "required": false, "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+        { "name": "phone", "type": "string", "label": "Phone", "required": false, "min_length": 7, "max_length": 25 },
+        { "name": "address", "type": "text", "label": "Address", "required": false, "max_length": 300 },
+        { "name": "credit_limit", "type": "decimal", "label": "Credit Limit", "required": false, "min": 0, "max": 999999.99 },
+        { "name": "is_active", "type": "boolean", "label": "Active", "required": false, "default": true }
+      ],
+      "features": { "audit_trail": true }
+    },
+    {
+      "slug": "shipments",
+      "display_name": "Shipments",
+      "display_field": "shipment_number",
+      "ui": { "search": true, "csv_import": false, "csv_export": true, "print": true },
+      "list": { "columns": ["shipment_number", "customer_id", "shipment_date", "status", "total_amount", "warehouse_id"] },
+      "children": [
+        {
+          "entity": "shipment_items",
+          "foreign_key": "shipment_id",
+          "label": "Shipment Items",
+          "columns": ["product_id", "quantity", "unit_price", "line_total"]
+        }
+      ],
+      "fields": [
+        { "name": "shipment_number", "type": "string", "label": "Shipment Number", "required": true, "min_length": 3, "max_length": 50, "unique": true, "pattern": "^SHP-[0-9]+$" },
+        { "name": "customer_id", "type": "reference", "label": "Customer", "required": true, "reference_entity": "customers" },
+        { "name": "shipment_date", "type": "date", "label": "Shipment Date", "required": true },
+        { "name": "warehouse_id", "type": "reference", "label": "Warehouse", "required": true, "reference_entity": "warehouses" },
+        { "name": "status", "type": "string", "label": "Status", "required": true, "options": ["DRAFT", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"], "default": "DRAFT" },
+        { "name": "total_amount", "type": "decimal", "label": "Total Amount", "required": false, "min": 0, "max": 999999.99 },
+        { "name": "notes", "type": "text", "label": "Notes", "required": false, "max_length": 1000 }
+      ],
+      "features": { "audit_trail": true }
+    },
+    {
+      "slug": "shipment_items",
+      "display_name": "Shipment Items",
+      "display_field": "id",
+      "ui": { "search": false, "csv_import": false, "csv_export": true, "print": false },
+      "list": { "columns": ["shipment_id", "product_id", "quantity", "unit_price", "line_total"] },
+      "fields": [
+        { "name": "shipment_id", "type": "reference", "label": "Shipment", "required": true, "reference_entity": "shipments" },
+        { "name": "product_id", "type": "reference", "label": "Product", "required": true, "reference_entity": "products" },
+        { "name": "quantity", "type": "integer", "label": "Quantity", "required": true, "min": 1 },
+        { "name": "unit_price", "type": "decimal", "label": "Unit Price", "required": true, "min": 0 },
+        { "name": "line_total", "type": "decimal", "label": "Line Total", "required": false, "min": 0 },
+        { "name": "notes", "type": "text", "label": "Item Notes", "required": false, "max_length": 500 }
+      ],
+      "features": {}
+    }
+  ]
+}

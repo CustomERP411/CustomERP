@@ -3,11 +3,19 @@ const fs = require('fs').promises;
 const path = require('path');
 const CodeWeaver = require('../CodeWeaver');
 const TemplateEngine = require('../TemplateEngine');
+const MixinRegistry = require('../MixinRegistry');
 
 class BackendGenerator {
   constructor(brickRepo) {
     this.brickRepo = brickRepo;
     this.modules = {};
+    const customMixinsPath =
+      process.env.CUSTOM_MIXINS_PATH ||
+      path.resolve(this.brickRepo.libraryPath, '..', 'custom_mixins');
+    this.mixinRegistry = new MixinRegistry({
+      brickLibraryPath: this.brickRepo.libraryPath,
+      customMixinsPath,
+    });
   }
 
   setModules(modules) {
@@ -84,11 +92,11 @@ class BackendGenerator {
     const weaver = new CodeWeaver(serviceTemplate);
 
     // Determine Mixins to apply based on features
-    const mixinsToApply = this._resolveMixins(entity);
+    const mixinsToApply = await this._resolveMixins(entity, allEntities);
 
     // Apply Mixins
-    for (const mixinName of mixinsToApply) {
-      await this._applyMixin(weaver, mixinName);
+    for (const mixinEntry of mixinsToApply) {
+      await this._applyMixin(weaver, mixinEntry, { entity, allEntities });
     }
 
     // Inject schema-driven validation and reference integrity rules
@@ -104,7 +112,7 @@ class BackendGenerator {
     );
   }
 
-  _resolveMixins(entity) {
+  async _resolveMixins(entity, allEntities = []) {
     const features = entity.features || {};
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
 
@@ -120,12 +128,30 @@ class BackendGenerator {
       !!features.serial_tracking ||
       !!features.multi_location;
 
-    const mixins = [];
+    const mixins = new Map();
 
-    if (wantsInventoryBehavior) mixins.push('InventoryMixin');
+    const addMixin = (name, config = {}, source = 'features') => {
+      const resolved = this.mixinRegistry.resolveName(name);
+      const existing = mixins.get(resolved);
+      if (!existing) {
+        mixins.set(resolved, { name: resolved, config, source, enabled: true });
+        return;
+      }
+      mixins.set(resolved, {
+        ...existing,
+        config: { ...existing.config, ...config },
+      });
+    };
 
-    if (features.batch_tracking) mixins.push('BatchTrackingMixin');
-    if (features.serial_tracking) mixins.push('SerialTrackingMixin');
+    const removeMixin = (name) => {
+      const resolved = this.mixinRegistry.resolveName(name);
+      mixins.delete(resolved);
+    };
+
+    if (wantsInventoryBehavior) addMixin('InventoryMixin');
+
+    if (features.batch_tracking) addMixin('BatchTrackingMixin');
+    if (features.serial_tracking) addMixin('SerialTrackingMixin');
     // Audit trail:
     // - If entity.features.audit_trail is explicitly set (true/false), respect it.
     // - Otherwise, if modules.activity_log.enabled is true, audit ALL non-system entities by default
@@ -147,60 +173,190 @@ class BackendGenerator {
       }
     }
 
-    if (auditEnabled) mixins.push('AuditMixin');
-    if (features.multi_location) mixins.push('LocationMixin');
+    if (auditEnabled) addMixin('AuditMixin');
+    if (features.multi_location) addMixin('LocationMixin');
 
-    // De-duplicate while preserving order
-    return [...new Set(mixins)];
+    const explicitMixins = this._normalizeExplicitMixins(entity);
+    for (const entry of explicitMixins) {
+      if (entry.enabled === false) {
+        removeMixin(entry.name);
+        continue;
+      }
+      addMixin(entry.name, entry.config, 'explicit');
+    }
+
+    const ordered = await this._orderMixins(Array.from(mixins.values()), { entity, allEntities });
+    return ordered;
   }
 
-  async _applyMixin(weaver, mixinName) {
+  async _applyMixin(weaver, mixinEntry, { entity, allEntities }) {
+    const mixinName = mixinEntry.name;
+    const context = {
+      entity,
+      allEntities,
+      modules: this.modules,
+      mixinName,
+    };
+
     try {
-      // Resolve mixin path from the configured brick library root so this generator
-      // does not depend on its own filesystem location.
-      const mixinPath = path.join(this.brickRepo.libraryPath, 'backend-bricks', 'mixins', `${mixinName}.js`);
+      const mixin = await this.mixinRegistry.loadMixin(mixinName, mixinEntry.config || {}, context);
 
-      // Check if exists
-      try {
-        await fs.access(mixinPath);
-      } catch (e) {
-        console.warn(`Mixin ${mixinName} not found at ${mixinPath}`);
-        return;
-      }
-
-      // eslint-disable-next-line global-require, import/no-dynamic-require
-      const mixin = require(mixinPath);
-
-      // Apply hooks
       if (mixin.hooks) {
         for (const [hookName, code] of Object.entries(mixin.hooks)) {
           weaver.inject(hookName, code);
         }
       }
 
-      // Apply additional methods
-      // CodeWeaver needs a way to append methods to the class.
-      // Our BaseService.js.hbs ends with '}' and 'module.exports'
-      // We can inject methods before the last '}'
       if (mixin.methods) {
         const content = weaver.getContent();
         if (content.includes('// @HOOK: ADDITIONAL_METHODS')) {
           weaver.inject('ADDITIONAL_METHODS', mixin.methods);
         } else {
-          // Fallback: replace last '}' with methods + '}'
           const lastBraceIndex = content.lastIndexOf('}');
           if (lastBraceIndex !== -1) {
             const newContent = content.substring(0, lastBraceIndex) +
               `\n  ${mixin.methods}\n` +
               content.substring(lastBraceIndex);
-            weaver.content = newContent; // Direct manipulation as fallback
+            weaver.content = newContent;
           }
         }
       }
-
     } catch (err) {
-      console.error(`Failed to apply mixin ${mixinName}:`, err);
+      throw new Error(`Failed to apply mixin ${mixinName}: ${err.message || err}`);
     }
+  }
+
+  _normalizeExplicitMixins(entity) {
+    const raw = entity && entity.mixins;
+    if (!raw) return [];
+
+    const normalizeEntry = (name, cfg) => {
+      const config = typeof cfg === 'object' && cfg !== null ? { ...cfg } : {};
+      const enabled = cfg === false ? false : (config.enabled !== false);
+      delete config.enabled;
+      return { name, config, enabled };
+    };
+
+    if (Array.isArray(raw)) {
+      return raw
+        .map((item) => {
+          if (typeof item === 'string') return normalizeEntry(item, {});
+          if (item && typeof item === 'object') {
+            const name = item.name || item.mixin || item.id;
+            if (!name) return null;
+            return normalizeEntry(name, item);
+          }
+          return null;
+        })
+        .filter(Boolean);
+    }
+
+    if (raw && typeof raw === 'object') {
+      return Object.entries(raw).map(([name, cfg]) => normalizeEntry(name, cfg));
+    }
+
+    return [];
+  }
+
+  async _orderMixins(entries, { entity, allEntities }) {
+    const baseOrder = [
+      'InventoryMixin',
+      'BatchTrackingMixin',
+      'SerialTrackingMixin',
+      'AuditMixin',
+      'LocationMixin',
+    ];
+
+    const byName = new Map();
+    const orderIndex = new Map();
+
+    entries.forEach((entry, idx) => {
+      byName.set(entry.name, entry);
+      orderIndex.set(entry.name, idx);
+    });
+
+    const defCache = new Map();
+    const resolveDef = async (name) => {
+      if (defCache.has(name)) return defCache.get(name);
+      const entry = byName.get(name) || { name, config: {} };
+      const def = await this.mixinRegistry.loadMixin(name, entry.config || {}, { entity, allEntities, modules: this.modules, mixinName: name });
+      defCache.set(name, def);
+      return def;
+    };
+
+    // Ensure all dependencies are included
+    const queue = Array.from(byName.keys());
+    while (queue.length) {
+      const current = queue.shift();
+      const def = await resolveDef(current);
+      const deps = Array.isArray(def.dependencies) ? def.dependencies : [];
+      for (const rawDep of deps) {
+        const dep = this.mixinRegistry.resolveName(rawDep);
+        if (!byName.has(dep)) {
+          const idx = byName.size + 100;
+          byName.set(dep, { name: dep, config: {}, source: 'dependency' });
+          orderIndex.set(dep, idx);
+          queue.push(dep);
+        }
+      }
+    }
+
+    // Build graph
+    const indegree = new Map();
+    const edges = new Map();
+    for (const name of byName.keys()) {
+      indegree.set(name, 0);
+      edges.set(name, []);
+    }
+
+    for (const name of byName.keys()) {
+      const def = await resolveDef(name);
+      const deps = Array.isArray(def.dependencies) ? def.dependencies : [];
+      for (const rawDep of deps) {
+        const dep = this.mixinRegistry.resolveName(rawDep);
+        if (!byName.has(dep)) continue;
+        edges.get(dep).push(name);
+        indegree.set(name, (indegree.get(name) || 0) + 1);
+      }
+    }
+
+    const sortKey = (name) => {
+      const baseRank = baseOrder.includes(name) ? baseOrder.indexOf(name) : 999;
+      const idx = orderIndex.has(name) ? orderIndex.get(name) : 9999;
+      return [baseRank, idx];
+    };
+
+    const available = Array.from(byName.keys()).filter((n) => indegree.get(n) === 0);
+    available.sort((a, b) => {
+      const [ar, ai] = sortKey(a);
+      const [br, bi] = sortKey(b);
+      if (ar !== br) return ar - br;
+      return ai - bi;
+    });
+
+    const result = [];
+    while (available.length) {
+      const next = available.shift();
+      result.push(byName.get(next));
+      for (const neighbor of edges.get(next)) {
+        indegree.set(neighbor, indegree.get(neighbor) - 1);
+        if (indegree.get(neighbor) === 0) {
+          available.push(neighbor);
+          available.sort((a, b) => {
+            const [ar, ai] = sortKey(a);
+            const [br, bi] = sortKey(b);
+            if (ar !== br) return ar - br;
+            return ai - bi;
+          });
+        }
+      }
+    }
+
+    if (result.length !== byName.size) {
+      throw new Error('Mixin dependency cycle detected. Resolve mixin dependencies.');
+    }
+
+    return result;
   }
 
   async _generateEntityRoute(outputDir, entity, context) {

@@ -1,0 +1,1335 @@
+**Project Details**
+
+|   |   |
+|---|---|
+ 
+|**Project Name**|Customizable ERP Provider|
+|**Software Product Name**|CustomERP|
+|**Company Name**|No sponsor company|
+|**Academic Advisor**|Dr. Cüneyt Sevgi|
+|**Github URL**|github.com/CustomERP411/CustomERP|
+|**WEB page**||
+|**Software Product Information**|CustomERP is an AI-powered platform that enables small and medium businesses to generate custom Enterprise Resource Planning (ERP) systems through natural language descriptions. Business owners simply describe their processes in plain language, and the platform’s AI translates this into a complete system by identifying business entities, workflows, and rules. It then automatically assembles the necessary modules—such as customer, inventory and invoicing—configures them to match the business’s operations, and generates user interfaces and data flows. Within hours, a deployment-ready ERP is produced without coding or complex setup. By bridging the gap between costly custom development and rigid template solutions, CustomERP makes enterprise-grade software accessible and adaptable to every business.|
+
+  
+
+**Team Number: 10**
+
+|   |   |   |
+|---|---|---|
+  
+|**Name, Surname**|**Bilkent e-mail**|**Alternative e-mail**|
+|Ahmet Selim Alpkirişçi|selim.alpkirisci@ug.bilkent.edu.tr|salpkirisci@gmail.com|
+|Burak Tan Bilgi|tan.bilgi@ug.bilkent.edu.tr|bilgi.tanburak@gmail.com|
+|Elkhan Abbasov|elkhan.abbasov@ug.bilkent.edu.tr|elxan2004abbasov@gmail.com|
+|Orhan Demir Demiröz|demir.demiroz@ug.bilkent.edu.tr|demirdemiroz2014@gmail.com|
+|Tunç Erdoğanlar|tunc.erdoganlar@ug.bilkent.edu.tr|tunc.erdoganlar@hotmail.com|
+
+  
+
+**Individual Contributions Overview**
+
+|   |   |
+|---|---|
+ 
+|Name, Surname|Summary of Contributions to the SRS Document|
+|Ahmet Selim Alpkirişçi|Use Cases, Functional Requirements, Non-Functional Requirements|
+|Burak Tan Bilgi|Formatting, Executive Summary, Mapping of Functional Requirements|
+|Elkhan Abbasov|Product Scope, User Characteristics|
+|Orhan Demir Demiröz|Functional Requirements, Product Perspective, Formatting, Non-Functional Requirements|
+|Tunç Erdoğanlar|Logical Database Requirements, Verification|
+
+  
+
+  
+
+**Executive Summary**
+
+This Software Requirements Specification (SRS) document covers the complete technical and operational plan for the CustomERP project, an AI-powered platform designed to generate customized ERP systems. In preparing this document, our primary finding was that the analysis of User Characteristics is the central driver for the entire system design. We identified a critical split between our primary non-technical business users, who require extreme simplicity and a guided experience, and our secondary technical academic evaluators, who require architectural transparency. This core finding directly shaped our Functional Requirements (Section 5); rather than specifying complex, traditional configuration forms, our requirements prioritize an interactive, AI-driven clarification dialogue system that actively guides the non-technical user toward a valid configuration. This same user-centric analysis also elevated Usability to be one of our most critical Non-Functional Requirements (Section 6), as the system's success is ultimately defined by its adoption and effective use by individuals with no technical background. In parallel, our work on the Product Perspective (Section 3) defined the system's technical boundaries and its deep reliance on external services, confirming it is a standalone web platform that interfaces with external AI APIs for its core logic and produces deployment artifacts (like Docker files) as its output. This architectural finding necessitated the creation of specific Non-Functional Requirements for Security, to protect sensitive business data in transit to these external APIs, and Portability, to ensure the generated Docker deployment artifacts are reliable and consistent for manual execution across all user and evaluator environments. The Logical Database Requirements (Section 7) were then formulated as a direct consequence of these functional goals, as they define the target logical schema and data relationships for core business entities that the AI component must successfully infer and generate. Finally, our Verification plan (Section 8) was designed to validate all these interconnected requirements, establishing a formal Requirement Traceability Matrix. This matrix serves as our key finding for ensuring quality, as it links every functional and non-functional requirement back to a specific test case, tool, and method, ensuring the final product is fully compliant with this specification.[1](#sdfootnote1sym)
+
+**Table of Contents**
+
+**Page Number**
+
+  
+
+  
+
+**List of Tables**
+
+**Page Number**
+
+**List of Figures**
+
+**Page Number**
+
+  
+
+  
+
+**Abbreviations**
+
+  
+
+|   |   |
+|---|---|
+ 
+|AI<br><br>API<br><br>CRUD<br><br>CTIS<br><br>ERD<br><br>ERP<br><br>GDPR<br><br>HIPAA<br><br>HTML<br><br>HTTP<br><br>HTTPS<br><br>JSON<br><br>NLP<br><br>ORM<br><br>PDF<br><br>RAM<br><br>REST<br><br>RTM<br><br>SaaS<br><br>SDLC<br><br>SMB<br><br>SME<br><br>SOX<br><br>SPMP<br><br>SQL<br><br>SRS<br><br>SSL<br><br>TLS<br><br>UAT<br><br>UI<br><br>URL<br><br>WBS|Artificial Intelligence<br><br>Application Programming Interface<br><br>Create Read Update Delete<br><br>Information Systems and Technologies<br><br>Entity-Relationship Diagram<br><br>Enterprise Resource Planning<br><br>General Data Protection Regulation<br><br>Health Insurance Portability and Accountability Act<br><br>HyperText Markup Language<br><br>HyperText Transfer Protocol<br><br>HyperText Transfer Protocol Secure<br><br>JavaScript Object Notation<br><br>Natural Language Processing<br><br>Object Relational Mapping<br><br>Portable Document Format<br><br>Random Access Memory<br><br>Representational State Transfer<br><br>Requirement Traceability Matrix<br><br>Software as a Service<br><br>Software Development Lifecycle<br><br>Small and Medium Business<br><br>Small and Medium-sized Enterprise<br><br>Sarbanes-Oxley Act<br><br>Software Project Management Plan<br><br>Structure Query Language<br><br>Software Requirements Specification<br><br>Secure Sockets Layer<br><br>Transport Layer Security<br><br>User Acceptance Testing<br><br>User Interface<br><br>Uniform Resource Locator<br><br>Work Breakdown Structure|
+|||
+|||
+|||
+|||
+|||
+|||
+|||
+|||
+|||
+|||
+
+1. # Product Scope
+    
+
+a) Identified Software Product
+
+The software product to be produced is named CustomERP, developed under the project title Customizable ERP Provider.
+
+b) Product Description
+
+CustomERP is an AI-powered platform that enables small and medium-sized businesses to automatically generate customized ERP systems from natural language descriptions. Users provide a plain-language description of their business processes, and the system interprets this input to generate database schemas, business modules (such as customer, inventory, and invoicing), and user interface source code. Within hours, a complete set of deployment artifacts (including source code, Dockerfiles, and setup instructions) is produced without requiring any coding or configuration knowledge.
+
+c) Application, Benefits, and Objectives
+
+The application targets SMEs seeking affordable digital transformation solutions. Traditional ERP systems are either too rigid (template-based) or too costly (custom-built). CustomERP bridges this gap by using AI to translate business needs into operational ERP software.  
+Key objectives include:
+
+Parsing business requirements from text with 70% accuracy.
+
+Automatically generating database schemas modeling business relationships.
+
+Creating CRUD interfaces for core modules (Customer, Inventory, Invoice).
+
+Delivering a working prototype within four hours of requirement submission.
+
+Benefits:
+
+- Reduces cost and time for ERP system generation and setup.
+    
+- Enables non-technical users to create operational systems.
+    
+- Provides flexibility and scalability through modular AI-driven generation.
+    
+
+d) Consistency with the Initial Plan
+
+The above description aligns with the _Initial Plan_ document, which defines the project’s academic and technical scope. The system’s measurable success criteria, limited feature set, and proof-of-concept focus are consistent with the project’s stated constraints and timeline (October 2025 – June 2026). The project excludes advanced workflow automation, compliance modules, mobile apps, and third-party integrations, remaining focused on demonstrating the feasibility of AI-based ERP generation within academic limits.**[2](#sdfootnote2sym)**
+
+The contrasting expertise levels between business users (non-technical) and academic users (technical) directly shape system requirements:
+
+- The UI and onboarding flow must favor simplicity, guiding non-technical users through natural-language prompts.
+    
+- The backend and documentation must be modular and transparent for technically skilled reviewers and developers.
+    
+
+System feedback should be interpretable in plain English while maintaining developer-level logs for validation and debugging.[3](#sdfootnote3sym)
+
+  
+
+  
+
+2. # User Characteristics
+    
+    1. ## Intended User Groups
+        
+
+The CustomERP system targets a single, distinct category of users: Small and Medium Business (SMB) Owners or Managers.
+
+The system is designed to bridge the gap between technical software requirements and business operational knowledge, enabling non-technical individuals to generate complex software solutions.
+
+2. ## Primary Users: Small and Medium Business Owners or Managers
+    
+
+**Profile:**
+
+- These are non-technical business professionals who manage or own small to medium enterprises in sectors such as retail, manufacturing, logistics, or services. They typically lack advanced programming or IT expertise but possess deep knowledge of their specific business workflows.
+    
+
+**Characteristics:**
+
+- Educational Level: varied; users often hold business, management, or vocational backgrounds rather than computer science or engineering degrees.
+    
+- Experience: Highly experienced in daily business operations (e.g., managing inventory flows, issuing invoices, tracking customer interactions) but have minimal experience with software architecture or database configuration.
+    
+- Technical Expertise: Low to Moderate. They are comfortable using standard office software (spreadsheets, email, web browsers) and SaaS tools, but they cannot write code, write SQL queries, or configure server environments.
+    
+- Usage Goal: To quickly generate a functional, cost-effective ERP prototype that matches their specific workflow without hiring a software development agency.
+    
+
+3. ## Usability Implications
+    
+
+Given that the primary user has limited technical expertise, the system design is heavily constrained by the need for simplicity and guidance.
+
+- Natural Language Processing: The interface must not require the user to understand technical jargon (e.g., "schema," "primary key," "Docker container"). All interactions must occur via plain English descriptions and guided questions.
+    
+- Cognitive Load: The system must abstract the complexity of ERP generation. Users should see business concepts (e.g., "Customer List") rather than technical artifacts (e.g., "PostgreSQL Tables").
+    
+- Error Recovery: Error messages must be non-technical and prescriptive. Instead of displaying a stack trace or API error, the system must guide the user on how to rephrase their input to achieve the desired result.
+    
+- Guided Onboarding: The workflow cannot be open-ended. The system must actively lead the user through a linear process.[4](#sdfootnote4sym)
+    
+
+  
+
+3. # Product Perspective
+    
+
+The CustomERP system is designed as a standalone AI-driven web platform that enables users to automatically generate basic ERP systems through natural language descriptions. It is not part of a larger enterprise suite, but it connects with several external tools and services (e.g., AI APIs) to function effectively.
+
+While CustomERP operates independently, it serves as an intermediary layer between human business users and pre-existing technologies that support code generation, database creation, and the generation of deployment artifacts. In this sense, it integrates with external services to achieve its purpose but does not rely on any single proprietary framework or enterprise architecture.
+
+The figure below presents a high-level conceptual overview of the CustomERP ecosystem, showing its relationships and interfaces with external systems.
+
+1. ## CustomERP System Context Diagram
+    
+
+![](file:///tmp/lu297319a3qt.tmp/lu297319a3tq_tmp_b2ea2a67.png)
+
+Figure 1 Context Diagram
+
+2. ## System Interfaces
+    
+
+CustomERP connects to a limited number of external systems to achieve its main functional objectives. Each interface is defined below along with its purpose, data exchange format, and system-level interaction.
+
+Table 1 System Interfaces
+
+|   |   |   |
+|---|---|---|
+  
+|Interface Name|Purpose / Functionality|Interface Description|
+|Anthropic API|Enables the AI component to interpret user-provided natural language descriptions, extract entities and relationships, and generate schema definitions.|RESTful API interface over HTTPS. Data is sent and received in JSON format. Requests contain prompt text; responses include structured entity lists and schema suggestions.|
+|PostgreSQL Database|Acts as the default backend for the generated ERP system. It stores business entities, user data, and relationships.|Standard SQL interface (TCP Port 5432) using an ORM (Object Relational Mapping) layer.|
+|Local Web Server|Hosts the web interface for interacting with the CustomERP system and generated ERP modules.|HTTP/HTTPS communication using RESTful endpoints built with Node.js and React.[5](#sdfootnote5sym)|
+
+3. ## User Interfaces
+    
+
+The CustomERP system provides a web-based graphical user interface (GUI) that allows non-technical business users to interact with the system through natural language input, guided clarification dialogs, and visual previews of generated ERP modules. The interface emphasizes simplicity, clarity, and accessibility while maintaining a professional layout suitable for business users with varying levels of technical expertise.
+
+1. ### Logical Characteristics of the User Interface:
+    
+
+The CustomERP user interface consists of five main screens, each corresponding to a major step in the ERP generation process:
+
+- Login and Authentication Screen
+    
+    - Purpose: Provides secure access to the system using email and password credentials.
+        
+    - Layout: A centered login box with labeled input fields and “Forgot Password” and “Sign Up” links.
+        
+    - Features:
+        
+        - Password input masking.
+            
+        - Input validation with real-time feedback (e.g., invalid email format).
+            
+        - Redirects to the Main Dashboard upon successful authentication.
+            
+- Main Dashboard
+    
+    - Purpose: Serves as the primary workspace where users submit business descriptions and monitor progress.
+        
+    - Layout:
+        
+        - A left navigation panel listing key sections (Dashboard, Projects, Help).
+            
+        - A central input area for natural language description (minimum 500 words, maximum 5000 words).
+            
+        - A right-side summary panel showing real-time parsing feedback.
+            
+    - Features:
+        
+        - “Analyze Description” button triggers the AI processing API.
+            
+        - Progress bar and status indicators (e.g., “Analyzing”, “Schema Generated”).
+            
+- Clarification and Feedback Dialogs
+    
+    - Purpose: Allows the AI system to ask clarifying questions and refine understanding of user intent.
+        
+    - Layout: Modal popup dialogs with question text, multiple-choice or text-field answer areas, and navigation buttons (“Next”, “Skip”).
+        
+    - Functionality:
+        
+        - Dynamic content based on ambiguity in user input.
+            
+        - Auto-saves responses to improve model accuracy.
+            
+- Module Visualization Screen
+    
+    - Purpose: Displays generated ERP modules and their relationships visually.
+        
+    - Layout:
+        
+        - Diagram-style view showing tables (entities) and relationships (lines/arrows).
+            
+        - Expandable boxes for attributes and relationships.
+            
+    - Features:
+        
+        - Hover tooltips for entity details.
+            
+        - Option to edit field names or types before final generation.
+            
+        - Color-coded module categories (Customer, Inventory, Invoicing).
+            
+- Preview and Deployment Interface
+    
+    - Purpose: Allows users to review, visualize, and download the generated ERP artifacts.
+        
+    - Layout:
+        
+        - A tabbed interface for Schema/API Visualization and File Download.
+            
+        - “Download Artifacts” and “View Documentation” buttons.
+            
+    - Functionality:
+        
+        - Visual (ERD) view of generated database schema.
+            
+        - Auto-generation and packaging of Docker Compose files, Dockerfiles, and source code into a downloadable ZIP archive.
+            
+
+2. ### Optimization and Usability Guidelines
+    
+
+The interface design follows usability principles to ensure accessibility, readability, and consistency for all users. The system is optimized for desktop and laptop browsers (Chrome, Edge, Firefox).
+
+Design Guidelines – Do’s:
+
+- Use clear labels and plain English for all buttons, menus, and forms.
+    
+- Maintain consistent typography and color themes across all screens.
+    
+- Provide hover tooltips and inline hints for data-entry fields.
+    
+- Implement a progress tracker at the top of each workflow screen.
+    
+- Use green for confirmation, red for errors, and blue for informational notices.
+    
+- Provide both short and detailed error messages (e.g., “Invalid input” and “The description must include at least one business process”).
+    
+
+Design Guidelines – Don’ts:
+
+- Avoid overloading screens with unnecessary information.
+    
+- Avoid technical jargon; all instructions should be in business-friendly language.
+    
+- Do not allow users to submit forms without validation or confirmation.
+    
+- Do not display debugging or system messages to end-users.
+    
+- Accessibility and Support Considerations:
+    
+- All text elements maintain a minimum contrast ratio of 4.5:1 to meet accessibility standards.
+    
+- All interactive elements (buttons, links) are keyboard-navigable.
+    
+- Tooltips and help icons provide quick explanations of system functions.
+    
+- Error dialogs always include a “Help” link redirecting to the support documentation.[6](#sdfootnote6sym)
+    
+
+4. ## Hardware Interfaces
+    
+
+The CustomERP system is a web-based software product and does not directly interact with specialized or embedded hardware devices. It runs entirely on general-purpose computing environments such as personal computers or standard virtual machines. Therefore, the hardware interface requirements are minimal and limited to ensuring compatibility with commonly available desktop and server configurations.
+
+1. ### Logical Characteristics
+    
+
+Processing Requirements:
+
+- The application requires a CPU capable of running modern web browsers and containerized environments (e.g., Intel i5 / AMD Ryzen 5 or higher). No special instruction sets (e.g., GPU, SIMD) are required.
+    
+- Memory and Storage:
+    
+
+Minimum 8 GB RAM and at least 10 GB of free storage space are recommended to run Docker containers and store generated ERP prototypes locally.
+
+- Network Hardware:
+    
+
+The system requires a network interface (Ethernet or Wi-Fi) capable of stable internet access to connect with cloud APIs (e.g., Anthropic API, GitHub). No dedicated hardware communication channels (sockets, serial ports, etc.) are used.
+
+Supported Devices:
+
+- Developer and User Machines:
+    
+    - Operating Systems: Windows 10+, macOS Monterey+, Ubuntu 22.04+
+        
+    - Hardware: Standard laptops or desktops
+        
+    - Network: Broadband internet connection (minimum 5 Mbps recommended)
+        
+- Optional Deployment Servers:
+    
+    - Any server or virtual machine capable of running Docker Engine v27+
+        
+    - Minimum 2 CPU cores and 4 GB RAM
+        
+    - Supported on major cloud providers (AWS, Google Cloud, Azure, DigitalOcean, etc.)
+        
+
+Protocols and Access:
+
+- The system uses standard communication protocols such as HTTP/HTTPS for all user and API interactions.
+    
+- No direct access to system-level hardware (e.g., printers, scanners, USB devices) is required.
+    
+- There are no dependencies on device-specific drivers, ports, or peripheral connections.[7](#sdfootnote7sym)
+    
+
+5. ## Software Interfaces
+    
+
+The CustomERP system depends on several third-party and open-source software components to perform its AI processing, database management, backend orchestration, and deployment packaging tasks. These interfaces allow seamless data exchange between modules and ensure that the generated ERP prototypes can be manually deployed, tested, and maintained efficiently.  
+  
+
+The following table summarizes all key software products and their corresponding interface details.
+
+  
+
+Table 2 Required Software Products and Interfaces
+
+|   |   |   |   |   |
+|---|---|---|---|---|
+    
+|Software Product|Mnemonic|Version|Source|Purpose and Description of Interface|
+|Python|PY|3.11|Python Software Foundation|Used for AI text-processing and schema inference scripts. Interfaces internally with the Anthropic API and communicates via HTTPS requests.|
+|Node.js|NJS|20.x|Node.js Foundation|Hosts backend server logic and RESTful API endpoints that connect frontend and AI modules. Communicates via JSON over HTTP/HTTPS.|
+|React.js|RJS|18.x|Meta Platforms, Inc.|Provides the web-based graphical user interface. The frontend interacts with the Node.js backend using standard RESTful JSON requests and responses.|
+|PostgreSQL|PSQL|16.x|PostgreSQL Global Development Group|Serves as the primary relational database for storing entities, relationships, and user data within generated ERP systems. Accessed through SQL queries using an ORM layer.|
+|Anthropic API|AAPI|v2025|Anthropic PBC|Provides the AI language model used for natural language processing, entity extraction, and schema generation. Communicates via RESTful HTTPS requests in JSON format.|
+|Operating System (Windows/macOS/Linux)|OS|N/A|User environment|Provides the runtime platform for Docker and development tools. No direct software-level integration beyond standard system calls.|
+
+  
+
+1. ### Interface Details
+    
+
+2. Anthropic API Interface
+    
+    - Purpose: Processes user-provided natural language business descriptions and returns structured entity and relationship data.
+        
+    - Message Format:
+        
+        - _Request:_ JSON containing prompt text, project context, and token limits.
+            
+        - _Response:_ JSON with extracted entities, relationships, and potential schema representations.
+            
+    - Protocol: HTTPS (RESTful API).
+        
+    - Documentation Reference: Anthropic API Developer Guide, 2025 Edition.
+        
+3. Database Interface (PostgreSQL)
+    
+    - Purpose: Stores generated schema definitions, module data, and user credentials for the ERP prototype.
+        
+    - Message Format: SQL queries executed through ORM (Object Relational Mapping) layer.
+        
+    - Protocol: TCP Port 5432 using standard SQL communication.
+        
+    - Documentation Reference: PostgreSQL 16 Official Documentation.
+        
+4. Frontend–Backend Interface (React.js ↔ Node.js)
+    
+    - Purpose: Facilitates data flow between the graphical user interface and server-side application logic.
+        
+    - Message Format: JSON-based HTTP requests and responses (e.g., GET, POST, PUT, DELETE).
+        
+    - Protocol: RESTful HTTP/HTTPS.
+        
+    - Documentation Reference: Express.js and React Router Documentation, 2024.[8](#sdfootnote8sym)
+        
+
+  
+
+5. ## Communications Interfaces
+    
+
+The CustomERP system communicates primarily through standard web protocols and containerized network environments. The communication interfaces ensure secure, reliable, and efficient data exchange between the system’s internal modules (frontend, backend, and database) and its external dependencies (AI APIs).
+
+All communications are designed to comply with modern web standards, ensuring interoperability and maintainability across different platforms.
+
+Table 3 Communication Channels and Protocols
+
+|   |   |   |   |
+|---|---|---|---|
+   
+|Interface Type|Protocol / Port|Purpose|Description|
+|Frontend ↔ Backend|HTTP / HTTPS (Ports 80, 443)|Transmits data between the React.js frontend and Node.js backend.|Uses RESTful API calls with JSON payloads for all CRUD operations.|
+|Backend ↔ Anthropic API|HTTPS (Port 443)|Sends user business descriptions for AI processing and receives structured schema outputs.|Encrypted API communication following REST standards.|
+|Backend ↔ Database (PostgreSQL)|TCP (Port 5432)|Transfers data between the backend and the relational database.|SQL queries are executed through ORM middleware for safe data handling.|
+|Localhost Communication|Loopback (127.0.0.1)|Used during development and testing.|Enables isolated communication between modules running on the same machine.|
+
+1. ### Security and Encryption
+    
+
+- All external communication (e.g., Anthropic API) is conducted via **SSL/TLS encryption (HTTPS)**.
+    
+- API keys and authentication tokens are stored securely using environment variables.
+    
+- No unencrypted or plaintext network transmissions are permitted.
+    
+
+1. ### Network Performance
+    
+
+- Minimum internet speed of **5 Mbps** is recommended for stable communication with cloud services.
+    
+- System performance may temporarily degrade if API latency exceeds 5 seconds, which will trigger timeout handling procedures.
+    
+
+The system uses only **standard, publicly documented protocols** — no proprietary or vendor-specific communication methods.[9](#sdfootnote9sym)
+
+7. ## Memory Constraints
+    
+
+The **CustomERP** prototype is lightweight and intended for execution on **standard personal computers or virtual machines**. It does not impose strict primary or secondary memory constraints beyond the baseline requirements of its framework dependencies.
+
+1. ### Primary Memory (RAM)
+    
+
+- Minimum recommended: **8 GB RAM** for smooth performance during container execution and AI-based schema generation.
+    
+- Average runtime consumption: **2–4 GB**, depending on the number of modules being generated and the size of the input text.
+    
+- Memory spikes may occur during Docker build and deployment phases due to container initialization.
+    
+
+1. ### Secondary Memory (Storage)
+    
+
+- Minimum recommended: **10 GB free disk space** for project files, local database, and Docker images.
+    
+- Typical generated ERP prototypes occupy **400–500 MB** including UI, backend, and database files.
+    
+- Temporary files generated during AI parsing and schema generation are automatically cleared after successful completion.
+    
+
+1. ### Caching and Database Storage
+    
+
+- PostgreSQL uses in-memory caching for frequent queries to optimize performance.
+    
+- Large data sets (e.g., customer lists or invoices) are stored on disk through the database layer.
+    
+
+1. ### Scalability Considerations
+    
+
+- The system design allows scaling memory allocation for Docker containers if deployed in a cloud environment.
+    
+- In academic prototype use, the current memory requirements are well within the limits of standard student or laboratory computers.
+    
+
+**No special hardware accelerators (e.g., GPU, TPU)** are required, and memory usage remains stable under typical workloads.[10](#sdfootnote10sym)
+
+4. # Assumptions and Dependencies
+    
+
+The following assumptions and dependencies represent system-level factors that influence the requirements defined in this Software Requirements Specification. These are **not design constraints**, but changes to these conditions may require modifications to the requirements, scope, or feasibility of the CustomERP system.
+
+1. ## Technical Assumptions
+    
+
+- **Availability of Public Docker Images**:
+    
+
+It is assumed that the official base images for the technology stack (specifically Node.js and PostgreSQL hosted on Docker Hub) remain publicly accessible. The system relies on these repositories both for its own execution and for the use of the ERPs that the system generates.
+
+- **Stable Internet Connectivity:**
+    
+
+It is assumed that the environment where the CustomERP system is running has persistent internet connectivity. Since the core logic relies on communicating with external AI services via HTTPS to parse requirements, the system cannot function in an offline environment.
+
+Note:
+
+The system is responsible for generating syntactically correct deployment artifacts (Dockerfiles and source code). It is currently out of scope of our product to guide an end-user with no technical knowledge on how to deploy the generated system.
+
+2. ## Non-Technical Assumptions
+    
+
+- **Advisor Availability:**
+    
+
+It is assumed that Dr. Cüneyt Sevgi will remain available throughout the project lifecycle to provide clarification on requirements and validate the scope of the generated modules.
+
+3. ## External Dependencies
+    
+
+- **Anthropic API (or equivalent AI Service)**:
+    
+
+The system’s ability to interpret natural language and generate schemas is strictly dependent on the availability and operational stability of the external AI API.
+
+- **Collaborative and Version Control Tools**:
+    
+
+The development and delivery process depends on the continuous availability of GitHub for version control and project hosting.[11](#sdfootnote11sym)
+
+  
+
+5. # Functional Requirements
+    
+    1. ## List of Functional Requirements in Textual Format
+        
+        1. ### Core System Requirements
+            
+
+Table 4 Core System Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement Statement|Description / Rationale|
+|FR1|The FR1 group defines all requirements related to accepting, validating, preprocessing, and preparing the business description before AI processing.|Input quality directly determines AI accuracy and schema correctness. All downstream modules depend on a valid and processable description.|
+|FR1.1|The system shall allow the user to input a business description in plain English text containing **a** minimum of 500 words and a maximum of 5000 words, through a multiline text editor in the dashboard.text (minimum 500 words, maximum 5000 words).|Ensures the input contains enough detail for AI processing while preventing excessively long texts that may cause API timeouts or token overflow|
+|FR1.2|The system shall validate the input text by checking: **(a)** minimum word count ≥500, **(b)** maximum word count ≤5000, **(c)**≥90% of content detected as English language, **(d)** content completeness: at least one business process verb (e.g., _sell, produce, manage_) and at least one business entity noun (e.g., _customer, product, employee_) must appear. The system shall block invalid submissions and display an error message.|Guarantees meaningful, AI-processable input; prevents empty, off-topic, or non-English descriptions from entering the pipeline.|
+|FR1.3|The system shall send the validated business description to the Anthropic API using secure HTTPS requests in JSON format.|Establishes the AI processing interface and ensures secure transmission of user-provided business information.|
+|FR1.4|The system shall receive structured data from the AI component in JSON format, including identified entities, attributes, relationships, and ambiguity indicators.|Defines the standardized output from the AI component required for schema generation.|
+|FR1.5|The system shall store the structured data returned from the AI component in a temporary staging database. Data shall be automatically cleared once the ERP schema is generated or when the user discards the project.|Ensures data persistence for schema generation while maintaining privacy through automatic cleanup.|
+|FR1.6|The system shall display processing status (e.g., _Analyzing_, _Generating Schema_, _Waiting for AI_, _Completed_) and error messages (e.g., network errors, API failures, validation errors) through a status bar and modal notifications in the dashboard UI.|Provides immediate system feedback, improves usability, and supports user understanding of each step in the pipeline.|
+
+  
+
+2. ### Module Generation Requirements
+    
+
+Table 5 Module Generation Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement Statement|Description / Rationale|
+|FR2|The FR2 group defines all requirements related to automatic schema creation, CRUD generation, module formation, and technical output preparation.|Ensures the system transforms AI output into concrete and functional ERP components.|
+|FR2.1|The system shall generate a relational database schema using the entity, attribute, and relationship list produced by the AI component, following 3NF normalization rules.|Ensures database correctness and prevents redundancy in generated schemas.|
+|FR2.2|The system shall generate CRUD (Create, Read, Update, Delete) operations for every entity, including automatic creation of REST API endpoints (GET/POST/PUT/DELETE) and corresponding service-layer functions.|Ensures basic operability of the ERP modules and complete data management.|
+|FR2.3|The system shall automatically generate user interface code in React.js and backend code in Node.js without executing or deploying the preview.|Clearly defines that UI is generated but not run inside the system.|
+|FR2.4|The system shall generate three predefined business modules: Customer Management, Inventory Management, and Invoicing, unless the AI output specifies additional valid entities belonging to these modules.|Keeps scope aligned with Initial Plan and limits workload to core modules.|
+|FR2.5|The system shall generate a visual Entity-Relationship Diagram (ERD) and an API summary document for every module created.|Provides transparency and helps the user validate generated designs.|
+|FR2.6|The system shall generate Dockerfiles and a Docker Compose configuration for all generated modules using standardized Node.js and PostgreSQL base images.|Ensures consistent deployment and environment reproducibility.|
+|FR2.7|The system shall store all generated source files (backend, frontend, configuration, documentation) in a downloadable project folder.|Ensures the user can retrieve all generated assets after processing.|
+
+  
+
+3. ### AI Processing Requirements
+    
+
+Table 6 AI Processing Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement Statement|Description / Rationale|
+|FR3|The FR3 group defines how the AI component interprets input, detects ambiguity, generates structured outputs, and interacts with user clarifications.|Ensures accurate schema inference and user-informed corrections.|
+|FR3.1|The AI component shall identify business entities such as customers, products, employees, invoices, and orders using NLP techniques with ≥70% semantic accuracy.|Provides measurable AI performance expectation aligned with Initial Plan.|
+|FR3.2|The AI component shall infer one-to-one,one-to-many, and many-to-many relationships with a minimum accuracy target of 70%, based on linguistic patterns and typical business rules.|Defines accuracy expectations so output can be tested and validated.|
+|FR3.3|The system shall generate clarifying questions whenever ambiguity is detected, such as missing relationships, unspecified cardinalities, or unclear process descriptions.|Improves correctness by involving the user in resolving missing details.|
+|FR3.4|The system shall store all AI responses and user clarifications in a temporary context buffer to improve schema refinement and ensure traceability.|Enables iterative updates and debugging.|
+|FR3.5|\|   \|<br>\|---\|<br>\|The system shall generate a structured file (JSON) that includes all entities, attributes, relationships, clarifications, and assumptions derived from user input.\||Provides a standardized blueprint for module generation.|
+
+  
+
+4. ### User Interaction and Interface Requirements
+    
+
+Table 7 User Interaction and Interface Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement Statement|Description / Rationale|
+|FR4|The FR4 group defines all user-facing interactions including dashboards, dialogs, login, and system feedback.|Ensures predictable and user-friendly interactions.|
+|FR4.1|The system shall present a web dashboard through which users can submit descriptions, view processing status, preview modules, and download artifacts.|\|   \|<br>\|---\|<br>\|Defines the main entry point for users.\||
+|FR4.2|The system shall display clarification dialogs in a question-and-answer format when AI detects ambiguity, with modal pop-ups and form fields.|Ensures guided interaction for non-technical users..|
+|FR4.3|The system shall provide role-based authentication supporting “Business User” and “Admin” roles, each with different access permissions.|Ensures secure and structured access control.|
+|FR4.4|The system shall log all user actions such as project creation, editing, or exporting into a timestamped audit log stored in the database.|Supports testability, transparency, and debugging.|
+
+  
+
+5. ### Deployment and Reporting Requirements
+    
+
+Table 8 Deployment and Reporting Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement Statement|Description / Rationale|
+|FR5|The FR5 group defines all requirements related to deployment artifacts and output documentation.|Ensures the generated ERP can be executed outside the system.|
+|FR5.1|The system shall generate a Docker Compose file describing containers, ports, environment variables, and dependencies for the ERP project.|Automates deployment preparation.|
+|FR5.2|The system shall generate a deployment guide (README) describing the steps to run the ERP locally using Docker Compose.|Ensures that users can run the system without technical help.|
+|FR5.3|The system shall produce summary reports of generated entities, schemas, relationships, and modules in human-readable PDF or HTML format.|Provides documentation for evaluation and review.|
+|FR5.4|The system shall allow exporting all project metadata (entities, schemas, clarifications, SQL) in JSON and SQL formats.|Supports extensibility and external integration.|
+
+  
+
+  
+
+6. ### Stimulus–Response Summary
+    
+
+Table 9 Stimulus-Response Summary
+
+|   |   |   |
+|---|---|---|
+  
+|Stimulus (Input)|System Function|Response (Output)|
+|User submits business description|AI module processes input text|Display of detected entities, relationships, and clarifying questions|
+|User answers clarifying questions|System refines schema generation|Updated entity-relationship model displayed in module view|
+|User confirms generated modules|System builds database schema and CRUD UI|Interactive preview of ERP prototype|
+|User selects “Deploy”|System packages modules into Docker container|Downloadable or executable Docker environment|
+|User requests report|System compiles schema summary|Downloadable PDF/HTML report[12](#sdfootnote12sym)|
+
+2. ## Use Case Diagram(s)
+    
+
+![](file:///tmp/lu297319a3qt.tmp/lu297319a3tq_tmp_41428a43.png)
+
+Figure 2 UCD_1-3 – Project Intake & Analysis
+
+![](file:///tmp/lu297319a3qt.tmp/lu297319a3tq_tmp_d00a5d6a.png)
+
+Figure 3 UCD_4-6 – Inventory Schema & CRUD from SDF and Review
+
+![](file:///tmp/lu297319a3qt.tmp/lu297319a3tq_tmp_d11a1deb.png)
+
+Figure 4 UCD_7 – Artifacts Export
+
+![](file:///tmp/lu297319a3qt.tmp/lu297319a3tq_tmp_28c76e01.png)
+
+Figure 5 UCD_8-10 – Admin: Users and Logs
+
+![](file:///tmp/lu297319a3qt.tmp/lu297319a3tq_tmp_365f19cb.png)
+
+Figure 6 UCD_11-13 – Account: Registration, Login, Logout
+
+![](file:///tmp/lu297319a3qt.tmp/lu297319a3tq_tmp_4634f9bb.png)
+
+Figure 7 UCD_1-13 – CustomERP Overall Use Case Diagram
+
+  
+
+3. ## Mapping of Functional Requirements
+    
+
+Table 10 Mapping of Functional Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|Functional Requirement ID (from SRS § 5.1)|Use Case ID (from SRS § 5.2)|Initial Plan Functional Requirement ID [1]|
+|FR 1.1|UC-3: Generate SDF using Chatbot|FReq 1.1|
+|FR 1.2|UC-3: Generate SDF using Chatbot|FReq 1.2|
+|FR 1.3|UC-3: Generate SDF using Chatbot|FReq 1.3|
+|FR 3.1|UC-3: Generate SDF using Chatbot|FReq 3.1|
+|FR 4.1|UC-3: Generate SDF using Chatbot|FReq 1.2 / 3.3|
+|FR 3.3|UC-3: Generate SDF using Chatbot|FReq 3.3|
+|FR 3.5|UC-3: Generate SDF using Chatbot|FReq 3.5|
+|FR 4.2|UC-3: Generate SDF using Chatbot|FReq 2.1 – 2.3|
+|FR 1.4|UC-2: Create New Project|FReq 1.4|
+|FR 1.4|UC-1: View Project List|FReq 1.4|
+|FR 4.2|UC-3: Generate SDF using Chatbot|FReq 2.1 – 2.3|
+|FR 1.3|UC-4: Generate Schema & CRUD from SDF|FReq 1.3|
+|FR 2.1|UC-4: Generate Schema & CRUD from SDF|FReq 1.3|
+|FR 2.2|UC-4: Generate Schema & CRUD from SDF|FReq 1.4|
+|FR 2.3|UC-4: Generate Schema & CRUD from SDF|FReq 1.4|
+|FR 2.4|UC-4: Generate Schema & CRUD from SDF|FReq 2.4|
+|FR 3.2|UC-4: Generate Schema & CRUD from SDF|FReq 3.2|
+|FR 4.2|UC-5: Review Schema & API Summary|FReq 2.1 – 2.3|
+|FR 2.5|UC-5: Review Schema & API Summary|FReq 2.5|
+|FR 2.5|UC-6: Approve or Edit Module Set|FReq 2.5|
+|FR 2.5|UC-7: Export Generated ERP|FReq 2.5|
+|FR 2.6|UC-7: Export Generated ERP|FReq 2.5|
+|FR 2.7|UC-7: Export Generated ERP|FReq 2.5|
+|FR 5.1|UC-7: Export Generated ERP|FReq 2.5|
+|FR 5.2|UC-7: Export Generated ERP|FReq 2.5|
+|FR 5.3|UC-7: Export Generated ERP|FReq 2.5|
+|FR 5.4|UC-7: Export Generated ERP|FReq 2.5|
+|FR 2.4|UC-8: Manage Users|FReq 2.4|
+|FR 4.3|UC-8: Manage Users|FReq 2.4|
+|FR 2.4|UC-9: Manage User Projects|FReq 2.4|
+|FR 4.4|UC-9: Manage User Projects|FReq 2.4|
+|FR 5.1|UC-10: View Activity and Error Logs|FReq 2.5|
+|FR 4.4|UC-10: View Activity and Error Logs|FReq 2.4|
+|FR 4.3|UC-11: Register Account|FReq 2.4|
+|FR 4.3|UC-12: Login|FReq 2.4|
+|FR 4.3|UC-13: Logout|FReq 2.4|
+
+[13](#sdfootnote13sym)
+
+  
+
+6. # Non-Functional Requirements
+    
+    1. ## Usability Requirements
+        
+
+The **CustomERP** system is designed primarily for **non-technical business users** who need to create simple ERP systems through natural language interaction. Usability is therefore a key non-functional requirement. For this purpose, we have included user-friendly UI elements in our functional requirements such as FR1.6. However, the we noticed problems regarding the measurability of success regarding such UI. Therefore, we have decided not to add a usability NFR.[14](#sdfootnote14sym)
+
+2. ## Performance Requirements
+    
+
+The **CustomERP** system is expected to operate efficiently under typical small-to-medium enterprise workloads. Performance requirements define measurable limits on processing time, data handling, and concurrent usage, ensuring that the system delivers a stable and responsive experience for end-users.
+
+Table 11 Performance Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement|Measurement / Target|
+|NFR-1|\|   \|<br>\|---\|<br>\|The system shall compile and package the final downloadable artifacts (Source Code + Dockerfiles) within 15 minutes of the user confirming the database schema.\||Verified by timing the process from the "Confirm Schema" click event to the "Download Ready" state. The duration must be ≤ 900 seconds.|
+
+[15](#sdfootnote15sym)
+
+3. ## Software System Attributes
+    
+    1. ### Reliability
+        
+
+Not applicable therefore excluded because the core intelligence of this system relies on the Anthropic API, a third-party service. Since the availability of this API is outside the development team's control, strictly defined reliability metrics (e.g., 99.9% uptime) cannot be guaranteed or meaningfully measured for the student prototype. Although we can add a NFR with a condition that as long as the AI API is be available, we still believe that adding a reliability NFR would not be a realistic goal to have for an already large scoped project.
+
+2. ### Availability
+    
+
+Not applicable therefore excluded because as a prototype tool used for ad-hoc generation tasks rather than a continuous mission-critical service, high-availability redundancy (e.g., load balancers, failover clusters) is out of scope for the academic timeline.
+
+3. ### Security
+    
+
+Table 12 Security Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement|Measurement / Criteria|
+|NFR-2|All user passwords stored in the database shall be secured using a one-way hashing algorithm (e.g., bcrypt) with individual salts. Plain text passwords shall never be stored.|Verified by performing a SELECT * FROM users query on the live database during the demo; the password column must contain hashed strings, not readable text.|
+
+4. ### Maintainability
+    
+
+Not applicable therefore excluded because while the team adheres to modular coding standards, measuring maintainability (e.g., "Mean Time to Repair") requires long-term lifecycle data that cannot be generated or proven during a single semester development phase.
+
+5. ### Portability
+    
+
+Table 13 Portability Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement|Measurement / Criteria|
+|NFR-3|Both our CustomERP system and the generated ERP prototypes shall be executable on any host machine running Docker Engine (v24+), without requiring the manual installation of runtime dependencies (e.g., Node.js or PostgreSQL) on the host OS.|Verified by transferring the generated .zip artifact to a fresh environment (or a different OS), running docker compose up, and confirming the application launches successfully.|
+
+[16](#sdfootnote16sym)
+
+4. ## Constraints
+    
+
+This section defines the constraints that limit the design, implementation, and operation of the **CustomERP** system. These constraints arise from external dependencies, academic requirements, and the technical environment specified in the project’s Initial Plan.  
+They guide development decisions but do not dictate specific design solutions.
+
+1. ### Design and Implementation Constraints
+    
+
+Table 14 Design and Implementation Constraints
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Constraint|Description / Rationale|
+|C-1|Technology Stack Constraint|The system shall be developed using open-source technologies including **Python**, **Node.js**, **React.js**, **PostgreSQL**, and **Docker**, as defined in the Initial Plan. Use of alternative proprietary technologies is restricted.|
+|C-2|External API Dependency|The system’s AI functionality depends on the **Anthropic API** for natural language processing. If the API is unavailable, AI-related features cannot operate until restored.|
+|C-3|Deployment Constraint|All ERP prototypes must be packaged as **Docker containers** to ensure consistency across environments. Non-containerized deployment methods are not permitted.|
+|C-4|User Interface Constraint|The user interface shall be web-based and accessible only via modern browsers (Google Chrome, Mozilla Firefox, Microsoft Edge). No mobile version is planned for the prototype stage.|
+|C-5|Version Control Constraint|All code, documentation, and configuration files shall be managed through a shared **GitHub repository**. No local-only development versions are allowed outside version control.|
+|C-6|Framework Constraint|The backend shall use **Express.js** for API routing and middleware management. Custom low-level HTTP frameworks are not allowed due to academic consistency requirements.|
+
+  
+
+2. ### Environmental and Regulatory Constraints
+    
+
+Table 15 Environmental and Regulatory Constraints
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Constraint|Description / Rationale|
+|C-7|Academic Environment Constraint|The project shall comply with **Bilkent University CTIS 411/412 course guidelines**, including report format, documentation standards, and deliverable structure.|
+|C-8|Internet Access Requirement|The system requires continuous internet connectivity to communicate with the Anthropic API and GitHub. Offline operation is not supported.|
+|C-9|Security and Privacy Standards|User data and authentication processes must comply with **basic data protection practices** (e.g., hashed passwords, HTTPS). Full GDPR or enterprise-level compliance is out of scope for the academic prototype.|
+|C-10|Time Constraint|The project must be completed within the academic semester timeline (Fall 2025–Spring 2026), with development milestones aligning to CTIS deliverable deadlines.|
+|C-11|Hardware Constraint|The system shall be tested on standard personal computers with at least 8 GB RAM and stable network access. Specialized hardware (e.g., GPUs, servers) will not be used.|
+
+[17](#sdfootnote17sym)
+
+5. ##  Error Handling Requirements
+    
+    1. ### Actor-Based Error Handling Requirements
+        
+
+Table 16 Actor-Based Error Handling Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement|System Response / Strategy|
+|EHR-1|If the user submits a business description shorter than 500 word.|The system shall disable the "Generate" button or prevent submission, displaying a specific message explaining the criteria (e.g., "Please enter at least 500 words").|
+|EHR-2|If the external AI service (Anthropic API) fails to respond within 60 seconds.|The system shall abort the request and display a "Service Busy" message, inviting the user to try again, rather than hanging indefinitely.|
+|EHR-3|If the AI returns a response that violates the expected JSON schema (e.g., missing fields or invalid syntax).|The system shall catch the parsing error, log the malformed JSON for debugging, and display a "Generation Failed" message to the user without crashing the UI.|
+
+2. ### System-Based Error Handling Requirements
+    
+
+Table 17 System-Based Error Handling Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement|System Response / Strategy|
+|EHR-4|If an unhandled exception occurs in the Frontend (React).|The system shall utilize a React Error Boundary to replace the crashed component with a "Something went wrong" UI card, preventing the entire white-screen crash.|
+|EHR-5|If the backend cannot establish a connection to the PostgreSQL database.|The system shall return a 503 Service Unavailable status to the frontend and log the specific connection error to the server console.|
+|EHR-6|If the system fails to generate the ZIP file or Docker configurations due to a file system error.|The system shall notify the user that the download cannot be completed and provide a specific error code, ensuring the user is not left clicking the button repeatedly.|
+
+6. ## Other Non-Functional Requirements
+    
+    1. ### Documentation Requirements
+        
+
+Table 18 Documentation Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement|Measurement / Criteria|
+|ONFR-1|The system shall include comprehensive developer documentation describing the setup, architecture, and dependencies.|Verified by the presence of a README.md file and setup instructions in the GitHub repository.|
+|ONFR-2|The system shall include user documentation (in PDF or web format) explaining basic usage steps, input guidelines, and deployment instructions.|Verified through inclusion in Deliverable 2B package and user evaluation.|
+|ONFR-3|All major source code files shall include inline comments explaining function purposes and parameters.|Verified through code review during deliverable submission.|
+
+2. ### Testing and Quality Assurance Requirements
+    
+
+Table 19 Testing and Quality Assurance Requirements
+
+|   |   |   |
+|---|---|---|
+  
+|ID|Requirement|Measurement / Criteria|
+|ONFR-4|Each module (AI, Backend, Frontend, Deployment) shall undergo unit testing before integration.|Verified by automated or manual test reports.|
+
+[18](#sdfootnote18sym)
+
+  
+
+7. # Logical Database Requirements
+    
+    1. ## Types of information used by various functions
+        
+
+The system uses several distinct types of information:
+
+- User Input: "Business Text Input" in "plain English text format"  describing a business's processes.
+    
+- AI-Processed Data: The system receives "Structured Data & Entities & Relations"  from the AI Service after it processes the user's text.
+    
+- Database Schemas: The system generates "database schemas with appropriate tables, fields, and relationships".
+    
+- Operational Business Data: This is the data used by the generated ERP. The document specifies this includes:
+    
+    - Customer Data: "contact information and interaction tracking".
+        
+    - Inventory Data: "product catalog and stock levels".
+        
+    - Invoice Data: Information for "Invoice Generation," including "line items and totals calculation".
+        
+    - User/Role Data: Information to manage "user authentication and role-based access control".
+        
+- Reporting Data: The system uses "data summaries and basic analytics" for its reporting function.
+    
+
+  
+
+2. ## Frequency of use
+    
+
+The document implies two different frequencies of use:
+
+- ERP Generation: This is a low-frequency, high-intensity process. The system is expected to "produce a complete set of deployment artifacts... within 4 hours", which suggests it is a single, lengthy event for a given user.
+    
+- Generated ERP Operation: This is high-frequency and concurrent. The generated application must "support at least 10 concurrent users", who will be performing daily operational tasks like CRUD operations and accessing modules for customers, inventory, and invoices.
+    
+
+  
+
+3. ## Accessing capabilities
+    
+
+The document specifies the following ways data can be accessed in the generated ERP:
+
+- CRUD: The system's primary access method is through "basic CRUD (Create, Read, Update, Delete) interfaces"  generated for all identified entities.
+    
+- Role-Based Access: Access is not uniform. It is managed through "user authentication and role-based access control", meaning a user's permissions will determine what data they can access or modify.
+    
+- Reporting: Users have read-only access to aggregated data via "simple reports showing data summaries and basic analytics".
+    
+
+  
+
+4. ## Data entities and their relationships
+    
+
+The document names several entities the system must model:
+
+- The AI component is required to identify "business entities (customers, products, employees)".
+    
+- The required modules imply Customer, Product/Inventory, and Invoice entities.
+    
+- The authentication requirement implies User and Role entities.
+    
+- The "Product Purpose" section also names Order and Department as part of common patterns that the system should model.
+    
+
+The system must also model the connections between these entities. The AI will "infer relationships between entities (one-to-many, many-to-many)", and the system must generate "correct database relationships" for patterns like "customer-order, inventory-product".
+
+  
+
+5. ## Integrity constraints
+    
+
+The document does not list specific constraints (like NOT NULL or UNIQUE). However, it strongly implies a requirement for referential integrity by mandating the creation of correct relationships.
+
+- The system must "create database schemas with appropriate... relationships".
+    
+- The AI must "infer relationships".
+    
+- The system must "correctly model basic business relationships" and generate "correct database relationships".
+    
+
+These requirements necessitate the use of primary and foreign keys to ensure that relationships (e.g., between a customer and an order) are valid and that data remains consistent.
+
+  
+
+6. ## Data retention requirements
+    
+
+The document does not specify any data retention requirements.
+
+- It does not state how long data should be kept or archived.
+    
+- On the contrary, it explicitly states that "Any features related to legal or regulatory compliance (e.g., HIPAA, GDPR, SOX) are not supported". Since data retention policies are typically driven by such regulations, their exclusion implies that this is not in scope.
+    
+- While the system must store data for its functions (like "interaction tracking" ), no time-based retention rules are mentioned.
+    
+
+[19](#sdfootnote19sym)
+
+8. # Verification
+    
+
+Software verification ensures that the CustomERP system satisfies the functional and non-functional requirements defined in this SRS. Due to the strict project timeline, the verification strategy prioritizes **functional correctness** and **pipeline stability** over exhaustive performance or security auditing. The goal is to ensure the core value proposition—generating a working ERP from text—is robust.
+
+1. ## Verification Objectives
+    
+
+2. Ensure that all functional requirements (FRs)—such as input validation, AI processing, CRUD generation, and Docker deployment—are implemented and behave as specified.
+    
+3. Confirm that all non-functional requirements (NFRs)—including usability and reliability—meet their measurable targets.
+    
+4. Validate that the overall system operates consistently within the constraints defined in Section 6.4.
+    
+5. Provide documented evidence of test coverage and outcomes.
+    
+
+6. ## Verification Methods
+    
+
+Table 20 Verification Methods
+
+|   |   |   |   |
+|---|---|---|---|
+   
+|Verification Activity|Purpose|Method / Description|Expected Outcome|
+|Peer Code Review|Ensure code quality and architectural consistency.|**Process:** All code must pass a Pull Request review on GitHub by at least one other team member.|Logic errors are caught before merging; codebase remains maintainable.|
+|Unit Testing|Verify the logic of the AI parsing and Schema Generation algorithms.|**Automated:** Scripts verify that specific text inputs produce the correct JSON schema structures.|The AI component consistently outputs valid entity-relationship models.|
+|System Integration Testing|Validate the full generation process.|**Automated & Manual:** Trigger the full workflow from the dashboard and verify that downloadable artifacts are created.|The system successfully generates a docker-compose.yml and source code bundle.|
+|User Acceptance Testing (UAT)|Verify that the generated ERP is usable.|**Manual Validation:** The team manually deploys the generated artifact and attempts to perform business tasks (e.g., "Add Invoice").|The generated software is functional and matches the user's initial description.|
+
+  
+
+3. ## Traceability
+    
+
+A streamlined Requirement Traceability Matrix (RTM) will be maintained in the GitHub repository. It will link high-level Functional Requirements (e.g., "Generate Schema") directly to the Unit Tests or Integration scenarios that validate them.
+
+4. ## Verification Tools
+    
+
+Table 21 Verification Tools
+
+|   |   |
+|---|---|
+ 
+|Tool / Framework|Purpose|
+|PyTest|**AI Module Testing:** Used to test Python-based natural language processing and schema inference logic.|
+|Jest|**Frontend & Backend Testing:** Used to test React components and Node.js API endpoints.|
+|Postman|**API Verification:** Used for manual verification of client-server data exchange during development.|
+|Docker|**Deployment Validation:** Used to build and run the generated ERP prototypes to confirm they work in an isolated environment.|
+|GitHub Actions|**Automated Checks:** Automatically runs PyTest and Jest scripts on every repository push to prevent regression.|
+
+  
+
+5. ## Verification Deliverables
+    
+
+- Test Plan Document: Outlines test scope, schedule, and responsibilities.
+    
+- Test Cases & Reports: Contain detailed steps, input/output data, and results for each requirement.
+    
+- Verification Log: Records all test activities and issues identified.
+    
+- RTM (Requirement Traceability Matrix): Links test results to SRS requirements for advisor review.[20](#sdfootnote20sym)
+    
+
+[1](#sdfootnote1anc) Gemini 2.5-Pro Prompt: Refine the Executive Summary to focus on the interconnectedness of the document's sections, explaining how the findings from one section (like User Characteristics) directly influenced the requirements in subsequent sections (like Functional Requirements and Non-Functional Requirements). De-emphasize specific quantitative metrics and prioritize the high-level analytical flow and key findings of the document.  
+  
+
+[2](#sdfootnote2anc) ChatGPT 5 Prompt: Read the file _Team10_InitialPlan_V1.docx_ and write a concise section titled “Scope of the Software Product” that:  
+a) Identifies the software product(s) to be produced by name.  
+b) Briefly explains what the software product(s) will do.  
+c) Describes the application of the software, including its benefits, objectives, and goals.  
+d) Ensures consistency with statements in the Initial Plan document.
+
+Make direct references to the Initial Plan where appropriate, and format the answer in clear labeled subsections (a, b, c, d).)
+
+  
+
+[3](#sdfootnote3anc) ChatGPT 5 Prompt: “Read the file _Team10_InitialPlan_V1.docx_ and write a section titled “User Characteristics.”
+
+In this section:
+
+Identify and categorize all user types who will interact with the CustomERP software.
+
+For each user group, describe their general characteristics, such as educational level, experience, technical expertise, and possible disabilities.
+
+Explain how these characteristics affect usability requirements and system design.
+
+Use information and context from the Initial Plan document, ensuring alignment with its stakeholder and scope sections.
+
+Format the answer with clear headings and concise paragraphs for each user group.
+
+  
+
+[4](#sdfootnote4anc) ChatGPT 5 Prompt: “Read the file _Team10_InitialPlan_V1.docx_ and write a section titled “User Characteristics.”
+
+In this section:
+
+Identify and categorize all user types who will interact with the CustomERP software.
+
+For each user group, describe their general characteristics, such as educational level, experience, technical expertise, and possible disabilities.
+
+Explain how these characteristics affect usability requirements and system design.
+
+Use information and context from the Initial Plan document, ensuring alignment with its stakeholder and scope sections.
+
+Format the answer with clear headings and concise paragraphs for each user group.
+
+[5](#sdfootnote5anc) ChatGPT 5 Prompt: Write Section 3.1 (System Interfaces).List and describe each interface the system uses (Anthropic API, GitHub, Docker, PostgreSQL, and local web server).For each, specify the purpose, type of connection, and data format. “
+
+[6](#sdfootnote6anc) ChatGPT 5 Prompt: “Write Section 3.2 User Interfaces. Describe the logical structure of all screens — login, dashboard, clarification dialogs, module visualization, and deployment preview.Include usability guidelines and a list of ‘Do’s and Don’ts.’Use professional academic tone and clear bullet formatting.”
+
+[7](#sdfootnote7anc) GhatGPT 5 Prompt: “Write Section 3.3 Hardware Interfaces. Explain the hardware requirements, supported devices, and protocols. Make it clear that the system runs on standard computers with no special hardware dependency.”
+
+[8](#sdfootnote8anc) ChatGPT5 Prompt : “Write Section 3.4 Software Interfaces. Include a table listing all required software (Python, Node.js, React.js, PostgreSQL, Docker, Anthropic API, GitHub, OS.
+
+For each, give its mnemonic, version, source, and a short explanation of how it interacts with CustomERP.
+
+  
+
+  
+
+  
+
+[9](#sdfootnote9anc) ChatGPT 5 Prompt: “Write Section 3.5 Communications Interfaces.Describe all communication protocols used in _CustomERP_ — HTTP/HTTPS, RESTful APIs, TCP for PostgreSQL, Docker bridge, SSH for GitHub.Include a small table summarizing interface types and ports.”
+
+  
+
+  
+
+  
+
+[10](#sdfootnote10anc) ChatGPT 5 Prompt: “Write Section 3.6 Memory Constraints for my SRS. Explain CustomERP’s memory requirements — RAM, storage, caching, and scalability. Mention that no GPU is required and memory use is moderate.
+
+  
+
+  
+
+  
+
+[11](#sdfootnote11anc) ChatGPT5.1 Prompt : Rewrite the Non-Technical Assumptions for our SRS so that they follow ISO/IEC/IEEE standards, include an assumption about our academic advisor Dr. Cüneyt Sevgi, and remove any external dependencies that are significant to the development process but not to the final product.
+
+  
+
+  
+
+[12](#sdfootnote12anc) ChatGPT5 Prompt:
+
+Organize the functional requirements into these categories:
+
+Core System Requirements
+
+Module Generation Requirements
+
+AI Processing Requirements
+
+User Interaction and Interface Requirements
+
+Deployment and Reporting Requirements
+
+Error Handling and System Feedback Requirements
+
+For each category:
+
+Assign unique IDs (FR-x.x format).
+
+Write clear, testable “The system shall…” statements.
+
+Include a short Description / Rationale column for each.
+
+Add a Stimulus–Response Summary table at the end linking inputs, functions, and outputs.
+
+Keep the content realistic for the CustomERP project — for example, generating CRUD modules, interacting with the Anthropic API, validating input, handling errors, and supporting deployment with Docker and GitHub.
+
+  
+
+ChatGPT5 Prompt: I need these with more detail and a separate row for FR groups”
+
+  
+
+  
+
+  
+
+[13](#sdfootnote13anc)ChatGPT5 Prompt :read 5.3 mapping of functional requirements from the file 411_Deliverable_2B_Template_2025_v2.docx. using the Use Case Diagrams and Functional Requirements provided in 411_Deliverable_2A_Template_2025_Semi-Completed.docx complete the 5.3 section following the guidelines.
+
+[14](#sdfootnote14anc) ChatGPT 5 Prompt:”Define measurable usability requirements based on ISO/IEC 25010:2011 and CTIS guidelines, focusing on effectiveness, efficiency, satisfaction, learnability, and error recovery.
+
+Include tables for each subsection with unique IDs (UR-1, UR-2, etc.) and measurable criteria.
+
+Keep the language academic, clear, and testable (e.g., “80% of new users shall complete a task in one session”).
+
+Mention accessibility (contrast ratio, keyboard navigation) and satisfaction targets (e.g., ≥ 4.0/5.0 rating).
+
+End with a short summary explaining how usability ensures non-technical users can successfully generate and deploy ERP prototypes.”
+
+[15](#sdfootnote15anc) ChatGPT5 Prompt :
+
+“Define both static (capacity) and dynamic (runtime) performance requirements in measurable terms.
+
+Include tables for:
+
+Static Numerical Requirements (e.g., number of users, data size, schema complexity, uptime)
+
+Dynamic Numerical Requirements (e.g., UI response times, CRUD transaction rates, ERP generation duration)
+
+Human Interaction / Response Time limits (e.g., user feedback and API latency thresholds).
+
+Each requirement should have a unique ID (PR-1, PR-2, etc.) and specify a quantitative target (e.g., “95% of operations shall complete within 3 seconds”).
+
+End the section with a short summary describing how these requirements ensure responsiveness, scalability, and stability under both normal and peak workloads.
+
+[16](#sdfootnote16anc) ChatGPT 5 Prompt:“Include subsections for the most relevant non-functional quality attributes:
+
+Reliability
+
+Availability
+
+Security
+
+Maintainability
+
+Portability
+
+For each subsection:
+
+Provide a short introductory sentence,
+
+Include a table listing 3–5 measurable requirements with unique IDs (SSA-1, SSA-2, etc.),
+
+Add a short rationale paragraph explaining why each attribute is important for CustomERP.
+
+Example requirements: uptime %, error recovery, encryption standards, modular structure, Docker portability, configuration management, etc.”
+
+[17](#sdfootnote17anc) ChatGPT 5 Prompt:“Define and categorize the project’s constraints as described in ISO/IEC/IEEE 29148:2018(E) and the CTIS SRS template.
+
+Organize them under:
+
+Design and Implementation Constraints (e.g., required technologies, frameworks, Dockerization, API dependencies, UI limits, version control), and
+
+Environmental and Regulatory Constraints (e.g., Bilkent CTIS academic standards, internet connectivity, privacy compliance, hardware and time limitations).
+
+Present each constraint in a table with columns for ID, Constraint, and Description/Rationale.”
+
+[18](#sdfootnote18anc) ChatGPT5 Promt: Include any non-functional requirements that do not fit under usability, performance, constraints, or software system attributes.
+
+Organize them under appropriate subsections such as:
+
+Documentation Requirements (developer/user manuals, inline comments, readme files)
+
+Testing and Quality Assurance Requirements (unit/integration testing, pass rate targets)
+
+Ethical and Academic Compliance Requirements (Bilkent academic integrity, citation, data privacy)
+
+Aesthetic and Design Consistency Requirements (UI layout, accessibility, WCAG guidelines)
+
+Present each subsection in a table with IDs (ONFR-1, ONFR-2, etc.), requirements, and measurable criteria.  
+End with a short summary paragraph explaining how these additional non-functional requirements ensure maintainability, academic compliance, and consistent user experience.
+
+  
+
+[19](#sdfootnote19anc) Gemini 2.5-Pro Prompt: Based only on the information in the Team10_InitialPlan_V1.docx document, I need you to provide the details for the 'Logical Database Requirements' section.
+
+Please infer the answers from the project's purpose, functional requirements (like FReq1.4, FReq2.1, FReq3.2), and non-functional requirements (like NFReq2).
+
+You must provide a detailed answer for each of the following points:
+
+a) Types of information used by various functions
+
+b) Frequency of use
+
+c) Accessing capabilities
+
+d) Data entities and their relationships
+
+e) Integrity constraints
+
+f) Data retention requirements
+
+Please structure your response clearly, addressing each point from ‘a’ to 'f' individually."
+
+[20](#sdfootnote20anc) ChatGPT5 Prompt: Describe the verification strategy that ensures the software meets all functional and non-functional requirements specified in earlier sections.
+
+Include subsections for:
+
+Verification Objectives — what will be verified (functional, non-functional, constraint compliance).
+
+Verification Methods — a table describing requirement reviews, code reviews, unit tests, integration tests, system tests, usability tests, and performance/security testing.
+
+Traceability and Test Coverage — mention a Requirement Traceability Matrix (RTM) linking each test case to its related requirement ID (FR, PR, UR, SSA, EHR, etc.).
+
+Verification Tools — specify testing and automation tools (e.g., Jest, PyTest, Postman, Docker Compose, JMeter, GitHub Actions).
+
+Verification Deliverables — list artifacts like Test Plan, Test Reports, Verification Log, and RTM.

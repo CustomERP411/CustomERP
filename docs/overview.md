@@ -102,14 +102,16 @@ The assembler reads the SDF, picks the bricks, injects them into templates, and 
 ### 6.3 AI Gateway (FastAPI)
 - `/ai/analyze` → partial SDF + questions
 - `/ai/clarify` → refined SDF
-- `/ai/finalize` → final SDF
-- Validates output against schema
+- `/ai/finalize` → final SDF (merges answers + returns clean output)
+- Validates output against schema and repairs invalid JSON when needed
+- Enforces scope guardrails (module + feature whitelist)
+- Rejects out‑of‑scope ERP chatbot/assistant requests
 
 ### 6.4 Platform Database (PostgreSQL)
 Stores:
 - users, roles, projects
 - SDFs and related entities/relations
-- clarification questions/answers
+- clarification questions/answers (persisted with DB UUIDs + order index)
 - generation jobs + artifact metadata
 - log entries
 
@@ -125,7 +127,9 @@ Key files (see `platform/assembler/`):
 
 Flow:
 1. Read SDF and resolve modules/features.
+   - Validate SDF before generation (duplicate entities, reference integrity, children foreign keys).
 2. Generate backend (services, routes, data layer).
+   - CodeWeaver fails fast on missing/duplicate hook markers.
 3. Generate frontend (pages, wizards, dashboards).
 4. Package into a runnable output.
 
@@ -270,7 +274,6 @@ For phase‑by‑phase rules, see `docs/sprint1.md`.
 ## 14) Known Gaps (Summary)
 
 See `UNFINISHED_TASKS.md` for the full list. Key themes:
-- SDF finalize + guardrails
 - Flexible mixin system
 - Generation tracking and logs
 - Testing and documentation coverage

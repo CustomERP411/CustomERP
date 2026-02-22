@@ -102,16 +102,18 @@ The assembler reads the SDF, picks the bricks, injects them into templates, and 
 ### 6.3 AI Gateway (FastAPI)
 - `/ai/analyze` → partial SDF + questions
 - `/ai/clarify` → refined SDF
-- `/ai/finalize` → final SDF (merges answers + returns clean output)
+- `/ai/finalize` → final SDF (merges answers, resolves ambiguities, returns empty `clarifications_needed`)
 - Validates output against schema and repairs invalid JSON when needed
-- Enforces scope guardrails (module + feature whitelist)
+- Guardrails whitelist modules (`activity_log`, `inventory_dashboard`, `scheduled_reports`)
+- Guardrails whitelist features (`audit_trail`, `batch_tracking`, `serial_tracking`, `multi_location`)
 - Rejects out‑of‑scope ERP chatbot/assistant requests
+- Tests cover finalize flow + JSON repair (`platform/ai-gateway/tests/test_finalize_flow.py`)
 
 ### 6.4 Platform Database (PostgreSQL)
 Stores:
 - users, roles, projects
 - SDFs and related entities/relations
-- clarification questions/answers (persisted with DB UUIDs + order index)
+- clarification questions/answers (persisted with DB UUIDs + order index; IDs rewritten in API responses and stored SDFs)
 - generation jobs + artifact metadata
 - log entries
 
@@ -124,6 +126,14 @@ Key files (see `platform/assembler/`):
 - **BackendGenerator**: generates backend API + services
 - **FrontendGenerator**: generates UI + routes
 - **CodeWeaver**: injects code into templates at hook markers
+
+**Mixin system (Phase 2)**
+- **MixinRegistry** loads built‑in mixins from `brick-library/backend-bricks/mixins/` and custom mixins from `custom_mixins/`.
+- Mixins can be **plain objects** or **factory functions** `(config, context) => ({ hooks, methods, dependencies })`.
+- Entities can declare `mixins` as **object** or **array** to override feature‑based defaults.
+- Generated controllers pass `entity.mixins` into service constructors as `mixinConfig`; mixins read `this.mixinConfig`.
+- Ordering is deterministic with dependency resolution (topological sort). Base order (when no deps): Inventory → Batch → Serial → Audit → Location.
+- Cycles or missing dependencies throw errors before generation.
 
 Flow:
 1. Read SDF and resolve modules/features.
@@ -163,6 +173,7 @@ Top‑level:
 Entity fields:
 - `slug`, `display_name`, `fields[]`
 - `features` (audit, batch, serial, multi‑location)
+- `mixins` (optional per‑entity mixin config; object or array)
 - `inventory_ops` for wizards
 
 Relations:
@@ -274,7 +285,7 @@ For phase‑by‑phase rules, see `docs/sprint1.md`.
 ## 14) Known Gaps (Summary)
 
 See `UNFINISHED_TASKS.md` for the full list. Key themes:
-- Flexible mixin system
+- Mixin config schema/docs alignment in `SDF_REFERENCE.md` and AI prompts
 - Generation tracking and logs
 - Testing and documentation coverage
 

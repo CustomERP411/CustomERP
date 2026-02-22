@@ -7,6 +7,14 @@ module.exports = {
       if (!data.batch_number) {
         throw new Error('Batch number is required for this item');
       }
+
+      const batchConfig = this.mixinConfig?.batch_tracking || {};
+      const requireExpiry = batchConfig.require_expiry === true || batchConfig.requireExpiry === true;
+      const allowPastExpiry = batchConfig.allow_past_expiry !== false && batchConfig.allowPastExpiry !== false;
+
+      if (requireExpiry && !data.expiry_date) {
+        throw new Error('Expiry date is required for this item');
+      }
       
       // BatchTrackingMixin: Validate expiry date if provided
       if (data.expiry_date) {
@@ -14,7 +22,10 @@ module.exports = {
         if (isNaN(expiry.getTime())) {
           throw new Error('Invalid expiry date format');
         }
-        if (expiry < new Date()) {
+        if (!allowPastExpiry && expiry < new Date()) {
+          throw new Error('Expiry date cannot be in the past');
+        }
+        if (allowPastExpiry && expiry < new Date()) {
           console.warn('Warning: Creating item with past expiry date');
         }
       }

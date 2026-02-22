@@ -19,6 +19,9 @@ class ProjectAssembler {
     console.log(`Starting assembly for project ${projectId} at ${outputDir}`);
 
     try {
+      // 0. Validate SDF integrity (Fail Fast)
+      this._validateSdf(sdf);
+
       // ==================== BACKEND ====================
       console.log('Generating backend...');
       await this.backendGenerator.scaffold(backendDir, projectId);
@@ -74,6 +77,91 @@ class ProjectAssembler {
       console.error('Assembly failed:', error);
       throw error;
     }
+  }
+
+  _validateSdf(sdf) {
+    if (!sdf || typeof sdf !== 'object') {
+      throw new Error('SDF Validation Error: Invalid SDF object.');
+    }
+    const entities = Array.isArray(sdf.entities) ? sdf.entities : [];
+    const entitySlugs = new Set();
+
+    // 1. Check for Duplicate Entities
+    entities.forEach((ent, index) => {
+      if (!ent || typeof ent !== 'object') return;
+      if (!ent.slug) throw new Error(`SDF Validation Error: Entity at index ${index} is missing a slug.`);
+      
+      if (entitySlugs.has(ent.slug)) {
+        throw new Error(`SDF Validation Error: Duplicate entity slug detected: '${ent.slug}'.`);
+      }
+      entitySlugs.add(ent.slug);
+    });
+
+    // 2. Validate Relationships and References
+    entities.forEach((ent) => {
+      const fields = Array.isArray(ent.fields) ? ent.fields : [];
+      fields.forEach((field) => {
+        if (!field) return;
+        
+        // Resolve reference target
+        // Logic mirrors BackendGenerator._resolveReferenceEntitySlug but simpler for validation
+        const explicit = field.reference_entity || field.referenceEntity;
+        const name = String(field.name || '');
+        const isRefName = name.endsWith('_id') || name.endsWith('_ids');
+        
+        // If it looks like a reference, we should validate it
+        if (field.type === 'reference' || explicit || isRefName) {
+            let targetSlug = explicit;
+            
+            if (!targetSlug) {
+                // Infer from name
+                const baseName = name.replace(/_ids?$/, '');
+                if (entitySlugs.has(baseName)) targetSlug = baseName;
+                else if (entitySlugs.has(baseName + 's')) targetSlug = baseName + 's';
+                else if (entitySlugs.has(baseName + 'es')) targetSlug = baseName + 'es';
+                // Try removing 's' from baseName if it ends with s (e.g. users_id -> users)
+                else if (baseName.endsWith('s') && entitySlugs.has(baseName)) targetSlug = baseName;
+            }
+
+            // If we found a target, check if it exists in SDF
+            // If we didn't find a target but it was explicitly marked as reference, that's an error.
+            // If it was just inferred from name (e.g. 'external_id') and not found, we might warn or ignore.
+            // For now, strict mode: if explicit or type=reference, it MUST exist.
+            if ((field.type === 'reference' || explicit) && !targetSlug) {
+                 throw new Error(`SDF Validation Error: Field '${ent.slug}.${field.name}' is a reference but target entity could not be resolved.`);
+            }
+
+            if (targetSlug && !entitySlugs.has(targetSlug)) {
+                 // Allow referencing system entities that might be added later? 
+                 // For now, we only check against user entities + known system ones if added before validation.
+                 // But validation happens BEFORE _withSystemEntities.
+                 // We should allow standard system entities if we want to be safe, or just fail.
+                 // Let's fail for now to catch typos.
+                 throw new Error(`SDF Validation Error: Field '${ent.slug}.${field.name}' references non-existent entity '${targetSlug}'.`);
+            }
+        }
+      });
+
+      // 3. Validate Children Configuration
+      if (Array.isArray(ent.children)) {
+        ent.children.forEach((childConfig) => {
+            const childSlug = childConfig.entity || childConfig.slug;
+            if (!childSlug) return;
+            if (!entitySlugs.has(childSlug)) {
+                throw new Error(`SDF Validation Error: Entity '${ent.slug}' defines a child relation to non-existent entity '${childSlug}'.`);
+            }
+            // Check FK existence in child
+            const foreignKey = childConfig.foreign_key || childConfig.foreignKey;
+            const childEntity = entities.find(e => e.slug === childSlug);
+            const childFields = Array.isArray(childEntity.fields) ? childEntity.fields : [];
+            const hasFk = childFields.some(f => f.name === foreignKey);
+            
+            if (foreignKey && !hasFk) {
+                 throw new Error(`SDF Validation Error: Child entity '${childSlug}' does not have the specified foreign key field '${foreignKey}' required by parent '${ent.slug}'.`);
+            }
+        });
+      }
+    });
   }
 
   async _generateRootFiles(outputDir, projectId) {

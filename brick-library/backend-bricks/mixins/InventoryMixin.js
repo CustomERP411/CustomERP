@@ -18,10 +18,13 @@ module.exports = {
       if (data.quantity !== undefined) {
         const newQty = Number(data.quantity);
         if (isNaN(newQty)) throw new Error('Quantity must be a number');
-        
-        // Prevent negative stock if strict mode is enabled (optional config)
-        if (newQty < 0) {
-           throw new Error('Stock cannot be negative');
+
+        const inventoryConfig = this.mixinConfig?.inventory || {};
+        const allowNegative = inventoryConfig.allow_negative === true || inventoryConfig.allowNegative === true;
+
+        // Prevent negative stock unless allow_negative is true
+        if (!allowNegative && newQty < 0) {
+          throw new Error('Stock cannot be negative');
         }
       }
     `
@@ -37,7 +40,11 @@ module.exports = {
     const currentQty = Number(item.quantity) || 0;
     const newQty = currentQty + delta;
     
-    if (newQty < 0) throw new Error(\`Insufficient stock. Current: \${currentQty}, Delta: \${delta}\`);
+    const inventoryConfig = this.mixinConfig?.inventory || {};
+    const allowNegative = inventoryConfig.allow_negative === true || inventoryConfig.allowNegative === true;
+    if (!allowNegative && newQty < 0) {
+      throw new Error(\`Insufficient stock. Current: \${currentQty}, Delta: \${delta}\`);
+    }
     
     return this.repository.update(this.slug, id, { quantity: newQty });
   }

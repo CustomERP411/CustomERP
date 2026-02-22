@@ -5,10 +5,14 @@ module.exports = {
     'BEFORE_CREATE_VALIDATION': `
       // LocationMixin: Ensure location reference is present
       // Supports either a single location_id or multiple location_ids (array of IDs).
-      const hasSingle = data.location_id !== undefined && data.location_id !== null && String(data.location_id).trim() !== '';
-      const hasMulti = Array.isArray(data.location_ids) && data.location_ids.length > 0;
-      if (!hasSingle && !hasMulti) {
-        throw new Error('Location is required');
+      const locationConfig = this.mixinConfig?.location || {};
+      const requireLocation = locationConfig.require_location !== false && locationConfig.requireLocation !== false;
+      if (requireLocation) {
+        const hasSingle = data.location_id !== undefined && data.location_id !== null && String(data.location_id).trim() !== '';
+        const hasMulti = Array.isArray(data.location_ids) && data.location_ids.length > 0;
+        if (!hasSingle && !hasMulti) {
+          throw new Error('Location is required');
+        }
       }
       // Optional: Verify location exists (requires repository access)
       // const loc = await this.repository.findById('locations', data.location_id);

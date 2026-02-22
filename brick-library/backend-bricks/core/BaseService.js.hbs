@@ -1,8 +1,9 @@
 // brick-library/backend-bricks/core/BaseService.js.hbs
 class {{EntityName}}Service {
-  constructor(repository) {
+  constructor(repository, mixinConfig = {}) {
     this.repository = repository;
     this.slug = '{{entitySlug}}';
+    this.mixinConfig = mixinConfig && typeof mixinConfig === 'object' ? mixinConfig : {};
   }
 
   async create(data) {

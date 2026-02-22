@@ -151,14 +151,36 @@ async def clarify_sdf_endpoint(request: ClarifyRequest):
 @app.post("/ai/finalize", response_model=SystemDefinitionFile, response_model_exclude_none=True, tags=["SDF Generation"])
 async def finalize_sdf_endpoint(payload: Union[SystemDefinitionFile, ClarifyRequest]):
     """
-    Accepts a finalized SDF. In a real system, this might trigger
-    the next stage of the ERP generation process. For now, it just validates
-    and returns the SDF.
+    Finalizes the SDF.
+    If payload is ClarifyRequest (partial_sdf + answers), it merges answers and produces a final SDF.
+    If payload is SystemDefinitionFile (already final), it validates and returns it.
     """
-    print("[FINALIZE] Received final SDF.")
-    if isinstance(payload, ClarifyRequest):
-        return payload.partial_sdf
-    return payload
+    print("[FINALIZE] Received request.")
+    
+    if isinstance(payload, SystemDefinitionFile):
+        # Already final, just return it (validation handled by Pydantic response_model)
+        return payload
+
+    # It's a ClarifyRequest, so we need to merge answers
+    sdf_service = get_sdf_service()
+    if not sdf_service:
+        raise HTTPException(
+            status_code=503,
+            detail="AI service is not configured or failed to initialize."
+        )
+
+    try:
+        final_sdf = await sdf_service.finalize_sdf(
+            business_description=payload.business_description or "",
+            partial_sdf=payload.partial_sdf,
+            answers=payload.answers
+        )
+        return final_sdf
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"[ERROR] Unexpected error in /ai/finalize: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
 @app.post("/ai/edit", response_model=SystemDefinitionFile, response_model_exclude_none=True, tags=["SDF Generation"])

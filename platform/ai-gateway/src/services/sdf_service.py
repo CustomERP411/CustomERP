@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from .gemini_client import GeminiClient
 import json
 
-from src.prompts.sdf_generation import get_sdf_prompt, get_clarify_prompt, get_fix_json_prompt, get_edit_prompt
+from src.prompts.sdf_generation import get_sdf_prompt, get_clarify_prompt, get_fix_json_prompt, get_edit_prompt, get_finalize_prompt
 from src.schemas.sdf import SystemDefinitionFile
 from src.schemas.clarify import ClarificationAnswer
 import re
@@ -148,6 +148,70 @@ class SDFService:
             return validated_sdf
         except ValidationError as e:
             print(f"[SDFService] Refined SDF Validation Error: {e}")
+            print(f"[SDFService] Raw AI Data:\n{data}")
+            raise ValueError(f"AI response did not match the required SDF schema: {e}") from e
+
+    async def finalize_sdf(
+        self,
+        business_description: str,
+        partial_sdf: SystemDefinitionFile,
+        answers: list[ClarificationAnswer]
+    ) -> SystemDefinitionFile:
+        """
+        Produces a final, clean SDF by merging the partial SDF with user answers.
+        Ensures no clarification questions remain.
+        """
+        print("[SDFService] Finalizing SDF with user answers...")
+
+        # 1. Format the context for the prompt
+        partial_sdf_json = partial_sdf.model_dump_json(indent=2)
+        answers_formatted = "\n".join([f"- Q: {ans.question_id}\n  A: {ans.answer}" for ans in answers])
+
+        # 2. Get the full prompt
+        prompt = get_finalize_prompt(
+            business_description=business_description,
+            partial_sdf=partial_sdf_json,
+            answers=answers_formatted
+        )
+
+        # 3. Call the AI to get the JSON response
+        json_response = await self.gemini_client.generate_with_retry(
+            prompt,
+            temperature=0.2,
+            json_mode=True
+        )
+
+        # 4. Clean, parse, and validate the response
+        try:
+            data = self._parse_and_clean_json(json_response)
+        except json.JSONDecodeError as e:
+            print(f"[SDFService] Finalize JSON parsing failed: {e}. Attempting self-healing...")
+            fix_prompt = get_fix_json_prompt(json_response)
+            repaired_json_response = await self.gemini_client.generate_with_retry(
+                fix_prompt,
+                temperature=0.0,
+                json_mode=True
+            )
+            try:
+                data = self._parse_and_clean_json(repaired_json_response)
+                print("[SDFService] JSON self-healing successful.")
+            except json.JSONDecodeError as final_e:
+                print(f"[SDFService] Self-healing failed. Final JSON Decode Error: {final_e}")
+                raise ValueError("AI returned an invalid JSON format, and self-healing failed.") from final_e
+
+        # Normalize towards generator SDF shape
+        data = self._normalize_generator_sdf(data, request_text=business_description)
+
+        # Explicitly clear clarifications if the AI failed to do so (guardrail)
+        if "clarifications_needed" in data:
+            data["clarifications_needed"] = []
+
+        try:
+            validated_sdf = SystemDefinitionFile.model_validate(data)
+            print("[SDFService] Final SDF validation successful.")
+            return validated_sdf
+        except ValidationError as e:
+            print(f"[SDFService] Final SDF Validation Error: {e}")
             print(f"[SDFService] Raw AI Data:\n{data}")
             raise ValueError(f"AI response did not match the required SDF schema: {e}") from e
 
@@ -546,6 +610,41 @@ class SDFService:
         # Old top-level relations list is not used by generator; keep but it will be ignored downstream.
         # Prefer to drop it so callers get a clean generator SDF.
         data.pop("relations", None)
+
+        # -------------------------------------------------------------------------
+        # Scope Guardrails: Whitelist validation for Modules and Features
+        # -------------------------------------------------------------------------
+        ALLOWED_MODULES = {"activity_log", "inventory_dashboard", "scheduled_reports"}
+        ALLOWED_FEATURES = {"audit_trail", "batch_tracking", "serial_tracking", "multi_location"}
+
+        # 1. Validate Modules
+        modules = data.get("modules")
+        if isinstance(modules, dict):
+            unknown_modules = [k for k in modules.keys() if k not in ALLOWED_MODULES]
+            for m in unknown_modules:
+                normalized_warnings.append(
+                    f"Unsupported module `{m}` detected. It will be ignored. "
+                    f"Supported modules: {', '.join(sorted(ALLOWED_MODULES))}."
+                )
+                # Remove unsupported module to prevent downstream confusion
+                del modules[m]
+
+        # 2. Validate Entity Features
+        if isinstance(entities, list):
+            for ent in entities:
+                if not isinstance(ent, dict):
+                    continue
+                ent_slug = str(ent.get("slug") or "unknown")
+                features = ent.get("features")
+                if isinstance(features, dict):
+                    unknown_features = [k for k in features.keys() if k not in ALLOWED_FEATURES]
+                    for f in unknown_features:
+                        normalized_warnings.append(
+                            f"Unsupported feature `{f}` on entity `{ent_slug}`. It will be ignored. "
+                            f"Supported features: {', '.join(sorted(ALLOWED_FEATURES))}."
+                        )
+                        # Remove unsupported feature
+                        del features[f]
 
         if normalized_warnings:
             # De-duplicate while preserving order

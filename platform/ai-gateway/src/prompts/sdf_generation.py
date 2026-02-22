@@ -2,8 +2,6 @@
 Main prompt for generating the System Definition File (SDF)
 """
 
-
-
 import pathlib
 
 PROMPT_DIR = pathlib.Path(__file__).parent
@@ -36,6 +34,7 @@ def get_sdf_prompt(business_description: str) -> str:
         # Fallback or raise an exception
         return "Error: Could not load prompt."
 
+
 def get_clarify_prompt(business_description: str, partial_sdf: str, answers: str) -> str:
     """Loads the clarify prompt and injects the context."""
     try:
@@ -52,6 +51,7 @@ def get_clarify_prompt(business_description: str, partial_sdf: str, answers: str
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."
+
 
 def get_fix_json_prompt(invalid_json: str) -> str:
     """Loads the JSON fix prompt and injects the invalid JSON string."""
@@ -75,6 +75,24 @@ def get_edit_prompt(business_description: str, current_sdf: str, instructions: s
                 "business_description": business_description or "",
                 "current_sdf": current_sdf,
                 "instructions": instructions,
+            },
+        )
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found at {prompt_template_path}")
+        return "Error: Could not load prompt."
+
+
+def get_finalize_prompt(business_description: str, partial_sdf: str, answers: str) -> str:
+    """Loads the finalize prompt and injects the context."""
+    try:
+        prompt_template_path = PROMPT_DIR / "finalize_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+        return _inject_placeholders(
+            prompt_template,
+            {
+                "business_description": business_description or "",
+                "partial_sdf": partial_sdf,
+                "answers": answers,
             },
         )
     except FileNotFoundError:

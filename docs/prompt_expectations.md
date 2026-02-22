@@ -158,11 +158,10 @@ For planning prompts:
 When the prompt is a **build/implementation** request, you MUST:
 
 1. Create exactly one new markdown file under `docs/after_prompt_care/`.
-2. Use incremental numbering:
-   - `after_prompt_care_001.md`
-   - `after_prompt_care_002.md`
-   - `after_prompt_care_003.md`
-3. The file must describe what the user must do after the prompt to validate and complete the result.
+2. Use unique timestamp naming to avoid merge conflicts:
+   - `after_prompt_care_YYYYMMDD_HHMM_<initials>.md`
+3. Do not edit or rename existing after_prompt_care files in feature branches.
+4. The file must describe what the user must do after the prompt to validate and complete the result.
 
 ### Required Sections in every file
 1. **Prompt Result**

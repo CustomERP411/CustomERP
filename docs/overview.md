@@ -241,6 +241,12 @@ See `README.md` for full commands and environment variables.
 - No shared phase branches; each person works in their own branch.
 - ASA may create a short‑lived integration branch for combined testing.
 
+**Docs merge policy (Sprint 1):**
+- TE is the doc integrator (ASA oversight).
+- Only TE (or ASA) edits `docs/overview.md` and `docs/prompt_expectations.md`.
+- Others add notes in `docs/overview_updates/`.
+- `docs/after_prompt_care/` uses timestamp filenames (see `docs/after_prompt_care/README.md`).
+
 For phase‑by‑phase rules, see `docs/sprint1.md`.
 
 ---

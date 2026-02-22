@@ -45,6 +45,12 @@ If a change needs cross‑owner files, it must be coordinated and merged in orde
 - No shared phase branches; each person uses their own branch.
 - ASA may create a short‑lived integration branch for combined testing only.
 
+**Docs merge policy (Sprint 1):**
+- TE is the doc integrator (ASA oversight).
+- Only TE (or ASA) edits `docs/overview.md` and `docs/prompt_expectations.md`.
+- Others add notes in `docs/overview_updates/`.
+- After‑prompt care files use timestamp naming in `docs/after_prompt_care/`.
+
 ---
 
 ## C) Architecture Blueprint (Low‑Level)

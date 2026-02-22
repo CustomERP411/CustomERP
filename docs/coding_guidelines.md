@@ -169,3 +169,18 @@ When you change:
 - ASA reviews every PR.
 - Include tests run (or explain why not).
 - Include relevant doc updates in the PR.
+
+---
+
+## 18) Documentation Merge Policy (Avoid Conflicts)
+- **Doc integrator:** TE (ASA oversight).
+- Only TE (or ASA) edits:
+  - `docs/overview.md`
+  - `docs/prompt_expectations.md`
+- Everyone else adds change notes in:
+  - `docs/overview_updates/<initials>_<YYYYMMDD>_<topic>.md`
+- **After-prompt-care files:**
+  - One file per prompt in `docs/after_prompt_care/`.
+  - Use unique timestamp names to avoid conflicts:
+    - `after_prompt_care_YYYYMMDD_HHMM_<initials>.md`
+  - Do not edit or rename existing after_prompt_care files in feature branches.

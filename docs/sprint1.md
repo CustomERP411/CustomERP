@@ -221,6 +221,8 @@ Out of scope for now: UC-6 (Approve/Edit), review/approval UI, schema preview UI
   8. `git push -u origin HEAD`
   9. Open PR → ASA reviews → merge
 - **Branching policy:** one branch per task; do not reuse across phases. No shared phase branches. ASA may use a short‑lived integration branch for combined testing.
+- **Docs merge policy:** TE is the doc integrator. Only TE (or ASA) edits `docs/overview.md` and `docs/prompt_expectations.md`. Others add notes in `docs/overview_updates/`.
+- **After‑prompt care files:** use timestamp naming in `docs/after_prompt_care/` (`after_prompt_care_YYYYMMDD_HHMM_<initials>.md`). Do not rename existing files.
 - **Coordination rule:** If two tasks require the same file, agree on order and merge one PR before starting the next edit.
 
 **Phase 0 — Setup & process (start first)**

@@ -1,6 +1,7 @@
 const projectService = require('../services/projectService');
 const logger = require('../utils/logger');
 const aiGatewayClient = require('../services/aiGatewayClient');
+const clarificationService = require('../services/clarificationService');
 const SDF = require('../models/SDF');
 const erpGenerationService = require('../services/erpGenerationService');
 
@@ -96,18 +97,25 @@ exports.analyzeProject = async (req, res) => {
     // Save description + status
     await projectService.updateProject(projectId, userId, { description: description.trim(), status: 'Analyzing' });
 
-    const sdf = await aiGatewayClient.analyzeDescription(description.trim(), null);
+    let sdf = await aiGatewayClient.analyzeDescription(description.trim(), null);
+    const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
+    const persistedQuestions = await clarificationService.persistQuestions({
+      projectId: project.id,
+      questions: rawQuestions,
+    });
+    if (persistedQuestions.length) {
+      sdf = { ...sdf, clarifications_needed: persistedQuestions };
+    }
     const saved = await SDF.create(project.id, sdf);
 
-    const questions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
-    const nextStatus = questions.length ? 'Clarifying' : 'Ready';
+    const nextStatus = persistedQuestions.length ? 'Clarifying' : 'Ready';
     const updatedProject = await projectService.updateProject(projectId, userId, { status: nextStatus });
 
     res.json({
       project: updatedProject,
       sdf_version: saved?.version,
       sdf,
-      questions,
+      questions: persistedQuestions,
     });
   } catch (err) {
     logger.error('Analyze project error:', err);
@@ -140,22 +148,34 @@ exports.clarifyProject = async (req, res) => {
       await projectService.updateProject(projectId, userId, { status: 'Clarifying' });
     }
 
-    const sdf = await aiGatewayClient.clarifySdf({
+    await clarificationService.persistAnswers({
+      projectId: project.id,
+      answers,
+    });
+
+    let sdf = await aiGatewayClient.clarifySdf({
       businessDescription: (typeof description === 'string' && description.trim()) ? description.trim() : (project.description || ''),
       partialSdf,
       answers,
     });
+    const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
+    const persistedQuestions = await clarificationService.persistQuestions({
+      projectId: project.id,
+      questions: rawQuestions,
+    });
+    if (persistedQuestions.length) {
+      sdf = { ...sdf, clarifications_needed: persistedQuestions };
+    }
     const saved = await SDF.create(project.id, sdf);
 
-    const questions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
-    const nextStatus = questions.length ? 'Clarifying' : 'Ready';
+    const nextStatus = persistedQuestions.length ? 'Clarifying' : 'Ready';
     const updatedProject = await projectService.updateProject(projectId, userId, { status: nextStatus });
 
     res.json({
       project: updatedProject,
       sdf_version: saved?.version,
       sdf,
-      questions,
+      questions: persistedQuestions,
     });
   } catch (err) {
     logger.error('Clarify project error:', err);

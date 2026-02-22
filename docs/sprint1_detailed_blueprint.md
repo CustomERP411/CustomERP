@@ -40,6 +40,11 @@ These come from `docs/coding_guidelines.md` and must be followed:
 
 If a change needs cross‑owner files, it must be coordinated and merged in order.
 
+**Branching policy (Sprint 1):**
+- One branch per task; do not reuse a branch across phases.
+- No shared phase branches; each person uses their own branch.
+- ASA may create a short‑lived integration branch for combined testing only.
+
 ---
 
 ## C) Architecture Blueprint (Low‑Level)

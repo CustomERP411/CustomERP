@@ -137,6 +137,7 @@ Documentation should be direct, testable, and written for non‑engineers.
 - Do not edit `.env` or include secrets.
 - Do not remove existing functionality unless explicitly requested.
 - Do not expand scope (UC‑5/UC‑6) unless requested.
+- Follow the branch rules in `docs/coding_guidelines.md` (one branch per task, no shared phase branches).
 
 ---
 

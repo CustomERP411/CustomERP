@@ -44,6 +44,9 @@ This is the default coding guideline for CustomERP. Follow these rules unless AS
 - No direct commits to `main`.
 - Keep PRs small and focused (one feature/fix).
 - Rebase or merge main only if requested by ASA.
+- **One branch per task.** Do not reuse a branch across phases.
+- **No shared phase branches.** Each person works in their own branch.
+- ASA may create a temporary **integration branch** only for combined testing.
 
 ---
 

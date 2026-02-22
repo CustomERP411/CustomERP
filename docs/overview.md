@@ -236,6 +236,11 @@ See `README.md` for full commands and environment variables.
 7. `git push -u origin HEAD`
 8. Open PR → ASA reviews → merge
 
+**Branching policy (Sprint 1):**
+- One branch per task; do not reuse across phases.
+- No shared phase branches; each person works in their own branch.
+- ASA may create a short‑lived integration branch for combined testing.
+
 For phase‑by‑phase rules, see `docs/sprint1.md`.
 
 ---

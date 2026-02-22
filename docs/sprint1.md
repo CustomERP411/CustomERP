@@ -220,6 +220,7 @@ Out of scope for now: UC-6 (Approve/Edit), review/approval UI, schema preview UI
   7. `git commit -m "<short message>"`
   8. `git push -u origin HEAD`
   9. Open PR → ASA reviews → merge
+- **Branching policy:** one branch per task; do not reuse across phases. No shared phase branches. ASA may use a short‑lived integration branch for combined testing.
 - **Coordination rule:** If two tasks require the same file, agree on order and merge one PR before starting the next edit.
 
 **Phase 0 — Setup & process (start first)**

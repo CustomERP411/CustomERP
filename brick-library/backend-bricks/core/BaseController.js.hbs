@@ -5,7 +5,7 @@ const {{EntityName}}Service = require('../services/{{EntityName}}Service');
 class {{EntityName}}Controller {
   constructor() {
     this.repository = new FlatFileProvider('./data');
-    this.service = new {{EntityName}}Service(this.repository);
+    this.service = new {{EntityName}}Service(this.repository, {{mixinConfig}});
   }
 
   async getAll(req, res) {

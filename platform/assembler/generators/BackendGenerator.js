@@ -64,7 +64,8 @@ class BackendGenerator {
   async generateEntity(outputDir, entity, allEntities = []) {
     const context = {
       EntityName: this._capitalize(entity.slug), // e.g., "products" -> "Products"
-      entitySlug: entity.slug
+      entitySlug: entity.slug,
+      mixinConfig: JSON.stringify(entity.mixins || {})
     };
 
     // 1. Generate Controller (Using BaseController template)

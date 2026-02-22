@@ -3,6 +3,9 @@ const path = require('path');
 const BackendGenerator = require('./generators/BackendGenerator');
 const FrontendGenerator = require('./generators/FrontendGenerator');
 
+const ERP_MODULE_KEYS = ['inventory', 'invoice', 'hr'];
+const DEFAULT_ERP_MODULE = 'inventory';
+
 class ProjectAssembler {
   constructor(brickRepo, outputPath) {
     this.brickRepo = brickRepo;
@@ -29,9 +32,25 @@ class ProjectAssembler {
       if (typeof this.backendGenerator.setModules === 'function') {
         this.backendGenerator.setModules((sdf && sdf.modules) || {});
       }
+      if (typeof this.frontendGenerator.setModules === 'function') {
+        this.frontendGenerator.setModules((sdf && sdf.modules) || {});
+      }
 
       const userEntities = sdf.entities && Array.isArray(sdf.entities) ? sdf.entities : [];
-      const backendEntities = this._withSystemEntities(userEntities, sdf);
+      const { enabledModules, hasErpConfig } = this._resolveErpModules(sdf);
+      const { normalizedEntities, moduleMap } = this._normalizeEntitiesForModules(userEntities, {
+        enabledModules,
+        hasErpConfig,
+      });
+
+      if (typeof this.backendGenerator.setModuleMap === 'function') {
+        this.backendGenerator.setModuleMap(moduleMap);
+      }
+      if (typeof this.frontendGenerator.setModuleMap === 'function') {
+        this.frontendGenerator.setModuleMap(moduleMap);
+      }
+
+      const backendEntities = this._withSystemEntities(normalizedEntities, sdf);
 
       if (backendEntities.length) {
         for (const entity of backendEntities) {
@@ -50,22 +69,22 @@ class ProjectAssembler {
       console.log('Generating frontend...');
       await this.frontendGenerator.scaffold(frontendDir, sdf);
 
-      if (userEntities.length) {
+      if (normalizedEntities.length) {
         // Generate DynamicForm component (shared)
         await this.frontendGenerator.generateDynamicForm(frontendDir);
 
         // Generate entity pages
-        for (const entity of userEntities) {
+        for (const entity of normalizedEntities) {
           console.log(`  - Page: ${entity.slug}`);
           // Pass the FULL list of entities so the generator can resolve relationships (e.g. category_id -> categories)
-          await this.frontendGenerator.generateEntityPage(frontendDir, entity, userEntities, sdf);
+          await this.frontendGenerator.generateEntityPage(frontendDir, entity, normalizedEntities, sdf);
         }
 
         // Generate App with routes
-        await this.frontendGenerator.generateApp(frontendDir, userEntities, sdf);
+        await this.frontendGenerator.generateApp(frontendDir, normalizedEntities, sdf);
 
         // Generate Sidebar with links
-        await this.frontendGenerator.generateSidebar(frontendDir, userEntities, sdf);
+        await this.frontendGenerator.generateSidebar(frontendDir, normalizedEntities, sdf);
       }
 
       // ==================== ROOT FILES ====================
@@ -162,6 +181,88 @@ class ProjectAssembler {
         });
       }
     });
+  }
+
+  _resolveErpModules(sdf) {
+    const modules = (sdf && sdf.modules) ? sdf.modules : {};
+    const hasErpConfig = ERP_MODULE_KEYS.some((key) => Object.prototype.hasOwnProperty.call(modules, key));
+    const enabled = new Set();
+
+    if (!hasErpConfig) {
+      enabled.add(DEFAULT_ERP_MODULE);
+      return { enabledModules: Array.from(enabled), hasErpConfig };
+    }
+
+    for (const key of ERP_MODULE_KEYS) {
+      const cfg = modules[key];
+      const disabled = cfg === false || (cfg && typeof cfg === 'object' && cfg.enabled === false);
+      if (!disabled) {
+        enabled.add(key);
+      }
+    }
+
+    if (enabled.size === 0) {
+      enabled.add(DEFAULT_ERP_MODULE);
+    }
+
+    return { enabledModules: Array.from(enabled), hasErpConfig };
+  }
+
+  _normalizeEntityModule(entity, { hasErpConfig }) {
+    if (!hasErpConfig) return DEFAULT_ERP_MODULE;
+    if (!entity || typeof entity !== 'object') return DEFAULT_ERP_MODULE;
+
+    const raw = entity.module || entity.module_slug || entity.moduleSlug;
+    const cleaned = String(raw || '').trim().toLowerCase();
+
+    if (!cleaned) return DEFAULT_ERP_MODULE;
+    if (cleaned === 'shared') return 'shared';
+    if (ERP_MODULE_KEYS.includes(cleaned)) return cleaned;
+
+    console.warn(`Unknown module '${raw}', defaulting to '${DEFAULT_ERP_MODULE}'.`);
+    return DEFAULT_ERP_MODULE;
+  }
+
+  _normalizeEntitiesForModules(entities, { enabledModules, hasErpConfig }) {
+    const enabledSet = new Set(enabledModules || []);
+    const normalizedEntities = (Array.isArray(entities) ? entities : []).map((entity) => ({
+      ...entity,
+      module: this._normalizeEntityModule(entity, { hasErpConfig }),
+    }));
+
+    const filtered = normalizedEntities.filter((entity) => {
+      if (entity.module === 'shared') return enabledSet.size > 0;
+      return enabledSet.has(entity.module);
+    });
+
+    return {
+      normalizedEntities: filtered,
+      moduleMap: this._buildModuleMap(filtered, enabledModules || []),
+    };
+  }
+
+  _buildModuleMap(entities, enabledModules) {
+    const entitiesByModule = {
+      inventory: [],
+      invoice: [],
+      hr: [],
+      shared: [],
+    };
+
+    (Array.isArray(entities) ? entities : []).forEach((entity) => {
+      const moduleKey = entity && entity.module ? entity.module : DEFAULT_ERP_MODULE;
+      if (!entitiesByModule[moduleKey]) {
+        entitiesByModule[moduleKey] = [];
+      }
+      if (entity && entity.slug) {
+        entitiesByModule[moduleKey].push(entity.slug);
+      }
+    });
+
+    return {
+      enabled: Array.isArray(enabledModules) ? enabledModules : [],
+      entitiesByModule,
+    };
   }
 
   async _generateRootFiles(outputDir, projectId) {

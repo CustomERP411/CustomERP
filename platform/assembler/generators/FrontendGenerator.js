@@ -22,6 +22,16 @@ const {
 class FrontendGenerator {
   constructor(brickRepo) {
     this.brickRepo = brickRepo;
+    this.modules = {};
+    this.moduleMap = {};
+  }
+
+  setModules(modules) {
+    this.modules = modules && typeof modules === 'object' ? modules : {};
+  }
+
+  setModuleMap(moduleMap) {
+    this.moduleMap = moduleMap && typeof moduleMap === 'object' ? moduleMap : {};
   }
 
   async scaffold(outputDir, sdf = {}) {

@@ -71,6 +71,7 @@ The SDF is a structured JSON blueprint. It describes:
 - UI behavior (search, CSV, printing)
 - inventory operations (receive, issue, adjust, transfer)
 - global modules (reports, activity log, dashboards)
+- ERP modules (inventory, invoice, hr) via `modules.<module>` and `entity.module`
 
 See `SDF_REFERENCE.md` for the exact schema.
 
@@ -137,6 +138,7 @@ Key files (see `platform/assembler/`):
 
 Flow:
 1. Read SDF and resolve modules/features.
+   - Compute ERP module map, default untagged entities to `inventory`, and filter disabled modules.
    - Validate SDF before generation (duplicate entities, reference integrity, children foreign keys).
 2. Generate backend (services, routes, data layer).
    - CodeWeaver fails fast on missing/duplicate hook markers.
@@ -167,14 +169,17 @@ Flow:
 
 Top‑level:
 - `project_name`
-- `modules`
+- `modules` (global modules + ERP modules: `inventory`, `invoice`, `hr`)
 - `entities[]`
 
 Entity fields:
 - `slug`, `display_name`, `fields[]`
 - `features` (audit, batch, serial, multi‑location)
 - `mixins` (optional per‑entity mixin config; object or array)
+- `module` (optional: `inventory`, `invoice`, `hr`, or `shared`; defaults to `inventory`)
 - `inventory_ops` for wizards
+
+Note: `entity.module` and ERP module config are pending a formal schema update in `SDF_REFERENCE.md` (BTB).
 
 Relations:
 - `reference` fields in entities

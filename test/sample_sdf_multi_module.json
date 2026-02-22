@@ -1,0 +1,51 @@
+{
+  "project_name": "Multi-Module Test ERP",
+  "modules": {
+    "inventory": { "enabled": true },
+    "invoice": { "enabled": true },
+    "hr": { "enabled": false }
+  },
+  "entities": [
+    {
+      "slug": "products",
+      "display_name": "Products",
+      "display_field": "name",
+      "module": "inventory",
+      "fields": [
+        { "name": "name", "type": "string", "label": "Name", "required": true },
+        { "name": "quantity", "type": "integer", "label": "Quantity", "required": false }
+      ],
+      "features": { "audit_trail": true }
+    },
+    {
+      "slug": "invoices",
+      "display_name": "Invoices",
+      "display_field": "number",
+      "module": "invoice",
+      "fields": [
+        { "name": "number", "type": "string", "label": "Invoice #", "required": true },
+        { "name": "total", "type": "decimal", "label": "Total", "required": true }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "employees",
+      "display_name": "Employees",
+      "display_field": "name",
+      "module": "hr",
+      "fields": [
+        { "name": "name", "type": "string", "label": "Name", "required": true }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "departments",
+      "display_name": "Departments",
+      "display_field": "name",
+      "fields": [
+        { "name": "name", "type": "string", "label": "Name", "required": true }
+      ],
+      "features": {}
+    }
+  ]
+}

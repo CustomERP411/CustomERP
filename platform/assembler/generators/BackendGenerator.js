@@ -9,6 +9,7 @@ class BackendGenerator {
   constructor(brickRepo) {
     this.brickRepo = brickRepo;
     this.modules = {};
+    this.moduleMap = {};
     const customMixinsPath =
       process.env.CUSTOM_MIXINS_PATH ||
       path.resolve(this.brickRepo.libraryPath, '..', 'custom_mixins');
@@ -20,6 +21,10 @@ class BackendGenerator {
 
   setModules(modules) {
     this.modules = modules && typeof modules === 'object' ? modules : {};
+  }
+
+  setModuleMap(moduleMap) {
+    this.moduleMap = moduleMap && typeof moduleMap === 'object' ? moduleMap : {};
   }
 
   async scaffold(outputDir, projectId) {

@@ -71,6 +71,7 @@ This section defines **how** we will achieve Sprint 1 goals, including architect
 4. **Brick Library**
    - Backend mixins (audit, serial, batch, inventory).
    - Frontend components (DynamicForm, CSV tools, etc.).
+   - Module UI components under `frontend-bricks/components/modules/<module>` (invoice/hr/inventory).
 5. **Generated ERP**
    - Runs independently (backend + frontend + data files).
 

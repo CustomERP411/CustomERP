@@ -74,6 +74,7 @@ class FrontendGenerator {
 
     await this._generateBaseFiles(outputDir, sdf);
     await this._generateSharedComponents(outputDir);
+    await this._generateModuleComponents(outputDir);
   }
 
   async _generateBaseFiles(outputDir, sdf) {
@@ -275,6 +276,35 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       'frontend-bricks/layouts/Topbar.tsx',
       path.join(outputDir, 'src/components/layout/Topbar.tsx')
     );
+  }
+
+  async _generateModuleComponents(outputDir) {
+    const moduleComponents = [
+      [
+        'frontend-bricks/components/modules/invoice/InvoiceCard.tsx',
+        'src/components/modules/invoice/InvoiceCard.tsx',
+      ],
+      [
+        'frontend-bricks/components/modules/hr/EmployeeCard.tsx',
+        'src/components/modules/hr/EmployeeCard.tsx',
+      ],
+      [
+        'frontend-bricks/components/modules/hr/DepartmentCard.tsx',
+        'src/components/modules/hr/DepartmentCard.tsx',
+      ],
+      [
+        'frontend-bricks/components/modules/hr/LeaveRequestCard.tsx',
+        'src/components/modules/hr/LeaveRequestCard.tsx',
+      ],
+      [
+        'frontend-bricks/components/modules/inventory/InventoryAlertCard.tsx',
+        'src/components/modules/inventory/InventoryAlertCard.tsx',
+      ],
+    ];
+
+    for (const [sourcePath, destPath] of moduleComponents) {
+      await this.brickRepo.copyFile(sourcePath, path.join(outputDir, destPath));
+    }
   }
 
   async generateDashboardHome(outputDir, entities, sdf = {}) {

@@ -109,6 +109,7 @@ This is the default coding guideline for CustomERP. Follow these rules unless AS
 - Keep state updates immutable.
 - Avoid inline style objects; use Tailwind classes.
 - UI logic belongs in components; data fetching in services/hooks.
+- Platform UI must not include ERP module pages/components. Module UI lives in `brick-library/frontend-bricks/components/modules/<module>` and generator templates.
 
 ---
 

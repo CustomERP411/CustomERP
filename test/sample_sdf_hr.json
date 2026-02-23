@@ -1,6 +1,8 @@
 {
   "project_name": "TechCorp HR",
   "modules": {
+    "inventory": { "enabled": false },
+    "invoice": { "enabled": false },
     "hr": {
       "enabled": true,
       "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],

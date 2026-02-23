@@ -210,6 +210,7 @@ Out of scope for now: UC-6 (Approve/Edit), review/approval UI, schema preview UI
 - **Do not touch (unless ASA approves):**
   - `.env`, `.env.example`, production compose files, or database migrations.
   - Other people’s owned folders listed above.
+- **Platform UI boundary:** keep ERP module UI out of `platform/frontend/**`; module UI belongs in frontend bricks + generator templates.
 - **Git workflow (follow this order):**
   1. `git checkout main`
   2. `git pull`

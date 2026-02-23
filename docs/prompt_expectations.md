@@ -107,6 +107,7 @@ Platform code should:
 Frontend should:
 - Stay within current scope (no review/approval UI unless requested).
 - Be driven by SDF metadata where possible.
+- Keep ERP module UI out of `platform/frontend/**`; module UI must come from frontend bricks + generators.
 
 ---
 

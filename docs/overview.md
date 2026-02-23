@@ -93,6 +93,7 @@ The assembler reads the SDF, picks the bricks, injects them into templates, and 
 - Business description input
 - Clarification Q/A UI
 - Trigger generation
+- No ERP module UI lives here; invoice/hr/inventory UI is generated from bricks.
 
 ### 6.2 Express API (Platform Backend)
 - Auth + project CRUD
@@ -159,6 +160,7 @@ Flow:
 - Dynamic form renderer
 - CSV import tools
 - Shared UI components and layouts
+- Module components under `components/modules/<module>/` (invoice/hr/inventory)
 
 **Templates** (`brick-library/templates/`)
 - Dockerfile, docker-compose, package.json

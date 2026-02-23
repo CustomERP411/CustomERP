@@ -1,11 +1,13 @@
 {
   "project_name": "ProConsult Billing",
   "modules": {
+    "inventory": { "enabled": false },
     "invoice": {
       "enabled": true,
       "tax_rate": 10,
       "currency": "EUR"
-    }
+    },
+    "hr": { "enabled": false }
   },
   "entities": [
     {

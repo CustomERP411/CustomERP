@@ -3,6 +3,7 @@ function buildDashboardHome({ lowStockCfg, expiryCfg, activityCfg, enableReports
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { ENTITIES } from '../config/entities';
+import InventoryAlertCard from '../components/modules/inventory/InventoryAlertCard';
 
 const LOW_STOCK = ${JSON.stringify(lowStockCfg, null, 2)} as const;
 const EXPIRY = ${JSON.stringify(expiryCfg, null, 2)} as const;
@@ -170,83 +171,63 @@ export default function DashboardHome() {
       {(LOW_STOCK.enabled || EXPIRY.enabled || ACTIVITY.enabled) ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {LOW_STOCK.enabled ? (
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">Low stock</div>
-                  <div className="text-xs text-slate-500">Top {String(LOW_STOCK.limit)} items</div>
-                </div>
-                <Link to={'/' + LOW_STOCK.entity} className="text-sm font-semibold text-blue-600 hover:underline">
-                  View
-                </Link>
-              </div>
-              <div className="mt-3">
-                {loadingLowStock ? (
-                  <div className="text-sm text-slate-500">Loading…</div>
-                ) : lowStockItems.length === 0 ? (
-                  <div className="text-sm text-slate-500">No low stock items.</div>
-                ) : (
-                  <ul className="space-y-2">
-                    {lowStockItems.map((it: any) => (
-                      <li key={it.id} className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-slate-900">{getEntityDisplay(LOW_STOCK.entity, it)}</div>
-                          <div className="text-xs text-slate-500">
-                            qty {String(it?.[LOW_STOCK.quantity_field] ?? 0)} · reorder {String(it?.[LOW_STOCK.reorder_point_field] ?? 0)}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-slate-500">suggest</div>
-                          <div className="text-sm font-semibold text-slate-900">{String(reorderSuggestion[String(it.id)] ?? 0)}</div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
+            <InventoryAlertCard
+              title="Low stock"
+              subtitle={'Top ' + String(LOW_STOCK.limit) + ' items'}
+              actionHref={'/' + LOW_STOCK.entity}
+              loading={loadingLowStock}
+              isEmpty={lowStockItems.length === 0}
+              emptyLabel="No low stock items."
+            >
+              <ul className="space-y-2">
+                {lowStockItems.map((it: any) => (
+                  <li key={it.id} className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-slate-900">{getEntityDisplay(LOW_STOCK.entity, it)}</div>
+                      <div className="text-xs text-slate-500">
+                        qty {String(it?.[LOW_STOCK.quantity_field] ?? 0)} · reorder {String(it?.[LOW_STOCK.reorder_point_field] ?? 0)}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-slate-500">suggest</div>
+                      <div className="text-sm font-semibold text-slate-900">{String(reorderSuggestion[String(it.id)] ?? 0)}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </InventoryAlertCard>
           ) : null}
 
           {EXPIRY.enabled ? (
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">Expiry alerts</div>
-                  <div className="text-xs text-slate-500">Within {String(EXPIRY.within_days)} days</div>
-                </div>
-                <Link to={'/' + EXPIRY.entity} className="text-sm font-semibold text-blue-600 hover:underline">
-                  View
-                </Link>
-              </div>
-              <div className="mt-3">
-                {loadingExpiry ? (
-                  <div className="text-sm text-slate-500">Loading…</div>
-                ) : expiryItems.length === 0 ? (
-                  <div className="text-sm text-slate-500">No expiring items.</div>
-                ) : (
-                  <ul className="space-y-2">
-                    {expiryItems.map((it: any) => {
-                      const t = new Date(String(it?.[EXPIRY.expiry_field] || '')).getTime();
-                      const days = Number.isFinite(t) ? Math.ceil((t - Date.now()) / (24 * 60 * 60 * 1000)) : null;
-                      return (
-                        <li key={it.id} className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium text-slate-900">{getEntityDisplay(EXPIRY.entity, it)}</div>
-                            <div className="text-xs text-slate-500">expiry {String(it?.[EXPIRY.expiry_field] ?? '')}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xs text-slate-500">days</div>
-                            <div className={'text-sm font-semibold ' + (days !== null && days <= 0 ? 'text-red-600' : 'text-slate-900')}>
-                              {days === null ? '—' : String(days)}
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            </div>
+            <InventoryAlertCard
+              title="Expiry alerts"
+              subtitle={'Within ' + String(EXPIRY.within_days) + ' days'}
+              actionHref={'/' + EXPIRY.entity}
+              loading={loadingExpiry}
+              isEmpty={expiryItems.length === 0}
+              emptyLabel="No expiring items."
+            >
+              <ul className="space-y-2">
+                {expiryItems.map((it: any) => {
+                  const t = new Date(String(it?.[EXPIRY.expiry_field] || '')).getTime();
+                  const days = Number.isFinite(t) ? Math.ceil((t - Date.now()) / (24 * 60 * 60 * 1000)) : null;
+                  return (
+                    <li key={it.id} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-slate-900">{getEntityDisplay(EXPIRY.entity, it)}</div>
+                        <div className="text-xs text-slate-500">expiry {String(it?.[EXPIRY.expiry_field] ?? '')}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-slate-500">days</div>
+                        <div className={'text-sm font-semibold ' + (days !== null && days <= 0 ? 'text-red-600' : 'text-slate-900')}>
+                          {days === null ? '—' : String(days)}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </InventoryAlertCard>
           ) : null}
 
           {ACTIVITY.enabled ? (

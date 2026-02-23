@@ -26,13 +26,6 @@ export default function Sidebar() {
           <span>Projects</span>
         </Link>
         
-        <Link 
-          to="/invoices" 
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white"
-        >
-          <span>Invoices</span>
-        </Link>
-        
         {/* Placeholder for future links */}
         <div className="pt-4 text-xs font-semibold uppercase text-slate-500 tracking-wider px-3">
           Workspace

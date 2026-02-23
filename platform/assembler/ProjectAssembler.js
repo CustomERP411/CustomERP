@@ -129,6 +129,68 @@ class ProjectAssembler {
       allBySlug.set(ent.slug, ent);
     });
 
+    const requireEntity = (slug, label) => {
+      if (!entitySlugs.has(slug)) {
+        throw new Error(`SDF Validation Error: Invoice module requires entity '${slug}'${label ? ` (${label})` : ''}.`);
+      }
+      return allBySlug.get(slug);
+    };
+
+    const ensureFields = (entity, required, label) => {
+      const fields = Array.isArray(entity?.fields) ? entity.fields : [];
+      const fieldNames = new Set(fields.map((f) => f && f.name).filter(Boolean));
+      const missing = required.filter((name) => !fieldNames.has(name));
+      if (missing.length) {
+        throw new Error(
+          `SDF Validation Error: Entity '${label}' is missing required fields: ${missing.join(', ')}.`
+        );
+      }
+    };
+
+    const invoiceEnabled = enabledSet.has('invoice');
+    if (invoiceEnabled) {
+      const invoicesEntity = requireEntity('invoices', 'invoice header');
+      const itemsEntity = requireEntity('invoice_items', 'invoice line items');
+      const customersEntity = requireEntity('customers', 'customer list');
+
+      const invoicesModule = this._normalizeEntityModule(invoicesEntity, { hasErpConfig });
+      const itemsModule = this._normalizeEntityModule(itemsEntity, { hasErpConfig });
+      const customersModule = this._normalizeEntityModule(customersEntity, { hasErpConfig });
+
+      if (invoicesModule !== 'invoice') {
+        throw new Error(`SDF Validation Error: Entity 'invoices' must be in module 'invoice'.`);
+      }
+      if (itemsModule !== 'invoice') {
+        throw new Error(`SDF Validation Error: Entity 'invoice_items' must be in module 'invoice'.`);
+      }
+      if (customersModule !== 'shared' && customersModule !== 'invoice') {
+        throw new Error(`SDF Validation Error: Entity 'customers' must be 'shared' or in module 'invoice'.`);
+      }
+
+      const children = Array.isArray(invoicesEntity.children) ? invoicesEntity.children : [];
+      const invoiceChild = children.find((child) => {
+        const slug = child && (child.entity || child.slug);
+        return slug === 'invoice_items';
+      });
+      if (!invoiceChild) {
+        throw new Error(`SDF Validation Error: Entity 'invoices' must define 'invoice_items' as a child relation.`);
+      }
+      const invoiceFk = invoiceChild.foreign_key || invoiceChild.foreignKey;
+      if (!invoiceFk) {
+        throw new Error(`SDF Validation Error: Child relation for 'invoice_items' must define a foreign key.`);
+      }
+      const itemFields = Array.isArray(itemsEntity.fields) ? itemsEntity.fields : [];
+      const hasInvoiceFk = itemFields.some((f) => f && f.name === invoiceFk);
+      if (!hasInvoiceFk) {
+        throw new Error(
+          `SDF Validation Error: Entity 'invoice_items' must include foreign key field '${invoiceFk}'.`
+        );
+      }
+
+      ensureFields(invoicesEntity, ['invoice_number', 'customer_id', 'issue_date', 'due_date', 'status', 'subtotal', 'tax_total', 'grand_total'], 'invoices');
+      ensureFields(itemsEntity, ['invoice_id', 'description', 'quantity', 'unit_price', 'line_total'], 'invoice_items');
+    }
+
     // 2. Validate Relationships and References
     normalizedEntities.forEach((ent) => {
       const fields = Array.isArray(ent.fields) ? ent.fields : [];

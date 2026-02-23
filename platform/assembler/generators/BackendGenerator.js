@@ -157,18 +157,20 @@ class BackendGenerator {
   async _resolveMixins(entity, allEntities = []) {
     const features = entity.features || {};
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
+    const moduleKey = this._getModuleKey(entity);
 
     // IMPORTANT: Mixins must be optional.
     // We only apply InventoryMixin when the entity actually has inventory-like behavior,
     // otherwise we would accidentally add "quantity" to unrelated entities (e.g., Categories).
     const hasQuantityField = fields.some(f => f && f.name === 'quantity');
     const wantsInventoryBehavior =
-      !!hasQuantityField ||
-      !!features.inventory ||
-      !!features.stock_tracking ||
-      !!features.batch_tracking ||
-      !!features.serial_tracking ||
-      !!features.multi_location;
+      moduleKey === 'inventory' &&
+      (!!hasQuantityField ||
+        !!features.inventory ||
+        !!features.stock_tracking ||
+        !!features.batch_tracking ||
+        !!features.serial_tracking ||
+        !!features.multi_location);
 
     const mixins = new Map();
 
@@ -217,6 +219,16 @@ class BackendGenerator {
 
     if (auditEnabled) addMixin('AuditMixin');
     if (features.multi_location) addMixin('LocationMixin');
+
+    const invoiceConfig = (this.modules && this.modules.invoice && typeof this.modules.invoice === 'object')
+      ? this.modules.invoice
+      : {};
+    if (moduleKey === 'invoice' && slug === 'invoices') {
+      addMixin('InvoiceMixin', invoiceConfig, 'modules');
+    }
+    if (moduleKey === 'invoice' && slug === 'invoice_items') {
+      addMixin('InvoiceItemsMixin', invoiceConfig, 'modules');
+    }
 
     const explicitMixins = this._normalizeExplicitMixins(entity);
     for (const entry of explicitMixins) {
@@ -307,6 +319,8 @@ class BackendGenerator {
       'SerialTrackingMixin',
       'AuditMixin',
       'LocationMixin',
+      'InvoiceMixin',
+      'InvoiceItemsMixin',
     ];
 
     const byName = new Map();

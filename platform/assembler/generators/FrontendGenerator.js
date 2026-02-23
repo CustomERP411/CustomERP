@@ -8,6 +8,7 @@ const { buildActivityLogPage } = require('./frontend/activityLogPage');
 const { buildReportsPage } = require('./frontend/reportsPage');
 const { buildApp } = require('./frontend/app');
 const { buildSidebar } = require('./frontend/sidebar');
+const { buildInvoiceListPage } = require('./frontend/invoicePages');
 const {
   buildEntityListPage,
   buildEntityFormPage,
@@ -466,6 +467,12 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     await this._ensureModuleDirs(outputDir, moduleKey);
     const modulePagesDir = path.join(outputDir, 'modules', moduleKey, 'pages');
     const importBase = '../../src';
+    const isInvoiceEntity = moduleKey === 'invoice' && String(entity.slug || '') === 'invoices';
+    const rawInvoiceConfig = sdf && sdf.modules ? sdf.modules.invoice : null;
+    const invoiceConfig = rawInvoiceConfig && typeof rawInvoiceConfig === 'object' ? rawInvoiceConfig : {};
+    const enablePrintInvoice =
+      isInvoiceEntity &&
+      ((entity.features && (entity.features.print_invoice === true || entity.features.printInvoice === true)) || false);
 
     const entityName = this._capitalize(entity.slug);
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
@@ -533,30 +540,38 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       })
       .join('\n');
 
-    const listPageContent = buildEntityListPage({
-      entity,
-      entityName,
-      fieldDefs,
-      tableColumns,
-      enableSearch,
-      enableCsvImport,
-      enableCsvExport,
-      enablePrint,
-      enableReceive,
-      enableQuickReceive,
-      enableIssue,
-      enableQuickIssue,
-      issueLabel,
-      enableAdjust,
-      canTransfer,
-      enableQrLabels,
-      enableBulkActions,
-      enableBulkDelete,
-      enableBulkUpdate,
-      bulkUpdateFields,
-      escapeJsString: (s) => this._escapeJsString(s),
-      importBase,
-    });
+    const listPageContent = isInvoiceEntity
+      ? buildInvoiceListPage({
+          entity,
+          entityName,
+          importBase,
+          invoiceConfig,
+          title: this._escapeJsString(entity.display_name || entityName),
+        })
+      : buildEntityListPage({
+          entity,
+          entityName,
+          fieldDefs,
+          tableColumns,
+          enableSearch,
+          enableCsvImport,
+          enableCsvExport,
+          enablePrint,
+          enableReceive,
+          enableQuickReceive,
+          enableIssue,
+          enableQuickIssue,
+          issueLabel,
+          enableAdjust,
+          canTransfer,
+          enableQrLabels,
+          enableBulkActions,
+          enableBulkDelete,
+          enableBulkUpdate,
+          bulkUpdateFields,
+          escapeJsString: (s) => this._escapeJsString(s),
+          importBase,
+        });
 
     // Optional embedded children/line-items sections (generic)
     const childSections = [];
@@ -630,6 +645,8 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       childSections,
       escapeJsString: (s) => this._escapeJsString(s),
       importBase,
+      invoiceConfig: isInvoiceEntity ? invoiceConfig : null,
+      enablePrintInvoice,
     });
 
     await fs.writeFile(path.join(modulePagesDir, `${entityName}Page.tsx`), listPageContent);

@@ -31,14 +31,39 @@
     {
       "slug": "invoices",
       "display_name": "Invoices",
-      "display_field": "number",
+      "display_field": "invoice_number",
+      "module": "invoice",
+      "children": [
+        {
+          "entity": "invoice_items",
+          "foreign_key": "invoice_id",
+          "label": "Line Items",
+          "columns": ["description", "quantity", "unit_price", "line_total"]
+        }
+      ],
+      "fields": [
+        { "name": "invoice_number", "type": "string", "label": "Invoice #", "required": true },
+        { "name": "customer_id", "type": "reference", "label": "Customer", "required": true, "reference_entity": "customers" },
+        { "name": "issue_date", "type": "date", "label": "Issue Date", "required": true },
+        { "name": "due_date", "type": "date", "label": "Due Date", "required": true },
+        { "name": "status", "type": "string", "label": "Status", "required": true, "options": ["Draft", "Sent", "Paid", "Overdue"] },
+        { "name": "subtotal", "type": "decimal", "label": "Subtotal" },
+        { "name": "tax_total", "type": "decimal", "label": "Tax" },
+        { "name": "grand_total", "type": "decimal", "label": "Grand Total" }
+      ],
+      "features": { "print_invoice": true }
+    },
+    {
+      "slug": "invoice_items",
+      "display_name": "Invoice Items",
       "module": "invoice",
       "fields": [
-        { "name": "number", "type": "string", "label": "Invoice #", "required": true },
-        { "name": "total", "type": "decimal", "label": "Total", "required": true },
-        { "name": "customer_id", "type": "reference", "label": "Customer", "required": true, "reference_entity": "customers" }
-      ],
-      "features": {}
+        { "name": "invoice_id", "type": "reference", "reference_entity": "invoices", "required": true },
+        { "name": "description", "type": "string", "required": true },
+        { "name": "quantity", "type": "decimal", "required": true },
+        { "name": "unit_price", "type": "decimal", "required": true },
+        { "name": "line_total", "type": "decimal" }
+      ]
     },
     {
       "slug": "employees",

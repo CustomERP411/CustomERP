@@ -654,7 +654,16 @@ ${enableQuickIssue ? `                    <Link
 `;
 }
 
-function buildEntityFormPage({ entity, entityName, fieldDefs, childSections, escapeJsString, importBase }) {
+function buildEntityFormPage({
+  entity,
+  entityName,
+  fieldDefs,
+  childSections,
+  escapeJsString,
+  importBase,
+  invoiceConfig,
+  enablePrintInvoice,
+}) {
   const hasChildren = Array.isArray(childSections) && childSections.length > 0;
   const base = importBase || '..';
   return `import { useEffect, useMemo, useState } from 'react';
@@ -670,6 +679,8 @@ ${fieldDefs}
 ];
 
 const CHILD_SECTIONS = ${JSON.stringify(childSections || [], null, 2)} as const;
+const INVOICE_CFG = ${invoiceConfig ? JSON.stringify(invoiceConfig) : 'null'} as const;
+const ENABLE_PRINT = ${enablePrintInvoice ? 'true' : 'false'} as const;
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(ENTITIES.map((e) => [e.slug, e.displayField])) as Record<string, string>;
 
 const getEntityDisplay = (entitySlug: string, row: any) => {
@@ -693,6 +704,28 @@ export default function ${entityName}FormPage() {
   const [childModalSection, setChildModalSection] = useState<any | null>(null);
   const [childModalMode, setChildModalMode] = useState<'create' | 'edit'>('create');
   const [childModalInitial, setChildModalInitial] = useState<any>({});
+
+  const invoiceEnabled = !!INVOICE_CFG;
+  const invoiceItems = invoiceEnabled ? (childItemsBySlug['invoice_items'] || []) : [];
+  const invoiceSubtotal = invoiceEnabled
+    ? invoiceItems.reduce((sum: number, item: any) => {
+        const line = Number(item?.line_total ?? (Number(item?.quantity) * Number(item?.unit_price)) ?? 0);
+        return sum + (isNaN(line) ? 0 : line);
+      }, 0)
+    : 0;
+  const invoiceTaxRate = invoiceEnabled ? Number(INVOICE_CFG.tax_rate ?? 0) || 0 : 0;
+  const invoiceTaxTotal = invoiceEnabled ? Number(((invoiceSubtotal * invoiceTaxRate) / 100).toFixed(2)) : 0;
+  const invoiceGrandTotal = invoiceEnabled ? Number((invoiceSubtotal + invoiceTaxTotal).toFixed(2)) : 0;
+  const formatMoney = (value: any) => {
+    if (!invoiceEnabled) return String(value ?? '');
+    const currency = String(INVOICE_CFG.currency || 'USD');
+    const num = Number(value ?? 0);
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(isNaN(num) ? 0 : num);
+    } catch {
+      return String(isNaN(num) ? 0 : num);
+    }
+  };
 
   useEffect(() => {
     if (!isEdit) return;
@@ -870,9 +903,20 @@ export default function ${entityName}FormPage() {
           <h1 className="text-2xl font-bold text-slate-900">{isEdit ? 'Edit' : 'Create'} ${escapeJsString(entity.display_name || entityName)}</h1>
           <p className="text-sm text-slate-600">Fill in the fields and save.</p>
         </div>
-        <Link to="/${entity.slug}" className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 no-print">
-          Back
-        </Link>
+        <div className="flex items-center gap-2">
+          {invoiceEnabled && ENABLE_PRINT && isEdit ? (
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 no-print"
+            >
+              Print
+            </button>
+          ) : null}
+          <Link to="/${entity.slug}" className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 no-print">
+            Back
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -967,6 +1011,29 @@ export default function ${entityName}FormPage() {
                   </div>
                 );
               })}
+            </div>
+          ) : null}
+
+          {invoiceEnabled ? (
+            <div className="rounded-lg bg-white p-6 shadow">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-slate-900">Invoice totals</div>
+                <div className="text-xs text-slate-500">Tax rate: {invoiceTaxRate}%</div>
+              </div>
+              <div className="mt-4 space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Subtotal</span>
+                  <span className="font-semibold text-slate-900">{formatMoney(invoiceSubtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Tax</span>
+                  <span className="font-semibold text-slate-900">{formatMoney(invoiceTaxTotal)}</span>
+                </div>
+                <div className="flex items-center justify-between border-t pt-2">
+                  <span className="text-slate-700">Grand total</span>
+                  <span className="font-semibold text-slate-900">{formatMoney(invoiceGrandTotal)}</span>
+                </div>
+              </div>
             </div>
           ) : null}
         </div>

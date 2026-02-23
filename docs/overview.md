@@ -298,12 +298,12 @@ For phase‑by‑phase rules, see `docs/sprint1.md`.
 
 **Current focus:**
 - Inventory module generator (Increment 1)
+- Invoice module generator (Phase 4)
 - SDF generation and assembler pipeline
 
 **Next focus:**
-- Invoice module
 - HR module
-- Multi‑module generation in one build
+- Multi‑module generation hardening (QA + docs)
 
 **Out of scope for now:**
 - UC‑5/UC‑6 review/approval UI

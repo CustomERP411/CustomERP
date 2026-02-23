@@ -436,7 +436,10 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       `
       : '';
 
-    const sidebarContent = buildSidebar({ toolsBlock });
+    const sidebarContent = buildSidebar({ 
+      toolsBlock,
+      moduleMap: this.moduleMap 
+    });
 
     await fs.writeFile(path.join(outputDir, 'src/components/Sidebar.tsx'), sidebarContent);
   }

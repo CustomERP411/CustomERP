@@ -103,10 +103,22 @@ class ProjectAssembler {
       throw new Error('SDF Validation Error: Invalid SDF object.');
     }
     const entities = Array.isArray(sdf.entities) ? sdf.entities : [];
+    const { enabledModules, hasErpConfig } = this._resolveErpModules(sdf);
+    const enabledSet = new Set(enabledModules || []);
+    const allEntities = entities.map((ent) => ({
+      ...ent,
+      module: this._normalizeEntityModule(ent, { hasErpConfig }),
+    }));
+    const { normalizedEntities } = this._normalizeEntitiesForModules(allEntities, {
+      enabledModules,
+      hasErpConfig,
+    });
+    const activeSlugs = new Set(normalizedEntities.map((ent) => ent && ent.slug).filter(Boolean));
     const entitySlugs = new Set();
+    const allBySlug = new Map();
 
     // 1. Check for Duplicate Entities
-    entities.forEach((ent, index) => {
+    allEntities.forEach((ent, index) => {
       if (!ent || typeof ent !== 'object') return;
       if (!ent.slug) throw new Error(`SDF Validation Error: Entity at index ${index} is missing a slug.`);
       
@@ -114,10 +126,11 @@ class ProjectAssembler {
         throw new Error(`SDF Validation Error: Duplicate entity slug detected: '${ent.slug}'.`);
       }
       entitySlugs.add(ent.slug);
+      allBySlug.set(ent.slug, ent);
     });
 
     // 2. Validate Relationships and References
-    entities.forEach((ent) => {
+    normalizedEntities.forEach((ent) => {
       const fields = Array.isArray(ent.fields) ? ent.fields : [];
       fields.forEach((field) => {
         if (!field) return;
@@ -158,6 +171,33 @@ class ProjectAssembler {
                  // Let's fail for now to catch typos.
                  throw new Error(`SDF Validation Error: Field '${ent.slug}.${field.name}' references non-existent entity '${targetSlug}'.`);
             }
+
+            if (targetSlug) {
+              const targetEntity = allBySlug.get(targetSlug);
+              const targetModule = this._normalizeEntityModule(targetEntity, { hasErpConfig });
+              const sourceModule = this._normalizeEntityModule(ent, { hasErpConfig });
+              const targetEnabled = targetModule === 'shared' ? enabledSet.size > 0 : enabledSet.has(targetModule);
+
+              if (!targetEnabled) {
+                throw new Error(
+                  `SDF Validation Error: Field '${ent.slug}.${field.name}' references entity '${targetSlug}' from disabled module '${targetModule}'.`
+                );
+              }
+
+              // Enforce module boundary: same module or shared
+              if (sourceModule !== targetModule) {
+                if (targetModule !== 'shared') {
+                  throw new Error(
+                    `SDF Validation Error: Field '${ent.slug}.${field.name}' must reference an entity in the same module or marked shared.`
+                  );
+                }
+                if (sourceModule === 'shared') {
+                  throw new Error(
+                    `SDF Validation Error: Shared entity '${ent.slug}' cannot reference module-specific entity '${targetSlug}'.`
+                  );
+                }
+              }
+            }
         }
       });
 
@@ -169,14 +209,34 @@ class ProjectAssembler {
             if (!entitySlugs.has(childSlug)) {
                 throw new Error(`SDF Validation Error: Entity '${ent.slug}' defines a child relation to non-existent entity '${childSlug}'.`);
             }
+            if (!activeSlugs.has(childSlug)) {
+                throw new Error(
+                  `SDF Validation Error: Entity '${ent.slug}' defines a child relation to '${childSlug}', which is not in an enabled module.`
+                );
+            }
             // Check FK existence in child
             const foreignKey = childConfig.foreign_key || childConfig.foreignKey;
-            const childEntity = entities.find(e => e.slug === childSlug);
+            const childEntity = allEntities.find(e => e.slug === childSlug);
             const childFields = Array.isArray(childEntity.fields) ? childEntity.fields : [];
             const hasFk = childFields.some(f => f.name === foreignKey);
             
             if (foreignKey && !hasFk) {
                  throw new Error(`SDF Validation Error: Child entity '${childSlug}' does not have the specified foreign key field '${foreignKey}' required by parent '${ent.slug}'.`);
+            }
+
+            const childModule = this._normalizeEntityModule(childEntity, { hasErpConfig });
+            const sourceModule = this._normalizeEntityModule(ent, { hasErpConfig });
+            if (sourceModule !== childModule) {
+              if (childModule !== 'shared') {
+                throw new Error(
+                  `SDF Validation Error: Child entity '${childSlug}' must be in the same module or marked shared.`
+                );
+              }
+              if (sourceModule === 'shared') {
+                throw new Error(
+                  `SDF Validation Error: Shared entity '${ent.slug}' cannot reference module-specific child '${childSlug}'.`
+                );
+              }
             }
         });
       }
@@ -364,6 +424,7 @@ chmod +x dev.sh
         slug: '__audit_logs',
         display_name: 'Audit Logs',
         display_field: 'at',
+        module: 'shared',
         system: { hidden: true },
         ui: { search: true, csv_import: false, csv_export: false, print: false },
         list: { columns: ['at', 'action', 'entity', 'entity_id', 'message'] },
@@ -384,6 +445,7 @@ chmod +x dev.sh
         slug: reportsSlug,
         display_name: 'Reports',
         display_field: 'report_date',
+        module: 'shared',
         system: { hidden: true },
         ui: { search: true, csv_import: false, csv_export: false, print: false },
         list: { columns: ['report_date', 'report_type'] },

@@ -20,14 +20,16 @@ function buildEntityListPage({
   enableBulkUpdate,
   bulkUpdateFields,
   escapeJsString,
+  importBase,
 }) {
+  const base = importBase || '..';
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
-import { ENTITIES } from '../config/entities';
-import Modal from '../components/ui/Modal';
-import { useToast } from '../components/ui/toast';
-${enableBulkUpdate ? `import DynamicForm from '../components/DynamicForm';` : ''}
+import api from '${base}/services/api';
+import { ENTITIES } from '${base}/config/entities';
+import Modal from '${base}/components/ui/Modal';
+import { useToast } from '${base}/components/ui/toast';
+${enableBulkUpdate ? `import DynamicForm from '${base}/components/DynamicForm';` : ''}
 
 interface ${entityName}Item {
   id: string;
@@ -652,15 +654,16 @@ ${enableQuickIssue ? `                    <Link
 `;
 }
 
-function buildEntityFormPage({ entity, entityName, fieldDefs, childSections, escapeJsString }) {
+function buildEntityFormPage({ entity, entityName, fieldDefs, childSections, escapeJsString, importBase }) {
   const hasChildren = Array.isArray(childSections) && childSections.length > 0;
+  const base = importBase || '..';
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import api from '../services/api';
-import DynamicForm from '../components/DynamicForm';
-import Modal from '../components/ui/Modal';
-import { useToast } from '../components/ui/toast';
-import { ENTITIES } from '../config/entities';
+import api from '${base}/services/api';
+import DynamicForm from '${base}/components/DynamicForm';
+import Modal from '${base}/components/ui/Modal';
+import { useToast } from '${base}/components/ui/toast';
+import { ENTITIES } from '${base}/config/entities';
 
 const fieldDefinitions = [
 ${fieldDefs}
@@ -985,9 +988,10 @@ export default function ${entityName}FormPage() {
 `;
 }
 
-function buildEntityImportPage({ entity, entityName, fieldDefs, escapeJsString }) {
+function buildEntityImportPage({ entity, entityName, fieldDefs, escapeJsString, importBase }) {
+  const base = importBase || '..';
   return `import { Link, useNavigate } from 'react-router-dom';
-import ImportCsvTool from '../components/tools/ImportCsvTool';
+import ImportCsvTool from '${base}/components/tools/ImportCsvTool';
 
 const fieldDefinitions = [
 ${fieldDefs}
@@ -1021,12 +1025,13 @@ export default function ${entityName}ImportPage() {
 `;
 }
 
-function buildReceivePage({ entity, entityName, invCfg, entityLocationField }) {
+function buildReceivePage({ entity, entityName, invCfg, entityLocationField, importBase }) {
+  const base = importBase || '..';
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import api from '../services/api';
-import { ENTITIES } from '../config/entities';
-import { useToast } from '../components/ui/toast';
+import api from '${base}/services/api';
+import { ENTITIES } from '${base}/config/entities';
+import { useToast } from '${base}/components/ui/toast';
 
 const INV = ${JSON.stringify(invCfg, null, 2)} as const;
 const ENTITY_SLUG = '${entity.slug}' as const;
@@ -1203,12 +1208,13 @@ export default function ${entityName}ReceivePage() {
 `;
 }
 
-function buildIssuePage({ entity, entityName, invCfg, entityLocationField, issueLabel, escapeJsString }) {
+function buildIssuePage({ entity, entityName, invCfg, entityLocationField, issueLabel, escapeJsString, importBase }) {
+  const base = importBase || '..';
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import api from '../services/api';
-import { ENTITIES } from '../config/entities';
-import { useToast } from '../components/ui/toast';
+import api from '${base}/services/api';
+import { ENTITIES } from '${base}/config/entities';
+import { useToast } from '${base}/components/ui/toast';
 
 const INV = ${JSON.stringify(invCfg, null, 2)} as const;
 const ENTITY_SLUG = '${entity.slug}' as const;
@@ -1396,12 +1402,13 @@ export default function ${entityName}IssuePage() {
 `;
 }
 
-function buildAdjustPage({ entity, entityName, invCfg }) {
+function buildAdjustPage({ entity, entityName, invCfg, importBase }) {
+  const base = importBase || '..';
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import { ENTITIES } from '../config/entities';
-import { useToast } from '../components/ui/toast';
+import api from '${base}/services/api';
+import { ENTITIES } from '${base}/config/entities';
+import { useToast } from '${base}/components/ui/toast';
 
 const INV = ${JSON.stringify(invCfg, null, 2)} as const;
 const ENTITY_SLUG = '${entity.slug}' as const;
@@ -1556,12 +1563,13 @@ export default function ${entityName}AdjustPage() {
 `;
 }
 
-function buildTransferPage({ entity, entityName, invCfg, entityLocationField }) {
+function buildTransferPage({ entity, entityName, invCfg, entityLocationField, importBase }) {
+  const base = importBase || '..';
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import { ENTITIES } from '../config/entities';
-import { useToast } from '../components/ui/toast';
+import api from '${base}/services/api';
+import { ENTITIES } from '${base}/config/entities';
+import { useToast } from '${base}/components/ui/toast';
 
 const INV = ${JSON.stringify(invCfg, null, 2)} as const;
 const ENTITY_SLUG = '${entity.slug}' as const;
@@ -1752,12 +1760,13 @@ export default function ${entityName}TransferPage() {
 `;
 }
 
-function buildLabelsPage({ entity, entityName, labelsCfg }) {
+function buildLabelsPage({ entity, entityName, labelsCfg, importBase }) {
+  const base = importBase || '..';
   return `import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
-import { ENTITIES } from '../config/entities';
-import { useToast } from '../components/ui/toast';
+import api from '${base}/services/api';
+import { ENTITIES } from '${base}/config/entities';
+import { useToast } from '${base}/components/ui/toast';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
 

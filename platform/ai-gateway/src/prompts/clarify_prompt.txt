@@ -11,6 +11,12 @@
 - For `choice` questions you MAY include `options` (array of strings).
 - Do not include any extra text, explanations, or markdown formatting outside of the main JSON object.
 
+# ERP MODULE TAGGING:
+If multiple ERP modules are requested (inventory, invoice, HR):
+- Set `modules.inventory|invoice|hr` with `{ "enabled": true/false }`.
+- Tag entities with `entity.module` = `inventory` | `invoice` | `hr`.
+- Use `entity.module = "shared"` for entities used by multiple modules.
+
 # FIELD TYPE RULES (CRITICAL):
 - Each field MUST have `type` that is one of:
   `string`, `text`, `integer`, `decimal`, `number`, `boolean`, `date`, `datetime`, `reference`

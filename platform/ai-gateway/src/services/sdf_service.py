@@ -614,7 +614,14 @@ class SDFService:
         # -------------------------------------------------------------------------
         # Scope Guardrails: Whitelist validation for Modules and Features
         # -------------------------------------------------------------------------
-        ALLOWED_MODULES = {"activity_log", "inventory_dashboard", "scheduled_reports"}
+        ALLOWED_MODULES = {
+            "activity_log",
+            "inventory_dashboard",
+            "scheduled_reports",
+            "inventory",
+            "invoice",
+            "hr",
+        }
         ALLOWED_FEATURES = {"audit_trail", "batch_tracking", "serial_tracking", "multi_location"}
 
         # 1. Validate Modules

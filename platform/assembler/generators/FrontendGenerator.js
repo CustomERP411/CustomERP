@@ -24,6 +24,7 @@ class FrontendGenerator {
     this.brickRepo = brickRepo;
     this.modules = {};
     this.moduleMap = {};
+    this._moduleDirs = new Set();
   }
 
   setModules(modules) {
@@ -32,6 +33,19 @@ class FrontendGenerator {
 
   setModuleMap(moduleMap) {
     this.moduleMap = moduleMap && typeof moduleMap === 'object' ? moduleMap : {};
+  }
+
+  _getModuleKey(entity) {
+    const raw = entity && (entity.module || entity.module_slug || entity.moduleSlug);
+    const cleaned = String(raw || 'inventory').trim().toLowerCase();
+    return cleaned || 'inventory';
+  }
+
+  async _ensureModuleDirs(outputDir, moduleKey) {
+    if (this._moduleDirs.has(moduleKey)) return;
+    const modulePagesDir = path.join(outputDir, 'modules', moduleKey, 'pages');
+    await fs.mkdir(modulePagesDir, { recursive: true });
+    this._moduleDirs.add(moduleKey);
   }
 
   async scaffold(outputDir, sdf = {}) {
@@ -44,7 +58,8 @@ class FrontendGenerator {
       'src/pages',
       'src/services',
       'src/utils',
-      'public'
+      'public',
+      'modules'
     ];
 
     for (const dir of dirs) {
@@ -149,7 +164,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     // tailwind.config.js
     const tailwindConfig = `/** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}", "./modules/**/*.{js,ts,jsx,tsx}"],
   theme: { extend: {} },
   plugins: [],
 };`;
@@ -180,7 +195,7 @@ export default defineConfig({
         jsx: "react-jsx",
         strict: true
       },
-      include: ["src"]
+      include: ["src", "modules"]
     };
     await fs.writeFile(path.join(outputDir, 'tsconfig.json'), JSON.stringify(tsConfig, null, 2));
 
@@ -335,6 +350,8 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const imports = visibleEntities
       .map((e) => {
         const cap = this._capitalize(e.slug);
+        const moduleKey = this._getModuleKey(e);
+        const modulePageBase = `../modules/${moduleKey}/pages/${cap}`;
         const wantImport = (e.ui || {}).csv_import !== false;
         const inv = e.inventory_ops || e.inventoryOps || {};
         const invEnabled = inv.enabled === true;
@@ -351,14 +368,14 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         const labels = e.labels || {};
         const enableLabels = labels.enabled === true && labels.type === 'qrcode';
         return [
-          `import ${cap}Page from './pages/${cap}Page';`,
-          `import ${cap}FormPage from './pages/${cap}FormPage';`,
-          wantImport ? `import ${cap}ImportPage from './pages/${cap}ImportPage';` : '',
-          enableReceive ? `import ${cap}ReceivePage from './pages/${cap}ReceivePage';` : '',
-          enableIssue ? `import ${cap}IssuePage from './pages/${cap}IssuePage';` : '',
-          enableAdjust ? `import ${cap}AdjustPage from './pages/${cap}AdjustPage';` : '',
-          canTransfer ? `import ${cap}TransferPage from './pages/${cap}TransferPage';` : '',
-          enableLabels ? `import ${cap}LabelsPage from './pages/${cap}LabelsPage';` : '',
+          `import ${cap}Page from '${modulePageBase}Page';`,
+          `import ${cap}FormPage from '${modulePageBase}FormPage';`,
+          wantImport ? `import ${cap}ImportPage from '${modulePageBase}ImportPage';` : '',
+          enableReceive ? `import ${cap}ReceivePage from '${modulePageBase}ReceivePage';` : '',
+          enableIssue ? `import ${cap}IssuePage from '${modulePageBase}IssuePage';` : '',
+          enableAdjust ? `import ${cap}AdjustPage from '${modulePageBase}AdjustPage';` : '',
+          canTransfer ? `import ${cap}TransferPage from '${modulePageBase}TransferPage';` : '',
+          enableLabels ? `import ${cap}LabelsPage from '${modulePageBase}LabelsPage';` : '',
         ].filter(Boolean).join('\n');
       })
       .join('\n');
@@ -445,6 +462,11 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
   }
 
   async generateEntityPage(outputDir, entity, allEntities, sdf = {}) {
+    const moduleKey = this._getModuleKey(entity);
+    await this._ensureModuleDirs(outputDir, moduleKey);
+    const modulePagesDir = path.join(outputDir, 'modules', moduleKey, 'pages');
+    const importBase = '../../src';
+
     const entityName = this._capitalize(entity.slug);
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
 
@@ -533,6 +555,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       enableBulkUpdate,
       bulkUpdateFields,
       escapeJsString: (s) => this._escapeJsString(s),
+      importBase,
     });
 
     // Optional embedded children/line-items sections (generic)
@@ -606,10 +629,11 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       fieldDefs,
       childSections,
       escapeJsString: (s) => this._escapeJsString(s),
+      importBase,
     });
 
-    await fs.writeFile(path.join(outputDir, `src/pages/${entityName}Page.tsx`), listPageContent);
-    await fs.writeFile(path.join(outputDir, `src/pages/${entityName}FormPage.tsx`), formPageContent);
+    await fs.writeFile(path.join(modulePagesDir, `${entityName}Page.tsx`), listPageContent);
+    await fs.writeFile(path.join(modulePagesDir, `${entityName}FormPage.tsx`), formPageContent);
 
     if (enableCsvImport) {
       const importPageContent = buildEntityImportPage({
@@ -617,8 +641,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         entityName,
         fieldDefs,
         escapeJsString: (s) => this._escapeJsString(s),
+        importBase,
       });
-      await fs.writeFile(path.join(outputDir, `src/pages/${entityName}ImportPage.tsx`), importPageContent);
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}ImportPage.tsx`), importPageContent);
     }
 
     // ===================== Tier 2: Inventory ops wizards (optional) =====================
@@ -712,8 +737,8 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         (entityHasLocationIds ? 'location_ids' : (entityHasLocationId ? 'location_id' : null));
 
       if (enableReceive) {
-        const receivePageContent = buildReceivePage({ entity, entityName, invCfg, entityLocationField });
-        await fs.writeFile(path.join(outputDir, `src/pages/${entityName}ReceivePage.tsx`), receivePageContent);
+        const receivePageContent = buildReceivePage({ entity, entityName, invCfg, entityLocationField, importBase });
+        await fs.writeFile(path.join(modulePagesDir, `${entityName}ReceivePage.tsx`), receivePageContent);
       }
 
       if (enableIssue) {
@@ -724,18 +749,19 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           entityLocationField,
           issueLabel,
           escapeJsString: (s) => this._escapeJsString(s),
+          importBase,
         });
-        await fs.writeFile(path.join(outputDir, `src/pages/${entityName}IssuePage.tsx`), issuePageContent);
+        await fs.writeFile(path.join(modulePagesDir, `${entityName}IssuePage.tsx`), issuePageContent);
       }
 
       if (enableAdjust) {
-        const adjustPageContent = buildAdjustPage({ entity, entityName, invCfg });
-        await fs.writeFile(path.join(outputDir, `src/pages/${entityName}AdjustPage.tsx`), adjustPageContent);
+        const adjustPageContent = buildAdjustPage({ entity, entityName, invCfg, importBase });
+        await fs.writeFile(path.join(modulePagesDir, `${entityName}AdjustPage.tsx`), adjustPageContent);
       }
 
       if (canTransfer) {
-        const transferPageContent = buildTransferPage({ entity, entityName, invCfg, entityLocationField });
-        await fs.writeFile(path.join(outputDir, `src/pages/${entityName}TransferPage.tsx`), transferPageContent);
+        const transferPageContent = buildTransferPage({ entity, entityName, invCfg, entityLocationField, importBase });
+        await fs.writeFile(path.join(modulePagesDir, `${entityName}TransferPage.tsx`), transferPageContent);
       }
     }
 
@@ -751,9 +777,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         scan: labels.scan === true,
       };
 
-      const labelsPageContent = buildLabelsPage({ entity, entityName, labelsCfg });
+      const labelsPageContent = buildLabelsPage({ entity, entityName, labelsCfg, importBase });
 
-      await fs.writeFile(path.join(outputDir, `src/pages/${entityName}LabelsPage.tsx`), labelsPageContent);
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}LabelsPage.tsx`), labelsPageContent);
     }
   }
 

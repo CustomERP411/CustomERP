@@ -19,6 +19,7 @@ Each object in `entities[]` MUST contain:
 It MAY contain:
 - `display_name` (string)
 - `display_field` (string)  <-- human readable field to show when referenced
+- `module` (string)  <-- ERP module tag: inventory | invoice | hr | shared
 - `ui` (object): `{ search, csv_import, csv_export, print }`
 - `list` (object): `{ columns: [fieldName...] }`
 - `features`, `bulk_actions`, `inventory_ops`, `labels` (objects) as documented in SDF_REFERENCE.md
@@ -52,6 +53,13 @@ If the description mentions inventory, stock, low-stock alerts, expiry, movement
 - `modules.scheduled_reports` (optional) with `entity_snapshots` if useful
 - per-entity `inventory_ops` and `labels` when applicable
 But keep features optional: only enable modules explicitly when clearly requested or strongly implied.
+
+# ERP MODULE TAGGING (IF MULTI-MODULE IS REQUESTED):
+If the user wants multiple ERP modules (inventory, invoice, HR):
+- Set `modules.inventory|invoice|hr` with `{ "enabled": true/false }`.
+- Tag each entity with `entity.module` = `inventory` | `invoice` | `hr`.
+- Use `entity.module = "shared"` for entities used by multiple modules (e.g., `customers`).
+- If not specified, default to inventory behavior (omit `entity.module` and `modules.inventory`).
 
 # INVENTORY PATTERN (IF INVENTORY IS IMPLIED):
 If the user is describing inventory/stock management, prefer this practical pattern:

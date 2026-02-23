@@ -139,6 +139,7 @@ Key files (see `platform/assembler/`):
 Flow:
 1. Read SDF and resolve modules/features.
    - Compute ERP module map, default untagged entities to `inventory`, and filter disabled modules.
+   - Enforce module boundaries (references must target same module or `shared`).
    - Validate SDF before generation (duplicate entities, reference integrity, children foreign keys).
 2. Generate backend (services, routes, data layer).
    - CodeWeaver fails fast on missing/duplicate hook markers.
@@ -179,11 +180,10 @@ Entity fields:
 - `module` (optional: `inventory`, `invoice`, `hr`, or `shared`; defaults to `inventory`)
 - `inventory_ops` for wizards
 
-Note: `entity.module` and ERP module config are pending a formal schema update in `SDF_REFERENCE.md` (BTB).
-
 Relations:
 - `reference` fields in entities
 - optional `children` for embedded line items
+- References must target the same ERP module or a `shared` entity
 
 Global modules:
 - activity log
@@ -204,14 +204,37 @@ generated/
     ├── Dockerfile
     ├── README.md
     ├── package.json
-    ├── src/
-    │   ├── index.js
-    │   ├── routes/
-    │   ├── services/
-    │   └── repository/
-    ├── frontend/
-    │   └── src/
-    └── data/
+    ├── backend/
+    │   ├── Dockerfile
+    │   ├── docker-compose.yml
+    │   ├── package.json
+    │   ├── README.md
+    │   ├── data/
+    │   ├── src/
+    │   │   ├── index.js
+    │   │   ├── routes/
+    │   │   │   └── index.js
+    │   │   └── repository/
+    │   └── modules/
+    │       ├── inventory/
+    │       │   └── src/{controllers,routes,services,repository}
+    │       ├── invoice/
+    │       │   └── src/{controllers,routes,services,repository}
+    │       ├── hr/
+    │       │   └── src/{controllers,routes,services,repository}
+    │       └── shared/
+    │           └── src/{controllers,routes,services,repository}
+    └── frontend/
+        ├── src/
+        │   ├── App.tsx
+        │   ├── components/
+        │   ├── config/
+        │   └── pages/
+        └── modules/
+            ├── inventory/pages/
+            ├── invoice/pages/
+            ├── hr/pages/
+            └── shared/pages/
 ```
 
 Data storage is flat JSON files in Increment 1.

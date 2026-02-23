@@ -86,6 +86,11 @@ class Entity(BaseModel):
     slug: str = Field(..., description="Unique identifier for the entity (e.g., 'products').")
     display_name: Optional[str] = Field(default=None, description="UI label shown in navigation/pages.")
     display_field: Optional[str] = Field(default=None, description="Human-readable field for references.")
+    module: Optional[str] = Field(
+        default=None,
+        description="ERP module tag (inventory, invoice, hr, shared).",
+        validation_alias=AliasChoices("module", "module_slug", "moduleSlug"),
+    )
 
     # Optional generator configs (kept flexible; validated in generator)
     ui: Optional[Dict[str, Any]] = None
@@ -112,7 +117,10 @@ class SystemDefinitionFile(BaseModel):
         description="Human name for the generated ERP project.",
         validation_alias=AliasChoices("project_name", "projectName", "schema_name", "schemaName"),
     )
-    modules: Optional[Dict[str, Any]] = Field(default=None, description="Global module configuration.")
+    modules: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Global module configuration and ERP module toggles (inventory, invoice, hr).",
+    )
     entities: List[Entity] = Field(..., description="List of entity definitions.")
 
     # AI-only extension

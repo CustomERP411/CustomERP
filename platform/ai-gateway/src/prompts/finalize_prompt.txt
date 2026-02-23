@@ -13,6 +13,12 @@
 - Follow all `SDF_REFERENCE` rules (types, relationships, etc.).
 - `clarifications_needed`: [] (MUST BE EMPTY).
 
+# ERP MODULE TAGGING:
+If multiple ERP modules are requested (inventory, invoice, HR):
+- Set `modules.inventory|invoice|hr` with `{ "enabled": true/false }`.
+- Tag entities with `entity.module` = `inventory` | `invoice` | `hr`.
+- Use `entity.module = "shared"` for entities used by multiple modules.
+
 # CURRENT CONTEXT:
 
 ## Business Description:

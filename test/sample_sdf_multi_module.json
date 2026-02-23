@@ -7,6 +7,17 @@
   },
   "entities": [
     {
+      "slug": "customers",
+      "display_name": "Customers",
+      "display_field": "name",
+      "module": "shared",
+      "fields": [
+        { "name": "name", "type": "string", "label": "Name", "required": true },
+        { "name": "email", "type": "string", "label": "Email", "required": false }
+      ],
+      "features": {}
+    },
+    {
       "slug": "products",
       "display_name": "Products",
       "display_field": "name",
@@ -24,7 +35,8 @@
       "module": "invoice",
       "fields": [
         { "name": "number", "type": "string", "label": "Invoice #", "required": true },
-        { "name": "total", "type": "decimal", "label": "Total", "required": true }
+        { "name": "total", "type": "decimal", "label": "Total", "required": true },
+        { "name": "customer_id", "type": "reference", "label": "Customer", "required": true, "reference_entity": "customers" }
       ],
       "features": {}
     },

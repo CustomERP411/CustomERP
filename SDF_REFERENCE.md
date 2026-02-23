@@ -11,8 +11,20 @@ Use it as the authoritative reference when writing or generating SDF JSON files.
 An SDF file is a JSON object:
 
 - **`project_name`** *(string, required)*: Human name for the generated ERP project.
-- **`modules`** *(object, optional)*: Enables/disables global modules (dashboard widgets, activity log, reports).
+- **`modules`** *(object, optional)*: Enables/disables global modules (dashboard widgets, activity log, reports) **and** ERP modules (`inventory`, `invoice`, `hr`).
 - **`entities`** *(array, required)*: List of entity definitions (tables/resources) to generate.
+
+### ERP module toggles (optional)
+Use `modules.inventory|invoice|hr` to enable/disable ERP modules:
+```json
+{
+  "modules": {
+    "inventory": { "enabled": true },
+    "invoice": { "enabled": true },
+    "hr": { "enabled": false }
+  }
+}
+```
 
 ---
 
@@ -34,6 +46,11 @@ Each entry in `entities[]` defines one API resource + UI pages.
   - The “human readable” field for this entity (e.g. `name`, `sku`, `code`).
   - Used when rendering references in tables and selects.
   - Default fallback order: `display_field` → `name` → `sku` → first non-system field → `id`.
+
+- **`module`** *(string, optional)*: ERP module grouping for the entity.
+  - Allowed: `inventory`, `invoice`, `hr`, `shared`.
+  - Default: `inventory` when not specified.
+  - Use `shared` for entities used by multiple modules (e.g., `customers`).
 
 ### UI configuration (per-entity)
 

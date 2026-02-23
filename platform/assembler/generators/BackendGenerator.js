@@ -10,6 +10,7 @@ class BackendGenerator {
     this.brickRepo = brickRepo;
     this.modules = {};
     this.moduleMap = {};
+    this._moduleDirs = new Set();
     const customMixinsPath =
       process.env.CUSTOM_MIXINS_PATH ||
       path.resolve(this.brickRepo.libraryPath, '..', 'custom_mixins');
@@ -27,6 +28,35 @@ class BackendGenerator {
     this.moduleMap = moduleMap && typeof moduleMap === 'object' ? moduleMap : {};
   }
 
+  _getModuleKey(entity) {
+    const raw = entity && (entity.module || entity.module_slug || entity.moduleSlug);
+    const cleaned = String(raw || 'inventory').trim().toLowerCase();
+    return cleaned || 'inventory';
+  }
+
+  async _ensureModuleDirs(outputDir, moduleKey) {
+    if (this._moduleDirs.has(moduleKey)) return;
+
+    const moduleRoot = path.join(outputDir, 'modules', moduleKey);
+    const dirs = [
+      'src/controllers',
+      'src/routes',
+      'src/services',
+      'src/repository',
+    ];
+
+    for (const dir of dirs) {
+      await fs.mkdir(path.join(moduleRoot, dir), { recursive: true });
+    }
+
+    await this.brickRepo.copyFile(
+      'backend-bricks/repository/FlatFileProvider.js',
+      path.join(moduleRoot, 'src/repository/FlatFileProvider.js')
+    );
+
+    this._moduleDirs.add(moduleKey);
+  }
+
   async scaffold(outputDir, projectId) {
     // 1. Create directory structure
     const dirs = [
@@ -34,7 +64,8 @@ class BackendGenerator {
       'src/routes',
       'src/services',
       'src/repository',
-      'data'
+      'data',
+      'modules'
     ];
 
     for (const dir of dirs) {
@@ -67,6 +98,11 @@ class BackendGenerator {
   }
 
   async generateEntity(outputDir, entity, allEntities = []) {
+    const moduleKey = this._getModuleKey(entity);
+    await this._ensureModuleDirs(outputDir, moduleKey);
+    const moduleRoot = path.join(outputDir, 'modules', moduleKey);
+    const moduleSrcDir = path.join(moduleRoot, 'src');
+
     const context = {
       EntityName: this._capitalize(entity.slug), // e.g., "products" -> "Products"
       entitySlug: entity.slug,
@@ -79,18 +115,18 @@ class BackendGenerator {
     // CodeWeaver is primarily for Service logic injection
     const controllerContent = TemplateEngine.render(controllerTemplate, context);
     await fs.writeFile(
-      path.join(outputDir, `src/controllers/${context.EntityName}Controller.js`),
+      path.join(moduleSrcDir, `controllers/${context.EntityName}Controller.js`),
       controllerContent
     );
 
     // 2. Generate Service (The complex part with Mixins)
-    await this._generateService(outputDir, entity, context, allEntities);
+    await this._generateService(moduleSrcDir, entity, context, allEntities);
 
     // 3. Generate Route File
-    await this._generateEntityRoute(outputDir, entity, context);
+    await this._generateEntityRoute(moduleSrcDir, entity, context);
   }
 
-  async _generateService(outputDir, entity, context, allEntities = []) {
+  async _generateService(moduleSrcDir, entity, context, allEntities = []) {
     // Load BaseService template
     const serviceTemplate = await this.brickRepo.getTemplate('BaseService.js.hbs');
 
@@ -113,7 +149,7 @@ class BackendGenerator {
     finalContent = TemplateEngine.render(finalContent, context);
 
     await fs.writeFile(
-      path.join(outputDir, `src/services/${context.EntityName}Service.js`),
+      path.join(moduleSrcDir, `services/${context.EntityName}Service.js`),
       finalContent
     );
   }
@@ -365,7 +401,7 @@ class BackendGenerator {
     return result;
   }
 
-  async _generateEntityRoute(outputDir, entity, context) {
+  async _generateEntityRoute(moduleSrcDir, entity, context) {
     const routeTemplate = `
 const express = require('express');
 const router = express.Router();
@@ -383,7 +419,7 @@ module.exports = router;
 `;
     const content = TemplateEngine.render(routeTemplate, context);
     await fs.writeFile(
-      path.join(outputDir, `src/routes/${entity.slug}Routes.js`),
+      path.join(moduleSrcDir, `routes/${entity.slug}Routes.js`),
       content
     );
   }
@@ -394,7 +430,8 @@ module.exports = router;
 
     entities.forEach(entity => {
       const slug = entity.slug;
-      imports += `const ${slug}Router = require('./${slug}Routes');\n`;
+      const moduleKey = this._getModuleKey(entity);
+      imports += `const ${slug}Router = require('../../modules/${moduleKey}/src/routes/${slug}Routes');\n`;
       mappings += `router.use('/${slug}', ${slug}Router);\n`;
     });
 

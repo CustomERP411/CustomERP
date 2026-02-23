@@ -20,10 +20,17 @@ export default function Sidebar() {
       
       <div className="flex-1 px-4 py-4 space-y-1">
         <Link 
-          to="/" 
+          to="/projects" 
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white"
         >
           <span>Projects</span>
+        </Link>
+        
+        <Link 
+          to="/invoices" 
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white"
+        >
+          <span>Invoices</span>
         </Link>
         
         {/* Placeholder for future links */}

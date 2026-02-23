@@ -10,6 +10,11 @@ const { buildApp } = require('./frontend/app');
 const { buildSidebar } = require('./frontend/sidebar');
 const { buildInvoiceListPage } = require('./frontend/invoicePages');
 const {
+  buildEmployeeListPage,
+  buildDepartmentListPage,
+  buildLeaveListPage,
+} = require('./frontend/hrPages');
+const {
   buildEntityListPage,
   buildEntityFormPage,
   buildEntityImportPage,
@@ -474,6 +479,15 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       isInvoiceEntity &&
       ((entity.features && (entity.features.print_invoice === true || entity.features.printInvoice === true)) || false);
 
+    // HR entity detection
+    const isHrModule = moduleKey === 'hr';
+    const entitySlug = String(entity.slug || '');
+    const isEmployeeEntity = isHrModule && entitySlug === 'employees';
+    const isDepartmentEntity = isHrModule && entitySlug === 'departments';
+    const isLeaveEntity = isHrModule && (entitySlug === 'leaves' || entitySlug === 'leave_requests');
+    const rawHrConfig = sdf && sdf.modules ? sdf.modules.hr : null;
+    const hrConfig = rawHrConfig && typeof rawHrConfig === 'object' ? rawHrConfig : {};
+
     const entityName = this._capitalize(entity.slug);
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
 
@@ -546,6 +560,30 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           entityName,
           importBase,
           invoiceConfig,
+          title: this._escapeJsString(entity.display_name || entityName),
+        })
+      : isEmployeeEntity
+      ? buildEmployeeListPage({
+          entity,
+          entityName,
+          importBase,
+          hrConfig,
+          title: this._escapeJsString(entity.display_name || entityName),
+        })
+      : isDepartmentEntity
+      ? buildDepartmentListPage({
+          entity,
+          entityName,
+          importBase,
+          hrConfig,
+          title: this._escapeJsString(entity.display_name || entityName),
+        })
+      : isLeaveEntity
+      ? buildLeaveListPage({
+          entity,
+          entityName,
+          importBase,
+          hrConfig,
           title: this._escapeJsString(entity.display_name || entityName),
         })
       : buildEntityListPage({

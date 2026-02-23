@@ -61,6 +61,19 @@ If the user wants multiple ERP modules (inventory, invoice, HR):
 - Use `entity.module = "shared"` for entities used by multiple modules (e.g., `customers`).
 - If not specified, default to inventory behavior (omit `entity.module` and `modules.inventory`).
 
+# HR PATTERN (IF HR/EMPLOYEES IMPLIED):
+If the user mentions employees, staff, leaves, or departments:
+- Enable `modules.hr` with `{ "enabled": true }`.
+- Create `employees` entity with:
+  - `first_name`, `last_name`, `email`, `phone`, `job_title`, `hire_date`
+  - `department_id` (reference to `departments`)
+  - `status` (string, options: ["Active", "Terminated", "On Leave"])
+  - `salary` (decimal)
+- Create `departments` entity with:
+  - `name`, `location`, `manager_id` (reference to `employees`)
+- Create `leaves` entity with:
+  - `employee_id` (reference), `leave_type`, `start_date`, `end_date`, `reason`, `status`
+
 # INVOICE PATTERN (IF INVOICING IS IMPLIED):
 If the user mentions billing, invoices, payments, or quote-to-cash:
 - Enable `modules.invoice` with `{ "enabled": true, "tax_rate": 0, "currency": "USD" }`.

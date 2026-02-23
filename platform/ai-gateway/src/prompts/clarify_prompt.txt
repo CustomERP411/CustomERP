@@ -22,6 +22,11 @@ If multiple ERP modules are requested (inventory, invoice, HR):
   `string`, `text`, `integer`, `decimal`, `number`, `boolean`, `date`, `datetime`, `reference`
 - Selectable/enum fields: use `type: "string"` with `options: [...]` (do NOT use `type: "enum"`).
 
+# HR PATTERN (IF HR/EMPLOYEES IMPLIED):
+If the user mentions employees/staff:
+- Enable `modules.hr`.
+- Ensure `employees` (with `department_id`), `departments`, and `leaves` entities exist.
+
 # INVOICE PATTERN (IF INVOICING IS IMPLIED):
 If the user mentions billing/invoices:
 - Enable `modules.invoice` with `{ "enabled": true, "tax_rate": 0, "currency": "USD" }`.

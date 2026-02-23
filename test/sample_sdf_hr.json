@@ -1,0 +1,56 @@
+{
+  "project_name": "TechCorp HR",
+  "modules": {
+    "hr": {
+      "enabled": true,
+      "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      "daily_hours": 8
+    }
+  },
+  "entities": [
+    {
+      "slug": "departments",
+      "display_name": "Departments",
+      "display_field": "name",
+      "module": "hr",
+      "fields": [
+        { "name": "name", "type": "string", "required": true, "unique": true },
+        { "name": "location", "type": "string" },
+        { "name": "manager_id", "type": "reference", "reference_entity": "employees" }
+      ]
+    },
+    {
+      "slug": "employees",
+      "display_name": "Employees",
+      "display_field": "first_name",
+      "module": "hr",
+      "features": {
+        "audit_trail": true
+      },
+      "fields": [
+        { "name": "first_name", "type": "string", "required": true },
+        { "name": "last_name", "type": "string", "required": true },
+        { "name": "email", "type": "string", "required": true, "unique": true },
+        { "name": "phone", "type": "string" },
+        { "name": "job_title", "type": "string", "required": true },
+        { "name": "department_id", "type": "reference", "reference_entity": "departments", "required": true },
+        { "name": "hire_date", "type": "date", "required": true },
+        { "name": "salary", "type": "decimal" },
+        { "name": "status", "type": "string", "options": ["Active", "Terminated", "On Leave"], "required": true }
+      ]
+    },
+    {
+      "slug": "leaves",
+      "display_name": "Leave Requests",
+      "module": "hr",
+      "fields": [
+        { "name": "employee_id", "type": "reference", "reference_entity": "employees", "required": true },
+        { "name": "leave_type", "type": "string", "options": ["Sick", "Vacation", "Unpaid"], "required": true },
+        { "name": "start_date", "type": "date", "required": true },
+        { "name": "end_date", "type": "date", "required": true },
+        { "name": "reason", "type": "text" },
+        { "name": "status", "type": "string", "options": ["Pending", "Approved", "Rejected"], "required": true }
+      ]
+    }
+  ]
+}

@@ -19,6 +19,11 @@ If multiple ERP modules are requested (inventory, invoice, HR):
 - Tag entities with `entity.module` = `inventory` | `invoice` | `hr`.
 - Use `entity.module = "shared"` for entities used by multiple modules.
 
+# HR PATTERN:
+If HR is enabled:
+- `modules.hr`: { "enabled": true }
+- `employees`: `status` (Active/Terminated/On Leave), `features.audit_trail: true`.
+
 # INVOICE PATTERN:
 If invoicing is enabled:
 - `modules.invoice`: { "enabled": true, "tax_rate": 0, "currency": "USD" }

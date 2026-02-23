@@ -54,6 +54,29 @@ When enabled, the generator expects (or auto-generates) these entities:
 
 ---
 
+## HR Module (`modules.hr`)
+
+Enables employee management, department structure, and leave tracking.
+
+- **`modules.hr.enabled`** *(boolean)*
+- **`modules.hr.work_days`** *(array, default ["Mon", "Tue", "Wed", "Thu", "Fri"])*: Working days.
+- **`modules.hr.daily_hours`** *(number, default 8)*: Standard daily working hours.
+
+### Expected Entities
+When enabled, the generator expects (or auto-generates) these entities:
+
+1. **`employees`**
+   - **Fields**: `first_name`, `last_name`, `email`, `phone`, `department_id` (reference), `job_title`, `hire_date`, `status` (Active, Terminated, On Leave), `salary` (decimal).
+   - **Features**: `features.audit_trail: true`.
+
+2. **`departments`**
+   - **Fields**: `name`, `manager_id` (reference to `employees`), `location`.
+
+3. **`leaves`** (Time Off)
+   - **Fields**: `employee_id` (reference), `leave_type` (Sick, Vacation, Unpaid), `start_date`, `end_date`, `reason`, `status` (Pending, Approved, Rejected).
+
+---
+
 ## Entity object
 
 Each entry in `entities[]` defines one API resource + UI pages.

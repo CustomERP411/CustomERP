@@ -230,6 +230,16 @@ class BackendGenerator {
       addMixin('InvoiceItemsMixin', invoiceConfig, 'modules');
     }
 
+    if (moduleKey === 'hr' && slug === 'employees') {
+      addMixin('HREmployeeMixin');
+    }
+    if (moduleKey === 'hr' && slug === 'departments') {
+      addMixin('HRDepartmentMixin');
+    }
+    if (moduleKey === 'hr' && slug === 'leaves') {
+      addMixin('HRLeaveMixin');
+    }
+
     const explicitMixins = this._normalizeExplicitMixins(entity);
     for (const entry of explicitMixins) {
       if (entry.enabled === false) {
@@ -321,6 +331,9 @@ class BackendGenerator {
       'LocationMixin',
       'InvoiceMixin',
       'InvoiceItemsMixin',
+      'HREmployeeMixin',
+      'HRDepartmentMixin',
+      'HRLeaveMixin',
     ];
 
     const byName = new Map();

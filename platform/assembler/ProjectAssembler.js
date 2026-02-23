@@ -191,6 +191,35 @@ class ProjectAssembler {
       ensureFields(itemsEntity, ['invoice_id', 'description', 'quantity', 'unit_price', 'line_total'], 'invoice_items');
     }
 
+    const hrEnabled = enabledSet.has('hr');
+    if (hrEnabled) {
+      const employeesEntity = requireEntity('employees', 'employee list');
+      const departmentsEntity = requireEntity('departments', 'department list');
+      const leavesEntity = requireEntity('leaves', 'leave requests');
+
+      const employeesModule = this._normalizeEntityModule(employeesEntity, { hasErpConfig });
+      const departmentsModule = this._normalizeEntityModule(departmentsEntity, { hasErpConfig });
+      const leavesModule = this._normalizeEntityModule(leavesEntity, { hasErpConfig });
+
+      if (employeesModule !== 'hr' && employeesModule !== 'shared') {
+        throw new Error(`SDF Validation Error: Entity 'employees' must be in module 'hr' or 'shared'.`);
+      }
+      if (departmentsModule !== 'hr') {
+        throw new Error(`SDF Validation Error: Entity 'departments' must be in module 'hr'.`);
+      }
+      if (leavesModule !== 'hr') {
+        throw new Error(`SDF Validation Error: Entity 'leaves' must be in module 'hr'.`);
+      }
+
+      ensureFields(
+        employeesEntity,
+        ['first_name', 'last_name', 'email', 'phone', 'department_id', 'job_title', 'hire_date', 'status', 'salary'],
+        'employees'
+      );
+      ensureFields(departmentsEntity, ['name', 'manager_id', 'location'], 'departments');
+      ensureFields(leavesEntity, ['employee_id', 'leave_type', 'start_date', 'end_date', 'reason', 'status'], 'leaves');
+    }
+
     // 2. Validate Relationships and References
     normalizedEntities.forEach((ent) => {
       const fields = Array.isArray(ent.fields) ? ent.fields : [];

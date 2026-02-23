@@ -1,0 +1,109 @@
+{
+  "project_name": "TechCorp HR & Warehouse",
+  "modules": {
+    "inventory": { "enabled": true },
+    "invoice": { "enabled": false },
+    "hr": {
+      "enabled": true,
+      "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      "daily_hours": 8
+    }
+  },
+  "entities": [
+    {
+      "slug": "departments",
+      "display_name": "Departments",
+      "display_field": "name",
+      "module": "hr",
+      "fields": [
+        { "name": "name", "type": "string", "required": true, "unique": true },
+        { "name": "location", "type": "string" },
+        { "name": "manager_id", "type": "reference", "reference_entity": "employees" }
+      ]
+    },
+    {
+      "slug": "employees",
+      "display_name": "Employees",
+      "display_field": "first_name",
+      "module": "hr",
+      "features": {
+        "audit_trail": true
+      },
+      "fields": [
+        { "name": "first_name", "type": "string", "required": true },
+        { "name": "last_name", "type": "string", "required": true },
+        { "name": "email", "type": "string", "required": true, "unique": true },
+        { "name": "phone", "type": "string" },
+        { "name": "job_title", "type": "string", "required": true },
+        { "name": "department_id", "type": "reference", "reference_entity": "departments", "required": true },
+        { "name": "hire_date", "type": "date", "required": true },
+        { "name": "salary", "type": "decimal" },
+        { "name": "status", "type": "string", "options": ["Active", "Terminated", "On Leave"], "required": true }
+      ]
+    },
+    {
+      "slug": "leaves",
+      "display_name": "Leave Requests",
+      "module": "hr",
+      "fields": [
+        { "name": "employee_id", "type": "reference", "reference_entity": "employees", "required": true },
+        { "name": "leave_type", "type": "string", "options": ["Sick", "Vacation", "Unpaid"], "required": true },
+        { "name": "start_date", "type": "date", "required": true },
+        { "name": "end_date", "type": "date", "required": true },
+        { "name": "reason", "type": "text" },
+        { "name": "status", "type": "string", "options": ["Pending", "Approved", "Rejected"], "required": true }
+      ]
+    },
+    {
+      "slug": "warehouses",
+      "display_name": "Warehouses",
+      "display_field": "name",
+      "module": "inventory",
+      "fields": [
+        { "name": "name", "type": "string", "required": true, "unique": true },
+        { "name": "location", "type": "string" },
+        { "name": "manager_id", "type": "reference", "reference_entity": "employees" }
+      ]
+    },
+    {
+      "slug": "products",
+      "display_name": "Products",
+      "display_field": "name",
+      "module": "inventory",
+      "features": {
+        "audit_trail": true
+      },
+      "inventory_ops": {
+        "enabled": true,
+        "quantity_field": "quantity_on_hand",
+        "receive": { "enabled": true, "label": "Receive" },
+        "sell": { "enabled": true, "label": "Issue" },
+        "quick_actions": true
+      },
+      "fields": [
+        { "name": "sku", "type": "string", "required": true, "unique": true },
+        { "name": "name", "type": "string", "required": true },
+        { "name": "description", "type": "text" },
+        { "name": "category", "type": "string", "options": ["Electronics", "Office Supplies", "Raw Materials"] },
+        { "name": "unit_price", "type": "decimal", "required": true },
+        { "name": "quantity_on_hand", "type": "integer", "required": true },
+        { "name": "reorder_level", "type": "integer" },
+        { "name": "warehouse_id", "type": "reference", "reference_entity": "warehouses", "required": true }
+      ]
+    },
+    {
+      "slug": "stock_movements",
+      "display_name": "Stock Movements",
+      "module": "inventory",
+      "fields": [
+        { "name": "product_id", "type": "reference", "reference_entity": "products", "required": true },
+        { "name": "warehouse_id", "type": "reference", "reference_entity": "warehouses", "required": true },
+        { "name": "movement_type", "type": "string", "options": ["Receive", "Issue", "Transfer", "Adjustment"], "required": true },
+        { "name": "quantity", "type": "integer", "required": true },
+        { "name": "movement_date", "type": "datetime", "required": true },
+        { "name": "performed_by", "type": "reference", "reference_entity": "employees" },
+        { "name": "notes", "type": "text" }
+      ]
+    }
+  ]
+}

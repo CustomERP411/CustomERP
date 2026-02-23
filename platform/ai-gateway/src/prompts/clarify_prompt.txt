@@ -22,6 +22,13 @@ If multiple ERP modules are requested (inventory, invoice, HR):
   `string`, `text`, `integer`, `decimal`, `number`, `boolean`, `date`, `datetime`, `reference`
 - Selectable/enum fields: use `type: "string"` with `options: [...]` (do NOT use `type: "enum"`).
 
+# INVOICE PATTERN (IF INVOICING IS IMPLIED):
+If the user mentions billing/invoices:
+- Enable `modules.invoice` with `{ "enabled": true, "tax_rate": 0, "currency": "USD" }`.
+- Ensure `invoices` (header) and `invoice_items` (lines) entities exist.
+- Use `children` on `invoices` to embed `invoice_items`.
+- Ensure `invoices` has `features.print_invoice: true`.
+
 # LINE ITEMS RULE (CRITICAL):
 If a requirement implies “a record contains a list of rows” (shipments -> many products with quantities),
 model it as TWO entities (parent + child with reference fields), not nested objects.

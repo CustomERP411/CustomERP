@@ -42,6 +42,17 @@
 #   - Row quick actions (next to Edit/Delete): `inventory_ops.quick_actions` (true or {receive:true, sell:true})
 # - Quantity wording: prefer `quantity_mode: "change"` (alias "delta") for signed quantity change UX.
 #
+# INVOICE PATTERN (IF INVOICING IS REQUESTED):
+If the user wants to add billing/invoices:
+- Enable `modules.invoice` with `{ "enabled": true, "tax_rate": 0, "currency": "USD" }`.
+- Create `invoices` entity (header) with:
+  - `invoice_number`, `issue_date`, `due_date`, `status` (Draft/Sent/Paid/Overdue)
+  - `customer_id` (reference), `subtotal`, `tax_total`, `grand_total`
+  - `features.print_invoice: true`
+- Create `invoice_items` entity (line items) with:
+  - `invoice_id` (reference), `description`, `quantity`, `unit_price`, `line_total`
+- Use `children` on `invoices` to embed `invoice_items`.
+
 # COMPLETENESS RULE (CRITICAL):
 # Your output must be a COMPLETE SDF. Every entity MUST include a `fields` array.
 # Do not omit entities or omit fields for “unchanged” entities — always include them.

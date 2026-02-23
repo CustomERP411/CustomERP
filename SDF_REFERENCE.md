@@ -28,6 +28,32 @@ Use `modules.inventory|invoice|hr` to enable/disable ERP modules:
 
 ---
 
+## Invoice Module (`modules.invoice`)
+
+Enables invoicing, PDF generation, and payment tracking.
+
+- **`modules.invoice.enabled`** *(boolean)*
+- **`modules.invoice.tax_rate`** *(number, default 0)*: Global default tax rate percentage.
+- **`modules.invoice.currency`** *(string, default "USD")*: Currency code/symbol.
+- **`modules.invoice.payment_terms`** *(number, default 30)*: Default due date offset in days.
+- **`modules.invoice.prefix`** *(string, default "INV-")*: Invoice number prefix.
+
+### Expected Entities
+When enabled, the generator expects (or auto-generates) these entities:
+
+1. **`invoices`** (Header)
+   - **Fields**: `invoice_number`, `customer_id` (reference), `issue_date`, `due_date`, `status` (Draft, Sent, Paid, Overdue), `subtotal`, `tax_total`, `grand_total`.
+   - **Children**: `invoice_items`.
+   - **Features**: `features.print_invoice: true` (auto-generates PDF button).
+
+2. **`invoice_items`** (Line Items)
+   - **Fields**: `invoice_id`, `description`, `quantity`, `unit_price`, `line_total`.
+
+3. **`customers`** (Shared)
+   - Used for the `customer_id` reference.
+
+---
+
 ## Entity object
 
 Each entry in `entities[]` defines one API resource + UI pages.

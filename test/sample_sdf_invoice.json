@@ -1,0 +1,62 @@
+{
+  "project_name": "ProConsult Billing",
+  "modules": {
+    "invoice": {
+      "enabled": true,
+      "tax_rate": 10,
+      "currency": "EUR"
+    }
+  },
+  "entities": [
+    {
+      "slug": "customers",
+      "display_name": "Clients",
+      "display_field": "company_name",
+      "module": "shared",
+      "fields": [
+        { "name": "company_name", "type": "string", "required": true },
+        { "name": "email", "type": "string", "required": true },
+        { "name": "vat_number", "type": "string" }
+      ]
+    },
+    {
+      "slug": "invoices",
+      "display_name": "Invoices",
+      "display_field": "invoice_number",
+      "module": "invoice",
+      "features": {
+        "print_invoice": true
+      },
+      "children": [
+        {
+          "entity": "invoice_items",
+          "foreign_key": "invoice_id",
+          "label": "Line Items",
+          "columns": ["description", "quantity", "unit_price", "line_total"]
+        }
+      ],
+      "fields": [
+        { "name": "invoice_number", "type": "string", "required": true, "unique": true },
+        { "name": "customer_id", "type": "reference", "reference_entity": "customers", "required": true },
+        { "name": "issue_date", "type": "date", "required": true },
+        { "name": "due_date", "type": "date", "required": true },
+        { "name": "status", "type": "string", "options": ["Draft", "Sent", "Paid", "Overdue"], "required": true },
+        { "name": "subtotal", "type": "decimal" },
+        { "name": "tax_total", "type": "decimal" },
+        { "name": "grand_total", "type": "decimal" }
+      ]
+    },
+    {
+      "slug": "invoice_items",
+      "display_name": "Invoice Items",
+      "module": "invoice",
+      "fields": [
+        { "name": "invoice_id", "type": "reference", "reference_entity": "invoices", "required": true },
+        { "name": "description", "type": "string", "required": true },
+        { "name": "quantity", "type": "decimal", "required": true },
+        { "name": "unit_price", "type": "decimal", "required": true },
+        { "name": "line_total", "type": "decimal" }
+      ]
+    }
+  ]
+}

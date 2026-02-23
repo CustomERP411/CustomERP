@@ -61,6 +61,24 @@ If the user wants multiple ERP modules (inventory, invoice, HR):
 - Use `entity.module = "shared"` for entities used by multiple modules (e.g., `customers`).
 - If not specified, default to inventory behavior (omit `entity.module` and `modules.inventory`).
 
+# INVOICE PATTERN (IF INVOICING IS IMPLIED):
+If the user mentions billing, invoices, payments, or quote-to-cash:
+- Enable `modules.invoice` with `{ "enabled": true, "tax_rate": 0, "currency": "USD" }`.
+- Create `invoices` entity (header) with:
+  - `invoice_number` (string), `issue_date` (date), `due_date` (date)
+  - `customer_id` (reference to `customers`)
+  - `status` (string, options: ["Draft", "Sent", "Paid", "Overdue"])
+  - `subtotal`, `tax_total`, `grand_total` (decimal)
+  - `features.print_invoice: true`
+- Create `invoice_items` entity (line items) with:
+  - `invoice_id` (reference to `invoices`)
+  - `description` (string)
+  - `quantity` (integer/decimal)
+  - `unit_price` (decimal)
+  - `line_total` (decimal)
+- Create `customers` entity (shared) if not present.
+- Use `children` on `invoices` to embed `invoice_items`.
+
 # INVENTORY PATTERN (IF INVENTORY IS IMPLIED):
 If the user is describing inventory/stock management, prefer this practical pattern:
 - One main "SKU" entity (e.g. `products`, `tire_skus`, `dairy_skus`) with:

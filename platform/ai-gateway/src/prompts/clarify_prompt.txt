@@ -22,16 +22,22 @@ If multiple ERP modules are requested (inventory, invoice, HR):
   `string`, `text`, `integer`, `decimal`, `number`, `boolean`, `date`, `datetime`, `reference`
 - Selectable/enum fields: use `type: "string"` with `options: [...]` (do NOT use `type: "enum"`).
 
-# HR PATTERN (IF HR/EMPLOYEES IMPLIED):
-If the user mentions employees/staff:
+# HR PATTERN (ONLY IF HR FEATURES ARE EXPLICITLY REQUESTED):
+Enable HR ONLY when the user explicitly asks for HR features (leave tracking, payroll, departments, HR module,
+working hours, attendance, time-off policies).
 - Enable `modules.hr`.
-- Ensure `employees` (with `department_id`), `departments`, and `leaves` entities exist.
+- Ensure `employees` exists.
+- Add `departments` only if departments/org structure are explicitly requested.
+- Add `leaves` only if leave/time-off is explicitly requested.
+If employees are only used to record who handled inventory actions, keep `employees` in `inventory` or `shared`
+and DO NOT enable `modules.hr`.
 
 # INVOICE PATTERN (IF INVOICING IS IMPLIED):
 If the user mentions billing/invoices:
 - Enable `modules.invoice` with `{ "enabled": true, "tax_rate": 0, "currency": "USD" }`.
-- Ensure `invoices` (header) and `invoice_items` (lines) entities exist.
-- Use `children` on `invoices` to embed `invoice_items`.
+- Ensure `invoices` (header) and `customers` exist.
+- Add `invoice_items` only if line items are explicitly needed.
+- Use `children` on `invoices` to embed `invoice_items` when present.
 - Ensure `invoices` has `features.print_invoice: true`.
 
 # LINE ITEMS RULE (CRITICAL):

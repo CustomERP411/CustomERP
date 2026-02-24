@@ -42,10 +42,15 @@
 #   - Row quick actions (next to Edit/Delete): `inventory_ops.quick_actions` (true or {receive:true, sell:true})
 # - Quantity wording: prefer `quantity_mode: "change"` (alias "delta") for signed quantity change UX.
 #
-# HR PATTERN (IF HR/EMPLOYEES REQUESTED):
-If the user wants to add employees/HR:
+# HR PATTERN (ONLY IF HR FEATURES ARE EXPLICITLY REQUESTED):
+Enable HR ONLY when the user explicitly asks for HR features (leave tracking, payroll, departments, HR module,
+working hours, attendance, time-off policies).
 - Enable `modules.hr`.
-- Create `employees`, `departments`, `leaves` entities.
+- Ensure `employees` exists.
+- Add `departments` only if departments/org structure are explicitly requested.
+- Add `leaves` only if leave/time-off is explicitly requested.
+If employees are only used to record who handled inventory actions, keep `employees` in `inventory` or `shared`
+and DO NOT enable `modules.hr`.
 
 # INVOICE PATTERN (IF INVOICING IS REQUESTED):
 If the user wants to add billing/invoices:
@@ -54,9 +59,9 @@ If the user wants to add billing/invoices:
   - `invoice_number`, `issue_date`, `due_date`, `status` (Draft/Sent/Paid/Overdue)
   - `customer_id` (reference), `subtotal`, `tax_total`, `grand_total`
   - `features.print_invoice: true`
-- Create `invoice_items` entity (line items) with:
-  - `invoice_id` (reference), `description`, `quantity`, `unit_price`, `line_total`
-- Use `children` on `invoices` to embed `invoice_items`.
+- Ensure `customers` exists (shared).
+- Add `invoice_items` only if line items are explicitly requested.
+- Use `children` on `invoices` to embed `invoice_items` when present.
 
 # COMPLETENESS RULE (CRITICAL):
 # Your output must be a COMPLETE SDF. Every entity MUST include a `fields` array.

@@ -47,6 +47,13 @@ class FrontendGenerator {
     return cleaned || 'inventory';
   }
 
+  _isInventoryOpsEnabled(inv) {
+    if (!inv || typeof inv !== 'object') return false;
+    if (inv.enabled === true) return true;
+    if (inv.enabled === false) return false;
+    return Object.keys(inv).some((key) => key !== 'enabled');
+  }
+
   async _ensureModuleDirs(outputDir, moduleKey) {
     if (this._moduleDirs.has(moduleKey)) return;
     const modulePagesDir = path.join(outputDir, 'modules', moduleKey, 'pages');
@@ -390,7 +397,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         const modulePageBase = `../modules/${moduleKey}/pages/${cap}`;
         const wantImport = (e.ui || {}).csv_import !== false;
         const inv = e.inventory_ops || e.inventoryOps || {};
-        const invEnabled = inv.enabled === true;
+        const invEnabled = this._isInventoryOpsEnabled(inv);
         const issueCfg = inv.issue || inv.sell || inv.issue_stock || inv.issueStock || {};
         const enableIssue = invEnabled && issueCfg.enabled === true;
         const canTransfer =
@@ -426,7 +433,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         const cap = this._capitalize(e.slug);
         const wantImport = (e.ui || {}).csv_import !== false;
         const inv = e.inventory_ops || e.inventoryOps || {};
-        const invEnabled = inv.enabled === true;
+        const invEnabled = this._isInventoryOpsEnabled(inv);
         const issueCfg = inv.issue || inv.sell || inv.issue_stock || inv.issueStock || {};
         const enableIssue = invEnabled && issueCfg.enabled === true;
         const canTransfer =
@@ -501,7 +508,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const moduleKey = this._getModuleKey(entity);
     await this._ensureModuleDirs(outputDir, moduleKey);
     const modulePagesDir = path.join(outputDir, 'modules', moduleKey, 'pages');
-    const importBase = '../../src';
+    const importBase = '../../../src';
     const isInvoiceEntity = moduleKey === 'invoice' && String(entity.slug || '') === 'invoices';
     const rawInvoiceConfig = sdf && sdf.modules ? sdf.modules.invoice : null;
     const invoiceConfig = rawInvoiceConfig && typeof rawInvoiceConfig === 'object' ? rawInvoiceConfig : {};
@@ -537,7 +544,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const enableBulkUpdate = enableBulkActions && bulkUpdateFields.length > 0;
 
     const inv = entity.inventory_ops || entity.inventoryOps || {};
-    const enableInventoryOps = inv.enabled === true;
+    const enableInventoryOps = this._isInventoryOpsEnabled(inv);
     const enableReceive = enableInventoryOps && (inv.receive?.enabled !== false);
     const enableAdjust = enableInventoryOps && (inv.adjust?.enabled !== false);
     const issueCfg = inv.issue || inv.sell || inv.issue_stock || inv.issueStock || {};

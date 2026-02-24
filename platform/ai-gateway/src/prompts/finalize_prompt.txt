@@ -18,16 +18,21 @@ If multiple ERP modules are requested (inventory, invoice, HR):
 - Set `modules.inventory|invoice|hr` with `{ "enabled": true/false }`.
 - Tag entities with `entity.module` = `inventory` | `invoice` | `hr`.
 - Use `entity.module = "shared"` for entities used by multiple modules.
+Do NOT enable HR unless HR features are explicitly requested (leave, payroll, departments, HR module, working hours).
 
 # HR PATTERN:
-If HR is enabled:
+If HR is enabled (only when explicitly requested):
 - `modules.hr`: { "enabled": true }
-- `employees`: `status` (Active/Terminated/On Leave), `features.audit_trail: true`.
+- Ensure `employees` exists (status: Active/Terminated/On Leave). `features.audit_trail: true` recommended.
+- Add `departments` only if departments/org structure are explicitly requested.
+- Add `leaves` only if leave/time-off is explicitly requested.
 
 # INVOICE PATTERN:
 If invoicing is enabled:
 - `modules.invoice`: { "enabled": true, "tax_rate": 0, "currency": "USD" }
-- `invoices` (header): `status` (Draft/Sent/Paid/Overdue), `features.print_invoice: true`, embeds `invoice_items`.
+- Ensure `invoices` (header) and `customers` exist.
+- `invoices`: `status` (Draft/Sent/Paid/Overdue), `features.print_invoice: true`.
+- Add `invoice_items` only if line items are explicitly requested, and embed via `children`.
 
 # CURRENT CONTEXT:
 

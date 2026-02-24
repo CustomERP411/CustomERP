@@ -53,6 +53,7 @@ If the description mentions inventory, stock, low-stock alerts, expiry, movement
 - `modules.scheduled_reports` (optional) with `entity_snapshots` if useful
 - per-entity `inventory_ops` and `labels` when applicable
 But keep features optional: only enable modules explicitly when clearly requested or strongly implied.
+Do NOT enable HR or Invoice unless the user explicitly asks for HR or invoicing features.
 
 # ERP MODULE TAGGING (IF MULTI-MODULE IS REQUESTED):
 If the user wants multiple ERP modules (inventory, invoice, HR):
@@ -61,18 +62,20 @@ If the user wants multiple ERP modules (inventory, invoice, HR):
 - Use `entity.module = "shared"` for entities used by multiple modules (e.g., `customers`).
 - If not specified, default to inventory behavior (omit `entity.module` and `modules.inventory`).
 
-# HR PATTERN (IF HR/EMPLOYEES IMPLIED):
-If the user mentions employees, staff, leaves, or departments:
+# HR PATTERN (ONLY IF HR FEATURES ARE EXPLICITLY REQUESTED):
+Enable HR ONLY when the user explicitly asks for HR features (leave tracking, payroll, departments, HR module,
+working hours, attendance, time-off policies).
 - Enable `modules.hr` with `{ "enabled": true }`.
 - Create `employees` entity with:
   - `first_name`, `last_name`, `email`, `phone`, `job_title`, `hire_date`
-  - `department_id` (reference to `departments`)
   - `status` (string, options: ["Active", "Terminated", "On Leave"])
   - `salary` (decimal)
-- Create `departments` entity with:
+- If the user explicitly mentions departments or org structure, add `departments` with:
   - `name`, `location`, `manager_id` (reference to `employees`)
-- Create `leaves` entity with:
+- If the user explicitly mentions leave/time-off, add `leaves` with:
   - `employee_id` (reference), `leave_type`, `start_date`, `end_date`, `reason`, `status`
+If employees are only used to record who handled inventory actions, keep `employees` in `inventory` or `shared`
+and DO NOT enable `modules.hr`.
 
 # INVOICE PATTERN (IF INVOICING IS IMPLIED):
 If the user mentions billing, invoices, payments, or quote-to-cash:
@@ -83,14 +86,14 @@ If the user mentions billing, invoices, payments, or quote-to-cash:
   - `status` (string, options: ["Draft", "Sent", "Paid", "Overdue"])
   - `subtotal`, `tax_total`, `grand_total` (decimal)
   - `features.print_invoice: true`
-- Create `invoice_items` entity (line items) with:
+- Create `customers` entity (shared) if not present.
+- If line items are explicitly requested, add `invoice_items` with:
   - `invoice_id` (reference to `invoices`)
   - `description` (string)
   - `quantity` (integer/decimal)
   - `unit_price` (decimal)
   - `line_total` (decimal)
-- Create `customers` entity (shared) if not present.
-- Use `children` on `invoices` to embed `invoice_items`.
+- If `invoice_items` exists, use `children` on `invoices` to embed `invoice_items`.
 
 # INVENTORY PATTERN (IF INVENTORY IS IMPLIED):
 If the user is describing inventory/stock management, prefer this practical pattern:
@@ -104,6 +107,7 @@ If the user is describing inventory/stock management, prefer this practical patt
 - If expiry/perishables are desired, configure `modules.inventory_dashboard.expiry`
 - If they want fast “one-tap” actions (sell/receive/transfer), configure per-entity `inventory_ops`
   - For non-technical users, prefer `inventory_ops.sell` with a friendly label (e.g. `"Sell"`) and enable `inventory_ops.quick_actions` for row-level buttons.
+  - Always set `inventory_ops.enabled: true` when any inventory ops are used.
 
 # ONE-TO-MANY “LIST INSIDE A RECORD” PATTERN (LINE ITEMS):
 If the business describes a record that contains a list of rows (e.g. shipments containing multiple products with quantities),

@@ -150,74 +150,76 @@ class ProjectAssembler {
     const invoiceEnabled = enabledSet.has('invoice');
     if (invoiceEnabled) {
       const invoicesEntity = requireEntity('invoices', 'invoice header');
-      const itemsEntity = requireEntity('invoice_items', 'invoice line items');
       const customersEntity = requireEntity('customers', 'customer list');
 
       const invoicesModule = this._normalizeEntityModule(invoicesEntity, { hasErpConfig });
-      const itemsModule = this._normalizeEntityModule(itemsEntity, { hasErpConfig });
       const customersModule = this._normalizeEntityModule(customersEntity, { hasErpConfig });
 
       if (invoicesModule !== 'invoice') {
         throw new Error(`SDF Validation Error: Entity 'invoices' must be in module 'invoice'.`);
       }
-      if (itemsModule !== 'invoice') {
-        throw new Error(`SDF Validation Error: Entity 'invoice_items' must be in module 'invoice'.`);
-      }
       if (customersModule !== 'shared' && customersModule !== 'invoice') {
         throw new Error(`SDF Validation Error: Entity 'customers' must be 'shared' or in module 'invoice'.`);
       }
 
-      const children = Array.isArray(invoicesEntity.children) ? invoicesEntity.children : [];
-      const invoiceChild = children.find((child) => {
-        const slug = child && (child.entity || child.slug);
-        return slug === 'invoice_items';
-      });
-      if (!invoiceChild) {
-        throw new Error(`SDF Validation Error: Entity 'invoices' must define 'invoice_items' as a child relation.`);
-      }
-      const invoiceFk = invoiceChild.foreign_key || invoiceChild.foreignKey;
-      if (!invoiceFk) {
-        throw new Error(`SDF Validation Error: Child relation for 'invoice_items' must define a foreign key.`);
-      }
-      const itemFields = Array.isArray(itemsEntity.fields) ? itemsEntity.fields : [];
-      const hasInvoiceFk = itemFields.some((f) => f && f.name === invoiceFk);
-      if (!hasInvoiceFk) {
-        throw new Error(
-          `SDF Validation Error: Entity 'invoice_items' must include foreign key field '${invoiceFk}'.`
-        );
-      }
-
       ensureFields(invoicesEntity, ['invoice_number', 'customer_id', 'issue_date', 'due_date', 'status', 'subtotal', 'tax_total', 'grand_total'], 'invoices');
-      ensureFields(itemsEntity, ['invoice_id', 'description', 'quantity', 'unit_price', 'line_total'], 'invoice_items');
+
+      const itemsEntity = allBySlug.get('invoice_items');
+      if (itemsEntity) {
+        const itemsModule = this._normalizeEntityModule(itemsEntity, { hasErpConfig });
+        if (itemsModule !== 'invoice') {
+          throw new Error(`SDF Validation Error: Entity 'invoice_items' must be in module 'invoice'.`);
+        }
+
+        const children = Array.isArray(invoicesEntity.children) ? invoicesEntity.children : [];
+        const invoiceChild = children.find((child) => {
+          const slug = child && (child.entity || child.slug);
+          return slug === 'invoice_items';
+        });
+        if (invoiceChild) {
+          const invoiceFk = invoiceChild.foreign_key || invoiceChild.foreignKey;
+          if (!invoiceFk) {
+            throw new Error(`SDF Validation Error: Child relation for 'invoice_items' must define a foreign key.`);
+          }
+          const itemFields = Array.isArray(itemsEntity.fields) ? itemsEntity.fields : [];
+          const hasInvoiceFk = itemFields.some((f) => f && f.name === invoiceFk);
+          if (!hasInvoiceFk) {
+            throw new Error(
+              `SDF Validation Error: Entity 'invoice_items' must include foreign key field '${invoiceFk}'.`
+            );
+          }
+        }
+
+        ensureFields(itemsEntity, ['invoice_id', 'description', 'quantity', 'unit_price', 'line_total'], 'invoice_items');
+      }
     }
 
     const hrEnabled = enabledSet.has('hr');
     if (hrEnabled) {
       const employeesEntity = requireEntity('employees', 'employee list');
-      const departmentsEntity = requireEntity('departments', 'department list');
-      const leavesEntity = requireEntity('leaves', 'leave requests');
-
       const employeesModule = this._normalizeEntityModule(employeesEntity, { hasErpConfig });
-      const departmentsModule = this._normalizeEntityModule(departmentsEntity, { hasErpConfig });
-      const leavesModule = this._normalizeEntityModule(leavesEntity, { hasErpConfig });
 
       if (employeesModule !== 'hr' && employeesModule !== 'shared') {
         throw new Error(`SDF Validation Error: Entity 'employees' must be in module 'hr' or 'shared'.`);
       }
-      if (departmentsModule !== 'hr') {
-        throw new Error(`SDF Validation Error: Entity 'departments' must be in module 'hr'.`);
-      }
-      if (leavesModule !== 'hr') {
-        throw new Error(`SDF Validation Error: Entity 'leaves' must be in module 'hr'.`);
+
+      const departmentsEntity = allBySlug.get('departments');
+      if (departmentsEntity) {
+        const departmentsModule = this._normalizeEntityModule(departmentsEntity, { hasErpConfig });
+        if (departmentsModule !== 'hr') {
+          throw new Error(`SDF Validation Error: Entity 'departments' must be in module 'hr'.`);
+        }
       }
 
-      ensureFields(
-        employeesEntity,
-        ['first_name', 'last_name', 'email', 'phone', 'department_id', 'job_title', 'hire_date', 'status', 'salary'],
-        'employees'
-      );
-      ensureFields(departmentsEntity, ['name', 'manager_id', 'location'], 'departments');
-      ensureFields(leavesEntity, ['employee_id', 'leave_type', 'start_date', 'end_date', 'reason', 'status'], 'leaves');
+      const leaveEntities = ['leaves', 'leave_requests']
+        .map((slug) => allBySlug.get(slug))
+        .filter(Boolean);
+      leaveEntities.forEach((leaveEntity) => {
+        const leavesModule = this._normalizeEntityModule(leaveEntity, { hasErpConfig });
+        if (leavesModule !== 'hr') {
+          throw new Error(`SDF Validation Error: Entity '${leaveEntity.slug}' must be in module 'hr'.`);
+        }
+      });
     }
 
     // 2. Validate Relationships and References
@@ -345,6 +347,9 @@ class ProjectAssembler {
     }
 
     for (const key of ERP_MODULE_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(modules, key)) {
+        continue;
+      }
       const cfg = modules[key];
       const disabled = cfg === false || (cfg && typeof cfg === 'object' && cfg.enabled === false);
       if (!disabled) {
@@ -436,7 +441,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:3000/api
+      - VITE_API_URL=http://backend:3000/api
     depends_on:
       - backend
 `;

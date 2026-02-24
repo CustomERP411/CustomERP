@@ -5,11 +5,15 @@ class Question {
     if (!questionId) throw new Error('questionId is required');
     if (!projectId) throw new Error('projectId is required');
 
+    const normalizedOptions = Array.isArray(options)
+      ? JSON.stringify(options)
+      : (options ?? null);
+
     const result = await db.query(
       `INSERT INTO questions (question_id, project_id, question_text, question_type, options, order_index)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING question_id, project_id, question_text, question_type, options, order_index, created_at`,
-      [questionId, projectId, questionText, questionType, options, orderIndex]
+      [questionId, projectId, questionText, questionType, normalizedOptions, orderIndex]
     );
 
     return this._transform(result.rows[0]);

@@ -3,6 +3,7 @@ Service for generating and validating the System Definition File (SDF)
 """
 
 import json
+from copy import deepcopy
 from pydantic import ValidationError
 
 from .gemini_client import GeminiClient
@@ -490,6 +491,9 @@ class SDFService:
         data.pop("schemaName", None)
 
         entities = data.get("entities")
+        if not isinstance(entities, list):
+            entities = []
+            data["entities"] = entities
         if isinstance(entities, list):
             for ent in entities:
                 if not isinstance(ent, dict):
@@ -511,6 +515,12 @@ class SDFService:
                 # Warn on (currently) unsupported inventory_ops configs that models sometimes invent.
                 inv = ent.get("inventory_ops")
                 if isinstance(inv, dict):
+                    # If inventory_ops is present without a master switch, infer intent and enable it.
+                    if "enabled" not in inv:
+                        has_config = any(key for key in inv.keys() if key != "enabled")
+                        if has_config:
+                            inv["enabled"] = True
+
                     # If the model provided a sell/issue config object but forgot `enabled: true`,
                     # infer intent and enable it. (Issue/Sell defaults to disabled in generator config.)
                     if inv.get("enabled") is True:
@@ -622,7 +632,7 @@ class SDFService:
             "invoice",
             "hr",
         }
-        ALLOWED_FEATURES = {"audit_trail", "batch_tracking", "serial_tracking", "multi_location"}
+        ALLOWED_FEATURES = {"audit_trail", "batch_tracking", "serial_tracking", "multi_location", "print_invoice"}
 
         # 1. Validate Modules
         modules = data.get("modules")
@@ -635,6 +645,167 @@ class SDFService:
                 )
                 # Remove unsupported module to prevent downstream confusion
                 del modules[m]
+
+            # Ensure required ERP entities exist when a module is enabled.
+            required_by_module = {
+                "invoice": ["invoices", "customers"],
+                "hr": ["employees"],
+            }
+            invoice_defaults = {
+                "invoices": {
+                    "slug": "invoices",
+                    "display_name": "Invoice",
+                    "display_field": "invoice_number",
+                    "module": "invoice",
+                    "list": {
+                        "columns": ["invoice_number", "customer_id", "status", "issue_date", "due_date", "grand_total"]
+                    },
+                    "features": {"print_invoice": True},
+                    "fields": [
+                        {"name": "invoice_number", "type": "string", "label": "Invoice Number", "required": True, "unique": True},
+                        {"name": "customer_id", "type": "reference", "label": "Customer", "required": True, "reference_entity": "customers"},
+                        {"name": "issue_date", "type": "date", "label": "Issue Date", "required": True},
+                        {"name": "due_date", "type": "date", "label": "Due Date", "required": True},
+                        {"name": "status", "type": "string", "label": "Status", "required": True, "options": ["Draft", "Sent", "Paid", "Overdue"]},
+                        {"name": "subtotal", "type": "decimal", "label": "Subtotal", "required": True},
+                        {"name": "tax_total", "type": "decimal", "label": "Tax Total", "required": True},
+                        {"name": "grand_total", "type": "decimal", "label": "Grand Total", "required": True},
+                    ],
+                },
+                "customers": {
+                    "slug": "customers",
+                    "display_name": "Customer",
+                    "display_field": "company_name",
+                    "module": "shared",
+                    "list": {
+                        "columns": ["company_name", "contact_name", "email", "phone"]
+                    },
+                    "fields": [
+                        {"name": "company_name", "type": "string", "label": "Company Name", "required": True},
+                        {"name": "contact_name", "type": "string", "label": "Contact Name", "required": False},
+                        {"name": "email", "type": "string", "label": "Email", "required": False},
+                        {"name": "phone", "type": "string", "label": "Phone", "required": False},
+                    ],
+                },
+            }
+            hr_defaults = {
+                "employees": {
+                    "slug": "employees",
+                    "display_name": "Employee",
+                    "display_field": "first_name",
+                    "module": "hr",
+                    "list": {
+                        "columns": ["first_name", "last_name", "email", "job_title"]
+                    },
+                    "fields": [
+                        {"name": "first_name", "type": "string", "label": "First Name", "required": True},
+                        {"name": "last_name", "type": "string", "label": "Last Name", "required": True},
+                        {"name": "email", "type": "string", "label": "Email", "required": False},
+                        {"name": "phone", "type": "string", "label": "Phone", "required": False},
+                        {"name": "job_title", "type": "string", "label": "Job Title", "required": False},
+                        {"name": "hire_date", "type": "date", "label": "Hire Date", "required": False},
+                        {"name": "status", "type": "string", "label": "Status", "required": False, "options": ["Active", "Terminated", "On Leave"]},
+                        {"name": "salary", "type": "decimal", "label": "Salary", "required": False},
+                    ],
+                },
+            }
+
+            entity_slugs = set()
+            if isinstance(entities, list):
+                for ent in entities:
+                    if not isinstance(ent, dict):
+                        continue
+                    slug = ent.get("slug")
+                    if slug:
+                        entity_slugs.add(str(slug))
+
+            def _module_enabled(cfg) -> bool:
+                if cfg is False:
+                    return False
+                if isinstance(cfg, dict) and cfg.get("enabled") is False:
+                    return False
+                return True
+
+            def _ensure_fields(ent: dict, field_defs: list[dict]) -> list[str]:
+                fields = ent.get("fields")
+                if not isinstance(fields, list):
+                    fields = []
+                    ent["fields"] = fields
+                existing = {f.get("name") for f in fields if isinstance(f, dict)}
+                added = []
+                for f in field_defs:
+                    name = f.get("name")
+                    if not name or name in existing:
+                        continue
+                    fields.append(deepcopy(f))
+                    added.append(name)
+                return added
+
+            def _merge_defaults(ent: dict, defaults: dict) -> None:
+                for key in ("display_name", "display_field", "module", "list"):
+                    if key not in ent or ent.get(key) in (None, "", {}):
+                        ent[key] = deepcopy(defaults.get(key))
+                default_features = defaults.get("features")
+                if isinstance(default_features, dict):
+                    features = ent.get("features")
+                    if not isinstance(features, dict):
+                        features = {}
+                        ent["features"] = features
+                    for f_key, f_val in default_features.items():
+                        if f_key not in features:
+                            features[f_key] = deepcopy(f_val)
+
+            def _ensure_entity(slug: str, defaults: dict) -> tuple[dict, bool]:
+                for ent in entities:
+                    if isinstance(ent, dict) and ent.get("slug") == slug:
+                        return ent, False
+                ent = deepcopy(defaults)
+                entities.append(ent)
+                return ent, True
+
+            for mod_key, required in required_by_module.items():
+                if mod_key not in modules:
+                    continue
+                cfg = modules.get(mod_key)
+                if not _module_enabled(cfg):
+                    continue
+                missing = [slug for slug in required if slug not in entity_slugs]
+                if not missing:
+                    continue
+
+                auto_added = []
+                if mod_key == "invoice":
+                    inv_def = invoice_defaults["invoices"]
+                    cust_def = invoice_defaults["customers"]
+
+                    invoices_entity, created = _ensure_entity("invoices", inv_def)
+                    _merge_defaults(invoices_entity, inv_def)
+                    if created:
+                        auto_added.append("invoices")
+                    else:
+                        _ensure_fields(invoices_entity, inv_def["fields"])
+
+                    customers_entity, created = _ensure_entity("customers", cust_def)
+                    _merge_defaults(customers_entity, cust_def)
+                    if created:
+                        auto_added.append("customers")
+                    else:
+                        _ensure_fields(customers_entity, cust_def["fields"])
+
+                if mod_key == "hr":
+                    emp_def = hr_defaults["employees"]
+                    employees_entity, created = _ensure_entity("employees", emp_def)
+                    _merge_defaults(employees_entity, emp_def)
+                    if created:
+                        auto_added.append("employees")
+                    else:
+                        _ensure_fields(employees_entity, emp_def["fields"])
+
+                if auto_added:
+                    entity_slugs.update(auto_added)
+                    normalized_warnings.append(
+                        f"Module `{mod_key}` was missing required entities. Auto-added: {', '.join(auto_added)}."
+                    )
 
         # 2. Validate Entity Features
         if isinstance(entities, list):

@@ -108,3 +108,89 @@ async def test_generate_sdf_schema_validation_error(
         await sdf_service.generate_sdf_from_description(sample_business_description)
 
     mock_gemini_client.generate_with_retry.assert_awaited_once()
+
+
+def test_normalize_generator_sdf_auto_adds_hr_employees_when_missing():
+    sdf_service = SDFService(gemini_client=MagicMock())
+    data = {
+        "project_name": "HR Incomplete",
+        "modules": {"hr": {"enabled": True}},
+        "entities": [
+            {"slug": "departments", "fields": []}
+        ],
+    }
+
+    out = sdf_service._normalize_generator_sdf(data, request_text="")
+    assert out["modules"]["hr"]["enabled"] is True
+    slugs = {e.get("slug") for e in out.get("entities", []) if isinstance(e, dict)}
+    assert "employees" in slugs
+    warnings = out.get("warnings", [])
+    assert any("hr" in w and "Auto-added" in w for w in warnings)
+
+
+def test_normalize_generator_sdf_auto_adds_invoice_entities_when_missing():
+    sdf_service = SDFService(gemini_client=MagicMock())
+    data = {
+        "project_name": "Invoice Incomplete",
+        "modules": {"invoice": {"enabled": True}},
+        "entities": [
+            {"slug": "invoices", "fields": []}
+        ],
+    }
+
+    out = sdf_service._normalize_generator_sdf(data, request_text="")
+    assert out["modules"]["invoice"]["enabled"] is True
+    slugs = {e.get("slug") for e in out.get("entities", []) if isinstance(e, dict)}
+    assert "customers" in slugs
+    warnings = out.get("warnings", [])
+    assert any("invoice" in w and "Auto-added" in w for w in warnings)
+
+
+def test_normalize_generator_sdf_keeps_hr_without_departments():
+    sdf_service = SDFService(gemini_client=MagicMock())
+    data = {
+        "project_name": "HR Minimal",
+        "modules": {"hr": {"enabled": True}},
+        "entities": [
+            {"slug": "employees", "fields": []}
+        ],
+    }
+
+    out = sdf_service._normalize_generator_sdf(data, request_text="")
+    assert out["modules"]["hr"]["enabled"] is True
+
+
+def test_normalize_generator_sdf_keeps_invoice_without_items():
+    sdf_service = SDFService(gemini_client=MagicMock())
+    data = {
+        "project_name": "Invoice Minimal",
+        "modules": {"invoice": {"enabled": True}},
+        "entities": [
+            {"slug": "invoices", "fields": []},
+            {"slug": "customers", "fields": []}
+        ],
+    }
+
+    out = sdf_service._normalize_generator_sdf(data, request_text="")
+    assert out["modules"]["invoice"]["enabled"] is True
+
+
+def test_normalize_generator_sdf_enables_inventory_ops_when_config_present():
+    sdf_service = SDFService(gemini_client=MagicMock())
+    data = {
+        "project_name": "Inventory Ops",
+        "entities": [
+            {
+                "slug": "products",
+                "fields": [],
+                "inventory_ops": {
+                    "sell": {"label": "Fulfill Order"}
+                }
+            }
+        ],
+    }
+
+    out = sdf_service._normalize_generator_sdf(data, request_text="")
+    inv = out["entities"][0]["inventory_ops"]
+    assert inv.get("enabled") is True
+    assert inv["sell"].get("enabled") is True

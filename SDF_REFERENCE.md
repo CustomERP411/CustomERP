@@ -26,6 +26,13 @@ Use `modules.inventory|invoice|hr` to enable/disable ERP modules:
 }
 ```
 
+### When to enable ERP modules
+- **Inventory**: default module. Use for stock, materials, locations, movements, and simple employee references tied to inventory actions.
+- **Invoice**: enable only when invoicing/billing is explicitly requested (invoices, billing, payments, quote-to-cash).
+- **HR**: enable only when HR features are explicitly requested (departments, leave tracking, payroll, working hours, HR module).
+- If employees are only used to record who handled inventory actions, keep `employees` in `inventory` or `shared` and do **not** enable HR.
+- If a module is enabled, its required entities must exist; incomplete modules may be auto-disabled during AI normalization or fail validation downstream.
+
 ---
 
 ## Invoice Module (`modules.invoice`)
@@ -39,18 +46,18 @@ Enables invoicing, PDF generation, and payment tracking.
 - **`modules.invoice.prefix`** *(string, default "INV-")*: Invoice number prefix.
 
 ### Expected Entities
-When enabled, the generator expects (or auto-generates) these entities:
+When enabled, the generator expects these entities:
 
-1. **`invoices`** (Header)
+1. **`invoices`** (Header) — **required**
    - **Fields**: `invoice_number`, `customer_id` (reference), `issue_date`, `due_date`, `status` (Draft, Sent, Paid, Overdue), `subtotal`, `tax_total`, `grand_total`.
-   - **Children**: `invoice_items`.
    - **Features**: `features.print_invoice: true` (auto-generates PDF button).
 
-2. **`invoice_items`** (Line Items)
-   - **Fields**: `invoice_id`, `description`, `quantity`, `unit_price`, `line_total`.
-
-3. **`customers`** (Shared)
+2. **`customers`** (Shared) — **required**
    - Used for the `customer_id` reference.
+
+3. **`invoice_items`** (Line Items) — **optional**
+   - **Fields**: `invoice_id`, `description`, `quantity`, `unit_price`, `line_total`.
+   - If present, you can add `children` on `invoices` to embed line items in the invoice form UI.
 
 ---
 
@@ -63,17 +70,17 @@ Enables employee management, department structure, and leave tracking.
 - **`modules.hr.daily_hours`** *(number, default 8)*: Standard daily working hours.
 
 ### Expected Entities
-When enabled, the generator expects (or auto-generates) these entities:
+When enabled, the generator expects these entities:
 
-1. **`employees`**
-   - **Fields**: `first_name`, `last_name`, `email`, `phone`, `department_id` (reference), `job_title`, `hire_date`, `status` (Active, Terminated, On Leave), `salary` (decimal).
-   - **Features**: `features.audit_trail: true`.
+1. **`employees`** — **required**
+   - Typical fields: `first_name`, `last_name`, `email`, `phone`, `job_title`, `hire_date`, `status`, `salary`.
+   - **Features**: `features.audit_trail: true` (recommended).
 
-2. **`departments`**
-   - **Fields**: `name`, `manager_id` (reference to `employees`), `location`.
+2. **`departments`** — **optional**
+   - Typical fields: `name`, `manager_id` (reference to `employees`), `location`.
 
-3. **`leaves`** (Time Off)
-   - **Fields**: `employee_id` (reference), `leave_type` (Sick, Vacation, Unpaid), `start_date`, `end_date`, `reason`, `status` (Pending, Approved, Rejected).
+3. **`leaves`** / **`leave_requests`** — **optional**
+   - Typical fields: `employee_id` (reference), `leave_type`, `start_date`, `end_date`, `reason`, `status`.
 
 ---
 
@@ -142,6 +149,7 @@ This is purely a UI convenience: the underlying data model is still **two entiti
     - Frontend may auto-add `serial_number` unless explicitly defined.
   - **`features.multi_location`** *(boolean)*: Signals “inventory entity supports multiple locations”.
     - Usually paired with a `reference` field with `multiple: true` (e.g. `location_ids` / `storage_location_ids`).
+  - **`features.print_invoice`** *(boolean)*: Enables invoice print/PDF actions for the `invoices` entity.
 
 ### Bulk actions (per-entity, optional)
 

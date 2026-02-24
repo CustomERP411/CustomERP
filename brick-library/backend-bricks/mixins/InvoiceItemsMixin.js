@@ -64,7 +64,7 @@ module.exports = (config = {}) => {
       return sum + (isNaN(lineTotal) ? 0 : lineTotal);
     }, 0);
 
-    const INVOICE_CFG = ${JSON.stringify(invoiceConfig)} as const;
+    const INVOICE_CFG = ${JSON.stringify(invoiceConfig)};
     const taxRate = Number(INVOICE_CFG.tax_rate ?? 0) || 0;
     const taxTotal = Number(((subtotal * taxRate) / 100).toFixed(2));
     const grandTotal = Number((subtotal + taxTotal).toFixed(2));

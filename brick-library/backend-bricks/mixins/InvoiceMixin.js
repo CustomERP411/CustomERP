@@ -20,7 +20,7 @@ module.exports = (config = {}) => {
     dependencies: [],
     hooks: {
       BEFORE_CREATE_TRANSFORMATION: `
-      const INVOICE_CFG = ${JSON.stringify(invoiceConfig)} as const;
+      const INVOICE_CFG = ${JSON.stringify(invoiceConfig)};
       const allowedStatuses = Array.isArray(INVOICE_CFG.statuses) ? INVOICE_CFG.statuses : ['Draft', 'Sent', 'Paid', 'Overdue'];
 
       if (!data.status) {
@@ -73,7 +73,7 @@ module.exports = (config = {}) => {
       data.grand_total = grandTotal;
     `,
       BEFORE_UPDATE_VALIDATION: `
-      const INVOICE_CFG = ${JSON.stringify(invoiceConfig)} as const;
+      const INVOICE_CFG = ${JSON.stringify(invoiceConfig)};
       const allowedStatuses = Array.isArray(INVOICE_CFG.statuses) ? INVOICE_CFG.statuses : ['Draft', 'Sent', 'Paid', 'Overdue'];
 
       if (data.status && !allowedStatuses.includes(data.status)) {

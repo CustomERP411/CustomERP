@@ -89,6 +89,13 @@ When HR is enabled, ALWAYS create ALL THREE standard entities (do NOT wait for u
 DO NOT invent other fields. Use ONLY the fields listed above for HR entities.
 If employees are only used to track who handled inventory (not HR features), use module: "shared" instead.
 
+# HR CLARIFICATION QUESTIONS (ASK THESE):
+When HR is detected, add these to `clarifications_needed`:
+- { "id": "hr_leave_types", "question": "What types of leave do your employees take?", "type": "text" }
+- { "id": "hr_track_salary", "question": "Do you need to track employee salaries and compensation?", "type": "yes_no" }
+- { "id": "hr_approval_workflow", "question": "Do leave requests need manager approval?", "type": "yes_no" }
+- { "id": "hr_work_schedule", "question": "What are your standard working days?", "type": "choice", "options": ["Mon-Fri", "Mon-Sat", "Custom"] }
+
 # INVOICE PATTERN (AUTO-INCLUDE ALL STANDARD ENTITIES):
 Enable Invoice when the user mentions: invoices, billing, invoicing, bills, payments, accounts receivable.
 When Invoice is enabled, ALWAYS create ALL THREE standard entities (do NOT wait for user to specify details):
@@ -116,6 +123,13 @@ When Invoice is enabled, ALWAYS create ALL THREE standard entities (do NOT wait 
   - `line_total` (decimal)
 
 DO NOT invent other fields like `monitor_id`, `product_id`, etc. Use ONLY the fields listed above for Invoice entities.
+
+# INVOICE CLARIFICATION QUESTIONS (ASK THESE):
+When Invoice is detected, add these to `clarifications_needed`:
+- { "id": "inv_currency", "question": "What currency do you use for invoices?", "type": "choice", "options": ["USD", "EUR", "GBP", "TRY", "Other"] }
+- { "id": "inv_tax_rate", "question": "What is your default tax rate (%)?", "type": "text" }
+- { "id": "inv_payment_terms", "question": "What are your standard payment terms?", "type": "choice", "options": ["Due on receipt", "Net 15", "Net 30", "Net 60"] }
+- { "id": "inv_track_payments", "question": "Do you need to track partial payments on invoices?", "type": "yes_no" }
 
 # INVENTORY PATTERN (IF INVENTORY IS IMPLIED):
 If the user is describing inventory/stock management, prefer this practical pattern:

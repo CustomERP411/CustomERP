@@ -18,21 +18,19 @@ If multiple ERP modules are requested (inventory, invoice, HR):
 - Set `modules.inventory|invoice|hr` with `{ "enabled": true/false }`.
 - Tag entities with `entity.module` = `inventory` | `invoice` | `hr`.
 - Use `entity.module = "shared"` for entities used by multiple modules.
-Do NOT enable HR unless HR features are explicitly requested (leave, payroll, departments, HR module, working hours).
+# HR PATTERN (AUTO-INCLUDE ALL STANDARD ENTITIES):
+When HR is enabled, the SDF MUST contain ALL THREE standard entities:
+- `departments` (module: hr): name, location, manager_id
+- `employees` (module: hr): first_name, last_name, email, phone, job_title, hire_date, department_id, salary, status. `features.audit_trail: true`.
+- `leaves` (module: hr): employee_id, leave_type, start_date, end_date, reason, status
+DO NOT invent other fields. Use ONLY these standard fields.
 
-# HR PATTERN:
-If HR is enabled (only when explicitly requested):
-- `modules.hr`: { "enabled": true }
-- Ensure `employees` exists (status: Active/Terminated/On Leave). `features.audit_trail: true` recommended.
-- Add `departments` only if departments/org structure are explicitly requested.
-- Add `leaves` only if leave/time-off is explicitly requested.
-
-# INVOICE PATTERN:
-If invoicing is enabled:
-- `modules.invoice`: { "enabled": true, "tax_rate": 0, "currency": "USD" }
-- Ensure `invoices` (header) and `customers` exist.
-- `invoices`: `status` (Draft/Sent/Paid/Overdue), `features.print_invoice: true`.
-- Add `invoice_items` only if line items are explicitly requested, and embed via `children`.
+# INVOICE PATTERN (AUTO-INCLUDE ALL STANDARD ENTITIES):
+When Invoice is enabled, the SDF MUST contain ALL THREE standard entities:
+- `customers` (module: shared): company_name, email, phone, address, vat_number
+- `invoices` (module: invoice): invoice_number, customer_id, issue_date, due_date, status, subtotal, tax_total, grand_total. `features.print_invoice: true`.
+- `invoice_items` (module: invoice): invoice_id, description, quantity, unit_price, line_total
+DO NOT invent other fields like `monitor_id`. Use ONLY these standard fields.
 
 # CURRENT CONTEXT:
 

@@ -62,38 +62,60 @@ If the user wants multiple ERP modules (inventory, invoice, HR):
 - Use `entity.module = "shared"` for entities used by multiple modules (e.g., `customers`).
 - If not specified, default to inventory behavior (omit `entity.module` and `modules.inventory`).
 
-# HR PATTERN (ONLY IF HR FEATURES ARE EXPLICITLY REQUESTED):
-Enable HR ONLY when the user explicitly asks for HR features (leave tracking, payroll, departments, HR module,
-working hours, attendance, time-off policies).
-- Enable `modules.hr` with `{ "enabled": true }`.
-- Create `employees` entity with:
-  - `first_name`, `last_name`, `email`, `phone`, `job_title`, `hire_date`
-  - `status` (string, options: ["Active", "Terminated", "On Leave"])
-  - `salary` (decimal)
-- If the user explicitly mentions departments or org structure, add `departments` with:
-  - `name`, `location`, `manager_id` (reference to `employees`)
-- If the user explicitly mentions leave/time-off, add `leaves` with:
-  - `employee_id` (reference), `leave_type`, `start_date`, `end_date`, `reason`, `status`
-If employees are only used to record who handled inventory actions, keep `employees` in `inventory` or `shared`
-and DO NOT enable `modules.hr`.
+# HR PATTERN (AUTO-INCLUDE ALL STANDARD ENTITIES):
+Enable HR when the user mentions: employees, staff, HR, human resources, departments, leave, time-off, attendance, payroll.
+When HR is enabled, ALWAYS create ALL THREE standard entities (do NOT wait for user to specify details):
 
-# INVOICE PATTERN (IF INVOICING IS IMPLIED):
-If the user mentions billing, invoices, payments, or quote-to-cash:
+- Enable `modules.hr` with `{ "enabled": true }`.
+- ALWAYS create `departments` entity (module: "hr") with EXACTLY these fields:
+  - `name` (string, required, unique)
+  - `location` (string)
+  - `manager_id` (reference to `employees`)
+- ALWAYS create `employees` entity (module: "hr") with EXACTLY these fields:
+  - `first_name` (string, required), `last_name` (string, required)
+  - `email` (string, required, unique), `phone` (string)
+  - `job_title` (string, required), `hire_date` (date, required)
+  - `department_id` (reference to `departments`, required)
+  - `salary` (decimal)
+  - `status` (string, options: ["Active", "Terminated", "On Leave"], required)
+  - Set `features.audit_trail: true`
+- ALWAYS create `leaves` entity (module: "hr") with EXACTLY these fields:
+  - `employee_id` (reference to `employees`, required)
+  - `leave_type` (string, options: ["Sick", "Vacation", "Unpaid"], required)
+  - `start_date` (date, required), `end_date` (date, required)
+  - `reason` (text)
+  - `status` (string, options: ["Pending", "Approved", "Rejected"], required)
+
+DO NOT invent other fields. Use ONLY the fields listed above for HR entities.
+If employees are only used to track who handled inventory (not HR features), use module: "shared" instead.
+
+# INVOICE PATTERN (AUTO-INCLUDE ALL STANDARD ENTITIES):
+Enable Invoice when the user mentions: invoices, billing, invoicing, bills, payments, accounts receivable.
+When Invoice is enabled, ALWAYS create ALL THREE standard entities (do NOT wait for user to specify details):
+
 - Enable `modules.invoice` with `{ "enabled": true, "tax_rate": 0, "currency": "USD" }`.
-- Create `invoices` entity (header) with:
-  - `invoice_number` (string), `issue_date` (date), `due_date` (date)
-  - `customer_id` (reference to `customers`)
-  - `status` (string, options: ["Draft", "Sent", "Paid", "Overdue"])
-  - `subtotal`, `tax_total`, `grand_total` (decimal)
-  - `features.print_invoice: true`
-- Create `customers` entity (shared) if not present.
-- If line items are explicitly requested, add `invoice_items` with:
-  - `invoice_id` (reference to `invoices`)
-  - `description` (string)
-  - `quantity` (integer/decimal)
-  - `unit_price` (decimal)
+- ALWAYS create `customers` entity (module: "shared") with EXACTLY these fields:
+  - `company_name` (string, required)
+  - `email` (string, required)
+  - `phone` (string)
+  - `address` (text)
+  - `vat_number` (string)
+- ALWAYS create `invoices` entity (module: "invoice") with EXACTLY these fields:
+  - `invoice_number` (string, required, unique)
+  - `customer_id` (reference to `customers`, required)
+  - `issue_date` (date, required), `due_date` (date, required)
+  - `status` (string, options: ["Draft", "Sent", "Paid", "Overdue"], required)
+  - `subtotal` (decimal), `tax_total` (decimal), `grand_total` (decimal)
+  - Set `features.print_invoice: true`
+  - Set `children: [{ "entity": "invoice_items", "foreign_key": "invoice_id", "label": "Line Items", "columns": ["description", "quantity", "unit_price", "line_total"] }]`
+- ALWAYS create `invoice_items` entity (module: "invoice") with EXACTLY these fields:
+  - `invoice_id` (reference to `invoices`, required)
+  - `description` (string, required)
+  - `quantity` (decimal, required)
+  - `unit_price` (decimal, required)
   - `line_total` (decimal)
-- If `invoice_items` exists, use `children` on `invoices` to embed `invoice_items`.
+
+DO NOT invent other fields like `monitor_id`, `product_id`, etc. Use ONLY the fields listed above for Invoice entities.
 
 # INVENTORY PATTERN (IF INVENTORY IS IMPLIED):
 If the user is describing inventory/stock management, prefer this practical pattern:

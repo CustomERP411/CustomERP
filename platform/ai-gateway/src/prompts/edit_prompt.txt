@@ -42,26 +42,19 @@
 #   - Row quick actions (next to Edit/Delete): `inventory_ops.quick_actions` (true or {receive:true, sell:true})
 # - Quantity wording: prefer `quantity_mode: "change"` (alias "delta") for signed quantity change UX.
 #
-# HR PATTERN (ONLY IF HR FEATURES ARE EXPLICITLY REQUESTED):
-Enable HR ONLY when the user explicitly asks for HR features (leave tracking, payroll, departments, HR module,
-working hours, attendance, time-off policies).
-- Enable `modules.hr`.
-- Ensure `employees` exists.
-- Add `departments` only if departments/org structure are explicitly requested.
-- Add `leaves` only if leave/time-off is explicitly requested.
-If employees are only used to record who handled inventory actions, keep `employees` in `inventory` or `shared`
-and DO NOT enable `modules.hr`.
+# HR PATTERN (AUTO-INCLUDE ALL STANDARD ENTITIES):
+When HR is enabled, ALWAYS include ALL THREE standard entities with their standard fields:
+- `departments` (module: hr): name, location, manager_id
+- `employees` (module: hr): first_name, last_name, email, phone, job_title, hire_date, department_id, salary, status. Set `features.audit_trail: true`.
+- `leaves` (module: hr): employee_id, leave_type, start_date, end_date, reason, status
+DO NOT invent other fields. Use ONLY these standard fields for HR entities.
 
-# INVOICE PATTERN (IF INVOICING IS REQUESTED):
-If the user wants to add billing/invoices:
-- Enable `modules.invoice` with `{ "enabled": true, "tax_rate": 0, "currency": "USD" }`.
-- Create `invoices` entity (header) with:
-  - `invoice_number`, `issue_date`, `due_date`, `status` (Draft/Sent/Paid/Overdue)
-  - `customer_id` (reference), `subtotal`, `tax_total`, `grand_total`
-  - `features.print_invoice: true`
-- Ensure `customers` exists (shared).
-- Add `invoice_items` only if line items are explicitly requested.
-- Use `children` on `invoices` to embed `invoice_items` when present.
+# INVOICE PATTERN (AUTO-INCLUDE ALL STANDARD ENTITIES):
+When Invoice is enabled, ALWAYS include ALL THREE standard entities with their standard fields:
+- `customers` (module: shared): company_name, email, phone, address, vat_number
+- `invoices` (module: invoice): invoice_number, customer_id, issue_date, due_date, status, subtotal, tax_total, grand_total. Set `features.print_invoice: true`.
+- `invoice_items` (module: invoice): invoice_id, description, quantity, unit_price, line_total
+DO NOT invent other fields like `monitor_id`, `product_id`. Use ONLY these standard fields for Invoice entities.
 
 # COMPLETENESS RULE (CRITICAL):
 # Your output must be a COMPLETE SDF. Every entity MUST include a `fields` array.

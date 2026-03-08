@@ -11,11 +11,13 @@ import { useToast } from '${base}/components/ui/toast';
 import InvoiceCard from '${base}/components/modules/invoice/InvoiceCard';
 
 const currency = '${currency}';
+const STATUS_OPTIONS = ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
 
 export default function ${entityName}Page() {
   const { toast } = useToast();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +38,10 @@ export default function ${entityName}Page() {
     return () => { cancelled = true; };
   }, []);
 
+  const filteredItems = statusFilter === 'all' 
+    ? items 
+    : items.filter((inv) => String(inv?.status || 'Draft').toLowerCase() === statusFilter.toLowerCase());
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -48,19 +54,39 @@ export default function ${entityName}Page() {
         </Link>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
+        >
+          All
+        </button>
+        {STATUS_OPTIONS.map((status) => (
+          <button
+            key={status}
+            onClick={() => setStatusFilter(status)}
+            className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === status ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
+          >
+            {status}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="p-4">Loading…</div>
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-white p-10 text-center text-sm text-slate-500">
-          No invoices yet. Create your first invoice to get started.
+          {statusFilter === 'all' 
+            ? 'No invoices yet. Create your first invoice to get started.' 
+            : \`No invoices with status "\${statusFilter}".\`}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {items.map((invoice) => (
+          {filteredItems.map((invoice) => (
             <InvoiceCard
               key={String(invoice.id)}
               invoice={invoice}
-              to={'/${entity.slug}/' + invoice.id}
+              to={'/${entity.slug}/' + invoice.id + '/edit'}
               currency={currency}
             />
           ))}

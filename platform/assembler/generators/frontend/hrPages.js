@@ -11,10 +11,13 @@ import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
 import EmployeeCard from '${base}/components/modules/hr/EmployeeCard';
 
+const STATUS_OPTIONS = ['Active', 'On Leave', 'Terminated'];
+
 export default function ${entityName}Page() {
   const { toast } = useToast();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +38,10 @@ export default function ${entityName}Page() {
     return () => { cancelled = true; };
   }, []);
 
+  const filteredItems = statusFilter === 'all' 
+    ? items 
+    : items.filter((emp) => String(emp?.status || 'Active').toLowerCase().replace(/\\s+/g, '') === statusFilter.toLowerCase().replace(/\\s+/g, ''));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -47,19 +54,39 @@ export default function ${entityName}Page() {
         </Link>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
+        >
+          All
+        </button>
+        {STATUS_OPTIONS.map((status) => (
+          <button
+            key={status}
+            onClick={() => setStatusFilter(status)}
+            className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === status ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
+          >
+            {status}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="p-4">Loading…</div>
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-white p-10 text-center text-sm text-slate-500">
-          No employees yet. Add your first employee to get started.
+          {statusFilter === 'all' 
+            ? 'No employees yet. Add your first employee to get started.' 
+            : \`No employees with status "\${statusFilter}".\`}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {items.map((employee) => (
+          {filteredItems.map((employee) => (
             <EmployeeCard
               key={String(employee.id)}
               employee={employee}
-              to={'/${entity.slug}/' + employee.id}
+              to={'/${entity.slug}/' + employee.id + '/edit'}
             />
           ))}
         </div>
@@ -129,7 +156,7 @@ export default function ${entityName}Page() {
             <DepartmentCard
               key={String(dept.id)}
               department={dept}
-              to={'/${entity.slug}/' + dept.id}
+              to={'/${entity.slug}/' + dept.id + '/edit'}
             />
           ))}
         </div>
@@ -151,10 +178,13 @@ import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
 import LeaveRequestCard from '${base}/components/modules/hr/LeaveRequestCard';
 
+const STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected'];
+
 export default function ${entityName}Page() {
   const { toast } = useToast();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
     let cancelled = false;
@@ -175,31 +205,60 @@ export default function ${entityName}Page() {
     return () => { cancelled = true; };
   }, []);
 
+  const filteredItems = statusFilter === 'all' 
+    ? items 
+    : items.filter((leave) => String(leave?.status || 'Pending').toLowerCase() === statusFilter.toLowerCase());
+
+  const pendingCount = items.filter((l) => String(l?.status || 'Pending') === 'Pending').length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">${pageTitle}</h1>
           <p className="text-sm text-slate-600">Track and manage employee leave requests.</p>
+          {pendingCount > 0 ? (
+            <p className="mt-1 text-sm font-semibold text-amber-700">{pendingCount} pending approval</p>
+          ) : null}
         </div>
         <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
           New Leave Request
         </Link>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
+        >
+          All
+        </button>
+        {STATUS_OPTIONS.map((status) => (
+          <button
+            key={status}
+            onClick={() => setStatusFilter(status)}
+            className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === status ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
+          >
+            {status}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="p-4">Loading…</div>
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-white p-10 text-center text-sm text-slate-500">
-          No leave requests yet. Submit your first leave request to get started.
+          {statusFilter === 'all' 
+            ? 'No leave requests yet. Submit your first leave request to get started.' 
+            : \`No leave requests with status "\${statusFilter}".\`}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {items.map((leave) => (
+          {filteredItems.map((leave) => (
             <LeaveRequestCard
               key={String(leave.id)}
               leave={leave}
-              to={'/${entity.slug}/' + leave.id}
+              to={'/${entity.slug}/' + leave.id + '/edit'}
             />
           ))}
         </div>

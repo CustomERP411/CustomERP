@@ -220,6 +220,11 @@ class BackendGenerator {
     if (auditEnabled) addMixin('AuditMixin');
     if (features.multi_location) addMixin('LocationMixin');
 
+    if (moduleKey === 'inventory') {
+      addMixin('InventoryLifecycleMixin');
+      addMixin('InventoryReservationMixin');
+    }
+
     const invoiceConfig = (this.modules && this.modules.invoice && typeof this.modules.invoice === 'object')
       ? this.modules.invoice
       : {};
@@ -229,15 +234,24 @@ class BackendGenerator {
     if (moduleKey === 'invoice' && slug === 'invoice_items') {
       addMixin('InvoiceItemsMixin', invoiceConfig, 'modules');
     }
+    if (moduleKey === 'invoice' && slug === 'invoices') {
+      addMixin('InvoiceLifecycleMixin');
+    }
 
     if (moduleKey === 'hr' && slug === 'employees') {
       addMixin('HREmployeeMixin');
     }
+    if (moduleKey === 'hr' && slug === 'employees') {
+      addMixin('HREmployeeStatusMixin');
+    }
     if (moduleKey === 'hr' && slug === 'departments') {
       addMixin('HRDepartmentMixin');
     }
-    if (moduleKey === 'hr' && slug === 'leaves') {
+    if (moduleKey === 'hr' && (slug === 'leaves' || slug === 'leave_requests')) {
       addMixin('HRLeaveMixin');
+    }
+    if (moduleKey === 'hr' && (slug === 'leaves' || slug === 'leave_requests')) {
+      addMixin('HRLeaveApprovalMixin');
     }
 
     const explicitMixins = this._normalizeExplicitMixins(entity);
@@ -325,15 +339,20 @@ class BackendGenerator {
   async _orderMixins(entries, { entity, allEntities }) {
     const baseOrder = [
       'InventoryMixin',
+      'InventoryLifecycleMixin',
+      'InventoryReservationMixin',
       'BatchTrackingMixin',
       'SerialTrackingMixin',
       'AuditMixin',
       'LocationMixin',
       'InvoiceMixin',
       'InvoiceItemsMixin',
+      'InvoiceLifecycleMixin',
       'HREmployeeMixin',
+      'HREmployeeStatusMixin',
       'HRDepartmentMixin',
       'HRLeaveMixin',
+      'HRLeaveApprovalMixin',
     ];
 
     const byName = new Map();

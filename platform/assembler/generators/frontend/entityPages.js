@@ -21,6 +21,8 @@ function buildEntityListPage({
   bulkUpdateFields,
   escapeJsString,
   importBase,
+  hasReservationFields,
+  hasStatusField,
 }) {
   const base = importBase || '..';
   return `import { useEffect, useMemo, useState } from 'react';
@@ -83,6 +85,15 @@ const getEntityDisplay = (entitySlug: string, row: any) => {
 };
 
 const ISSUE_LABEL = '${escapeJsString(issueLabel || 'Sell')}' as const;
+
+const getStatusBadgeClass = (status: string) => {
+  const s = status.toLowerCase().replace(/[_\s]+/g, '');
+  if (s === 'active' || s === 'approved' || s === 'paid') return 'inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-emerald-100 text-emerald-700';
+  if (s === 'pending' || s === 'draft' || s === 'sent') return 'inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-amber-100 text-amber-700';
+  if (s === 'rejected' || s === 'cancelled' || s === 'terminated') return 'inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-rose-100 text-rose-700';
+  if (s === 'onleave' || s === 'overdue' || s === 'obsolete') return 'inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-slate-100 text-slate-700';
+  return 'inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-slate-100 text-slate-700';
+};
 
 export default function ${entityName}Page() {
   const { toast } = useToast();
@@ -617,11 +628,21 @@ ${enableBulkActions ? `                <td className="px-6 py-4 whitespace-nowra
                     aria-label={'Select ' + String(item.id)}
                   />
                 </td>` : ''}
-                {tableColumns.map((col: any) => (
-                  <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {getCellDisplay(item, col.key)}
-                  </td>
-                ))}
+                {tableColumns.map((col: any) => {
+                  const value = getCellDisplay(item, col.key);
+                  const isStatusCol = col.key === 'status' && hasStatusField;
+                  return (
+                    <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {isStatusCol ? (
+                        <span className={getStatusBadgeClass(String(value))}>
+                          {value}
+                        </span>
+                      ) : (
+                        <span>{value}</span>
+                      )}
+                    </td>
+                  );
+                })}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm no-print">
                   <div className="flex justify-end gap-3">
 ${enableQuickReceive ? `                    <Link
@@ -663,6 +684,9 @@ function buildEntityFormPage({
   importBase,
   invoiceConfig,
   enablePrintInvoice,
+  statusTransitions,
+  hasReservationFields,
+  approvalConfig,
 }) {
   const hasChildren = Array.isArray(childSections) && childSections.length > 0;
   const base = importBase || '..';
@@ -681,6 +705,9 @@ ${fieldDefs}
 const CHILD_SECTIONS = ${JSON.stringify(childSections || [], null, 2)} as const;
 const INVOICE_CFG = ${invoiceConfig ? JSON.stringify(invoiceConfig) : 'null'} as const;
 const ENABLE_PRINT = ${enablePrintInvoice ? 'true' : 'false'} as const;
+const STATUS_TRANSITIONS = ${statusTransitions ? JSON.stringify(statusTransitions) : 'null'} as const;
+const HAS_RESERVATION = ${hasReservationFields ? 'true' : 'false'} as const;
+const APPROVAL_CFG = ${approvalConfig ? JSON.stringify(approvalConfig) : 'null'} as const;
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(ENTITIES.map((e) => [e.slug, e.displayField])) as Record<string, string>;
 
 const getEntityDisplay = (entitySlug: string, row: any) => {
@@ -704,6 +731,7 @@ export default function ${entityName}FormPage() {
   const [childModalSection, setChildModalSection] = useState<any | null>(null);
   const [childModalMode, setChildModalMode] = useState<'create' | 'edit'>('create');
   const [childModalInitial, setChildModalInitial] = useState<any>({});
+  const [statusChanging, setStatusChanging] = useState(false);
 
   const invoiceEnabled = !!INVOICE_CFG;
   const invoiceItems = invoiceEnabled ? (childItemsBySlug['invoice_items'] || []) : [];
@@ -820,6 +848,39 @@ export default function ${entityName}FormPage() {
     }
   };
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (!isEdit || !id) return;
+    if (!confirm(\`Change status to \${newStatus}?\`)) return;
+    setStatusChanging(true);
+    try {
+      await api.put('/${entity.slug}/' + id, { status: newStatus });
+      toast({ title: 'Status updated', description: \`Status changed to \${newStatus}\`, variant: 'success' });
+      const res = await api.get('/${entity.slug}/' + id);
+      setInitialData(res.data || {});
+    } catch (err: any) {
+      toast({ title: 'Status update failed', description: err.response?.data?.error || err.message || 'Unknown error', variant: 'error' });
+    } finally {
+      setStatusChanging(false);
+    }
+  };
+
+  const handleApproval = async (action: 'approve' | 'reject') => {
+    if (!isEdit || !id || !APPROVAL_CFG) return;
+    const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
+    if (!confirm(\`\${action === 'approve' ? 'Approve' : 'Reject'} this request?\`)) return;
+    setStatusChanging(true);
+    try {
+      await api.put('/${entity.slug}/' + id, { status: newStatus });
+      toast({ title: \`Request \${action === 'approve' ? 'approved' : 'rejected'}\`, variant: 'success' });
+      const res = await api.get('/${entity.slug}/' + id);
+      setInitialData(res.data || {});
+    } catch (err: any) {
+      toast({ title: 'Operation failed', description: err.response?.data?.error || err.message || 'Unknown error', variant: 'error' });
+    } finally {
+      setStatusChanging(false);
+    }
+  };
+
   const getChildCellDisplay = (section: any, item: any, col: any) => {
     const key = String(col?.key || '');
     const raw = item?.[key];
@@ -903,7 +964,7 @@ export default function ${entityName}FormPage() {
           <h1 className="text-2xl font-bold text-slate-900">{isEdit ? 'Edit' : 'Create'} ${escapeJsString(entity.display_name || entityName)}</h1>
           <p className="text-sm text-slate-600">Fill in the fields and save.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {invoiceEnabled && ENABLE_PRINT && isEdit ? (
             <button
               type="button"
@@ -912,6 +973,39 @@ export default function ${entityName}FormPage() {
             >
               Print
             </button>
+          ) : null}
+          {APPROVAL_CFG && isEdit && initialData?.status === 'Pending' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => handleApproval('approve')}
+                disabled={statusChanging}
+                className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 no-print"
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApproval('reject')}
+                disabled={statusChanging}
+                className="rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50 no-print"
+              >
+                Reject
+              </button>
+            </>
+          ) : null}
+          {STATUS_TRANSITIONS && isEdit && initialData?.status ? (
+            (STATUS_TRANSITIONS as any)[initialData.status]?.map((nextStatus: string) => (
+              <button
+                key={nextStatus}
+                type="button"
+                onClick={() => handleStatusChange(nextStatus)}
+                disabled={statusChanging}
+                className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 no-print"
+              >
+                → {nextStatus}
+              </button>
+            ))
           ) : null}
           <Link to="/${entity.slug}" className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 no-print">
             Back
@@ -923,6 +1017,29 @@ export default function ${entityName}FormPage() {
         <div className="p-4">Loading...</div>
       ) : (
         <div className="space-y-4">
+          {HAS_RESERVATION && isEdit && initialData ? (
+            <div className="rounded-lg bg-white p-4 shadow">
+              <div className="text-sm font-semibold text-slate-900 mb-3">Stock Availability</div>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-sm">
+                <div>
+                  <div className="text-slate-500">On Hand</div>
+                  <div className="font-semibold text-slate-900">{initialData.quantity ?? '—'}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Reserved</div>
+                  <div className="font-semibold text-amber-700">{initialData.reserved_quantity ?? 0}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Committed</div>
+                  <div className="font-semibold text-blue-700">{initialData.committed_quantity ?? 0}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Available</div>
+                  <div className="font-semibold text-emerald-700">{initialData.available_quantity ?? initialData.quantity ?? 0}</div>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div className="rounded-lg bg-white p-6 shadow">
             <DynamicForm
               fields={fieldDefinitions as any}

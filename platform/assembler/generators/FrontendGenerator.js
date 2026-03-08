@@ -579,6 +579,60 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const labels = entity.labels || {};
     const enableQrLabels = labels.enabled === true && labels.type === 'qrcode';
 
+    // Detect mixin capabilities for UI support
+    const mixinConfig = entity.mixins || {};
+    const hasReservationMixin = fields.some((f) => 
+      f && (f.name === 'reserved_quantity' || f.name === 'committed_quantity' || f.name === 'available_quantity')
+    );
+    const hasReservationFields = hasReservationMixin || (mixinConfig.inventory_reservation || mixinConfig.inventoryReservation);
+
+    const hasStatusField = fields.some((f) => f && f.name === 'status');
+    let statusTransitions = null;
+    if (hasStatusField) {
+      // Check for lifecycle mixin config
+      const invLifecycle = mixinConfig.inventory_lifecycle || mixinConfig.inventoryLifecycle;
+      const invoiceLifecycle = mixinConfig.invoice_lifecycle || mixinConfig.invoiceLifecycle;
+      const hrEmployeeStatus = mixinConfig.hr_employee_status || mixinConfig.hrEmployeeStatus;
+      const hrLeaveApproval = mixinConfig.hr_leave_approval || mixinConfig.hrLeaveApproval;
+
+      if (invLifecycle && invLifecycle.transitions) {
+        statusTransitions = invLifecycle.transitions;
+      } else if (invLifecycle && invLifecycle.use_default_transitions) {
+        statusTransitions = {
+          Draft: ['Active', 'Obsolete'],
+          Active: ['Obsolete'],
+          Obsolete: [],
+        };
+      } else if (invoiceLifecycle) {
+        const custom = invoiceLifecycle.transitions;
+        statusTransitions = custom || {
+          Draft: ['Sent', 'Cancelled'],
+          Sent: ['Paid', 'Overdue', 'Cancelled'],
+          Overdue: ['Paid', 'Cancelled'],
+          Paid: [],
+          Cancelled: [],
+        };
+      } else if (hrEmployeeStatus) {
+        const custom = hrEmployeeStatus.transitions;
+        statusTransitions = custom || {
+          Active: ['On Leave', 'Terminated'],
+          'On Leave': ['Active', 'Terminated'],
+          Terminated: [],
+        };
+      } else if (hrLeaveApproval) {
+        const custom = hrLeaveApproval.transitions;
+        statusTransitions = custom || {
+          Pending: ['Approved', 'Rejected'],
+          Approved: [],
+          Rejected: [],
+        };
+      }
+    }
+
+    // Check for approval workflow (HR leave requests)
+    const isLeaveApprovalEntity = isLeaveEntity && hasStatusField;
+    const approvalConfig = isLeaveApprovalEntity ? { statusField: 'status', actions: ['approve', 'reject'] } : null;
+
     const configuredColumns = Array.isArray(entity.list && entity.list.columns) ? entity.list.columns : null;
     const defaultColumns = fields.filter((f) => f && f.name !== 'id').slice(0, 5).map((f) => f.name);
     const finalColumns = (configuredColumns && configuredColumns.length ? configuredColumns : defaultColumns).filter((c) => c && c !== 'id');
@@ -646,6 +700,8 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           bulkUpdateFields,
           escapeJsString: (s) => this._escapeJsString(s),
           importBase,
+          hasReservationFields,
+          hasStatusField,
         });
 
     // Optional embedded children/line-items sections (generic)
@@ -722,6 +778,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       importBase,
       invoiceConfig: isInvoiceEntity ? invoiceConfig : null,
       enablePrintInvoice,
+      statusTransitions,
+      hasReservationFields,
+      approvalConfig,
     });
 
     await fs.writeFile(path.join(modulePagesDir, `${entityName}Page.tsx`), listPageContent);

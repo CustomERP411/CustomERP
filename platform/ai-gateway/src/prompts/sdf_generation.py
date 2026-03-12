@@ -98,3 +98,129 @@ def get_finalize_prompt(business_description: str, partial_sdf: str, answers: st
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."
+
+
+# ─────────────────────────────────────────────────────────────
+# Multi-Agent Pipeline Prompts
+# ─────────────────────────────────────────────────────────────
+
+def get_distributor_prompt(business_description: str, default_questions: str = "") -> str:
+    """Loads the distributor prompt for routing user input to modules.
+    
+    Args:
+        business_description: The user's natural language input.
+        default_questions: Optional pre-generation questions (reserved for future use).
+    """
+    try:
+        prompt_template_path = PROMPT_DIR / "distributor_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+        return _inject_placeholders(
+            prompt_template,
+            {
+                "business_description": business_description,
+                "default_questions": default_questions or "",
+            },
+        )
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found at {prompt_template_path}")
+        return "Error: Could not load prompt."
+
+
+def get_hr_generator_prompt(
+    business_description: str,
+    hr_description: str,
+    hr_features: str,
+    shared_entities: str,
+) -> str:
+    """Loads the HR module generator prompt."""
+    try:
+        prompt_template_path = PROMPT_DIR / "hr_generator_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+        return _inject_placeholders(
+            prompt_template,
+            {
+                "business_description": business_description,
+                "hr_description": hr_description,
+                "hr_features": hr_features,
+                "shared_entities": shared_entities,
+            },
+        )
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found at {prompt_template_path}")
+        return "Error: Could not load prompt."
+
+
+def get_invoice_generator_prompt(
+    business_description: str,
+    invoice_description: str,
+    invoice_features: str,
+    shared_entities: str,
+) -> str:
+    """Loads the Invoice module generator prompt."""
+    try:
+        prompt_template_path = PROMPT_DIR / "invoice_generator_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+        return _inject_placeholders(
+            prompt_template,
+            {
+                "business_description": business_description,
+                "invoice_description": invoice_description,
+                "invoice_features": invoice_features,
+                "shared_entities": shared_entities,
+            },
+        )
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found at {prompt_template_path}")
+        return "Error: Could not load prompt."
+
+
+def get_inventory_generator_prompt(
+    business_description: str,
+    inventory_description: str,
+    inventory_features: str,
+    shared_entities: str,
+) -> str:
+    """Loads the Inventory module generator prompt."""
+    try:
+        prompt_template_path = PROMPT_DIR / "inventory_generator_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+        return _inject_placeholders(
+            prompt_template,
+            {
+                "business_description": business_description,
+                "inventory_description": inventory_description,
+                "inventory_features": inventory_features,
+                "shared_entities": shared_entities,
+            },
+        )
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found at {prompt_template_path}")
+        return "Error: Could not load prompt."
+
+
+def get_integrator_prompt(
+    project_name: str,
+    business_description: str,
+    shared_entities: str,
+    hr_output: str,
+    invoice_output: str,
+    inventory_output: str,
+) -> str:
+    """Loads the Integrator prompt for combining module outputs."""
+    try:
+        prompt_template_path = PROMPT_DIR / "integrator_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+        return _inject_placeholders(
+            prompt_template,
+            {
+                "project_name": project_name,
+                "business_description": business_description,
+                "shared_entities": shared_entities,
+                "hr_output": hr_output or "null",
+                "invoice_output": invoice_output or "null",
+                "inventory_output": inventory_output or "null",
+            },
+        )
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found at {prompt_template_path}")
+        return "Error: Could not load prompt."

@@ -1,24 +1,99 @@
 """
 Service for generating and validating the System Definition File (SDF)
+
+Supports two generation modes:
+1. Legacy single-prompt mode (generate_sdf_from_description)
+2. Multi-agent pipeline mode (generate_sdf_multi_agent)
+
+The multi-agent mode uses separate AI agents for:
+- Distributor: Routes user input to appropriate modules
+- HR Generator: Generates HR-related SDF entities
+- Invoice Generator: Generates Invoice-related SDF entities
+- Inventory Generator: Generates Inventory-related SDF entities
+- Integrator: Combines all module outputs into final SDF
 """
 
 import json
 from copy import deepcopy
+from typing import Optional, Dict, Any
 from pydantic import ValidationError
 
 from .gemini_client import GeminiClient
-import json
+from .multi_agent_service import MultiAgentService
 
 from src.prompts.sdf_generation import get_sdf_prompt, get_clarify_prompt, get_fix_json_prompt, get_edit_prompt, get_finalize_prompt
 from src.schemas.sdf import SystemDefinitionFile
 from src.schemas.clarify import ClarificationAnswer
+from src.schemas.multi_agent import PipelineResult
 import re
 
-class SDFService:
-    """Orchestrates the generation and validation of the SDF"""
 
-    def __init__(self, gemini_client: GeminiClient):
+class SDFService:
+    """Orchestrates the generation and validation of the SDF.
+    
+    Supports both legacy single-prompt generation and the new multi-agent pipeline.
+    """
+
+    def __init__(self, gemini_client: GeminiClient, multi_agent_service: Optional[MultiAgentService] = None):
         self.gemini_client = gemini_client
+        self._multi_agent_service = multi_agent_service
+    
+    @property
+    def multi_agent_service(self) -> MultiAgentService:
+        """Lazy-load the multi-agent service."""
+        if self._multi_agent_service is None:
+            self._multi_agent_service = MultiAgentService()
+        return self._multi_agent_service
+    
+    async def generate_sdf_multi_agent(
+        self,
+        business_description: str,
+        default_question_answers: Optional[Dict[str, Any]] = None,
+    ) -> SystemDefinitionFile:
+        """
+        Generates an SDF using the multi-agent pipeline.
+        
+        This method uses separate AI agents for routing, module generation,
+        and integration, allowing for better specialization and future
+        fine-tuning of individual components.
+        
+        Args:
+            business_description: The user's natural language input.
+            default_question_answers: Optional answers to pre-generation questions
+                                     (reserved for future use).
+        
+        Returns:
+            A validated SystemDefinitionFile object.
+        
+        Raises:
+            ValueError: If the pipeline fails or produces invalid output.
+        """
+        print("[SDFService] Generating SDF using multi-agent pipeline...")
+        
+        result: PipelineResult = await self.multi_agent_service.generate_sdf(
+            business_description=business_description,
+            default_question_answers=default_question_answers,
+        )
+        
+        if not result.success:
+            error_msg = "; ".join(result.errors) if result.errors else "Unknown error"
+            raise ValueError(f"Multi-agent pipeline failed: {error_msg}")
+        
+        if not result.sdf:
+            raise ValueError("Multi-agent pipeline produced no SDF output")
+        
+        # Normalize the SDF
+        data = self._normalize_generator_sdf(result.sdf, request_text=business_description)
+        
+        # Validate against schema
+        try:
+            validated_sdf = SystemDefinitionFile.model_validate(data)
+            print("[SDFService] Multi-agent SDF validation successful.")
+            return validated_sdf
+        except ValidationError as e:
+            print(f"[SDFService] Multi-agent SDF Validation Error: {e}")
+            print(f"[SDFService] Raw Data:\n{data}")
+            raise ValueError(f"Multi-agent pipeline output did not match the required SDF schema: {e}") from e
 
     async def generate_sdf_from_description(self, business_description: str) -> SystemDefinitionFile:
         """

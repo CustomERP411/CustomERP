@@ -92,6 +92,10 @@ class AnalyzeRequest(BaseModel):
         default=None,
         description="Optional prior context for the AI (reserved for future use).",
     )
+    default_question_answers: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Answers to pre-generation questions (reserved for future use).",
+    )
 
 
 class EditRequest(BaseModel):
@@ -105,6 +109,13 @@ class EditRequest(BaseModel):
 async def analyze(request: AnalyzeRequest):
     """
     Analyzes a business description and generates a System Definition File (SDF).
+    
+    Uses a multi-agent pipeline with specialized AI agents for:
+    - Distributor: Routes input to appropriate modules
+    - HR Generator: Generates HR-related entities
+    - Invoice Generator: Generates Invoice-related entities
+    - Inventory Generator: Generates Inventory-related entities
+    - Integrator: Combines all module outputs into final SDF
     """
     sdf_service = get_sdf_service()
     if not sdf_service:
@@ -114,7 +125,11 @@ async def analyze(request: AnalyzeRequest):
         )
 
     try:
-        sdf = await sdf_service.generate_sdf_from_description(request.business_description)
+        print("[API] Generating SDF using multi-agent pipeline")
+        sdf = await sdf_service.generate_sdf_multi_agent(
+            business_description=request.business_description,
+            default_question_answers=request.default_question_answers,
+        )
         return sdf
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Failed to generate a valid SDF: {str(e)}")

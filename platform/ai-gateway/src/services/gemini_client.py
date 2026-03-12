@@ -1,6 +1,9 @@
 """
 Gemini AI Client
-Handles communication with Google's Gemini 2.5 Pro API
+Handles communication with Google's Gemini API
+
+Supports multi-agent architecture where each agent can have its own
+model configuration while sharing the same underlying API.
 """
 
 import os
@@ -12,23 +15,45 @@ import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
 from google.generativeai.types import GenerationConfig
 
-from src.config import settings
+from src.config import settings, AgentConfig
+from src.services.base_client import BaseAIClient
 
 
-class GeminiClient:
+class GeminiClient(BaseAIClient):
     """
     Client for interacting with Google Gemini AI
     
     Usage:
+        # Default client (uses global settings)
         client = GeminiClient()
         response = await client.generate("What is an ERP?")
+        
+        # Agent-specific client
+        from src.config import settings
+        hr_config = settings.hr_config()
+        hr_client = GeminiClient(agent_config=hr_config)
     """
     
-    _instance: Optional["GeminiClient"] = None
+    _default_instance: Optional["GeminiClient"] = None
     
-    def __init__(self):
-        """Initialize the Gemini client with API key from environment"""
-        api_key = settings.GOOGLE_AI_API_KEY
+    def __init__(self, agent_config: Optional[AgentConfig] = None):
+        """Initialize the Gemini client.
+        
+        Args:
+            agent_config: Optional agent-specific configuration. If not provided,
+                         uses global defaults from settings.
+        """
+        super().__init__(agent_config)
+    
+    def _setup_client(self) -> None:
+        """Set up the Gemini client with appropriate credentials and config."""
+        # Get API key (agent-specific or global)
+        if self.agent_config:
+            api_key = self.agent_config.get_api_key(settings.GOOGLE_AI_API_KEY)
+            model_name = self.agent_config.get_model(settings.GEMINI_MODEL)
+        else:
+            api_key = settings.GOOGLE_AI_API_KEY
+            model_name = settings.GEMINI_MODEL
         
         if not api_key:
             raise ValueError(
@@ -38,18 +63,28 @@ class GeminiClient:
         
         genai.configure(api_key=api_key)
         
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        self.timeout = settings.AI_TIMEOUT_SECONDS
-        self.max_retries = settings.AI_MAX_RETRIES
+        self.model = genai.GenerativeModel(model_name)
+        self.model_name = model_name
         
-        print(f"[GeminiClient] Initialized with model: {settings.GEMINI_MODEL}")
+        agent_name = self.agent_config.name if self.agent_config else "default"
+        print(f"[GeminiClient:{agent_name}] Initialized with model: {model_name}")
+    
+    @property
+    def timeout(self) -> int:
+        """Get timeout from base class."""
+        return self.get_timeout()
+    
+    @property
+    def max_retries(self) -> int:
+        """Get max retries from base class."""
+        return self.get_max_retries()
     
     @classmethod
     def get_instance(cls) -> "GeminiClient":
-        """Get singleton instance of GeminiClient"""
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
+        """Get singleton instance of GeminiClient (default config)"""
+        if cls._default_instance is None:
+            cls._default_instance = cls()
+        return cls._default_instance
     
     async def generate(
         self, 
@@ -150,7 +185,8 @@ class GeminiClient:
     def get_model_info(self) -> dict:
         """Get information about the current model configuration"""
         return {
-            "model": settings.GEMINI_MODEL,
+            "model": self.model_name,
+            "agent": self.agent_config.name if self.agent_config else "default",
             "timeout_seconds": self.timeout,
             "max_retries": self.max_retries,
             "api_configured": bool(settings.GOOGLE_AI_API_KEY)

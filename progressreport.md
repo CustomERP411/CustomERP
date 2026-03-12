@@ -1,52 +1,47 @@
 **Sprint Progress Report**
 
-| **Sprint Start** | 09/02/2026 |  |  | **Report No** | 1 |
+| **Sprint Start** | 03/03/2026 |  |  | **Report No** | 2 |
 | --- | --- | --- | --- | --- | --- |
-| **Sprint End** | 23/02/2026 |  |  |  |  |
+| **Sprint End** | 12/03/2026 |  |  |  |  |
 | **Project Name** | CustomERP |  |  | **Team No** | 10 |
 | **Team Members** | Ahmet Selim Alpkirisci (ASA) | Burak Tan Bilgi (BTB) | Orhan Demir Demiroz (ODD) | Tunc Erdoganlar (TE) | Elkhan Abbasov (EA) |
 | **Prepared by** | Ahmet Selim Alpkirisci, Burak Tan Bilgi |  |  |  |  |
 
 **Last Sprint** List what you have accomplished last sprint
 
-- Implemented authentication backend APIs (register, login, token flow). (ODD)
-- Built login/register screens and session handling in frontend. (EA)
-- Connected baseline AI analyze and clarify flow. (BTB)
-- Built dashboard and project listing interface. (EA)
-- Implemented project CRUD and project initialization backend flow. (ODD)
-- Built initial inventory assembler structure. (ASA)
-- Added initial backend generation brick/data-provider setup. (ODD)
-- Stabilized local Docker environment. (ASA)
+- Coordinate sprint task order and blocker removal. (ASA)
+- Improve mixin loading and mixin execution order in generator. (ASA)
+- Ensure multi-module generation path is integrated and stable. (ASA)
+- Keep merge and review discipline across the sprint. (ASA)
+- Prepare coding/release checklist updates. (ASA)
+- Make final AI step return one clean final SDF. (BTB)
+- Add strict invalid-output repair and rejection logic. (BTB)
+- Add per-entity mixin settings in backend generation flow. (ODD)
+- Implement generation job progress tracking in database. (ODD)
+- Save generated module and artifact records in database. (ODD)
+- Save runtime logs in database. (ODD)
+- Complete backend invoice generation flow. (ODD)
+- Complete backend hr generation flow. (ODD)
+- Complete frontend invoice generation pages and flow. (EA)
+- Complete frontend hr generation pages and flow. (EA)
+- Verify combined-module navigation works correctly. (EA)
+- Run daily functional checks on main platform flow. (TE)
+- Verify generation output for inventory, invoice, hr, and combined modules. (TE)
+- Run end-to-end checks from project creation to generated output. (TE)
+- Log defects and retest after fixes continuously. (TE)
 
 ---
 
 **Unfinished Tasks (Backlog)** List things you were supposed to have finished but did not (and why not), partially completed, and tasks you have not started. All unfinished tasks.
 
-Whole-project pending tasks after Sprint 1 (Sprint 1 tasks are listed in **Next Sprint**):
+Whole-project pending tasks not included in the Sprint 2 plan:
 
 - Build backend endpoint for review summary before approval. (ODD)
 - Build review page for schema/module/relation check. (EA)
 - Define review checklist and approval criteria. (ASA)
 - Connect AI edit flow to review/revision stage. (BTB)
-- Separate AI by function into four models (inventory, invoice, hr, module-combiner). (BTB)
-- Build routing logic that chooses the correct model(s) from user input. (ASA)
 - Prepare clean training data for each AI model. (BTB)
-- Define mandatory module question set for inventory that every inventory user must answer before SDF generation. (ASA)
-- Define mandatory module question set for invoice that every invoice user must answer before SDF generation. (ASA)
-- Define mandatory module question set for hr that every hr user must answer before SDF generation. (ASA)
-- Define fixed answer-to-SDF field mapping for mandatory inventory questions. (ASA)
-- Define fixed answer-to-SDF field mapping for mandatory invoice questions. (ASA)
-- Define fixed answer-to-SDF field mapping for mandatory hr questions. (ASA)
-- Build pre-SDF UI flow to ask mandatory module questions and collect answers. (EA)
-- Add prefilled SDF draft screen where user can review and edit mandatory fields before AI generation. (EA)
-- Save mandatory-question templates, template version, and user answers in database. (ODD)
-- Build backend step that manually fills SDF draft from mandatory-question answers before AI call. (ODD)
-- Send mandatory answers and prefilled SDF draft to selected SDF generator AI in one structured input. (BTB)
-- Validate final AI SDF output against mandatory-question answers so required fields are always generated. (BTB)
-- Replace generated ERP flat-file storage with database storage design. (ODD)
-- Update generated backend templates to use database repositories instead of flat files. (ODD)
-- Update assembler output so generated ERP includes database setup/config. (ASA)
-- Plan migration path for already-generated projects from flat-file to database mode. (ASA)
+- Train four specialized AI models after API logic stabilization. (BTB)
 - Implement approve/reject/revise backend workflow. (ODD)
 - Implement approve/reject/revise UI with revision history. (EA)
 - Prepare release gate for approval workflow readiness. (ASA)
@@ -56,16 +51,6 @@ Whole-project pending tasks after Sprint 1 (Sprint 1 tasks are listed in **Next 
 - Improve UI behavior for long generation and error states. (EA)
 - Run full regression and retest cycle before freeze. (TE)
 - Prepare final demo script and delivery checklist. (ASA)
-- Research real ERP use-cases for inventory module and define missing capability list. (ASA)
-- Research real ERP use-cases for invoice module and define missing capability list. (ASA)
-- Research real ERP use-cases for hr module and define missing capability list. (ASA)
-- Implement new inventory mixins based on research findings. (ODD)
-- Implement new invoice mixins based on research findings. (ODD)
-- Implement new hr mixins based on research findings. (ODD)
-- Update frontend pages to support new inventory capabilities from mixins. (EA)
-- Update frontend pages to support new invoice capabilities from mixins. (EA)
-- Update frontend pages to support new hr capabilities from mixins. (EA)
-- Prepare regression scenarios for newly added module capabilities. (TE)
 - Prepare droplet deployment architecture for platform services. (ASA)
 - Configure droplet runtime, reverse proxy, TLS, and domain routing. (ODD)
 - Create production deployment pipeline for droplet releases. (ASA)
@@ -101,38 +86,49 @@ Whole-project pending tasks after Sprint 1 (Sprint 1 tasks are listed in **Next 
 
 **Next Sprint** List what you plan to do next Sprint. All tasks for the next sprint.
 
-Sprint 1 planned tasks:
+Sprint 2 planned tasks:
 
-- Coordinate sprint task order and blocker removal. (ASA)
-- Improve mixin loading and mixin execution order in generator. (ASA)
-- Ensure multi-module generation path is integrated and stable. (ASA)
-- Keep merge and review discipline across the sprint. (ASA)
-- Prepare coding/release checklist updates. (ASA)
-- Make final AI step return one clean final SDF. (BTB)
-- Add strict invalid-output repair and rejection logic. (BTB)
-- Add per-entity mixin settings in backend generation flow. (ODD)
-- Implement generation job progress tracking in database. (ODD)
-- Save generated module and artifact records in database. (ODD)
-- Save runtime logs in database. (ODD)
-- Complete backend invoice generation flow. (ODD)
-- Complete backend hr generation flow. (ODD)
-- Complete frontend invoice generation pages and flow. (EA)
-- Complete frontend hr generation pages and flow. (EA)
-- Verify combined-module navigation works correctly. (EA)
-- Run daily functional checks on main platform flow. (TE)
-- Verify generation output for inventory, invoice, hr, and combined modules. (TE)
-- Run end-to-end checks from project creation to generated output. (TE)
-- Log defects and retest after fixes continuously. (TE)
+- Separate AI by function into four models (inventory, invoice, hr, module-combiner). (BTB)
+- Build routing logic that chooses the correct model(s) from user input. (ASA)
+- Implement backend API usage logic to call the selected model endpoint and normalize responses. (ODD)
+- Implement module-combiner call flow for multi-module final SDF assembly. (BTB)
+- Define mandatory module question set for inventory that every inventory user must answer before SDF generation. (ASA)
+- Define mandatory module question set for invoice that every invoice user must answer before SDF generation. (ASA)
+- Define mandatory module question set for hr that every hr user must answer before SDF generation. (ASA)
+- Define fixed answer-to-SDF field mapping for mandatory inventory questions. (ASA)
+- Define fixed answer-to-SDF field mapping for mandatory invoice questions. (ASA)
+- Define fixed answer-to-SDF field mapping for mandatory hr questions. (ASA)
+- Build pre-SDF UI flow to ask mandatory module questions and collect answers. (EA)
+- Add prefilled SDF draft screen where user can review and edit mandatory fields before AI generation. (EA)
+- Save mandatory-question templates, template version, and user answers in database. (ODD)
+- Build backend step that manually fills SDF draft from mandatory-question answers before AI call. (ODD)
+- Send mandatory answers and prefilled SDF draft to selected SDF generator AI in one structured input. (BTB)
+- Validate final AI SDF output against mandatory-question answers so required fields are always generated. (BTB)
+- Research real ERP use-cases for inventory module and define missing capability list. (ASA)
+- Research real ERP use-cases for invoice module and define missing capability list. (ASA)
+- Research real ERP use-cases for hr module and define missing capability list. (ASA)
+- Implement new inventory mixins based on research findings. (ODD)
+- Implement new invoice mixins based on research findings. (ODD)
+- Implement new hr mixins based on research findings. (ODD)
+- Update frontend pages to support new inventory capabilities from mixins. (EA)
+- Update frontend pages to support new invoice capabilities from mixins. (EA)
+- Update frontend pages to support new hr capabilities from mixins. (EA)
+- Replace generated ERP flat-file storage with database storage design. (ODD)
+- Update generated backend templates to use database repositories instead of flat files. (ODD)
+- Update assembler output so generated ERP includes database setup/config. (ASA)
+- Run default-question-to-prefilled-SDF flow tests and regression checks. (TE)
+- Run module-capability regression scenarios for new mixins/pages. (TE)
+- Run generated ERP database-mode verification across inventory, invoice, and hr outputs. (TE)
 
 ---
 
 **Risks & Issues** List any problems, dependencies, or risks that may affect you from accomplishing your task
 
 - AI outputs may vary while moving to 4-model strategy. Owner: BTB.
-- Sprint 1 delivery can slip if task order is not controlled. Owner: ASA.
+- Sprint 2 delivery can slip if task order is not controlled. Owner: ASA.
 - Merge conflicts can slow progress in shared generator files. Owner: ASA.
 - Testing can lag if implementation speed is too high. Owner: TE.
-- AI and testing cost may rise during repeated runs/training. Owner: BTB.
+- AI and testing cost may rise during repeated runs while API logic changes. Owner: BTB.
 
 ---
 
@@ -143,7 +139,7 @@ Sprint 1 planned tasks:
 **Date Things to do**
 
 - 24/02/2026 - Sprint 1 completion target
-- 10/03/2026 - Sprint 2 completion target
+- 12/03/2026 - Sprint 2 completion target
 - 24/03/2026 - Sprint 3 completion target
 - 07/04/2026 - Sprint 4 completion target
 - 21/04/2026 - Sprint 5 completion target
@@ -153,6 +149,26 @@ Sprint 1 planned tasks:
 
 **ALL COMPLETED TASKS** List all completed tasks
 
+- Sprint 1 - Coordinate sprint task order and blocker removal completed. (ASA)
+- Sprint 1 - Improve mixin loading and mixin execution order in generator completed. (ASA)
+- Sprint 1 - Ensure multi-module generation path integration and stability completed. (ASA)
+- Sprint 1 - Merge and review discipline tasks completed. (ASA)
+- Sprint 1 - Coding/release checklist updates completed. (ASA)
+- Sprint 1 - Final AI step now returns one clean final SDF completed. (BTB)
+- Sprint 1 - Strict invalid-output repair and rejection logic completed. (BTB)
+- Sprint 1 - Per-entity mixin settings in backend generation flow completed. (ODD)
+- Sprint 1 - Generation job progress tracking in database completed. (ODD)
+- Sprint 1 - Generated module and artifact records saved in database completed. (ODD)
+- Sprint 1 - Runtime logs persistence in database completed. (ODD)
+- Sprint 1 - Backend invoice generation flow completed. (ODD)
+- Sprint 1 - Backend hr generation flow completed. (ODD)
+- Sprint 1 - Frontend invoice generation pages and flow completed. (EA)
+- Sprint 1 - Frontend hr generation pages and flow completed. (EA)
+- Sprint 1 - Combined-module navigation verification completed. (EA)
+- Sprint 1 - Daily functional checks on main platform flow completed. (TE)
+- Sprint 1 - Generation output verification for inventory, invoice, hr, and combined modules completed. (TE)
+- Sprint 1 - End-to-end checks from project creation to generated output completed. (TE)
+- Sprint 1 - Continuous defect logging and retesting completed. (TE)
 - Sprint 0 - Authentication backend APIs completed. (ODD)
 - Sprint 0 - Login/register screens and session handling completed. (EA)
 - Sprint 0 - Dashboard and project listing completed. (EA)
@@ -161,4 +177,4 @@ Sprint 1 planned tasks:
 - Sprint 0 - Initial inventory assembler structure completed. (ASA)
 - Sprint 0 - Local Docker setup stabilization completed. (ASA)
 
-Next Sprint Meeting: 03/03/2026 20:00
+Next Sprint Meeting: 12/03/2026 18:30

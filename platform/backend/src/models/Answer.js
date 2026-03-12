@@ -24,6 +24,22 @@ class Answer {
     return created;
   }
 
+  static async findLatestByProjectAndQuestionIds(projectId, questionIds) {
+    if (!projectId) throw new Error('projectId is required');
+    if (!Array.isArray(questionIds) || questionIds.length === 0) return [];
+
+    const result = await db.query(
+      `SELECT DISTINCT ON (question_id) answer_id, question_id, project_id, answer_text, created_at
+       FROM answers
+       WHERE project_id = $1
+         AND question_id = ANY($2::uuid[])
+       ORDER BY question_id, created_at DESC`,
+      [projectId, questionIds]
+    );
+
+    return result.rows.map((row) => this._transform(row));
+  }
+
   static _transform(row) {
     if (!row) return null;
     return {

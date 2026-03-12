@@ -81,13 +81,14 @@ class MultiAgentService:
         self,
         business_description: str,
         default_question_answers: Optional[Dict[str, Any]] = None,
+        prefilled_sdf: Optional[Dict[str, Any]] = None,
     ) -> PipelineResult:
         """Run the full multi-agent pipeline to generate an SDF.
         
         Args:
             business_description: The user's natural language description.
-            default_question_answers: Optional answers to pre-generation questions
-                                     (reserved for future use).
+            default_question_answers: Optional answers to mandatory pre-generation questions.
+            prefilled_sdf: Optional prefilled SDF draft built from mandatory answers.
         
         Returns:
             PipelineResult containing the final SDF and metadata.
@@ -104,6 +105,7 @@ class MultiAgentService:
             distributor_output = await self._run_distributor(
                 business_description,
                 default_question_answers or {},
+                prefilled_sdf or {},
             )
             warnings.extend(distributor_output.warnings)
         except Exception as e:
@@ -182,6 +184,8 @@ class MultiAgentService:
                 hr_output=module_outputs.get("hr"),
                 invoice_output=module_outputs.get("invoice"),
                 inventory_output=module_outputs.get("inventory"),
+                default_question_answers=default_question_answers or {},
+                prefilled_sdf=prefilled_sdf or {},
             )
             
             # Merge any warnings from integrator output
@@ -210,14 +214,23 @@ class MultiAgentService:
         self,
         business_description: str,
         default_question_answers: Dict[str, Any],
+        prefilled_sdf: Dict[str, Any],
     ) -> DistributorOutput:
         """Run the distributor agent to route user input."""
-        # Format default questions (reserved for future use)
+        # Format constraints for prompt injection.
         default_questions_str = ""
         if default_question_answers:
             default_questions_str = json.dumps(default_question_answers, indent=2)
+
+        prefilled_sdf_str = ""
+        if prefilled_sdf:
+            prefilled_sdf_str = json.dumps(prefilled_sdf, indent=2)
         
-        prompt = get_distributor_prompt(business_description, default_questions_str)
+        prompt = get_distributor_prompt(
+            business_description,
+            default_questions_str,
+            prefilled_sdf_str,
+        )
         
         response = await self.distributor_client.generate_with_retry(
             prompt,
@@ -228,6 +241,14 @@ class MultiAgentService:
         data = self._parse_json(response)
         
         # Parse into DistributorOutput
+        parsed_default_answers = data.get("default_question_answers", {})
+        if not isinstance(parsed_default_answers, dict):
+            parsed_default_answers = {}
+
+        parsed_prefilled_sdf = data.get("prefilled_sdf", {})
+        if not isinstance(parsed_prefilled_sdf, dict):
+            parsed_prefilled_sdf = {}
+
         return DistributorOutput(
             project_name=data.get("project_name", "CustomERP Project"),
             modules_needed=data.get("modules_needed", []),
@@ -235,7 +256,8 @@ class MultiAgentService:
             hr_context=ModuleContext(**data.get("hr_context", {})) if data.get("hr_context") else ModuleContext(),
             invoice_context=ModuleContext(**data.get("invoice_context", {})) if data.get("invoice_context") else ModuleContext(),
             inventory_context=ModuleContext(**data.get("inventory_context", {})) if data.get("inventory_context") else ModuleContext(),
-            default_question_answers=data.get("default_question_answers", {}),
+            default_question_answers=parsed_default_answers,
+            prefilled_sdf=parsed_prefilled_sdf,
             warnings=data.get("warnings", []),
         )
     
@@ -343,6 +365,8 @@ class MultiAgentService:
         hr_output: Optional[ModuleGeneratorOutput],
         invoice_output: Optional[ModuleGeneratorOutput],
         inventory_output: Optional[ModuleGeneratorOutput],
+        default_question_answers: Dict[str, Any],
+        prefilled_sdf: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Run the integrator agent to combine module outputs."""
         
@@ -350,6 +374,8 @@ class MultiAgentService:
         hr_json = json.dumps(hr_output.model_dump(), indent=2) if hr_output else "null"
         invoice_json = json.dumps(invoice_output.model_dump(), indent=2) if invoice_output else "null"
         inventory_json = json.dumps(inventory_output.model_dump(), indent=2) if inventory_output else "null"
+        mandatory_answers_json = json.dumps(default_question_answers or {}, indent=2)
+        prefilled_sdf_json = json.dumps(prefilled_sdf or {}, indent=2)
         
         prompt = get_integrator_prompt(
             project_name=project_name,
@@ -358,6 +384,8 @@ class MultiAgentService:
             hr_output=hr_json,
             invoice_output=invoice_json,
             inventory_output=inventory_json,
+            default_question_answers=mandatory_answers_json,
+            prefilled_sdf=prefilled_sdf_json,
         )
         
         response = await self.integrator_client.generate_with_retry(

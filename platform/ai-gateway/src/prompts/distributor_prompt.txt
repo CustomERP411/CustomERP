@@ -34,8 +34,10 @@
     "features": ["list of Inventory features mentioned"]
   },
   "default_question_answers": {
-    // Reserved for future use - will contain answers to mandatory pre-generation questions
-    // Leave empty for now: {}
+    // Echo the incoming mandatory answers exactly (or {} if none provided)
+  },
+  "prefilled_sdf": {
+    // Echo the incoming prefilled_sdf exactly (or {} if none provided)
   },
   "warnings": ["array of strings - any concerns or limitations to note"]
 }
@@ -92,12 +94,19 @@ If the user's description is vague about certain aspects:
 - Note the ambiguity in the module's description
 - The module-specific generators will ask clarification questions
 
-# DEFAULT QUESTIONS PLACEHOLDER:
-The `default_question_answers` field is reserved for future functionality.
-When mandatory pre-generation questions are implemented, answers will be passed here.
-For now, always return an empty object: `"default_question_answers": {}`
+# HARD CONSTRAINTS:
+- `default_question_answers` and `prefilled_sdf` are mandatory constraints from the platform.
+- Use them to prioritize module routing, entity hints, and features.
+- If business description conflicts with constraints, prefer constraints and add a warning.
+- Always include the same constraint objects in output (`default_question_answers`, `prefilled_sdf`).
+
+# INCOMING MANDATORY ANSWERS (JSON):
 
 {default_questions}
+
+# INCOMING PREFILLED SDF DRAFT (JSON):
+
+{prefilled_sdf}
 
 # USER'S BUSINESS DESCRIPTION TO ANALYZE:
 {business_description}

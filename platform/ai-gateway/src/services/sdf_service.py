@@ -49,6 +49,7 @@ class SDFService:
         self,
         business_description: str,
         default_question_answers: Optional[Dict[str, Any]] = None,
+        prefilled_sdf: Optional[Dict[str, Any]] = None,
     ) -> SystemDefinitionFile:
         """
         Generates an SDF using the multi-agent pipeline.
@@ -59,8 +60,8 @@ class SDFService:
         
         Args:
             business_description: The user's natural language input.
-            default_question_answers: Optional answers to pre-generation questions
-                                     (reserved for future use).
+            default_question_answers: Optional answers to mandatory pre-generation questions.
+            prefilled_sdf: Optional prefilled SDF draft built from mandatory answers.
         
         Returns:
             A validated SystemDefinitionFile object.
@@ -73,6 +74,7 @@ class SDFService:
         result: PipelineResult = await self.multi_agent_service.generate_sdf(
             business_description=business_description,
             default_question_answers=default_question_answers,
+            prefilled_sdf=prefilled_sdf,
         )
         
         if not result.success:

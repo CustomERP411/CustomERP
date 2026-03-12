@@ -4,6 +4,17 @@ import Button from '../components/ui/Button';
 import { projectService } from '../services/projectService';
 import type { Project } from '../types/project';
 import type { AiGatewaySdf, ClarificationAnswer, ClarificationQuestion } from '../types/aiGateway';
+import type {
+  DefaultModuleQuestion,
+  DefaultQuestionCompletion,
+  DefaultQuestionStateResponse,
+} from '../types/defaultQuestions';
+
+const MODULE_OPTIONS = [
+  { key: 'inventory', label: 'Inventory' },
+  { key: 'invoice', label: 'Invoice' },
+  { key: 'hr', label: 'HR' },
+];
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -12,6 +23,13 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [description, setDescription] = useState('');
   const [sdf, setSdf] = useState<AiGatewaySdf | null>(null);
+  const [prefilledSdf, setPrefilledSdf] = useState<AiGatewaySdf | null>(null);
+  const [selectedModules, setSelectedModules] = useState<string[]>(MODULE_OPTIONS.map((m) => m.key));
+  const [defaultQuestions, setDefaultQuestions] = useState<DefaultModuleQuestion[]>([]);
+  const [defaultAnswersById, setDefaultAnswersById] = useState<Record<string, string | string[]>>({});
+  const [defaultCompletion, setDefaultCompletion] = useState<DefaultQuestionCompletion | null>(null);
+  const [loadingDefaultQuestions, setLoadingDefaultQuestions] = useState(false);
+  const [savingDefaultAnswers, setSavingDefaultAnswers] = useState(false);
   const [questions, setQuestions] = useState<ClarificationQuestion[]>([]);
   const [answersById, setAnswersById] = useState<Record<string, string>>({});
 
@@ -31,6 +49,46 @@ export default function ProjectDetailPage() {
       // Don't ask about features we explicitly don't support (chatbot).
       return !/chat\s*bot|chatbot|sohbet\s*botu|sohbetbot/i.test(id + ' ' + text);
     }) as ClarificationQuestion[];
+  };
+
+  const applyDefaultQuestionState = (payload: DefaultQuestionStateResponse) => {
+    const questionList = Array.isArray(payload?.questions) ? payload.questions : [];
+    const answers: Record<string, string | string[]> = {};
+
+    for (const question of questionList) {
+      if (Array.isArray(question.answer)) {
+        answers[question.id] = question.answer;
+      } else if (typeof question.answer === 'string') {
+        answers[question.id] = question.answer;
+      } else {
+        answers[question.id] = question.type === 'multi_choice' ? [] : '';
+      }
+    }
+
+    setDefaultQuestions(questionList);
+    setDefaultAnswersById(answers);
+    setPrefilledSdf(payload?.prefilled_sdf || null);
+    setDefaultCompletion(payload?.prefill_validation || payload?.completion || null);
+  };
+
+  const evaluateQuestionVisibility = (question: DefaultModuleQuestion) => {
+    const condition = question.condition;
+    if (!condition || !Array.isArray(condition.rules) || !condition.rules.length) return true;
+
+    const byKey = Object.fromEntries(
+      defaultQuestions.map((item) => [item.key, defaultAnswersById[item.id]])
+    );
+
+    const checks = condition.rules.map((rule) => {
+      const actual = byKey[rule.question_key];
+      const expected = String(rule.equals || '').trim().toLowerCase();
+      if (Array.isArray(actual)) {
+        return actual.map((item) => String(item).trim().toLowerCase()).includes(expected);
+      }
+      return String(actual || '').trim().toLowerCase() === expected;
+    });
+
+    return condition.op === 'any' ? checks.some(Boolean) : checks.every(Boolean);
   };
 
   useEffect(() => {
@@ -63,13 +121,52 @@ export default function ProjectDetailPage() {
     };
   }, [projectId]);
 
+  const selectedModulesKey = useMemo(() => selectedModules.slice().sort().join(','), [selectedModules]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!projectId || !selectedModules.length) return;
+      setLoadingDefaultQuestions(true);
+      setError('');
+      try {
+        const payload = await projectService.getDefaultQuestions(projectId, selectedModules);
+        if (cancelled) return;
+        applyDefaultQuestionState(payload);
+      } catch (err: any) {
+        if (cancelled) return;
+        setError(err?.response?.data?.error || err?.message || 'Failed to load default module questions');
+      } finally {
+        if (!cancelled) setLoadingDefaultQuestions(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, selectedModulesKey]);
+
   useEffect(() => {
     if (!sdf) return;
     setDraftJson(JSON.stringify(sdf, null, 2));
     setDraftError('');
   }, [sdf]);
 
-  const canAnalyze = useMemo(() => description.trim().length >= 10, [description]);
+  const visibleDefaultQuestions = useMemo(
+    () => defaultQuestions.filter((question) => evaluateQuestionVisibility(question)),
+    [defaultQuestions, defaultAnswersById]
+  );
+
+  const canAnalyze = useMemo(
+    () => description.trim().length >= 10 && defaultCompletion?.is_complete === true && selectedModules.length > 0,
+    [description, defaultCompletion, selectedModules.length]
+  );
+
+  const canSaveDefaultAnswers = useMemo(
+    () => selectedModules.length > 0 && defaultQuestions.length > 0,
+    [selectedModules.length, defaultQuestions.length]
+  );
   const canSubmitAnswers = useMemo(() => {
     if (!sdf) return false;
     if (!questions.length) return false;
@@ -318,12 +415,65 @@ export default function ProjectDetailPage() {
     };
   }, [sdf]);
 
+  const updateDefaultAnswer = (questionId: string, value: string | string[]) => {
+    setDefaultAnswersById((prev) => ({ ...prev, [questionId]: value }));
+  };
+
+  const toggleMultiChoiceAnswer = (questionId: string, option: string, enabled: boolean) => {
+    setDefaultAnswersById((prev) => {
+      const existing = Array.isArray(prev[questionId]) ? (prev[questionId] as string[]) : [];
+      const next = enabled
+        ? Array.from(new Set([...existing, option]))
+        : existing.filter((item) => item !== option);
+      return { ...prev, [questionId]: next };
+    });
+  };
+
+  const saveDefaultAnswers = async () => {
+    if (!projectId || !selectedModules.length) return;
+    setSavingDefaultAnswers(true);
+    setError('');
+    try {
+      const payload = await projectService.saveDefaultAnswers(projectId, {
+        modules: selectedModules,
+        answers: defaultQuestions.map((question) => ({
+          question_id: question.id,
+          answer: defaultAnswersById[question.id] ?? (question.type === 'multi_choice' ? [] : ''),
+        })),
+      });
+      applyDefaultQuestionState(payload);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Failed to save default answers');
+    } finally {
+      setSavingDefaultAnswers(false);
+    }
+  };
+
   const analyze = async () => {
     if (!projectId) return;
     setRunning(true);
     setError('');
     try {
-      const res = await projectService.analyzeProject(projectId, description.trim());
+      const latestDefaults = await projectService.saveDefaultAnswers(projectId, {
+        modules: selectedModules,
+        answers: defaultQuestions.map((question) => ({
+          question_id: question.id,
+          answer: defaultAnswersById[question.id] ?? (question.type === 'multi_choice' ? [] : ''),
+        })),
+      });
+      applyDefaultQuestionState(latestDefaults);
+
+      const latestCompletion = latestDefaults.prefill_validation || latestDefaults.completion;
+      if (!latestCompletion?.is_complete) {
+        setError('Mandatory module questions are incomplete. Please fill all required fields.');
+        return;
+      }
+
+      const res = await projectService.analyzeProject(projectId, description.trim(), {
+        modules: selectedModules,
+        default_question_answers: latestDefaults.mandatory_answers,
+        prefilled_sdf: latestDefaults.prefilled_sdf || undefined,
+      });
       setProject(res.project);
       setSdf(res.sdf);
       setQuestions(filterQuestions(res.questions || []));
@@ -464,10 +614,158 @@ export default function ProjectDetailPage() {
       ) : null}
 
       <div className="rounded-xl border bg-white p-5 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">Mandatory module questions</div>
+            <div className="mt-1 text-xs text-slate-500">
+              Answer these first. They are used to build a prefilled SDF draft before AI analyze.
+            </div>
+          </div>
+          {defaultCompletion ? (
+            <div className="rounded-lg border bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              Required answered: {defaultCompletion.answered_required_visible}/{defaultCompletion.total_required_visible}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-lg border bg-slate-50 p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Modules</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {MODULE_OPTIONS.map((moduleOption) => {
+              const checked = selectedModules.includes(moduleOption.key);
+              return (
+                <label key={moduleOption.key} className="inline-flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      setSelectedModules((prev) => {
+                        if (e.target.checked) {
+                          return Array.from(new Set([...prev, moduleOption.key]));
+                        }
+                        return prev.filter((moduleKey) => moduleKey !== moduleOption.key);
+                      });
+                    }}
+                  />
+                  <span>{moduleOption.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        {loadingDefaultQuestions ? (
+          <div className="rounded-lg border bg-slate-50 p-4 text-sm text-slate-600">Loading default questions...</div>
+        ) : (
+          <div className="space-y-4">
+            {visibleDefaultQuestions.map((q) => {
+              const rawAnswer = defaultAnswersById[q.id];
+              const answerString = Array.isArray(rawAnswer) ? '' : String(rawAnswer || '');
+              const options = Array.isArray(q.options) ? q.options : [];
+              const selectedKnownOption = options.includes(answerString) ? answerString : '';
+              const customValue = options.includes(answerString) ? '' : answerString;
+              const multiValues = Array.isArray(rawAnswer) ? rawAnswer : [];
+              return (
+                <div key={q.id} className="rounded-lg border bg-slate-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-sm font-semibold text-slate-900">
+                      {q.question}
+                      {q.required ? <span className="ml-1 text-red-600">*</span> : null}
+                    </div>
+                    <div className="text-[11px] text-slate-500">{q.module}</div>
+                  </div>
+
+                  <div className="mt-2">
+                    {q.type === 'yes_no' ? (
+                      <select
+                        value={answerString}
+                        onChange={(e) => updateDefaultAnswer(q.id, e.target.value)}
+                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="">Select...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                      </select>
+                    ) : q.type === 'multi_choice' ? (
+                      <div className="space-y-2">
+                        {options.map((opt) => (
+                          <label key={opt} className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={multiValues.includes(opt)}
+                              onChange={(e) => toggleMultiChoiceAnswer(q.id, opt, e.target.checked)}
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : q.type === 'choice' && options.length ? (
+                      <div className="space-y-2">
+                        <select
+                          value={selectedKnownOption}
+                          onChange={(e) => updateDefaultAnswer(q.id, e.target.value)}
+                          className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                        >
+                          <option value="">Select...</option>
+                          {options.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                        {q.allow_custom ? (
+                          <input
+                            value={customValue}
+                            onChange={(e) => updateDefaultAnswer(q.id, e.target.value)}
+                            className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                            placeholder="Custom answer (optional)"
+                          />
+                        ) : null}
+                      </div>
+                    ) : (
+                      <input
+                        value={answerString}
+                        onChange={(e) => updateDefaultAnswer(q.id, e.target.value)}
+                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                        placeholder="Your answer..."
+                      />
+                    )}
+                  </div>
+
+                  <div className="mt-1 text-xs text-slate-500">key: {q.key}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs text-slate-500">
+            Save answers to refresh completion state and prefilled SDF draft.
+          </div>
+          <Button onClick={saveDefaultAnswers} loading={savingDefaultAnswers} disabled={!canSaveDefaultAnswers || savingDefaultAnswers}>
+            Save answers and refresh draft
+          </Button>
+        </div>
+
+        {prefilledSdf ? (
+          <div className="rounded-lg border bg-slate-50 p-4">
+            <div className="text-sm font-semibold text-slate-900">Prefilled SDF draft (from mandatory answers)</div>
+            <div className="mt-1 text-xs text-slate-500">
+              This draft is generated before AI and sent as a hard constraint.
+            </div>
+            <pre className="mt-3 max-h-[320px] overflow-auto rounded-lg bg-white p-3 text-xs text-slate-800">
+              {JSON.stringify(prefilledSdf, null, 2)}
+            </pre>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="rounded-xl border bg-white p-5 space-y-4">
         <div>
           <div className="text-sm font-semibold text-slate-900">Business description</div>
           <div className="mt-1 text-xs text-slate-500">
-            This will be sent to the AI Gateway to generate an SDF and clarification questions.
+            This is sent to AI together with mandatory answers and prefilled SDF.
           </div>
         </div>
 
@@ -481,7 +779,9 @@ export default function ProjectDetailPage() {
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs text-slate-500">
-            Tip: add entities, workflows, and constraints. (Min ~10 chars here; AI Gateway may enforce more.)
+            {defaultCompletion?.is_complete
+              ? 'Tip: add entities, workflows, and constraints. (Min ~10 chars here; AI Gateway may enforce more.)'
+              : 'Complete and save mandatory module questions before Analyze.'}
           </div>
           <Button onClick={analyze} loading={running} disabled={!canAnalyze || running}>
             Analyze

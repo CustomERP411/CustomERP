@@ -28,6 +28,69 @@ class Question {
     return created;
   }
 
+  static async findByProjectAndIds(projectId, questionIds) {
+    if (!projectId) throw new Error('projectId is required');
+    if (!Array.isArray(questionIds) || questionIds.length === 0) return [];
+
+    const result = await db.query(
+      `SELECT question_id, project_id, question_text, question_type, options, order_index, created_at
+       FROM questions
+       WHERE project_id = $1
+         AND question_id = ANY($2::uuid[])`,
+      [projectId, questionIds]
+    );
+
+    return result.rows.map((row) => this._transform(row));
+  }
+
+  static async findDefaultByProject(projectId) {
+    if (!projectId) throw new Error('projectId is required');
+
+    const result = await db.query(
+      `SELECT question_id, project_id, question_text, question_type, options, order_index, created_at
+       FROM questions
+       WHERE project_id = $1
+         AND options IS NOT NULL
+         AND jsonb_typeof(options) = 'object'
+         AND options->>'source' = 'default_module_question'
+       ORDER BY order_index ASC, created_at ASC`,
+      [projectId]
+    );
+
+    return result.rows.map((row) => this._transform(row));
+  }
+
+  static async findDefaultByProjectAndModules(projectId, moduleKeys) {
+    if (!projectId) throw new Error('projectId is required');
+    if (!Array.isArray(moduleKeys) || moduleKeys.length === 0) return [];
+
+    const result = await db.query(
+      `SELECT question_id, project_id, question_text, question_type, options, order_index, created_at
+       FROM questions
+       WHERE project_id = $1
+         AND options IS NOT NULL
+         AND jsonb_typeof(options) = 'object'
+         AND options->>'source' = 'default_module_question'
+         AND options->>'module' = ANY($2::text[])
+       ORDER BY order_index ASC, created_at ASC`,
+      [projectId, moduleKeys]
+    );
+
+    return result.rows.map((row) => this._transform(row));
+  }
+
+  static _normalizeOptions(options) {
+    if (options === null || options === undefined) return null;
+    if (typeof options === 'string') {
+      try {
+        return JSON.parse(options);
+      } catch {
+        return options;
+      }
+    }
+    return options;
+  }
+
   static _transform(row) {
     if (!row) return null;
     return {
@@ -35,7 +98,7 @@ class Question {
       project_id: row.project_id,
       question: row.question_text,
       type: row.question_type,
-      options: row.options,
+      options: this._normalizeOptions(row.options),
       order_index: row.order_index,
       created_at: row.created_at,
     };

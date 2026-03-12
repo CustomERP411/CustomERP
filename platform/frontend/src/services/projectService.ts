@@ -1,6 +1,7 @@
 import api from './api';
 import type { Project, CreateProjectRequest } from '../types/project';
 import type { AnalyzeProjectResponse, ClarificationAnswer, AiGatewaySdf } from '../types/aiGateway';
+import type { DefaultQuestionStateResponse, SaveDefaultAnswersRequest } from '../types/defaultQuestions';
 
 export const projectService = {
   getProjects: async (): Promise<Project[]> => {
@@ -30,8 +31,38 @@ export const projectService = {
     await api.delete(`/projects/${id}`);
   },
 
-  analyzeProject: async (id: string, description: string): Promise<AnalyzeProjectResponse> => {
-    const response = await api.post<AnalyzeProjectResponse>(`/projects/${id}/analyze`, { description });
+  analyzeProject: async (
+    id: string,
+    description: string,
+    options?: {
+      modules?: string[];
+      default_question_answers?: Record<string, unknown>;
+      prefilled_sdf?: AiGatewaySdf;
+    }
+  ): Promise<AnalyzeProjectResponse> => {
+    const response = await api.post<AnalyzeProjectResponse>(`/projects/${id}/analyze`, {
+      description,
+      ...(options?.modules?.length ? { modules: options.modules } : {}),
+      ...(options?.default_question_answers ? { default_question_answers: options.default_question_answers } : {}),
+      ...(options?.prefilled_sdf ? { prefilled_sdf: options.prefilled_sdf } : {}),
+    });
+    return response.data;
+  },
+
+  getDefaultQuestions: async (id: string, modules: string[]): Promise<DefaultQuestionStateResponse> => {
+    const params = new URLSearchParams();
+    if (Array.isArray(modules) && modules.length) {
+      params.set('modules', modules.join(','));
+    }
+    const query = params.toString();
+    const response = await api.get<DefaultQuestionStateResponse>(
+      `/projects/${id}/default-questions${query ? `?${query}` : ''}`
+    );
+    return response.data;
+  },
+
+  saveDefaultAnswers: async (id: string, payload: SaveDefaultAnswersRequest): Promise<DefaultQuestionStateResponse> => {
+    const response = await api.post<DefaultQuestionStateResponse>(`/projects/${id}/default-questions/answers`, payload);
     return response.data;
   },
 

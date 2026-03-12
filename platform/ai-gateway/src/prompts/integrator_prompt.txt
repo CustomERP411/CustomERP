@@ -14,6 +14,7 @@
 # 4. Combine module configurations
 # 5. Merge clarification questions (deduplicate if needed)
 # 6. Produce a complete, valid SDF
+# 7. Enforce mandatory answers and prefilled SDF constraints
 
 # OUTPUT FORMAT (STRICT):
 # Respond with a single, valid JSON object ONLY (no markdown, no commentary).
@@ -91,6 +92,13 @@ When merging fields from the same entity across modules:
 - Do not remove entities from the module outputs
 - Do not change field types unless fixing an obvious error
 
+# MANDATORY CONSTRAINT ENFORCEMENT:
+- Mandatory answers and prefilled SDF are hard constraints from the platform.
+- If there is conflict between module output and constraints, prefer constraints.
+- Keep modules enabled/disabled consistent with the prefilled SDF when specified.
+- Preserve prefilled entities or fields when they are present in module outputs.
+- Add warnings for unresolved conflicts instead of silently dropping constraints.
+
 # INPUT DATA:
 
 ## Project Name:
@@ -107,6 +115,12 @@ When merging fields from the same entity across modules:
 
 ## Inventory Module Output:
 {inventory_output}
+
+## Mandatory Answers (hard constraints):
+{default_question_answers}
+
+## Prefilled SDF Draft (hard constraints):
+{prefilled_sdf}
 
 ## Original Business Description:
 {business_description}

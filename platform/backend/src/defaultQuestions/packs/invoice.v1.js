@@ -1,0 +1,113 @@
+const INVOICE_V1_TEMP_QUESTIONS = [
+  {
+    key: 'invoice_business_model',
+    prompt: 'How does your billing mostly work?',
+    type: 'choice',
+    options: ['B2B', 'B2C', 'Mixed'],
+    required: true,
+    sdf_mapping: { target: 'constraints.invoice.business_model' },
+  },
+  {
+    key: 'invoice_item_source',
+    prompt: 'What do you invoice most often?',
+    type: 'choice',
+    options: ['Products', 'Services', 'Products and services'],
+    required: true,
+    sdf_mapping: { target: 'constraints.invoice.item_source' },
+  },
+  {
+    key: 'invoice_default_currency',
+    prompt: 'What is your default invoice currency?',
+    type: 'choice',
+    options: ['USD', 'EUR', 'GBP', 'TRY', 'Custom'],
+    allow_custom: true,
+    required: true,
+    sdf_mapping: { target: 'modules.invoice.currency' },
+  },
+  {
+    key: 'invoice_tax_enabled',
+    prompt: 'Do you apply tax on invoices?',
+    type: 'yes_no',
+    required: true,
+    sdf_mapping: { target: 'modules.invoice.tax_enabled' },
+  },
+  {
+    key: 'invoice_default_tax_rate',
+    prompt: 'What is the default tax rate (%)?',
+    type: 'choice',
+    options: ['0', '1', '8', '10', '18', '20', 'Custom'],
+    allow_custom: true,
+    required: true,
+    condition: {
+      op: 'all',
+      rules: [{ question_key: 'invoice_tax_enabled', equals: 'yes' }],
+    },
+    sdf_mapping: { target: 'modules.invoice.tax_rate' },
+  },
+  {
+    key: 'invoice_number_prefix',
+    prompt: 'What prefix should invoice numbers use? (example: INV)',
+    type: 'text',
+    required: true,
+    sdf_mapping: { target: 'modules.invoice.numbering.prefix' },
+  },
+  {
+    key: 'invoice_number_reset',
+    prompt: 'When should invoice numbering reset?',
+    type: 'choice',
+    options: ['Never', 'Yearly', 'Monthly'],
+    required: true,
+    sdf_mapping: { target: 'modules.invoice.numbering.reset' },
+  },
+  {
+    key: 'invoice_status_policy',
+    prompt: 'How strict should invoice status transitions be?',
+    type: 'choice',
+    options: ['Strict lifecycle', 'Flexible manual updates'],
+    required: true,
+    sdf_mapping: { target: 'constraints.invoice.status_policy' },
+  },
+  {
+    key: 'invoice_partial_payments',
+    prompt: 'Do you need partial payment tracking?',
+    type: 'yes_no',
+    required: true,
+    sdf_mapping: { target: 'constraints.invoice.partial_payments' },
+  },
+  {
+    key: 'invoice_use_credit_notes',
+    prompt: 'Do you need credit note workflow?',
+    type: 'yes_no',
+    required: true,
+    sdf_mapping: { target: 'constraints.invoice.credit_notes' },
+  },
+  {
+    key: 'invoice_payment_terms',
+    prompt: 'What default payment terms should we use?',
+    type: 'choice',
+    options: ['Due on receipt', 'Net 7', 'Net 15', 'Net 30', 'Net 45', 'Custom'],
+    allow_custom: true,
+    required: true,
+    sdf_mapping: { target: 'constraints.invoice.payment_terms' },
+  },
+  {
+    key: 'invoice_email_delivery',
+    prompt: 'Should invoice sending by email be enabled by default?',
+    type: 'yes_no',
+    required: true,
+    sdf_mapping: { target: 'constraints.invoice.email_delivery' },
+  },
+];
+
+module.exports = {
+  module: 'invoice',
+  version: 'invoice.v1-temp',
+  template_type: 'temporary_core',
+  getQuestions() {
+    return INVOICE_V1_TEMP_QUESTIONS.map((question, index) => ({
+      ...question,
+      order_index: index,
+      section: 'Invoice Core Questions (Temporary)',
+    }));
+  },
+};

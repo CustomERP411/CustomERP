@@ -94,7 +94,11 @@ class AnalyzeRequest(BaseModel):
     )
     default_question_answers: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="Answers to pre-generation questions (reserved for future use).",
+        description="Answers to mandatory pre-generation questions.",
+    )
+    prefilled_sdf: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Prefilled SDF draft built from mandatory answers.",
     )
 
 
@@ -129,6 +133,7 @@ async def analyze(request: AnalyzeRequest):
         sdf = await sdf_service.generate_sdf_multi_agent(
             business_description=request.business_description,
             default_question_answers=request.default_question_answers,
+            prefilled_sdf=request.prefilled_sdf,
         )
         return sdf
     except ValueError as e:

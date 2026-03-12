@@ -31,6 +31,7 @@ class DistributorOutput(BaseModel):
     invoice_context: ModuleContext = Field(default_factory=ModuleContext)
     inventory_context: ModuleContext = Field(default_factory=ModuleContext)
     default_question_answers: Dict[str, Any] = Field(default_factory=dict)
+    prefilled_sdf: Dict[str, Any] = Field(default_factory=dict)
     warnings: List[str] = Field(default_factory=list)
 
 

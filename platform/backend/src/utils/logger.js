@@ -7,10 +7,20 @@ const LOG_LEVELS = {
 
 const currentLevel = LOG_LEVELS[process.env.LOG_LEVEL] || LOG_LEVELS.info;
 
+function normalizeArg(arg) {
+  if (!(arg instanceof Error)) return arg;
+  return {
+    name: arg.name,
+    message: arg.message,
+    stack: arg.stack,
+    ...arg,
+  };
+}
+
 function formatMessage(level, message, ...args) {
   const timestamp = new Date().toISOString();
   const formattedArgs = args.length > 0 ? ' ' + args.map(a => 
-    typeof a === 'object' ? JSON.stringify(a) : a
+    typeof a === 'object' ? JSON.stringify(normalizeArg(a)) : a
   ).join(' ') : '';
   return `[${timestamp}] [${level.toUpperCase()}] ${message}${formattedArgs}`;
 }

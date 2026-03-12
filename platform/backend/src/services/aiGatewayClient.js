@@ -30,9 +30,18 @@ async function postJson(path, body) {
   return data;
 }
 
-async function analyzeDescription(description, priorContext = null) {
+async function analyzeDescription(description, priorContext = null, options = {}) {
   if (!description || typeof description !== 'string') throw new Error('description must be a string');
-  return await postJson('/ai/analyze', { description, prior_context: priorContext });
+  return await postJson('/ai/analyze', {
+    description,
+    prior_context: priorContext,
+    ...(options.defaultQuestionAnswers && typeof options.defaultQuestionAnswers === 'object'
+      ? { default_question_answers: options.defaultQuestionAnswers }
+      : {}),
+    ...(options.prefilledSdf && typeof options.prefilledSdf === 'object'
+      ? { prefilled_sdf: options.prefilledSdf }
+      : {}),
+  });
 }
 
 async function clarifySdf({ businessDescription, partialSdf, answers }) {

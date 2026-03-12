@@ -12,6 +12,11 @@ router.get('/:id', projectController.getProject);
 router.put('/:id', projectController.updateProject);
 router.delete('/:id', projectController.deleteProject);
 
+// Mandatory module questions + prefill flow
+router.get('/:id/default-questions', projectController.getDefaultModuleQuestions);
+router.post('/:id/default-questions/answers', projectController.saveDefaultModuleAnswers);
+router.get('/:id/default-questions/prefill', projectController.getDefaultModulePrefill);
+
 // AI workflow (Task B4 integration - used to test ai-gateway)
 router.post('/:id/analyze', projectController.analyzeProject);
 router.post('/:id/clarify', projectController.clarifyProject);

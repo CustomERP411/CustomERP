@@ -2,6 +2,8 @@ const projectService = require('../services/projectService');
 const logger = require('../utils/logger');
 const aiGatewayClient = require('../services/aiGatewayClient');
 const clarificationService = require('../services/clarificationService');
+const moduleQuestionnaireService = require('../services/moduleQuestionnaireService');
+const prefilledSdfService = require('../services/prefilledSdfService');
 const SDF = require('../models/SDF');
 const erpGenerationService = require('../services/erpGenerationService');
 
@@ -18,6 +20,28 @@ function validateGeneratorSdf(sdf) {
   }
 
   return { valid: true };
+}
+
+function parseModulesInput(rawModules) {
+  const allowed = new Set(['inventory', 'invoice', 'hr']);
+
+  const list = Array.isArray(rawModules)
+    ? rawModules
+    : (typeof rawModules === 'string' ? rawModules.split(',') : []);
+
+  const normalized = list
+    .map((moduleKey) => String(moduleKey || '').trim().toLowerCase())
+    .filter((moduleKey) => allowed.has(moduleKey));
+
+  const unique = [];
+  const seen = new Set();
+  for (const moduleKey of normalized) {
+    if (seen.has(moduleKey)) continue;
+    seen.add(moduleKey);
+    unique.push(moduleKey);
+  }
+
+  return unique;
 }
 
 exports.listProjects = async (req, res) => {
@@ -38,6 +62,9 @@ exports.createProject = async (req, res) => {
     logger.error('Create project error:', err);
     if (err.message === 'Project name is required') {
       return res.status(400).json({ error: err.message });
+    }
+    if (err.code === '23503' || err.constraint === 'projects_owner_user_id_fkey') {
+      return res.status(401).json({ error: 'Invalid session user. Please log out and log in again.' });
     }
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -82,6 +109,118 @@ exports.deleteProject = async (req, res) => {
   }
 };
 
+exports.getDefaultModuleQuestions = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const projectId = req.params.id;
+    const modules = parseModulesInput(req.query?.modules);
+    const project = await projectService.getProject(projectId, userId);
+
+    const state = await moduleQuestionnaireService.getQuestionnaireState({
+      projectId: project.id,
+      modules,
+    });
+
+    const prefill = prefilledSdfService.buildPrefilledFromQuestionnaireState({
+      projectName: project.name,
+      questionnaireState: state,
+    });
+
+    res.json({
+      ...state,
+      prefilled_sdf: prefill.prefilled_sdf,
+      prefill_validation: prefill.validation,
+    });
+  } catch (err) {
+    if (err.message === 'Project not found') {
+      return res.status(404).json({ error: err.message });
+    }
+    logger.error('Get default module questions error:', err);
+    const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;
+    res.status(status).json({ error: err.message || 'Internal server error' });
+  }
+};
+
+exports.saveDefaultModuleAnswers = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const projectId = req.params.id;
+    const modules = parseModulesInput(req.body?.modules);
+    const answers = req.body?.answers;
+
+    if (!answers || (Array.isArray(answers) && answers.length === 0)) {
+      return res.status(400).json({ error: 'answers is required' });
+    }
+
+    const project = await projectService.getProject(projectId, userId);
+    const state = await moduleQuestionnaireService.saveQuestionnaireAnswers({
+      projectId: project.id,
+      modules,
+      answers,
+    });
+
+    const prefill = prefilledSdfService.buildPrefilledFromQuestionnaireState({
+      projectName: project.name,
+      questionnaireState: state,
+    });
+
+    let prefilledSdfVersion = null;
+    if (prefill.prefilled_sdf && typeof prefill.prefilled_sdf === 'object') {
+      const saved = await SDF.create(project.id, prefill.prefilled_sdf);
+      prefilledSdfVersion = saved?.version || null;
+    }
+
+    res.json({
+      ...state,
+      prefilled_sdf: prefill.prefilled_sdf,
+      prefilled_sdf_version: prefilledSdfVersion,
+      prefill_validation: prefill.validation,
+    });
+  } catch (err) {
+    if (err.message === 'Project not found') {
+      return res.status(404).json({ error: err.message });
+    }
+    logger.error('Save default module answers error:', err);
+    const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;
+    res.status(status).json({ error: err.message || 'Internal server error' });
+  }
+};
+
+exports.getDefaultModulePrefill = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const projectId = req.params.id;
+    const modules = parseModulesInput(req.query?.modules);
+    const project = await projectService.getProject(projectId, userId);
+
+    const state = await moduleQuestionnaireService.getQuestionnaireState({
+      projectId: project.id,
+      modules,
+    });
+
+    const prefill = prefilledSdfService.buildPrefilledFromQuestionnaireState({
+      projectName: project.name,
+      questionnaireState: state,
+    });
+
+    res.json({
+      modules: state.modules,
+      template_versions: state.template_versions,
+      mandatory_answers: state.mandatory_answers,
+      completion: state.completion,
+      prefilled_sdf: prefill.prefilled_sdf,
+      prefill_validation: prefill.validation,
+    });
+  } catch (err) {
+    if (err.message === 'Project not found') {
+      return res.status(404).json({ error: err.message });
+    }
+    logger.error('Get default module prefill error:', err);
+    const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;
+    res.status(status).json({ error: err.message || 'Internal server error' });
+  }
+};
+
 exports.analyzeProject = async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -93,11 +232,43 @@ exports.analyzeProject = async (req, res) => {
 
     // Ensure project belongs to user
     const project = await projectService.getProject(projectId, userId);
+    const requestedModules = parseModulesInput(req.body?.modules);
+    const prefilledModuleKeys = parseModulesInput(Object.keys(req.body?.prefilled_sdf?.modules || {}));
+    const modulesForQuestionnaire = requestedModules.length ? requestedModules : prefilledModuleKeys;
+    const questionnaireState = await moduleQuestionnaireService.getQuestionnaireState({
+      projectId: project.id,
+      modules: modulesForQuestionnaire,
+    });
+
+    if (!questionnaireState.completion.is_complete) {
+      return res.status(400).json({
+        error: 'Mandatory module questions are incomplete',
+        missing_required_question_ids: questionnaireState.completion.missing_required_question_ids,
+        missing_required_question_keys: questionnaireState.completion.missing_required_question_keys,
+      });
+    }
+
+    const mandatoryAnswers =
+      req.body?.default_question_answers && typeof req.body.default_question_answers === 'object'
+        ? req.body.default_question_answers
+        : questionnaireState.mandatory_answers;
+
+    const generatedPrefill = prefilledSdfService.buildPrefilledFromQuestionnaireState({
+      projectName: project.name,
+      questionnaireState,
+    });
+    const prefilledSdf =
+      req.body?.prefilled_sdf && typeof req.body.prefilled_sdf === 'object'
+        ? req.body.prefilled_sdf
+        : generatedPrefill.prefilled_sdf;
 
     // Save description + status
     await projectService.updateProject(projectId, userId, { description: description.trim(), status: 'Analyzing' });
 
-    let sdf = await aiGatewayClient.analyzeDescription(description.trim(), null);
+    let sdf = await aiGatewayClient.analyzeDescription(description.trim(), null, {
+      defaultQuestionAnswers: mandatoryAnswers,
+      prefilledSdf,
+    });
     const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
     const persistedQuestions = await clarificationService.persistQuestions({
       projectId: project.id,
@@ -116,6 +287,8 @@ exports.analyzeProject = async (req, res) => {
       sdf_version: saved?.version,
       sdf,
       questions: persistedQuestions,
+      default_question_answers: mandatoryAnswers,
+      prefilled_sdf: prefilledSdf,
     });
   } catch (err) {
     logger.error('Analyze project error:', err);

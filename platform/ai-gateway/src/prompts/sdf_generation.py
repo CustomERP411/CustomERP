@@ -104,12 +104,17 @@ def get_finalize_prompt(business_description: str, partial_sdf: str, answers: st
 # Multi-Agent Pipeline Prompts
 # ─────────────────────────────────────────────────────────────
 
-def get_distributor_prompt(business_description: str, default_questions: str = "") -> str:
+def get_distributor_prompt(
+    business_description: str,
+    default_questions: str = "",
+    prefilled_sdf: str = "",
+) -> str:
     """Loads the distributor prompt for routing user input to modules.
     
     Args:
         business_description: The user's natural language input.
-        default_questions: Optional pre-generation questions (reserved for future use).
+        default_questions: Answers to mandatory pre-generation questions.
+        prefilled_sdf: Prefilled SDF draft from mandatory answers.
     """
     try:
         prompt_template_path = PROMPT_DIR / "distributor_prompt.txt"
@@ -119,6 +124,7 @@ def get_distributor_prompt(business_description: str, default_questions: str = "
             {
                 "business_description": business_description,
                 "default_questions": default_questions or "",
+                "prefilled_sdf": prefilled_sdf or "",
             },
         )
     except FileNotFoundError:
@@ -205,6 +211,8 @@ def get_integrator_prompt(
     hr_output: str,
     invoice_output: str,
     inventory_output: str,
+    default_question_answers: str,
+    prefilled_sdf: str,
 ) -> str:
     """Loads the Integrator prompt for combining module outputs."""
     try:
@@ -219,6 +227,8 @@ def get_integrator_prompt(
                 "hr_output": hr_output or "null",
                 "invoice_output": invoice_output or "null",
                 "inventory_output": inventory_output or "null",
+                "default_question_answers": default_question_answers or "{}",
+                "prefilled_sdf": prefilled_sdf or "{}",
             },
         )
     except FileNotFoundError:

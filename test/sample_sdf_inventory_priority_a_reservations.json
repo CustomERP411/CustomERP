@@ -1,0 +1,87 @@
+{
+  "project_name": "Inventory Priority A - Reservations Only",
+  "modules": {
+    "inventory": {
+      "enabled": true,
+      "stock_entity": "products",
+      "transactions": {
+        "enabled": true,
+        "quantity_field": "quantity"
+      },
+      "reservations": {
+        "enabled": true,
+        "reservation_entity": "stock_reservations",
+        "item_field": "item_id",
+        "quantity_field": "quantity",
+        "status_field": "status",
+        "reserved_field": "reserved_quantity",
+        "committed_field": "committed_quantity",
+        "available_field": "available_quantity"
+      }
+    }
+  },
+  "entities": [
+    {
+      "slug": "products",
+      "display_name": "Products",
+      "display_field": "name",
+      "list": {
+        "columns": [
+          "name",
+          "quantity",
+          "reserved_quantity",
+          "committed_quantity",
+          "available_quantity"
+        ]
+      },
+      "inventory_ops": {
+        "enabled": true,
+        "movement_entity": "stock_movements",
+        "quantity_field": "quantity",
+        "issue": {
+          "enabled": true,
+          "label": "Issue",
+          "allow_negative_stock": false
+        },
+        "adjust": {
+          "enabled": true
+        },
+        "transfer": {
+          "enabled": true
+        }
+      },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Name", "required": true },
+        { "name": "quantity", "type": "decimal", "label": "Quantity", "required": true, "min": 0 }
+      ],
+      "features": {
+        "inventory": true
+      }
+    },
+    {
+      "slug": "stock_movements",
+      "display_name": "Stock Movements",
+      "display_field": "reference_number",
+      "list": {
+        "columns": [
+          "item_id",
+          "movement_type",
+          "quantity",
+          "movement_date"
+        ]
+      },
+      "fields": [
+        { "name": "item_id", "type": "reference", "label": "Item", "required": true, "reference_entity": "products" },
+        { "name": "movement_type", "type": "string", "label": "Type", "required": true },
+        { "name": "quantity", "type": "decimal", "label": "Quantity", "required": true },
+        { "name": "movement_date", "type": "datetime", "label": "Movement Date", "required": false },
+        { "name": "reference_number", "type": "string", "label": "Reference", "required": false },
+        { "name": "reason", "type": "text", "label": "Reason", "required": false },
+        { "name": "location_id", "type": "string", "label": "Location", "required": false },
+        { "name": "from_location_id", "type": "string", "label": "From Location", "required": false },
+        { "name": "to_location_id", "type": "string", "label": "To Location", "required": false }
+      ],
+      "features": {}
+    }
+  ]
+}

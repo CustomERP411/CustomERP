@@ -34,6 +34,297 @@ class BackendGenerator {
     return cleaned || 'inventory';
   }
 
+  _pickFirstString(...values) {
+    for (const value of values) {
+      const str = String(value || '').trim();
+      if (str) return str;
+    }
+    return '';
+  }
+
+  _isPackEnabled(packCfg) {
+    if (packCfg === true) return true;
+    if (packCfg === false || packCfg === null || packCfg === undefined) return false;
+    if (typeof packCfg === 'object') return packCfg.enabled !== false;
+    return false;
+  }
+
+  _getInventoryPriorityAConfig() {
+    const inventory =
+      this.modules && this.modules.inventory && typeof this.modules.inventory === 'object'
+        ? this.modules.inventory
+        : {};
+
+    const normalizePack = (rawValue, defaults = {}) => {
+      if (rawValue === true) return { ...defaults, enabled: true };
+      if (rawValue === false || rawValue === null || rawValue === undefined) {
+        return { ...defaults, enabled: false };
+      }
+      if (typeof rawValue === 'object') {
+        return {
+          ...defaults,
+          ...rawValue,
+          enabled: rawValue.enabled !== false,
+        };
+      }
+      return { ...defaults, enabled: false };
+    };
+
+    const reservations = normalizePack(
+      inventory.reservations || inventory.reservation,
+      {
+        reservation_entity: 'stock_reservations',
+        item_field: 'item_id',
+        quantity_field: 'quantity',
+        status_field: 'status',
+        reserved_field: 'reserved_quantity',
+        committed_field: 'committed_quantity',
+        available_field: 'available_quantity',
+      }
+    );
+
+    const transactions = normalizePack(
+      inventory.transactions || inventory.transaction || inventory.stock_transactions || inventory.stockTransactions,
+      {
+        quantity_field: reservations.quantity_field || 'quantity',
+      }
+    );
+
+    const inbound = normalizePack(
+      inventory.inbound || inventory.receiving,
+      {
+        purchase_order_entity: 'purchase_orders',
+        purchase_order_item_entity: 'purchase_order_items',
+        grn_entity: 'goods_receipts',
+        grn_item_entity: 'goods_receipt_items',
+        po_item_parent_field: 'purchase_order_id',
+        po_item_item_field: 'item_id',
+        po_item_ordered_field: 'ordered_quantity',
+        po_item_received_field: 'received_quantity',
+        po_item_status_field: 'status',
+        po_status_field: 'status',
+        grn_parent_field: 'purchase_order_id',
+        grn_item_parent_field: 'goods_receipt_id',
+        grn_item_po_item_field: 'purchase_order_item_id',
+        grn_item_item_field: 'item_id',
+        grn_item_received_field: 'received_quantity',
+        grn_item_accepted_field: 'accepted_quantity',
+        grn_status_field: 'status',
+      }
+    );
+
+    const cycleCounting = normalizePack(
+      inventory.cycle_counting || inventory.cycleCounting || inventory.cycle_counts || inventory.cycleCounts,
+      {
+        session_entity: 'cycle_count_sessions',
+        line_entity: 'cycle_count_lines',
+        line_session_field: 'cycle_count_session_id',
+        line_item_field: 'item_id',
+        line_expected_field: 'expected_quantity',
+        line_counted_field: 'counted_quantity',
+        line_variance_field: 'variance_quantity',
+        session_status_field: 'status',
+      }
+    );
+
+    const stockEntity = this._pickFirstString(
+      inventory.stock_entity,
+      inventory.stockEntity,
+      reservations.stock_entity,
+      reservations.stockEntity,
+      transactions.stock_entity,
+      transactions.stockEntity,
+      inbound.stock_entity,
+      inbound.stockEntity,
+      cycleCounting.stock_entity,
+      cycleCounting.stockEntity,
+      'products'
+    );
+
+    reservations.reservation_entity = this._pickFirstString(
+      reservations.reservation_entity,
+      reservations.reservationEntity,
+      'stock_reservations'
+    );
+    reservations.item_field = this._pickFirstString(
+      reservations.item_field,
+      reservations.itemField,
+      reservations.item_ref_field,
+      reservations.itemRefField,
+      'item_id'
+    );
+    reservations.quantity_field = this._pickFirstString(
+      reservations.quantity_field,
+      reservations.quantityField,
+      reservations.reservation_quantity_field,
+      reservations.reservationQuantityField,
+      'quantity'
+    );
+    reservations.status_field = this._pickFirstString(
+      reservations.status_field,
+      reservations.statusField,
+      'status'
+    );
+    reservations.reserved_field = this._pickFirstString(
+      reservations.reserved_field,
+      reservations.reservedField,
+      'reserved_quantity'
+    );
+    reservations.committed_field = this._pickFirstString(
+      reservations.committed_field,
+      reservations.committedField,
+      'committed_quantity'
+    );
+    reservations.available_field = this._pickFirstString(
+      reservations.available_field,
+      reservations.availableField,
+      'available_quantity'
+    );
+
+    transactions.quantity_field = this._pickFirstString(
+      transactions.quantity_field,
+      transactions.quantityField,
+      reservations.quantity_field,
+      'quantity'
+    );
+
+    inbound.purchase_order_entity = this._pickFirstString(
+      inbound.purchase_order_entity,
+      inbound.purchaseOrderEntity,
+      'purchase_orders'
+    );
+    inbound.purchase_order_item_entity = this._pickFirstString(
+      inbound.purchase_order_item_entity,
+      inbound.purchaseOrderItemEntity,
+      'purchase_order_items'
+    );
+    inbound.grn_entity = this._pickFirstString(
+      inbound.grn_entity,
+      inbound.grnEntity,
+      'goods_receipts'
+    );
+    inbound.grn_item_entity = this._pickFirstString(
+      inbound.grn_item_entity,
+      inbound.grnItemEntity,
+      'goods_receipt_items'
+    );
+    inbound.po_item_parent_field = this._pickFirstString(
+      inbound.po_item_parent_field,
+      inbound.poItemParentField,
+      'purchase_order_id'
+    );
+    inbound.po_item_item_field = this._pickFirstString(
+      inbound.po_item_item_field,
+      inbound.poItemItemField,
+      'item_id'
+    );
+    inbound.po_item_ordered_field = this._pickFirstString(
+      inbound.po_item_ordered_field,
+      inbound.poItemOrderedField,
+      'ordered_quantity'
+    );
+    inbound.po_item_received_field = this._pickFirstString(
+      inbound.po_item_received_field,
+      inbound.poItemReceivedField,
+      'received_quantity'
+    );
+    inbound.po_item_status_field = this._pickFirstString(
+      inbound.po_item_status_field,
+      inbound.poItemStatusField,
+      'status'
+    );
+    inbound.po_status_field = this._pickFirstString(
+      inbound.po_status_field,
+      inbound.poStatusField,
+      'status'
+    );
+    inbound.grn_parent_field = this._pickFirstString(
+      inbound.grn_parent_field,
+      inbound.grnParentField,
+      'purchase_order_id'
+    );
+    inbound.grn_item_parent_field = this._pickFirstString(
+      inbound.grn_item_parent_field,
+      inbound.grnItemParentField,
+      'goods_receipt_id'
+    );
+    inbound.grn_item_po_item_field = this._pickFirstString(
+      inbound.grn_item_po_item_field,
+      inbound.grnItemPoItemField,
+      'purchase_order_item_id'
+    );
+    inbound.grn_item_item_field = this._pickFirstString(
+      inbound.grn_item_item_field,
+      inbound.grnItemItemField,
+      'item_id'
+    );
+    inbound.grn_item_received_field = this._pickFirstString(
+      inbound.grn_item_received_field,
+      inbound.grnItemReceivedField,
+      'received_quantity'
+    );
+    inbound.grn_item_accepted_field = this._pickFirstString(
+      inbound.grn_item_accepted_field,
+      inbound.grnItemAcceptedField,
+      'accepted_quantity'
+    );
+    inbound.grn_status_field = this._pickFirstString(
+      inbound.grn_status_field,
+      inbound.grnStatusField,
+      'status'
+    );
+
+    cycleCounting.session_entity = this._pickFirstString(
+      cycleCounting.session_entity,
+      cycleCounting.sessionEntity,
+      'cycle_count_sessions'
+    );
+    cycleCounting.line_entity = this._pickFirstString(
+      cycleCounting.line_entity,
+      cycleCounting.lineEntity,
+      'cycle_count_lines'
+    );
+    cycleCounting.line_session_field = this._pickFirstString(
+      cycleCounting.line_session_field,
+      cycleCounting.lineSessionField,
+      'cycle_count_session_id'
+    );
+    cycleCounting.line_item_field = this._pickFirstString(
+      cycleCounting.line_item_field,
+      cycleCounting.lineItemField,
+      'item_id'
+    );
+    cycleCounting.line_expected_field = this._pickFirstString(
+      cycleCounting.line_expected_field,
+      cycleCounting.lineExpectedField,
+      'expected_quantity'
+    );
+    cycleCounting.line_counted_field = this._pickFirstString(
+      cycleCounting.line_counted_field,
+      cycleCounting.lineCountedField,
+      'counted_quantity'
+    );
+    cycleCounting.line_variance_field = this._pickFirstString(
+      cycleCounting.line_variance_field,
+      cycleCounting.lineVarianceField,
+      'variance_quantity'
+    );
+    cycleCounting.session_status_field = this._pickFirstString(
+      cycleCounting.session_status_field,
+      cycleCounting.sessionStatusField,
+      'status'
+    );
+
+    return {
+      stockEntity,
+      reservations,
+      transactions,
+      inbound,
+      cycleCounting,
+      reservationEntity: reservations.reservation_entity,
+    };
+  }
+
   async _ensureModuleDirs(outputDir, moduleKey) {
     if (this._moduleDirs.has(moduleKey)) return;
 
@@ -50,8 +341,12 @@ class BackendGenerator {
     }
 
     await this.brickRepo.copyFile(
-      'backend-bricks/repository/FlatFileProvider.js',
-      path.join(moduleRoot, 'src/repository/FlatFileProvider.js')
+      'backend-bricks/repository/PostgresProvider.js',
+      path.join(moduleRoot, 'src/repository/PostgresProvider.js')
+    );
+    await this.brickRepo.copyFile(
+      'backend-bricks/repository/db.js',
+      path.join(moduleRoot, 'src/repository/db.js')
     );
 
     this._moduleDirs.add(moduleKey);
@@ -64,7 +359,6 @@ class BackendGenerator {
       'src/routes',
       'src/services',
       'src/repository',
-      'data',
       'modules'
     ];
 
@@ -77,8 +371,16 @@ class BackendGenerator {
 
     // 3. Copy Static Helpers
     await this.brickRepo.copyFile(
-      'backend-bricks/repository/FlatFileProvider.js',
-      path.join(outputDir, 'src/repository/FlatFileProvider.js')
+      'backend-bricks/repository/PostgresProvider.js',
+      path.join(outputDir, 'src/repository/PostgresProvider.js')
+    );
+    await this.brickRepo.copyFile(
+      'backend-bricks/repository/db.js',
+      path.join(outputDir, 'src/repository/db.js')
+    );
+    await this.brickRepo.copyFile(
+      'backend-bricks/repository/runMigrations.js',
+      path.join(outputDir, 'src/repository/runMigrations.js')
     );
   }
 
@@ -103,10 +405,13 @@ class BackendGenerator {
     const moduleRoot = path.join(outputDir, 'modules', moduleKey);
     const moduleSrcDir = path.join(moduleRoot, 'src');
 
+    const mixinsToApply = await this._resolveMixins(entity, allEntities);
+    const effectiveMixinConfig = this._buildEffectiveMixinConfig(entity, mixinsToApply);
+
     const context = {
       EntityName: this._capitalize(entity.slug), // e.g., "products" -> "Products"
       entitySlug: entity.slug,
-      mixinConfig: JSON.stringify(entity.mixins || {})
+      mixinConfig: JSON.stringify(effectiveMixinConfig)
     };
 
     // 1. Generate Controller (Using BaseController template)
@@ -120,13 +425,13 @@ class BackendGenerator {
     );
 
     // 2. Generate Service (The complex part with Mixins)
-    await this._generateService(moduleSrcDir, entity, context, allEntities);
+    await this._generateService(moduleSrcDir, entity, context, allEntities, mixinsToApply);
 
     // 3. Generate Route File
     await this._generateEntityRoute(moduleSrcDir, entity, context);
   }
 
-  async _generateService(moduleSrcDir, entity, context, allEntities = []) {
+  async _generateService(moduleSrcDir, entity, context, allEntities = [], mixinsToApply = null) {
     // Load BaseService template
     const serviceTemplate = await this.brickRepo.getTemplate('BaseService.js.hbs');
 
@@ -134,10 +439,12 @@ class BackendGenerator {
     const weaver = new CodeWeaver(serviceTemplate);
 
     // Determine Mixins to apply based on features
-    const mixinsToApply = await this._resolveMixins(entity, allEntities);
+    const resolvedMixins = Array.isArray(mixinsToApply)
+      ? mixinsToApply
+      : await this._resolveMixins(entity, allEntities);
 
     // Apply Mixins
-    for (const mixinEntry of mixinsToApply) {
+    for (const mixinEntry of resolvedMixins) {
       await this._applyMixin(weaver, mixinEntry, { entity, allEntities });
     }
 
@@ -158,6 +465,21 @@ class BackendGenerator {
     const features = entity.features || {};
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
     const moduleKey = this._getModuleKey(entity);
+    const slug = String(entity && entity.slug ? entity.slug : '');
+    const inventoryCfg = this._getInventoryPriorityAConfig();
+    const transactionsCfg = this._buildInventoryTransactionMixinConfig(entity, inventoryCfg);
+    const reservationsCfg = this._buildInventoryReservationMixinConfig(inventoryCfg, transactionsCfg);
+    const inboundCfg = this._buildInventoryInboundMixinConfig(inventoryCfg, transactionsCfg);
+    const cycleCfg = this._buildInventoryCycleMixinConfig(inventoryCfg, transactionsCfg);
+    const stockSlug = String(inventoryCfg.stockEntity || '');
+    const reservationSlug = String(inventoryCfg.reservationEntity || '');
+    const inboundGrnSlug = String(inventoryCfg.inbound?.grn_entity || '');
+    const cycleSessionSlug = String(inventoryCfg.cycleCounting?.session_entity || '');
+    const cycleLineSlug = String(inventoryCfg.cycleCounting?.line_entity || '');
+
+    const hasConfiguredQuantityField = fields.some(
+      (f) => f && f.name === transactionsCfg.quantity_field
+    );
 
     // IMPORTANT: Mixins must be optional.
     // We only apply InventoryMixin when the entity actually has inventory-like behavior,
@@ -166,6 +488,7 @@ class BackendGenerator {
     const wantsInventoryBehavior =
       moduleKey === 'inventory' &&
       (!!hasQuantityField ||
+        !!hasConfiguredQuantityField ||
         !!features.inventory ||
         !!features.stock_tracking ||
         !!features.batch_tracking ||
@@ -200,7 +523,6 @@ class BackendGenerator {
     // - If entity.features.audit_trail is explicitly set (true/false), respect it.
     // - Otherwise, if modules.activity_log.enabled is true, audit ALL non-system entities by default
     //   (or only the listed entity slugs if modules.activity_log.entities is provided).
-    const slug = String(entity && entity.slug ? entity.slug : '');
     const isSystemEntity = slug.startsWith('__') || (entity && entity.system && entity.system.hidden);
 
     let auditEnabled = false;
@@ -222,7 +544,57 @@ class BackendGenerator {
 
     if (moduleKey === 'inventory') {
       addMixin('InventoryLifecycleMixin');
-      addMixin('InventoryReservationMixin');
+      const reservationsEnabled = this._isPackEnabled(inventoryCfg.reservations);
+      const transactionsEnabled = this._isPackEnabled(inventoryCfg.transactions);
+      const inboundEnabled = this._isPackEnabled(inventoryCfg.inbound);
+      const cycleEnabled = this._isPackEnabled(inventoryCfg.cycleCounting);
+
+      const hasReservationFields = fields.some((f) => {
+        const fieldName = String((f && f.name) || '');
+        return (
+          fieldName === reservationsCfg.reserved_field ||
+          fieldName === reservationsCfg.committed_field ||
+          fieldName === reservationsCfg.available_field
+        );
+      });
+
+      if (reservationsEnabled || hasReservationFields) {
+        addMixin('InventoryReservationMixin', reservationsCfg, 'modules');
+      }
+
+      if (transactionsEnabled && slug === stockSlug) {
+        addMixin('InventoryTransactionSafetyMixin', transactionsCfg, 'modules');
+      }
+
+      if (reservationsEnabled && slug === stockSlug) {
+        addMixin('InventoryReservationWorkflowMixin', reservationsCfg, 'modules');
+      }
+
+      if (inboundEnabled && slug === inboundGrnSlug) {
+        addMixin('InventoryInboundWorkflowMixin', inboundCfg, 'modules');
+      }
+
+      if (cycleEnabled && slug === cycleSessionSlug) {
+        addMixin('InventoryCycleCountWorkflowMixin', cycleCfg, 'modules');
+      }
+
+      if (cycleEnabled && slug === cycleLineSlug) {
+        addMixin('InventoryCycleCountLineMixin', cycleCfg, 'modules');
+      }
+
+      if (slug === reservationSlug && reservationsEnabled) {
+        addMixin('InventoryLifecycleMixin', {
+          status_field: reservationsCfg.status_field,
+          statuses: ['Pending', 'Released', 'Committed', 'Cancelled'],
+          enforce_transitions: true,
+          transitions: {
+            Pending: ['Released', 'Committed', 'Cancelled'],
+            Released: [],
+            Committed: [],
+            Cancelled: [],
+          },
+        }, 'modules');
+      }
     }
 
     const invoiceConfig = (this.modules && this.modules.invoice && typeof this.modules.invoice === 'object')
@@ -281,7 +653,7 @@ class BackendGenerator {
 
       if (mixin.hooks) {
         for (const [hookName, code] of Object.entries(mixin.hooks)) {
-          weaver.inject(hookName, code);
+          weaver.inject(hookName, this._wrapHookCode(code));
         }
       }
 
@@ -336,11 +708,181 @@ class BackendGenerator {
     return [];
   }
 
+  _wrapHookCode(code) {
+    const raw = String(code || '').replace(/\r\n/g, '\n').trim();
+    if (!raw) return '';
+    const body = raw
+      .split('\n')
+      .map((line) => `      ${line}`)
+      .join('\n');
+    return `\n      {\n${body}\n      }\n`;
+  }
+
+  _buildEffectiveMixinConfig(entity, mixinsToApply = []) {
+    const out = {};
+    const raw = entity && entity.mixins ? entity.mixins : null;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      for (const [key, value] of Object.entries(raw)) {
+        if (!key) continue;
+        if (value === false) continue;
+        if (value && typeof value === 'object') {
+          const cfg = { ...value };
+          delete cfg.enabled;
+          out[key] = cfg;
+        } else {
+          out[key] = {};
+        }
+      }
+    }
+
+    for (const entry of mixinsToApply || []) {
+      if (!entry || !entry.name) continue;
+      const name = String(entry.name);
+      const cfg = entry.config && typeof entry.config === 'object' ? entry.config : {};
+      const compact = name.replace(/Mixin$/i, '');
+      const snake = compact.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+      const camel = snake.replace(/_([a-z])/g, (_, chr) => chr.toUpperCase());
+
+      out[name] = { ...cfg };
+      out[snake] = { ...cfg };
+      out[camel] = { ...cfg };
+    }
+
+    return out;
+  }
+
+  _buildInventoryTransactionMixinConfig(entity, inventoryCfg) {
+    const invOps = (entity && (entity.inventory_ops || entity.inventoryOps)) || {};
+    const issueCfg = invOps.issue || invOps.sell || invOps.issue_stock || invOps.issueStock || {};
+    const fields = invOps.fields || {};
+    const movementTypes = invOps.movement_types || invOps.movementTypes || {};
+
+    const quantityField = this._pickFirstString(
+      inventoryCfg?.transactions?.quantity_field,
+      inventoryCfg?.transactions?.quantityField,
+      inventoryCfg?.reservations?.quantity_field,
+      inventoryCfg?.reservations?.quantityField,
+      invOps.quantity_field,
+      invOps.quantityField,
+      'quantity'
+    );
+
+    return {
+      ...(inventoryCfg?.transactions || {}),
+      stock_entity: inventoryCfg?.stockEntity || 'products',
+      quantity_field: quantityField,
+      movement_entity: this._pickFirstString(
+        invOps.movement_entity,
+        invOps.movementEntity,
+        'stock_movements'
+      ),
+      allow_negative_stock:
+        issueCfg.allow_negative_stock === true ||
+        issueCfg.allowNegativeStock === true ||
+        inventoryCfg?.transactions?.allow_negative_stock === true ||
+        inventoryCfg?.transactions?.allowNegativeStock === true,
+      fields: {
+        item_ref: this._pickFirstString(fields.item_ref, fields.itemRef, 'item_id'),
+        qty: this._pickFirstString(fields.qty, 'quantity'),
+        type: this._pickFirstString(fields.type, 'movement_type'),
+        location: this._pickFirstString(fields.location, fields.location_id, fields.locationId, 'location_id'),
+        reason: this._pickFirstString(fields.reason, 'reason'),
+        reference_number: this._pickFirstString(fields.reference_number, fields.referenceNumber, 'reference_number'),
+        date: this._pickFirstString(fields.date, fields.movement_date, fields.movementDate, 'movement_date'),
+        from_location: this._pickFirstString(fields.from_location, fields.fromLocation, fields.from_location_id, fields.fromLocationId, 'from_location_id'),
+        to_location: this._pickFirstString(fields.to_location, fields.toLocation, fields.to_location_id, fields.toLocationId, 'to_location_id'),
+      },
+      movement_types: {
+        receive: this._pickFirstString(movementTypes.receive, movementTypes.in, 'IN'),
+        issue: this._pickFirstString(movementTypes.issue, movementTypes.out, 'OUT'),
+        adjust: this._pickFirstString(movementTypes.adjust, 'ADJUSTMENT'),
+        transfer_out: this._pickFirstString(movementTypes.transfer_out, movementTypes.transferOut, 'TRANSFER_OUT'),
+        transfer_in: this._pickFirstString(movementTypes.transfer_in, movementTypes.transferIn, 'TRANSFER_IN'),
+      },
+    };
+  }
+
+  _buildInventoryReservationMixinConfig(inventoryCfg, transactionCfg) {
+    return {
+      ...(inventoryCfg?.reservations || {}),
+      stock_entity: inventoryCfg?.stockEntity || 'products',
+      reservation_entity: inventoryCfg?.reservationEntity || 'stock_reservations',
+      item_field: this._pickFirstString(
+        inventoryCfg?.reservations?.item_field,
+        inventoryCfg?.reservations?.itemField,
+        inventoryCfg?.reservations?.item_ref_field,
+        inventoryCfg?.reservations?.itemRefField,
+        'item_id'
+      ),
+      quantity_field: this._pickFirstString(
+        inventoryCfg?.reservations?.quantity_field,
+        inventoryCfg?.reservations?.quantityField,
+        'quantity'
+      ),
+      status_field: this._pickFirstString(
+        inventoryCfg?.reservations?.status_field,
+        inventoryCfg?.reservations?.statusField,
+        'status'
+      ),
+      reserved_field: this._pickFirstString(
+        inventoryCfg?.reservations?.reserved_field,
+        inventoryCfg?.reservations?.reservedField,
+        'reserved_quantity'
+      ),
+      committed_field: this._pickFirstString(
+        inventoryCfg?.reservations?.committed_field,
+        inventoryCfg?.reservations?.committedField,
+        'committed_quantity'
+      ),
+      available_field: this._pickFirstString(
+        inventoryCfg?.reservations?.available_field,
+        inventoryCfg?.reservations?.availableField,
+        'available_quantity'
+      ),
+      stock_quantity_field: this._pickFirstString(
+        transactionCfg?.quantity_field,
+        transactionCfg?.quantityField,
+        'quantity'
+      ),
+    };
+  }
+
+  _buildInventoryInboundMixinConfig(inventoryCfg, transactionCfg) {
+    return {
+      ...(inventoryCfg?.inbound || {}),
+      stock_entity: inventoryCfg?.stockEntity || 'products',
+      quantity_field: this._pickFirstString(
+        transactionCfg?.quantity_field,
+        transactionCfg?.quantityField,
+        'quantity'
+      ),
+    };
+  }
+
+  _buildInventoryCycleMixinConfig(inventoryCfg, transactionCfg) {
+    return {
+      ...(inventoryCfg?.cycleCounting || {}),
+      stock_entity: inventoryCfg?.stockEntity || 'products',
+      quantity_field: this._pickFirstString(
+        inventoryCfg?.cycleCounting?.quantity_field,
+        inventoryCfg?.cycleCounting?.quantityField,
+        transactionCfg?.quantity_field,
+        transactionCfg?.quantityField,
+        'quantity'
+      ),
+    };
+  }
+
   async _orderMixins(entries, { entity, allEntities }) {
     const baseOrder = [
       'InventoryMixin',
       'InventoryLifecycleMixin',
       'InventoryReservationMixin',
+      'InventoryTransactionSafetyMixin',
+      'InventoryReservationWorkflowMixin',
+      'InventoryInboundWorkflowMixin',
+      'InventoryCycleCountLineMixin',
+      'InventoryCycleCountWorkflowMixin',
       'BatchTrackingMixin',
       'SerialTrackingMixin',
       'AuditMixin',
@@ -448,6 +990,7 @@ class BackendGenerator {
   }
 
   async _generateEntityRoute(moduleSrcDir, entity, context) {
+    const workflowRoutes = this._buildWorkflowRouteDefinitions(entity);
     const routeTemplate = `
 const express = require('express');
 const router = express.Router();
@@ -460,6 +1003,7 @@ router.get('/:id', (req, res) => controller.getById(req, res));
 router.post('/', (req, res) => controller.create(req, res));
 router.put('/:id', (req, res) => controller.update(req, res));
 router.delete('/:id', (req, res) => controller.delete(req, res));
+${workflowRoutes ? `\n${workflowRoutes}\n` : ''}
 
 module.exports = router;
 `;
@@ -468,6 +1012,53 @@ module.exports = router;
       path.join(moduleSrcDir, `routes/${entity.slug}Routes.js`),
       content
     );
+  }
+
+  _buildWorkflowRouteDefinitions(entity) {
+    const moduleKey = this._getModuleKey(entity);
+    if (moduleKey !== 'inventory') return '';
+
+    const slug = String(entity && entity.slug ? entity.slug : '');
+    if (!slug) return '';
+
+    const cfg = this._getInventoryPriorityAConfig();
+    const routes = [];
+
+    if (this._isPackEnabled(cfg.transactions) && slug === cfg.stockEntity) {
+      routes.push(
+        `router.post('/:id/inventory/receive', (req, res) => controller.runAction(req, res, 'applyStockReceive', req.params.id, req.body || {}));`,
+        `router.post('/:id/inventory/issue', (req, res) => controller.runAction(req, res, 'applyStockIssue', req.params.id, req.body || {}));`,
+        `router.post('/:id/inventory/adjust', (req, res) => controller.runAction(req, res, 'applyStockAdjust', req.params.id, req.body || {}));`,
+        `router.post('/:id/inventory/transfer', (req, res) => controller.runAction(req, res, 'applyStockTransfer', req.params.id, req.body || {}));`
+      );
+    }
+
+    if (this._isPackEnabled(cfg.reservations) && slug === cfg.stockEntity) {
+      routes.push(
+        `router.get('/:id/reservations', (req, res) => controller.runAction(req, res, 'listReservations', req.params.id, req.query || {}));`,
+        `router.post('/:id/reservations', (req, res) => controller.runAction(req, res, 'reserveStock', req.params.id, req.body || {}));`,
+        `router.post('/:id/reservations/:reservationId/release', (req, res) => controller.runAction(req, res, 'releaseReservation', req.params.id, req.params.reservationId, req.body || {}));`,
+        `router.post('/:id/reservations/:reservationId/commit', (req, res) => controller.runAction(req, res, 'commitReservation', req.params.id, req.params.reservationId, req.body || {}));`
+      );
+    }
+
+    if (this._isPackEnabled(cfg.inbound) && slug === cfg.inbound.grn_entity) {
+      routes.push(
+        `router.post('/:id/post', (req, res) => controller.runAction(req, res, 'postGoodsReceipt', req.params.id, req.body || {}));`,
+        `router.post('/:id/cancel', (req, res) => controller.runAction(req, res, 'cancelGoodsReceipt', req.params.id, req.body || {}));`
+      );
+    }
+
+    if (this._isPackEnabled(cfg.cycleCounting) && slug === cfg.cycleCounting.session_entity) {
+      routes.push(
+        `router.post('/:id/start', (req, res) => controller.runAction(req, res, 'startCycleSession', req.params.id, req.body || {}));`,
+        `router.post('/:id/recalculate', (req, res) => controller.runAction(req, res, 'recalculateCycleCount', req.params.id, req.body || {}));`,
+        `router.post('/:id/approve', (req, res) => controller.runAction(req, res, 'approveCycleSession', req.params.id, req.body || {}));`,
+        `router.post('/:id/post', (req, res) => controller.runAction(req, res, 'postCycleSession', req.params.id, req.body || {}));`
+      );
+    }
+
+    return routes.join('\n');
   }
 
   async generateRoutesIndex(outputDir, entities) {
@@ -492,6 +1083,14 @@ ${mappings}
 module.exports = router;
 `;
     await fs.writeFile(path.join(outputDir, 'src/routes/index.js'), template);
+  }
+
+  async generateDatabaseArtifacts(outputDir, entities = []) {
+    const repoDir = path.join(outputDir, 'src/repository');
+    const migrationsDir = path.join(repoDir, 'migrations');
+    await fs.mkdir(migrationsDir, { recursive: true });
+    const sql = this._buildDatabaseSchemaSql(entities);
+    await fs.writeFile(path.join(migrationsDir, '001_initial_schema.sql'), sql);
   }
 
   async generateMainEntry(outputDir) {
@@ -1005,6 +1604,139 @@ module.exports = router;
 
   _capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  _quoteSqlIdentifier(name) {
+    return `"${String(name).replace(/"/g, '""')}"`;
+  }
+
+  _toPostgresType(field) {
+    if (this._isFieldMultiple(field)) return 'JSONB';
+
+    const type = String(field && field.type ? field.type : 'string').toLowerCase();
+    switch (type) {
+      case 'integer':
+        return 'INTEGER';
+      case 'decimal':
+        return 'NUMERIC(18,6)';
+      case 'number':
+        return 'DOUBLE PRECISION';
+      case 'boolean':
+        return 'BOOLEAN';
+      case 'date':
+        return 'DATE';
+      case 'datetime':
+        return 'TIMESTAMPTZ';
+      case 'text':
+        return 'TEXT';
+      case 'reference':
+        return 'TEXT';
+      case 'string':
+      default:
+        return 'TEXT';
+    }
+  }
+
+  _buildDatabaseSchemaSql(entities = []) {
+    const allEntities = Array.isArray(entities) ? entities : [];
+    const bySlug = new Map();
+    for (const entity of allEntities) {
+      if (!entity || !entity.slug) continue;
+      if (!bySlug.has(entity.slug)) {
+        bySlug.set(entity.slug, entity);
+      }
+    }
+
+    const lines = [
+      '-- Generated by CustomERP assembler',
+      '-- Database schema for generated ERP entities',
+      '',
+    ];
+
+    for (const entity of bySlug.values()) {
+      const slug = String(entity.slug || '').trim();
+      if (!slug) continue;
+      const fields = Array.isArray(entity.fields) ? entity.fields : [];
+      const table = this._quoteSqlIdentifier(slug);
+      const columns = [
+        `${this._quoteSqlIdentifier('id')} TEXT PRIMARY KEY`,
+        `${this._quoteSqlIdentifier('created_at')} TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+        `${this._quoteSqlIdentifier('updated_at')} TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+      ];
+
+      const seen = new Set(['id', 'created_at', 'updated_at']);
+      for (const field of fields) {
+        if (!field || !field.name) continue;
+        const fieldName = String(field.name);
+        if (!fieldName || seen.has(fieldName)) continue;
+        seen.add(fieldName);
+
+        const pgType = this._toPostgresType(field);
+        const notNull = field.required ? ' NOT NULL' : '';
+        const defaultClause = this._isFieldMultiple(field) ? ` DEFAULT '[]'::jsonb` : '';
+        columns.push(`${this._quoteSqlIdentifier(fieldName)} ${pgType}${notNull}${defaultClause}`);
+      }
+
+      lines.push(`CREATE TABLE IF NOT EXISTS ${table} (`);
+      lines.push(`  ${columns.join(',\n  ')}`);
+      lines.push(');');
+      lines.push('');
+
+      for (const field of fields) {
+        if (!field || !field.name || !field.unique || this._isFieldMultiple(field)) continue;
+        const fieldName = String(field.name);
+        if (!fieldName || ['id', 'created_at', 'updated_at'].includes(fieldName)) continue;
+        const safeIndexName = `ux_${slug}_${fieldName}`.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 60);
+        lines.push(
+          `CREATE UNIQUE INDEX IF NOT EXISTS ${this._quoteSqlIdentifier(safeIndexName)} ON ${table} (${this._quoteSqlIdentifier(fieldName)}) WHERE ${this._quoteSqlIdentifier(fieldName)} IS NOT NULL;`
+        );
+      }
+
+      const fieldNames = new Set(
+        fields
+          .map((f) => (f && f.name ? String(f.name) : ''))
+          .filter(Boolean)
+      );
+      const emittedIndexes = new Set();
+      const emitIndex = (rawName, columnsSql) => {
+        const safe = String(rawName || '')
+          .replace(/[^a-zA-Z0-9_]/g, '_')
+          .slice(0, 60);
+        if (!safe || emittedIndexes.has(safe)) return;
+        emittedIndexes.add(safe);
+        lines.push(`CREATE INDEX IF NOT EXISTS ${this._quoteSqlIdentifier(safe)} ON ${table} (${columnsSql});`);
+      };
+
+      for (const field of fields) {
+        if (!field || !field.name || this._isFieldMultiple(field)) continue;
+        const fieldName = String(field.name);
+        if (!fieldName || ['id', 'created_at', 'updated_at'].includes(fieldName)) continue;
+        const fieldType = String(field.type || '').toLowerCase();
+        const looksReference = fieldType === 'reference' || fieldName.endsWith('_id');
+        const looksStatus = fieldName === 'status';
+        const looksNumber = fieldType === 'integer' || fieldType === 'decimal' || fieldType === 'number';
+
+        if (looksReference || looksStatus || looksNumber) {
+          emitIndex(`ix_${slug}_${fieldName}`, this._quoteSqlIdentifier(fieldName));
+        }
+      }
+
+      if (fieldNames.has('status')) {
+        for (const fieldName of fieldNames) {
+          if (!fieldName.endsWith('_id')) continue;
+          const compositeCols = `${this._quoteSqlIdentifier(fieldName)}, ${this._quoteSqlIdentifier('status')}`;
+          emitIndex(`ix_${slug}_${fieldName}_status`, compositeCols);
+        }
+      }
+      lines.push('');
+    }
+
+    if (lines.length <= 3) {
+      lines.push('-- No entities available to generate schema.');
+      lines.push('');
+    }
+
+    return `${lines.join('\n').trim()}\n`;
   }
 }
 

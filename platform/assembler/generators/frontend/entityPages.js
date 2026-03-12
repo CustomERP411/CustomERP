@@ -1284,6 +1284,19 @@ export default function ${entityName}ReceivePage() {
     }
 
     try {
+      if ((INV as any).use_workflow_api) {
+        await api.post('/' + ENTITY_SLUG + '/' + itemId + '/inventory/receive', {
+          quantity,
+          location_id: locationId || undefined,
+          movement_date: movementDate || undefined,
+          reference_number: referenceNumber || undefined,
+          note: note || undefined,
+        });
+        toast({ title: 'Stock received', variant: 'success' });
+        navigate('/' + ENTITY_SLUG);
+        return;
+      }
+
       const movement: any = {};
       movement[INV.fields.item_ref] = itemId;
       movement[INV.fields.type] = INV.movement_types.receive;
@@ -1479,6 +1492,19 @@ export default function ${entityName}IssuePage() {
     }
 
     try {
+      if ((INV as any).use_workflow_api) {
+        await api.post('/' + ENTITY_SLUG + '/' + itemId + '/inventory/issue', {
+          quantity,
+          location_id: locationId || undefined,
+          movement_date: movementDate || undefined,
+          reference_number: referenceNumber || undefined,
+          note: note || undefined,
+        });
+        toast({ title: ISSUE_LABEL + ' recorded', variant: 'success' });
+        navigate('/' + ENTITY_SLUG);
+        return;
+      }
+
       const mode = String((INV as any).quantity_mode || 'delta');
       const movement: any = {};
       movement[INV.fields.item_ref] = itemId;
@@ -1648,6 +1674,18 @@ export default function ${entityName}AdjustPage() {
     }
 
     try {
+      if ((INV as any).use_workflow_api) {
+        await api.post('/' + ENTITY_SLUG + '/' + itemId + '/inventory/adjust', {
+          delta: qtyChange,
+          movement_date: movementDate || undefined,
+          reason: reasonCode,
+          note: note || undefined,
+        });
+        toast({ title: 'Stock adjusted', variant: 'success' });
+        navigate('/' + ENTITY_SLUG);
+        return;
+      }
+
       const mode = String((INV as any).quantity_mode || 'delta');
       const movement: any = {};
       movement[INV.fields.item_ref] = itemId;
@@ -1824,6 +1862,19 @@ export default function ${entityName}TransferPage() {
     }
 
     try {
+      if ((INV as any).use_workflow_api) {
+        await api.post('/' + ENTITY_SLUG + '/' + itemId + '/inventory/transfer', {
+          quantity,
+          from_location_id: fromLocationId,
+          to_location_id: toLocationId,
+          movement_date: movementDate || undefined,
+          note: note || undefined,
+        });
+        toast({ title: 'Transfer recorded', variant: 'success' });
+        navigate('/' + ENTITY_SLUG);
+        return;
+      }
+
       const mode = String((INV as any).quantity_mode || 'delta');
       const outMovement: any = {};
       outMovement[INV.fields.item_ref] = itemId;

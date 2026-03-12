@@ -1,11 +1,41 @@
 // brick-library/backend-bricks/core/BaseController.js.hbs
-const FlatFileProvider = require('../repository/FlatFileProvider');
+const PostgresProvider = require('../repository/PostgresProvider');
 const {{EntityName}}Service = require('../services/{{EntityName}}Service');
 
 class {{EntityName}}Controller {
   constructor() {
-    this.repository = new FlatFileProvider('./data');
+    this.repository = new PostgresProvider();
     this.service = new {{EntityName}}Service(this.repository, {{mixinConfig}});
+  }
+
+  _errorPayload(error) {
+    return {
+      error: error.message,
+      field_errors: error.fieldErrors || undefined,
+      dependents: error.dependents || undefined,
+      details: error.details || undefined,
+    };
+  }
+
+  _resolveStatus(error, fallback = 500) {
+    return error.statusCode || error.status || fallback;
+  }
+
+  async runAction(req, res, methodName, ...args) {
+    try {
+      const method = this.service && this.service[methodName];
+      if (typeof method !== 'function') {
+        return res.status(404).json({ error: `Action '${methodName}' is not available` });
+      }
+      const result = await method.apply(this.service, args);
+      if (result === undefined) {
+        return res.status(204).send();
+      }
+      return res.json(result);
+    } catch (error) {
+      const status = this._resolveStatus(error, 400);
+      return res.status(status).json(this._errorPayload(error));
+    }
   }
 
   async getAll(req, res) {
@@ -13,7 +43,7 @@ class {{EntityName}}Controller {
       const items = await this.service.findAll(req.query);
       res.json(items);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json(this._errorPayload(error));
     }
   }
 
@@ -23,7 +53,7 @@ class {{EntityName}}Controller {
       if (!item) return res.status(404).json({ error: 'Not found' });
       res.json(item);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json(this._errorPayload(error));
     }
   }
 
@@ -32,12 +62,8 @@ class {{EntityName}}Controller {
       const item = await this.service.create(req.body);
       res.status(201).json(item);
     } catch (error) {
-      const status = error.statusCode || error.status || 400;
-      res.status(status).json({
-        error: error.message,
-        field_errors: error.fieldErrors || undefined,
-        dependents: error.dependents || undefined,
-      });
+      const status = this._resolveStatus(error, 400);
+      res.status(status).json(this._errorPayload(error));
     }
   }
 
@@ -47,12 +73,8 @@ class {{EntityName}}Controller {
       if (!item) return res.status(404).json({ error: 'Not found' });
       res.json(item);
     } catch (error) {
-      const status = error.statusCode || error.status || 400;
-      res.status(status).json({
-        error: error.message,
-        field_errors: error.fieldErrors || undefined,
-        dependents: error.dependents || undefined,
-      });
+      const status = this._resolveStatus(error, 400);
+      res.status(status).json(this._errorPayload(error));
     }
   }
 
@@ -62,12 +84,8 @@ class {{EntityName}}Controller {
       if (!result) return res.status(404).json({ error: 'Not found' });
       res.status(204).send();
     } catch (error) {
-      const status = error.statusCode || error.status || 500;
-      res.status(status).json({
-        error: error.message,
-        field_errors: error.fieldErrors || undefined,
-        dependents: error.dependents || undefined,
-      });
+      const status = this._resolveStatus(error, 500);
+      res.status(status).json(this._errorPayload(error));
     }
   }
 }

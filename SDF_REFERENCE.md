@@ -84,6 +84,112 @@ When enabled, the generator expects these entities:
 
 ---
 
+## Inventory Priority A Capability Packs (`modules.inventory`)
+
+Use these module-level toggles to enable only the Inventory workflows you need.
+They are runtime-capable packs: each pack can be enabled independently.
+
+```json
+{
+  "modules": {
+    "inventory": {
+      "enabled": true,
+      "stock_entity": "products",
+      "transactions": { "enabled": true },
+      "reservations": { "enabled": true },
+      "inbound": { "enabled": true },
+      "cycle_counting": { "enabled": false }
+    }
+  }
+}
+```
+
+### Shared base config
+
+- **`modules.inventory.stock_entity`** *(string, default `"products"`)*:
+  - Main stock entity where quantity is mutated.
+  - Must be in module `inventory` (or `shared` for cross-module sharing).
+
+### Pack: transactions (concurrency-safe stock updates)
+
+- **`modules.inventory.transactions.enabled`** *(boolean)*
+- **`modules.inventory.transactions.quantity_field`** *(string, default `"quantity"`)*
+- Optional movement logging is read from per-entity `inventory_ops` config on the stock entity.
+
+When enabled on the stock entity, generated backend exposes atomic workflow APIs:
+- `POST /api/<stock_entity>/:id/inventory/receive`
+- `POST /api/<stock_entity>/:id/inventory/issue`
+- `POST /api/<stock_entity>/:id/inventory/adjust`
+- `POST /api/<stock_entity>/:id/inventory/transfer`
+
+### Pack: reservations
+
+- **`modules.inventory.reservations.enabled`** *(boolean)*
+- **`modules.inventory.reservations.reservation_entity`** *(string, default `"stock_reservations"`)*
+- **`modules.inventory.reservations.item_field`** *(string, default `"item_id"`)*
+- **`modules.inventory.reservations.quantity_field`** *(string, default `"quantity"`)*
+- **`modules.inventory.reservations.status_field`** *(string, default `"status"`)*
+- **`modules.inventory.reservations.reserved_field`** *(string, default `"reserved_quantity"`)*
+- **`modules.inventory.reservations.committed_field`** *(string, default `"committed_quantity"`)*
+- **`modules.inventory.reservations.available_field`** *(string, default `"available_quantity"`)*
+
+Generated backend APIs (on stock entity):
+- `GET /api/<stock_entity>/:id/reservations`
+- `POST /api/<stock_entity>/:id/reservations`
+- `POST /api/<stock_entity>/:id/reservations/:reservationId/release`
+- `POST /api/<stock_entity>/:id/reservations/:reservationId/commit`
+
+### Pack: inbound (PO/GRN receive)
+
+- **`modules.inventory.inbound.enabled`** *(boolean)*
+- **`modules.inventory.inbound.purchase_order_entity`** *(default `"purchase_orders"`)*
+- **`modules.inventory.inbound.purchase_order_item_entity`** *(default `"purchase_order_items"`)*
+- **`modules.inventory.inbound.grn_entity`** *(default `"goods_receipts"`)*
+- **`modules.inventory.inbound.grn_item_entity`** *(default `"goods_receipt_items"`)*
+- **`modules.inventory.inbound.po_item_parent_field`** *(default `"purchase_order_id"`)*
+- **`modules.inventory.inbound.po_item_item_field`** *(default `"item_id"`)*
+- **`modules.inventory.inbound.po_item_ordered_field`** *(default `"ordered_quantity"`)*
+- **`modules.inventory.inbound.po_item_received_field`** *(default `"received_quantity"`)*
+- **`modules.inventory.inbound.grn_parent_field`** *(default `"purchase_order_id"`)*
+- **`modules.inventory.inbound.grn_item_parent_field`** *(default `"goods_receipt_id"`)*
+- **`modules.inventory.inbound.grn_item_po_item_field`** *(default `"purchase_order_item_id"`)*
+- **`modules.inventory.inbound.grn_item_item_field`** *(default `"item_id"`)*
+- **`modules.inventory.inbound.grn_item_received_field`** *(default `"received_quantity"`)*
+- **`modules.inventory.inbound.grn_item_accepted_field`** *(default `"accepted_quantity"`)*
+
+Generated backend APIs (on GRN entity):
+- `POST /api/<grn_entity>/:id/post`
+- `POST /api/<grn_entity>/:id/cancel`
+
+### Pack: cycle counting
+
+- **`modules.inventory.cycle_counting.enabled`** *(boolean)*
+- **`modules.inventory.cycle_counting.session_entity`** *(default `"cycle_count_sessions"`)*
+- **`modules.inventory.cycle_counting.line_entity`** *(default `"cycle_count_lines"`)*
+- **`modules.inventory.cycle_counting.line_session_field`** *(default `"cycle_count_session_id"`)*
+- **`modules.inventory.cycle_counting.line_item_field`** *(default `"item_id"`)*
+- **`modules.inventory.cycle_counting.line_expected_field`** *(default `"expected_quantity"`)*
+- **`modules.inventory.cycle_counting.line_counted_field`** *(default `"counted_quantity"`)*
+- **`modules.inventory.cycle_counting.line_variance_field`** *(default `"variance_quantity"`)*
+
+Generated backend APIs (on cycle session entity):
+- `POST /api/<session_entity>/:id/start`
+- `POST /api/<session_entity>/:id/recalculate`
+- `POST /api/<session_entity>/:id/approve`
+- `POST /api/<session_entity>/:id/post`
+
+### Auto-entity behavior for enabled packs
+
+If pack entities/fields are missing, assembler auto-adds required Priority A entities and fields:
+- reservation fields on stock entity (`reserved`, `committed`, `available`)
+- reservation entity
+- PO/PO item/GRN/GRN item entities
+- cycle session + cycle line entities
+
+This keeps older SDFs backward-compatible while still enabling new workflow packs.
+
+---
+
 ## Entity object
 
 Each entry in `entities[]` defines one API resource + UI pages.

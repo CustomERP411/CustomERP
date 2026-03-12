@@ -1,0 +1,46 @@
+{
+  "project_name": "Inventory Priority A - Inbound Only",
+  "modules": {
+    "inventory": {
+      "enabled": true,
+      "stock_entity": "products",
+      "inbound": {
+        "enabled": true,
+        "purchase_order_entity": "purchase_orders",
+        "purchase_order_item_entity": "purchase_order_items",
+        "grn_entity": "goods_receipts",
+        "grn_item_entity": "goods_receipt_items",
+        "po_item_parent_field": "purchase_order_id",
+        "po_item_item_field": "item_id",
+        "po_item_ordered_field": "ordered_quantity",
+        "po_item_received_field": "received_quantity",
+        "grn_parent_field": "purchase_order_id",
+        "grn_item_parent_field": "goods_receipt_id",
+        "grn_item_po_item_field": "purchase_order_item_id",
+        "grn_item_item_field": "item_id",
+        "grn_item_received_field": "received_quantity",
+        "grn_item_accepted_field": "accepted_quantity"
+      }
+    }
+  },
+  "entities": [
+    {
+      "slug": "products",
+      "display_name": "Products",
+      "display_field": "name",
+      "list": {
+        "columns": [
+          "name",
+          "quantity"
+        ]
+      },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Name", "required": true },
+        { "name": "quantity", "type": "decimal", "label": "Quantity", "required": true, "min": 0 }
+      ],
+      "features": {
+        "inventory": true
+      }
+    }
+  ]
+}

@@ -24,6 +24,11 @@ const {
   buildTransferPage,
   buildLabelsPage,
 } = require('./frontend/entityPages');
+const {
+  buildReservationsPage,
+  buildGrnPostingPage,
+  buildCycleWorkflowPage,
+} = require('./frontend/inventoryPriorityPages');
 
 class FrontendGenerator {
   constructor(brickRepo) {
@@ -52,6 +57,218 @@ class FrontendGenerator {
     if (inv.enabled === true) return true;
     if (inv.enabled === false) return false;
     return Object.keys(inv).some((key) => key !== 'enabled');
+  }
+
+  _pickFirstString(...values) {
+    for (const value of values) {
+      const str = String(value || '').trim();
+      if (str) return str;
+    }
+    return '';
+  }
+
+  _isPackEnabled(packCfg) {
+    if (packCfg === true) return true;
+    if (packCfg === false || packCfg === null || packCfg === undefined) return false;
+    if (typeof packCfg === 'object') return packCfg.enabled !== false;
+    return false;
+  }
+
+  _getInventoryPriorityAConfig(sdf = {}) {
+    const modules = sdf && sdf.modules ? sdf.modules : {};
+    const inventory =
+      modules.inventory && typeof modules.inventory === 'object'
+        ? modules.inventory
+        : {};
+
+    const normalizePack = (rawValue, defaults = {}) => {
+      if (rawValue === true) return { ...defaults, enabled: true };
+      if (rawValue === false || rawValue === null || rawValue === undefined) {
+        return { ...defaults, enabled: false };
+      }
+      if (typeof rawValue === 'object') {
+        return {
+          ...defaults,
+          ...rawValue,
+          enabled: rawValue.enabled !== false,
+        };
+      }
+      return { ...defaults, enabled: false };
+    };
+
+    const reservations = normalizePack(
+      inventory.reservations || inventory.reservation,
+      {
+        reservation_entity: 'stock_reservations',
+        item_field: 'item_id',
+        quantity_field: 'quantity',
+        status_field: 'status',
+        reserved_field: 'reserved_quantity',
+        committed_field: 'committed_quantity',
+        available_field: 'available_quantity',
+      }
+    );
+    const transactions = normalizePack(
+      inventory.transactions || inventory.transaction || inventory.stock_transactions || inventory.stockTransactions,
+      {
+        quantity_field: reservations.quantity_field || 'quantity',
+      }
+    );
+    const inbound = normalizePack(
+      inventory.inbound || inventory.receiving,
+      {
+        grn_entity: 'goods_receipts',
+        grn_item_entity: 'goods_receipt_items',
+        grn_item_parent_field: 'goods_receipt_id',
+        grn_item_item_field: 'item_id',
+        grn_item_received_field: 'received_quantity',
+        grn_status_field: 'status',
+      }
+    );
+    const cycleCounting = normalizePack(
+      inventory.cycle_counting || inventory.cycleCounting || inventory.cycle_counts || inventory.cycleCounts,
+      {
+        session_entity: 'cycle_count_sessions',
+        line_entity: 'cycle_count_lines',
+        line_session_field: 'cycle_count_session_id',
+        line_item_field: 'item_id',
+        line_expected_field: 'expected_quantity',
+        line_counted_field: 'counted_quantity',
+        line_variance_field: 'variance_quantity',
+      }
+    );
+
+    const stockEntity = this._pickFirstString(
+      inventory.stock_entity,
+      inventory.stockEntity,
+      reservations.stock_entity,
+      reservations.stockEntity,
+      inbound.stock_entity,
+      inbound.stockEntity,
+      cycleCounting.stock_entity,
+      cycleCounting.stockEntity,
+      'products'
+    );
+
+    reservations.reservation_entity = this._pickFirstString(
+      reservations.reservation_entity,
+      reservations.reservationEntity,
+      'stock_reservations'
+    );
+    reservations.item_field = this._pickFirstString(
+      reservations.item_field,
+      reservations.itemField,
+      reservations.item_ref_field,
+      reservations.itemRefField,
+      'item_id'
+    );
+    reservations.quantity_field = this._pickFirstString(
+      reservations.quantity_field,
+      reservations.quantityField,
+      'quantity'
+    );
+    reservations.status_field = this._pickFirstString(
+      reservations.status_field,
+      reservations.statusField,
+      'status'
+    );
+    reservations.reserved_field = this._pickFirstString(
+      reservations.reserved_field,
+      reservations.reservedField,
+      'reserved_quantity'
+    );
+    reservations.committed_field = this._pickFirstString(
+      reservations.committed_field,
+      reservations.committedField,
+      'committed_quantity'
+    );
+    reservations.available_field = this._pickFirstString(
+      reservations.available_field,
+      reservations.availableField,
+      'available_quantity'
+    );
+
+    transactions.quantity_field = this._pickFirstString(
+      transactions.quantity_field,
+      transactions.quantityField,
+      reservations.quantity_field,
+      'quantity'
+    );
+
+    inbound.grn_entity = this._pickFirstString(
+      inbound.grn_entity,
+      inbound.grnEntity,
+      'goods_receipts'
+    );
+    inbound.grn_item_entity = this._pickFirstString(
+      inbound.grn_item_entity,
+      inbound.grnItemEntity,
+      'goods_receipt_items'
+    );
+    inbound.grn_item_parent_field = this._pickFirstString(
+      inbound.grn_item_parent_field,
+      inbound.grnItemParentField,
+      'goods_receipt_id'
+    );
+    inbound.grn_item_item_field = this._pickFirstString(
+      inbound.grn_item_item_field,
+      inbound.grnItemItemField,
+      'item_id'
+    );
+    inbound.grn_item_received_field = this._pickFirstString(
+      inbound.grn_item_received_field,
+      inbound.grnItemReceivedField,
+      'received_quantity'
+    );
+    inbound.grn_status_field = this._pickFirstString(
+      inbound.grn_status_field,
+      inbound.grnStatusField,
+      'status'
+    );
+
+    cycleCounting.session_entity = this._pickFirstString(
+      cycleCounting.session_entity,
+      cycleCounting.sessionEntity,
+      'cycle_count_sessions'
+    );
+    cycleCounting.line_entity = this._pickFirstString(
+      cycleCounting.line_entity,
+      cycleCounting.lineEntity,
+      'cycle_count_lines'
+    );
+    cycleCounting.line_session_field = this._pickFirstString(
+      cycleCounting.line_session_field,
+      cycleCounting.lineSessionField,
+      'cycle_count_session_id'
+    );
+    cycleCounting.line_item_field = this._pickFirstString(
+      cycleCounting.line_item_field,
+      cycleCounting.lineItemField,
+      'item_id'
+    );
+    cycleCounting.line_expected_field = this._pickFirstString(
+      cycleCounting.line_expected_field,
+      cycleCounting.lineExpectedField,
+      'expected_quantity'
+    );
+    cycleCounting.line_counted_field = this._pickFirstString(
+      cycleCounting.line_counted_field,
+      cycleCounting.lineCountedField,
+      'counted_quantity'
+    );
+    cycleCounting.line_variance_field = this._pickFirstString(
+      cycleCounting.line_variance_field,
+      cycleCounting.lineVarianceField,
+      'variance_quantity'
+    );
+
+    return {
+      stockEntity,
+      reservations,
+      transactions,
+      inbound,
+      cycleCounting,
+    };
   }
 
   async _ensureModuleDirs(outputDir, moduleKey) {
@@ -361,6 +578,10 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const modules = sdf && sdf.modules ? sdf.modules : {};
     const enableActivityLog = (modules.activity_log || modules.activityLog || {}).enabled === true;
     const enableReports = (modules.scheduled_reports || modules.scheduledReports || {}).enabled === true;
+    const priorityCfg = this._getInventoryPriorityAConfig(sdf);
+    const reservationsEnabled = this._isPackEnabled(priorityCfg.reservations);
+    const inboundEnabled = this._isPackEnabled(priorityCfg.inbound);
+    const cycleEnabled = this._isPackEnabled(priorityCfg.cycleCounting);
 
     // Shared entity registry (navigation + display fields)
     const entityRegistry = buildEntitiesRegistry({
@@ -410,6 +631,18 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         const enableAdjust = invEnabled && (inv.adjust?.enabled !== false);
         const labels = e.labels || {};
         const enableLabels = labels.enabled === true && labels.type === 'qrcode';
+        const enableReservationsPage =
+          reservationsEnabled &&
+          moduleKey === 'inventory' &&
+          String(e.slug || '') === String(priorityCfg.stockEntity || '');
+        const enableGrnPostingPage =
+          inboundEnabled &&
+          moduleKey === 'inventory' &&
+          String(e.slug || '') === String(priorityCfg.inbound.grn_entity || '');
+        const enableCycleWorkflowPage =
+          cycleEnabled &&
+          moduleKey === 'inventory' &&
+          String(e.slug || '') === String(priorityCfg.cycleCounting.session_entity || '');
         return [
           `import ${cap}Page from '${modulePageBase}Page';`,
           `import ${cap}FormPage from '${modulePageBase}FormPage';`,
@@ -419,6 +652,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           enableAdjust ? `import ${cap}AdjustPage from '${modulePageBase}AdjustPage';` : '',
           canTransfer ? `import ${cap}TransferPage from '${modulePageBase}TransferPage';` : '',
           enableLabels ? `import ${cap}LabelsPage from '${modulePageBase}LabelsPage';` : '',
+          enableReservationsPage ? `import ${cap}ReservationsPage from '${modulePageBase}ReservationsPage';` : '',
+          enableGrnPostingPage ? `import ${cap}PostingPage from '${modulePageBase}PostingPage';` : '',
+          enableCycleWorkflowPage ? `import ${cap}WorkflowPage from '${modulePageBase}WorkflowPage';` : '',
         ].filter(Boolean).join('\n');
       })
       .join('\n');
@@ -431,6 +667,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const routes = visibleEntities
       .map((e) => {
         const cap = this._capitalize(e.slug);
+        const moduleKey = this._getModuleKey(e);
         const wantImport = (e.ui || {}).csv_import !== false;
         const inv = e.inventory_ops || e.inventoryOps || {};
         const invEnabled = this._isInventoryOpsEnabled(inv);
@@ -446,6 +683,18 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         const enableAdjust = invEnabled && (inv.adjust?.enabled !== false);
         const labels = e.labels || {};
         const enableLabels = labels.enabled === true && labels.type === 'qrcode';
+        const enableReservationsPage =
+          reservationsEnabled &&
+          moduleKey === 'inventory' &&
+          String(e.slug || '') === String(priorityCfg.stockEntity || '');
+        const enableGrnPostingPage =
+          inboundEnabled &&
+          moduleKey === 'inventory' &&
+          String(e.slug || '') === String(priorityCfg.inbound.grn_entity || '');
+        const enableCycleWorkflowPage =
+          cycleEnabled &&
+          moduleKey === 'inventory' &&
+          String(e.slug || '') === String(priorityCfg.cycleCounting.session_entity || '');
         return [
           `          <Route path="/${e.slug}" element={<${cap}Page />} />`,
           `          <Route path="/${e.slug}/new" element={<${cap}FormPage />} />`,
@@ -456,6 +705,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           enableAdjust ? `          <Route path="/${e.slug}/adjust" element={<${cap}AdjustPage />} />` : '',
           canTransfer ? `          <Route path="/${e.slug}/transfer" element={<${cap}TransferPage />} />` : '',
           enableLabels ? `          <Route path="/${e.slug}/labels" element={<${cap}LabelsPage />} />` : '',
+          enableReservationsPage ? `          <Route path="/${e.slug}/reservations" element={<${cap}ReservationsPage />} />` : '',
+          enableGrnPostingPage ? `          <Route path="/${e.slug}/posting" element={<${cap}PostingPage />} />` : '',
+          enableCycleWorkflowPage ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
         ].filter(Boolean).join('\n');
       })
       .join('\n');
@@ -469,6 +721,11 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const modules = sdf && sdf.modules ? sdf.modules : {};
     const enableActivityLog = (modules.activity_log || modules.activityLog || {}).enabled === true;
     const enableReports = (modules.scheduled_reports || modules.scheduledReports || {}).enabled === true;
+    const priorityCfg = this._getInventoryPriorityAConfig(sdf);
+    const reservationsEnabled = this._isPackEnabled(priorityCfg.reservations);
+    const inboundEnabled = this._isPackEnabled(priorityCfg.inbound);
+    const cycleEnabled = this._isPackEnabled(priorityCfg.cycleCounting);
+    const availableSlugs = new Set((entities || []).map((e) => String((e && e.slug) || '')).filter(Boolean));
 
     const toolsBlock = (enableActivityLog || enableReports)
       ? `
@@ -496,8 +753,37 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       `
       : '';
 
+    const workflowLinks = [];
+    if (reservationsEnabled && availableSlugs.has(String(priorityCfg.stockEntity || ''))) {
+      workflowLinks.push({ path: `/${priorityCfg.stockEntity}/reservations`, label: 'Reservations' });
+    }
+    if (inboundEnabled && availableSlugs.has(String(priorityCfg.inbound.grn_entity || ''))) {
+      workflowLinks.push({ path: `/${priorityCfg.inbound.grn_entity}/posting`, label: 'PO / GRN Posting' });
+    }
+    if (cycleEnabled && availableSlugs.has(String(priorityCfg.cycleCounting.session_entity || ''))) {
+      workflowLinks.push({ path: `/${priorityCfg.cycleCounting.session_entity}/workflow`, label: 'Cycle Count Workflow' });
+    }
+
+    const workflowBlock = workflowLinks.length
+      ? `
+        <div className="my-2 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Inventory Workflows</div>
+        ${workflowLinks.map((entry) => `
+        <Link
+          to="${entry.path}"
+          className={[
+            'mb-1 block rounded-lg px-3 py-2 text-sm font-medium',
+            location.pathname.startsWith('${entry.path}') ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-slate-100',
+          ].join(' ')}
+        >
+          ${entry.label}
+        </Link>`).join('')}
+      `
+      : '';
+
+    const fullToolsBlock = [toolsBlock, workflowBlock].filter(Boolean).join('\n');
+
     const sidebarContent = buildSidebar({ 
-      toolsBlock,
+      toolsBlock: fullToolsBlock,
       moduleMap: this.moduleMap 
     });
 
@@ -524,6 +810,11 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const isLeaveEntity = isHrModule && (entitySlug === 'leaves' || entitySlug === 'leave_requests');
     const rawHrConfig = sdf && sdf.modules ? sdf.modules.hr : null;
     const hrConfig = rawHrConfig && typeof rawHrConfig === 'object' ? rawHrConfig : {};
+    const priorityCfg = this._getInventoryPriorityAConfig(sdf);
+    const transactionsEnabled = this._isPackEnabled(priorityCfg.transactions);
+    const reservationsEnabled = this._isPackEnabled(priorityCfg.reservations);
+    const inboundEnabled = this._isPackEnabled(priorityCfg.inbound);
+    const cycleEnabled = this._isPackEnabled(priorityCfg.cycleCounting);
 
     const entityName = this._capitalize(entity.slug);
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
@@ -809,6 +1100,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         quantity_field: inv.quantity_field || inv.quantityField || 'quantity',
         location_ids_field: inv.location_ids_field || inv.locationIdsField || 'location_ids',
         quantity_mode: normalizedMode,
+        use_workflow_api:
+          transactionsEnabled &&
+          String(entity.slug || '') === String(priorityCfg.stockEntity || ''),
         issue: {
           allow_negative_stock:
             issueCfg.allow_negative_stock === true ||
@@ -931,6 +1225,50 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       const labelsPageContent = buildLabelsPage({ entity, entityName, labelsCfg, importBase });
 
       await fs.writeFile(path.join(modulePagesDir, `${entityName}LabelsPage.tsx`), labelsPageContent);
+    }
+
+    // ===================== Inventory Priority A workflow pages =====================
+    const isReservationHost =
+      moduleKey === 'inventory' &&
+      reservationsEnabled &&
+      String(entity.slug || '') === String(priorityCfg.stockEntity || '');
+    const isGrnHost =
+      moduleKey === 'inventory' &&
+      inboundEnabled &&
+      String(entity.slug || '') === String(priorityCfg.inbound.grn_entity || '');
+    const isCycleSessionHost =
+      moduleKey === 'inventory' &&
+      cycleEnabled &&
+      String(entity.slug || '') === String(priorityCfg.cycleCounting.session_entity || '');
+
+    if (isReservationHost) {
+      const reservationsPageContent = buildReservationsPage({
+        entity,
+        entityName,
+        importBase,
+        reservationsCfg: priorityCfg.reservations,
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}ReservationsPage.tsx`), reservationsPageContent);
+    }
+
+    if (isGrnHost) {
+      const postingPageContent = buildGrnPostingPage({
+        entity,
+        entityName,
+        importBase,
+        inboundCfg: priorityCfg.inbound,
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}PostingPage.tsx`), postingPageContent);
+    }
+
+    if (isCycleSessionHost) {
+      const workflowPageContent = buildCycleWorkflowPage({
+        entity,
+        entityName,
+        importBase,
+        cycleCfg: priorityCfg.cycleCounting,
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}WorkflowPage.tsx`), workflowPageContent);
     }
   }
 

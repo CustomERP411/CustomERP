@@ -61,6 +61,7 @@ async function main() {
     console.log(`   # Backend`);
     console.log(`   cd ${path.join(outputDir, 'backend')}`);
     console.log('   npm install');
+    console.log('   npm run migrate');
     console.log('   npm start\n');
     console.log(`   # Frontend (in another terminal)`);
     console.log(`   cd ${path.join(outputDir, 'frontend')}`);

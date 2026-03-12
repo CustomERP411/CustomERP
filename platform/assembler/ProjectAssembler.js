@@ -62,6 +62,8 @@ class ProjectAssembler {
         await this.backendGenerator.generateRoutesIndex(backendDir, backendEntities);
       }
 
+      await this.backendGenerator.generateDatabaseArtifacts(backendDir, backendEntities);
+
       await this.backendGenerator.generateMainEntry(backendDir);
       await this._applyBackendRuntimeModules(backendDir, sdf, backendEntities);
 
@@ -69,22 +71,26 @@ class ProjectAssembler {
       console.log('Generating frontend...');
       await this.frontendGenerator.scaffold(frontendDir, sdf);
 
-      if (normalizedEntities.length) {
+      const frontendEntities = (backendEntities || []).filter(
+        (entity) => entity && !(entity.system && entity.system.hidden) && !String(entity.slug || '').startsWith('__')
+      );
+
+      if (frontendEntities.length) {
         // Generate DynamicForm component (shared)
         await this.frontendGenerator.generateDynamicForm(frontendDir);
 
         // Generate entity pages
-        for (const entity of normalizedEntities) {
+        for (const entity of frontendEntities) {
           console.log(`  - Page: ${entity.slug}`);
           // Pass the FULL list of entities so the generator can resolve relationships (e.g. category_id -> categories)
-          await this.frontendGenerator.generateEntityPage(frontendDir, entity, normalizedEntities, sdf);
+          await this.frontendGenerator.generateEntityPage(frontendDir, entity, frontendEntities, sdf);
         }
 
         // Generate App with routes
-        await this.frontendGenerator.generateApp(frontendDir, normalizedEntities, sdf);
+        await this.frontendGenerator.generateApp(frontendDir, frontendEntities, sdf);
 
         // Generate Sidebar with links
-        await this.frontendGenerator.generateSidebar(frontendDir, normalizedEntities, sdf);
+        await this.frontendGenerator.generateSidebar(frontendDir, frontendEntities, sdf);
       }
 
       // ==================== ROOT FILES ====================
@@ -102,7 +108,10 @@ class ProjectAssembler {
     if (!sdf || typeof sdf !== 'object') {
       throw new Error('SDF Validation Error: Invalid SDF object.');
     }
-    const entities = Array.isArray(sdf.entities) ? sdf.entities : [];
+    const userEntities = Array.isArray(sdf.entities) ? sdf.entities : [];
+    // Validation runs against the same effective entity graph used by generation,
+    // including auto-added system/runtime entities for enabled capability packs.
+    const entities = this._withSystemEntities(userEntities, sdf);
     const { enabledModules, hasErpConfig } = this._resolveErpModules(sdf);
     const enabledSet = new Set(enabledModules || []);
     const allEntities = entities.map((ent) => ({
@@ -131,7 +140,7 @@ class ProjectAssembler {
 
     const requireEntity = (slug, label) => {
       if (!entitySlugs.has(slug)) {
-        throw new Error(`SDF Validation Error: Invoice module requires entity '${slug}'${label ? ` (${label})` : ''}.`);
+        throw new Error(`SDF Validation Error: Required entity '${slug}' is missing${label ? ` (${label})` : ''}.`);
       }
       return allBySlug.get(slug);
     };
@@ -221,6 +230,15 @@ class ProjectAssembler {
         }
       });
     }
+
+    this._validateInventoryPriorityAConfig({
+      sdf,
+      enabledSet,
+      hasErpConfig,
+      allBySlug,
+      requireEntity,
+      ensureFields,
+    });
 
     // 2. Validate Relationships and References
     normalizedEntities.forEach((ent) => {
@@ -336,6 +354,433 @@ class ProjectAssembler {
     });
   }
 
+  _validateInventoryPriorityAConfig({
+    sdf,
+    enabledSet,
+    hasErpConfig,
+    allBySlug,
+    requireEntity,
+    ensureFields,
+  }) {
+    const cfg = this._getInventoryPriorityAConfig(sdf);
+    const packsEnabled =
+      this._isPackEnabled(cfg.reservations) ||
+      this._isPackEnabled(cfg.transactions) ||
+      this._isPackEnabled(cfg.inbound) ||
+      this._isPackEnabled(cfg.cycleCounting);
+
+    if (!packsEnabled) return;
+
+    const inventoryEnabled = enabledSet.has('inventory');
+    if (!inventoryEnabled) {
+      throw new Error(
+        'SDF Validation Error: Inventory Priority A capability packs require module \'inventory\' to be enabled.'
+      );
+    }
+
+    const stockEntity = requireEntity(cfg.stockEntity, 'inventory stock');
+    const stockModule = this._normalizeEntityModule(stockEntity, { hasErpConfig });
+    if (stockModule !== 'inventory' && stockModule !== 'shared') {
+      throw new Error(
+        `SDF Validation Error: Inventory stock entity '${cfg.stockEntity}' must be in module 'inventory' or 'shared'.`
+      );
+    }
+
+    if (this._isPackEnabled(cfg.reservations) || this._isPackEnabled(cfg.transactions)) {
+      const qtyField = this._pickFirstString(
+        cfg.transactions.quantity_field,
+        cfg.transactions.quantityField,
+        cfg.reservations.quantity_field,
+        cfg.reservations.quantityField,
+        'quantity'
+      );
+      const reservedField = this._pickFirstString(
+        cfg.reservations.reserved_field,
+        cfg.reservations.reservedField,
+        'reserved_quantity'
+      );
+      const committedField = this._pickFirstString(
+        cfg.reservations.committed_field,
+        cfg.reservations.committedField,
+        'committed_quantity'
+      );
+      const availableField = this._pickFirstString(
+        cfg.reservations.available_field,
+        cfg.reservations.availableField,
+        'available_quantity'
+      );
+      ensureFields(stockEntity, [qtyField, reservedField, committedField, availableField], cfg.stockEntity);
+    }
+
+    if (this._isPackEnabled(cfg.reservations)) {
+      const reservationEntity = requireEntity(cfg.reservationEntity, 'inventory reservation workflow');
+      const reservationModule = this._normalizeEntityModule(reservationEntity, { hasErpConfig });
+      if (reservationModule !== 'inventory') {
+        throw new Error(
+          `SDF Validation Error: Reservation entity '${cfg.reservationEntity}' must be in module 'inventory'.`
+        );
+      }
+      ensureFields(
+        reservationEntity,
+        [
+          cfg.reservations.item_field,
+          cfg.reservations.quantity_field,
+          cfg.reservations.status_field,
+        ],
+        cfg.reservationEntity
+      );
+    }
+
+    if (this._isPackEnabled(cfg.inbound)) {
+      const poEntity = requireEntity(cfg.inbound.purchase_order_entity, 'purchase order header');
+      const poItemEntity = requireEntity(cfg.inbound.purchase_order_item_entity, 'purchase order lines');
+      const grnEntity = requireEntity(cfg.inbound.grn_entity, 'goods receipt');
+      const grnItemEntity = requireEntity(cfg.inbound.grn_item_entity, 'goods receipt lines');
+
+      [poEntity, poItemEntity, grnEntity, grnItemEntity].forEach((entity) => {
+        const mod = this._normalizeEntityModule(entity, { hasErpConfig });
+        if (mod !== 'inventory') {
+          throw new Error(
+            `SDF Validation Error: Inbound workflow entity '${entity.slug}' must be in module 'inventory'.`
+          );
+        }
+      });
+
+      ensureFields(
+        poItemEntity,
+        [
+          cfg.inbound.po_item_parent_field,
+          cfg.inbound.po_item_item_field,
+          cfg.inbound.po_item_ordered_field,
+          cfg.inbound.po_item_received_field,
+        ],
+        cfg.inbound.purchase_order_item_entity
+      );
+      ensureFields(
+        grnItemEntity,
+        [
+          cfg.inbound.grn_item_parent_field,
+          cfg.inbound.grn_item_po_item_field,
+          cfg.inbound.grn_item_item_field,
+          cfg.inbound.grn_item_received_field,
+        ],
+        cfg.inbound.grn_item_entity
+      );
+    }
+
+    if (this._isPackEnabled(cfg.cycleCounting)) {
+      const sessionEntity = requireEntity(cfg.cycleCounting.session_entity, 'cycle count session');
+      const lineEntity = requireEntity(cfg.cycleCounting.line_entity, 'cycle count lines');
+
+      [sessionEntity, lineEntity].forEach((entity) => {
+        const mod = this._normalizeEntityModule(entity, { hasErpConfig });
+        if (mod !== 'inventory') {
+          throw new Error(
+            `SDF Validation Error: Cycle counting entity '${entity.slug}' must be in module 'inventory'.`
+          );
+        }
+      });
+
+      ensureFields(
+        lineEntity,
+        [
+          cfg.cycleCounting.line_session_field,
+          cfg.cycleCounting.line_item_field,
+          cfg.cycleCounting.line_expected_field,
+          cfg.cycleCounting.line_counted_field,
+          cfg.cycleCounting.line_variance_field,
+        ],
+        cfg.cycleCounting.line_entity
+      );
+    }
+
+    // Keep unused helper warning clean for strict lint configs.
+    void allBySlug;
+  }
+
+  _isPackEnabled(packCfg) {
+    if (packCfg === true) return true;
+    if (packCfg === false || packCfg === null || packCfg === undefined) return false;
+    if (typeof packCfg === 'object') return packCfg.enabled !== false;
+    return false;
+  }
+
+  _pickFirstString(...values) {
+    for (const val of values) {
+      const str = String(val || '').trim();
+      if (str) return str;
+    }
+    return '';
+  }
+
+  _getInventoryPriorityAConfig(sdf) {
+    const modules = (sdf && sdf.modules) ? sdf.modules : {};
+    const inventory = (modules.inventory && typeof modules.inventory === 'object') ? modules.inventory : {};
+
+    const normalizePack = (rawValue, defaults = {}) => {
+      if (rawValue === true) return { ...defaults, enabled: true };
+      if (rawValue === false || rawValue === null || rawValue === undefined) {
+        return { ...defaults, enabled: false };
+      }
+      if (typeof rawValue === 'object') {
+        return {
+          ...defaults,
+          ...rawValue,
+          enabled: rawValue.enabled !== false,
+        };
+      }
+      return { ...defaults, enabled: false };
+    };
+
+    const reservations = normalizePack(
+      inventory.reservations || inventory.reservation,
+      {
+        reservation_entity: 'stock_reservations',
+        item_field: 'item_id',
+        quantity_field: 'quantity',
+        status_field: 'status',
+        reserved_field: 'reserved_quantity',
+        committed_field: 'committed_quantity',
+        available_field: 'available_quantity',
+      }
+    );
+
+    const transactions = normalizePack(
+      inventory.transactions || inventory.transaction || inventory.stock_transactions || inventory.stockTransactions,
+      {
+        quantity_field: reservations.quantity_field || 'quantity',
+      }
+    );
+
+    const inbound = normalizePack(
+      inventory.inbound || inventory.receiving,
+      {
+        purchase_order_entity: 'purchase_orders',
+        purchase_order_item_entity: 'purchase_order_items',
+        grn_entity: 'goods_receipts',
+        grn_item_entity: 'goods_receipt_items',
+        po_item_parent_field: 'purchase_order_id',
+        po_item_item_field: 'item_id',
+        po_item_ordered_field: 'ordered_quantity',
+        po_item_received_field: 'received_quantity',
+        po_item_status_field: 'status',
+        grn_parent_field: 'purchase_order_id',
+        grn_item_parent_field: 'goods_receipt_id',
+        grn_item_po_item_field: 'purchase_order_item_id',
+        grn_item_item_field: 'item_id',
+        grn_item_received_field: 'received_quantity',
+        grn_item_accepted_field: 'accepted_quantity',
+        grn_status_field: 'status',
+      }
+    );
+
+    const cycleCounting = normalizePack(
+      inventory.cycle_counting || inventory.cycleCounting || inventory.cycle_counts || inventory.cycleCounts,
+      {
+        session_entity: 'cycle_count_sessions',
+        line_entity: 'cycle_count_lines',
+        line_session_field: 'cycle_count_session_id',
+        line_item_field: 'item_id',
+        line_expected_field: 'expected_quantity',
+        line_counted_field: 'counted_quantity',
+        line_variance_field: 'variance_quantity',
+        session_status_field: 'status',
+      }
+    );
+
+    const stockEntity = this._pickFirstString(
+      inventory.stock_entity,
+      inventory.stockEntity,
+      reservations.stock_entity,
+      reservations.stockEntity,
+      transactions.stock_entity,
+      transactions.stockEntity,
+      inbound.stock_entity,
+      inbound.stockEntity,
+      cycleCounting.stock_entity,
+      cycleCounting.stockEntity,
+      'products'
+    );
+
+    reservations.reservation_entity = this._pickFirstString(
+      reservations.reservation_entity,
+      reservations.reservationEntity,
+      'stock_reservations'
+    );
+    reservations.item_field = this._pickFirstString(
+      reservations.item_field,
+      reservations.itemField,
+      reservations.item_ref_field,
+      reservations.itemRefField,
+      'item_id'
+    );
+    reservations.quantity_field = this._pickFirstString(
+      reservations.quantity_field,
+      reservations.quantityField,
+      reservations.reservation_quantity_field,
+      reservations.reservationQuantityField,
+      'quantity'
+    );
+    reservations.status_field = this._pickFirstString(
+      reservations.status_field,
+      reservations.statusField,
+      'status'
+    );
+    reservations.reserved_field = this._pickFirstString(
+      reservations.reserved_field,
+      reservations.reservedField,
+      'reserved_quantity'
+    );
+    reservations.committed_field = this._pickFirstString(
+      reservations.committed_field,
+      reservations.committedField,
+      'committed_quantity'
+    );
+    reservations.available_field = this._pickFirstString(
+      reservations.available_field,
+      reservations.availableField,
+      'available_quantity'
+    );
+
+    transactions.quantity_field = this._pickFirstString(
+      transactions.quantity_field,
+      transactions.quantityField,
+      reservations.quantity_field,
+      'quantity'
+    );
+
+    inbound.purchase_order_entity = this._pickFirstString(
+      inbound.purchase_order_entity,
+      inbound.purchaseOrderEntity,
+      'purchase_orders'
+    );
+    inbound.purchase_order_item_entity = this._pickFirstString(
+      inbound.purchase_order_item_entity,
+      inbound.purchaseOrderItemEntity,
+      'purchase_order_items'
+    );
+    inbound.grn_entity = this._pickFirstString(
+      inbound.grn_entity,
+      inbound.grnEntity,
+      'goods_receipts'
+    );
+    inbound.grn_item_entity = this._pickFirstString(
+      inbound.grn_item_entity,
+      inbound.grnItemEntity,
+      'goods_receipt_items'
+    );
+    inbound.po_item_parent_field = this._pickFirstString(
+      inbound.po_item_parent_field,
+      inbound.poItemParentField,
+      'purchase_order_id'
+    );
+    inbound.po_item_item_field = this._pickFirstString(
+      inbound.po_item_item_field,
+      inbound.poItemItemField,
+      'item_id'
+    );
+    inbound.po_item_ordered_field = this._pickFirstString(
+      inbound.po_item_ordered_field,
+      inbound.poItemOrderedField,
+      'ordered_quantity'
+    );
+    inbound.po_item_received_field = this._pickFirstString(
+      inbound.po_item_received_field,
+      inbound.poItemReceivedField,
+      'received_quantity'
+    );
+    inbound.po_item_status_field = this._pickFirstString(
+      inbound.po_item_status_field,
+      inbound.poItemStatusField,
+      'status'
+    );
+    inbound.grn_parent_field = this._pickFirstString(
+      inbound.grn_parent_field,
+      inbound.grnParentField,
+      'purchase_order_id'
+    );
+    inbound.grn_item_parent_field = this._pickFirstString(
+      inbound.grn_item_parent_field,
+      inbound.grnItemParentField,
+      'goods_receipt_id'
+    );
+    inbound.grn_item_po_item_field = this._pickFirstString(
+      inbound.grn_item_po_item_field,
+      inbound.grnItemPoItemField,
+      'purchase_order_item_id'
+    );
+    inbound.grn_item_item_field = this._pickFirstString(
+      inbound.grn_item_item_field,
+      inbound.grnItemItemField,
+      'item_id'
+    );
+    inbound.grn_item_received_field = this._pickFirstString(
+      inbound.grn_item_received_field,
+      inbound.grnItemReceivedField,
+      'received_quantity'
+    );
+    inbound.grn_item_accepted_field = this._pickFirstString(
+      inbound.grn_item_accepted_field,
+      inbound.grnItemAcceptedField,
+      'accepted_quantity'
+    );
+    inbound.grn_status_field = this._pickFirstString(
+      inbound.grn_status_field,
+      inbound.grnStatusField,
+      'status'
+    );
+
+    cycleCounting.session_entity = this._pickFirstString(
+      cycleCounting.session_entity,
+      cycleCounting.sessionEntity,
+      'cycle_count_sessions'
+    );
+    cycleCounting.line_entity = this._pickFirstString(
+      cycleCounting.line_entity,
+      cycleCounting.lineEntity,
+      'cycle_count_lines'
+    );
+    cycleCounting.line_session_field = this._pickFirstString(
+      cycleCounting.line_session_field,
+      cycleCounting.lineSessionField,
+      'cycle_count_session_id'
+    );
+    cycleCounting.line_item_field = this._pickFirstString(
+      cycleCounting.line_item_field,
+      cycleCounting.lineItemField,
+      'item_id'
+    );
+    cycleCounting.line_expected_field = this._pickFirstString(
+      cycleCounting.line_expected_field,
+      cycleCounting.lineExpectedField,
+      'expected_quantity'
+    );
+    cycleCounting.line_counted_field = this._pickFirstString(
+      cycleCounting.line_counted_field,
+      cycleCounting.lineCountedField,
+      'counted_quantity'
+    );
+    cycleCounting.line_variance_field = this._pickFirstString(
+      cycleCounting.line_variance_field,
+      cycleCounting.lineVarianceField,
+      'variance_quantity'
+    );
+    cycleCounting.session_status_field = this._pickFirstString(
+      cycleCounting.session_status_field,
+      cycleCounting.sessionStatusField,
+      'status'
+    );
+
+    return {
+      stockEntity,
+      reservations,
+      transactions,
+      inbound,
+      cycleCounting,
+      reservationEntity: reservations.reservation_entity,
+    };
+  }
+
   _resolveErpModules(sdf) {
     const modules = (sdf && sdf.modules) ? sdf.modules : {};
     const hasErpConfig = ERP_MODULE_KEYS.some((key) => Object.prototype.hasOwnProperty.call(modules, key));
@@ -427,14 +872,32 @@ class ProjectAssembler {
     // Root docker-compose.yml
     const dockerCompose = `version: '3.8'
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=erpdb
+      - POSTGRES_USER=erpuser
+      - POSTGRES_PASSWORD=erppassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   backend:
     build: ./backend
     ports:
       - "3000:3000"
-    volumes:
-      - ./backend/data:/app/data
+    depends_on:
+      - postgres
     environment:
       - PORT=3000
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGDATABASE=erpdb
+      - PGUSER=erpuser
+      - PGPASSWORD=erppassword
+    command: sh -c "npm run migrate && npm start"
 
   frontend:
     build: ./frontend
@@ -444,6 +907,9 @@ services:
       - VITE_API_URL=http://localhost:3000/api
     depends_on:
       - backend
+
+volumes:
+  postgres_data:
 `;
     await fs.writeFile(path.join(outputDir, 'docker-compose.yml'), dockerCompose);
 
@@ -452,7 +918,7 @@ services:
 
 This ERP was automatically generated by CustomERP.
 
-## Quick Start
+## Quick Start (Docker, recommended)
 
 ### Windows (PowerShell)
 \`\`\`powershell
@@ -465,13 +931,42 @@ chmod +x dev.sh
 ./dev.sh start
 \`\`\`
 
+Services:
+- PostgreSQL: http://localhost:5432
 - Backend API: http://localhost:3000
 - Frontend: http://localhost:5173
+
+## Manual Start (without Docker)
+
+1) Backend
+\`\`\`bash
+cd backend
+npm install
+npm run migrate
+npm start
+\`\`\`
+
+2) Frontend
+\`\`\`bash
+cd frontend
+npm install
+npm run dev
+\`\`\`
+
+Backend env vars (example):
+\`\`\`env
+PORT=3000
+PGHOST=localhost
+PGPORT=5432
+PGDATABASE=erpdb
+PGUSER=erpuser
+PGPASSWORD=erppassword
+\`\`\`
 
 ## Commands
 
 - \`start\`: Build and start containers
-- \`stop\`: Stop containers
+- \`stop\`: Stop all services
 - \`logs\`: View live logs
 - \`clean\`: Remove containers and volumes
 `;
@@ -555,7 +1050,459 @@ chmod +x dev.sh
       });
     }
 
+    this._withInventoryPriorityAEntities(entities, sdf);
+
     return entities;
+  }
+
+  _withInventoryPriorityAEntities(entities, sdf) {
+    const cfg = this._getInventoryPriorityAConfig(sdf);
+    const { enabledModules } = this._resolveErpModules(sdf);
+    const enabledSet = new Set(enabledModules || []);
+    const inventoryEnabled = enabledSet.has('inventory');
+    const packsEnabled =
+      this._isPackEnabled(cfg.reservations) ||
+      this._isPackEnabled(cfg.transactions) ||
+      this._isPackEnabled(cfg.inbound) ||
+      this._isPackEnabled(cfg.cycleCounting);
+
+    if (!inventoryEnabled || !packsEnabled) return;
+
+    const bySlug = new Map();
+    for (const entity of entities) {
+      if (!entity || !entity.slug) continue;
+      bySlug.set(entity.slug, entity);
+    }
+
+    const ensureEntity = (slug, factory) => {
+      if (bySlug.has(slug)) {
+        const existing = bySlug.get(slug);
+        if (!existing.module) existing.module = 'inventory';
+        return existing;
+      }
+      const created = factory();
+      entities.push(created);
+      bySlug.set(slug, created);
+      return created;
+    };
+
+    const ensureField = (entity, field) => {
+      if (!entity || !field || !field.name) return;
+      if (!Array.isArray(entity.fields)) entity.fields = [];
+      if (entity.fields.some((f) => f && f.name === field.name)) return;
+      entity.fields.push({ ...field });
+    };
+
+    const ensureChild = (entity, childCfg) => {
+      if (!entity || !childCfg || !childCfg.entity || !childCfg.foreign_key) return;
+      if (!Array.isArray(entity.children)) entity.children = [];
+      const exists = entity.children.some((c) => {
+        const childSlug = c && (c.entity || c.slug);
+        const fk = c && (c.foreign_key || c.foreignKey);
+        return childSlug === childCfg.entity && fk === childCfg.foreign_key;
+      });
+      if (!exists) {
+        entity.children.push({ ...childCfg });
+      }
+    };
+
+    const stockSlug = cfg.stockEntity;
+    const stockEntity = ensureEntity(stockSlug, () => ({
+      slug: stockSlug,
+      display_name: this._formatAutoName(stockSlug),
+      display_field: 'name',
+      module: 'inventory',
+      ui: { search: true, csv_import: true, csv_export: true, print: true },
+      list: { columns: ['name', 'quantity'] },
+      fields: [
+        { name: 'name', type: 'string', label: 'Name', required: true },
+        { name: 'quantity', type: 'decimal', label: 'Quantity', required: true, min: 0 },
+      ],
+      features: { inventory: true },
+    }));
+
+    const stockQtyField = this._pickFirstString(
+      cfg.transactions.quantity_field,
+      cfg.transactions.quantityField,
+      cfg.reservations.quantity_field,
+      cfg.reservations.quantityField,
+      'quantity'
+    );
+    ensureField(stockEntity, { name: stockQtyField, type: 'decimal', label: this._formatAutoName(stockQtyField), required: true, min: 0 });
+
+    if (this._isPackEnabled(cfg.reservations) || this._isPackEnabled(cfg.transactions)) {
+      ensureField(stockEntity, {
+        name: cfg.reservations.reserved_field,
+        type: 'decimal',
+        label: this._formatAutoName(cfg.reservations.reserved_field),
+        required: true,
+        min: 0,
+      });
+      ensureField(stockEntity, {
+        name: cfg.reservations.committed_field,
+        type: 'decimal',
+        label: this._formatAutoName(cfg.reservations.committed_field),
+        required: true,
+        min: 0,
+      });
+      ensureField(stockEntity, {
+        name: cfg.reservations.available_field,
+        type: 'decimal',
+        label: this._formatAutoName(cfg.reservations.available_field),
+        required: true,
+        min: 0,
+      });
+    }
+
+    if (this._isPackEnabled(cfg.reservations)) {
+      const reservationEntity = ensureEntity(cfg.reservationEntity, () => ({
+        slug: cfg.reservationEntity,
+        display_name: 'Stock Reservations',
+        display_field: 'reservation_number',
+        module: 'inventory',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: { columns: ['reservation_number', cfg.reservations.item_field, cfg.reservations.quantity_field, cfg.reservations.status_field] },
+        fields: [],
+        features: {},
+      }));
+
+      ensureField(reservationEntity, {
+        name: 'reservation_number',
+        type: 'string',
+        label: 'Reservation Number',
+        required: true,
+        unique: true,
+      });
+      ensureField(reservationEntity, {
+        name: cfg.reservations.item_field,
+        type: 'reference',
+        label: 'Item',
+        required: true,
+        reference_entity: stockSlug,
+      });
+      ensureField(reservationEntity, {
+        name: cfg.reservations.quantity_field,
+        type: 'decimal',
+        label: 'Quantity',
+        required: true,
+        min: 0,
+      });
+      ensureField(reservationEntity, {
+        name: cfg.reservations.status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Pending', 'Released', 'Committed', 'Cancelled'],
+      });
+      ensureField(reservationEntity, { name: 'source_reference', type: 'string', label: 'Source Reference', required: false });
+      ensureField(reservationEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+      ensureField(reservationEntity, { name: 'reserved_at', type: 'datetime', label: 'Reserved At', required: false });
+      ensureField(reservationEntity, { name: 'released_at', type: 'datetime', label: 'Released At', required: false });
+      ensureField(reservationEntity, { name: 'committed_at', type: 'datetime', label: 'Committed At', required: false });
+      ensureChild(stockEntity, {
+        entity: cfg.reservationEntity,
+        foreign_key: cfg.reservations.item_field,
+        label: 'Reservations',
+        columns: ['reservation_number', cfg.reservations.quantity_field, cfg.reservations.status_field],
+      });
+    }
+
+    if (this._isPackEnabled(cfg.inbound)) {
+      const poEntity = ensureEntity(cfg.inbound.purchase_order_entity, () => ({
+        slug: cfg.inbound.purchase_order_entity,
+        display_name: 'Purchase Orders',
+        display_field: 'po_number',
+        module: 'inventory',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: { columns: ['po_number', 'order_date', 'expected_date', 'status'] },
+        fields: [],
+        features: {},
+      }));
+      ensureField(poEntity, { name: 'po_number', type: 'string', label: 'PO Number', required: true, unique: true });
+      ensureField(poEntity, { name: 'supplier_name', type: 'string', label: 'Supplier', required: false });
+      ensureField(poEntity, {
+        name: 'status',
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Draft', 'Open', 'Partial', 'Received', 'Cancelled'],
+      });
+      ensureField(poEntity, { name: 'order_date', type: 'date', label: 'Order Date', required: true });
+      ensureField(poEntity, { name: 'expected_date', type: 'date', label: 'Expected Date', required: false });
+      ensureField(poEntity, { name: 'allow_over_receipt', type: 'boolean', label: 'Allow Over Receipt', required: false });
+      ensureField(poEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+
+      const poItemEntity = ensureEntity(cfg.inbound.purchase_order_item_entity, () => ({
+        slug: cfg.inbound.purchase_order_item_entity,
+        display_name: 'Purchase Order Items',
+        display_field: cfg.inbound.po_item_item_field,
+        module: 'inventory',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.inbound.po_item_parent_field,
+            cfg.inbound.po_item_item_field,
+            cfg.inbound.po_item_ordered_field,
+            cfg.inbound.po_item_received_field,
+            cfg.inbound.po_item_status_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(poItemEntity, {
+        name: cfg.inbound.po_item_parent_field,
+        type: 'reference',
+        label: 'Purchase Order',
+        required: true,
+        reference_entity: cfg.inbound.purchase_order_entity,
+      });
+      ensureField(poItemEntity, {
+        name: cfg.inbound.po_item_item_field,
+        type: 'reference',
+        label: 'Item',
+        required: true,
+        reference_entity: stockSlug,
+      });
+      ensureField(poItemEntity, {
+        name: cfg.inbound.po_item_ordered_field,
+        type: 'decimal',
+        label: 'Ordered Quantity',
+        required: true,
+        min: 0,
+      });
+      ensureField(poItemEntity, {
+        name: cfg.inbound.po_item_received_field,
+        type: 'decimal',
+        label: 'Received Quantity',
+        required: true,
+        min: 0,
+      });
+      ensureField(poItemEntity, { name: 'unit_cost', type: 'decimal', label: 'Unit Cost', required: false, min: 0 });
+      ensureField(poItemEntity, {
+        name: cfg.inbound.po_item_status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Open', 'Partial', 'Received', 'Cancelled'],
+      });
+
+      const grnEntity = ensureEntity(cfg.inbound.grn_entity, () => ({
+        slug: cfg.inbound.grn_entity,
+        display_name: 'Goods Receipts',
+        display_field: 'grn_number',
+        module: 'inventory',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: { columns: ['grn_number', cfg.inbound.grn_parent_field, cfg.inbound.grn_status_field, 'received_at'] },
+        fields: [],
+        features: {},
+      }));
+      ensureField(grnEntity, { name: 'grn_number', type: 'string', label: 'GRN Number', required: true, unique: true });
+      ensureField(grnEntity, {
+        name: cfg.inbound.grn_parent_field,
+        type: 'reference',
+        label: 'Purchase Order',
+        required: true,
+        reference_entity: cfg.inbound.purchase_order_entity,
+      });
+      ensureField(grnEntity, {
+        name: cfg.inbound.grn_status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Draft', 'Posted', 'Cancelled'],
+      });
+      ensureField(grnEntity, { name: 'received_at', type: 'datetime', label: 'Received At', required: false });
+      ensureField(grnEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+      ensureField(grnEntity, { name: 'posted_at', type: 'datetime', label: 'Posted At', required: false });
+
+      const grnItemEntity = ensureEntity(cfg.inbound.grn_item_entity, () => ({
+        slug: cfg.inbound.grn_item_entity,
+        display_name: 'Goods Receipt Items',
+        display_field: cfg.inbound.grn_item_item_field,
+        module: 'inventory',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.inbound.grn_item_parent_field,
+            cfg.inbound.grn_item_po_item_field,
+            cfg.inbound.grn_item_item_field,
+            cfg.inbound.grn_item_received_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(grnItemEntity, {
+        name: cfg.inbound.grn_item_parent_field,
+        type: 'reference',
+        label: 'Goods Receipt',
+        required: true,
+        reference_entity: cfg.inbound.grn_entity,
+      });
+      ensureField(grnItemEntity, {
+        name: cfg.inbound.grn_item_po_item_field,
+        type: 'reference',
+        label: 'PO Item',
+        required: true,
+        reference_entity: cfg.inbound.purchase_order_item_entity,
+      });
+      ensureField(grnItemEntity, {
+        name: cfg.inbound.grn_item_item_field,
+        type: 'reference',
+        label: 'Item',
+        required: true,
+        reference_entity: stockSlug,
+      });
+      ensureField(grnItemEntity, {
+        name: cfg.inbound.grn_item_received_field,
+        type: 'decimal',
+        label: 'Received Quantity',
+        required: true,
+        min: 0,
+      });
+      ensureField(grnItemEntity, {
+        name: cfg.inbound.grn_item_accepted_field,
+        type: 'decimal',
+        label: 'Accepted Quantity',
+        required: false,
+        min: 0,
+      });
+      ensureField(grnItemEntity, { name: 'rejected_quantity', type: 'decimal', label: 'Rejected Quantity', required: false, min: 0 });
+      ensureField(grnItemEntity, { name: 'discrepancy_reason', type: 'text', label: 'Discrepancy Reason', required: false });
+
+      ensureChild(poEntity, {
+        entity: cfg.inbound.purchase_order_item_entity,
+        foreign_key: cfg.inbound.po_item_parent_field,
+        label: 'PO Items',
+        columns: [
+          cfg.inbound.po_item_item_field,
+          cfg.inbound.po_item_ordered_field,
+          cfg.inbound.po_item_received_field,
+          cfg.inbound.po_item_status_field,
+        ],
+      });
+      ensureChild(grnEntity, {
+        entity: cfg.inbound.grn_item_entity,
+        foreign_key: cfg.inbound.grn_item_parent_field,
+        label: 'Receipt Lines',
+        columns: [
+          cfg.inbound.grn_item_po_item_field,
+          cfg.inbound.grn_item_item_field,
+          cfg.inbound.grn_item_received_field,
+          cfg.inbound.grn_item_accepted_field,
+        ],
+      });
+    }
+
+    if (this._isPackEnabled(cfg.cycleCounting)) {
+      const sessionEntity = ensureEntity(cfg.cycleCounting.session_entity, () => ({
+        slug: cfg.cycleCounting.session_entity,
+        display_name: 'Cycle Count Sessions',
+        display_field: 'session_number',
+        module: 'inventory',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: { columns: ['session_number', cfg.cycleCounting.session_status_field, 'planned_at', 'posted_at'] },
+        fields: [],
+        features: {},
+      }));
+      ensureField(sessionEntity, { name: 'session_number', type: 'string', label: 'Session Number', required: true, unique: true });
+      ensureField(sessionEntity, {
+        name: cfg.cycleCounting.session_status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Draft', 'InProgress', 'PendingApproval', 'Approved', 'Posted', 'Cancelled'],
+      });
+      ensureField(sessionEntity, { name: 'planned_at', type: 'date', label: 'Planned At', required: false });
+      ensureField(sessionEntity, { name: 'started_at', type: 'datetime', label: 'Started At', required: false });
+      ensureField(sessionEntity, { name: 'approved_at', type: 'datetime', label: 'Approved At', required: false });
+      ensureField(sessionEntity, { name: 'posted_at', type: 'datetime', label: 'Posted At', required: false });
+      ensureField(sessionEntity, { name: 'blind_count', type: 'boolean', label: 'Blind Count', required: false });
+      ensureField(sessionEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+
+      const lineEntity = ensureEntity(cfg.cycleCounting.line_entity, () => ({
+        slug: cfg.cycleCounting.line_entity,
+        display_name: 'Cycle Count Lines',
+        display_field: cfg.cycleCounting.line_item_field,
+        module: 'inventory',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.cycleCounting.line_session_field,
+            cfg.cycleCounting.line_item_field,
+            cfg.cycleCounting.line_expected_field,
+            cfg.cycleCounting.line_counted_field,
+            cfg.cycleCounting.line_variance_field,
+            'status',
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(lineEntity, {
+        name: cfg.cycleCounting.line_session_field,
+        type: 'reference',
+        label: 'Cycle Session',
+        required: true,
+        reference_entity: cfg.cycleCounting.session_entity,
+      });
+      ensureField(lineEntity, {
+        name: cfg.cycleCounting.line_item_field,
+        type: 'reference',
+        label: 'Item',
+        required: true,
+        reference_entity: stockSlug,
+      });
+      ensureField(lineEntity, {
+        name: cfg.cycleCounting.line_expected_field,
+        type: 'decimal',
+        label: 'Expected Quantity',
+        required: true,
+        min: 0,
+      });
+      ensureField(lineEntity, {
+        name: cfg.cycleCounting.line_counted_field,
+        type: 'decimal',
+        label: 'Counted Quantity',
+        required: false,
+        min: 0,
+      });
+      ensureField(lineEntity, {
+        name: cfg.cycleCounting.line_variance_field,
+        type: 'decimal',
+        label: 'Variance Quantity',
+        required: false,
+      });
+      ensureField(lineEntity, {
+        name: 'status',
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Pending', 'Counted', 'Posted'],
+      });
+      ensureField(lineEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+
+      ensureChild(sessionEntity, {
+        entity: cfg.cycleCounting.line_entity,
+        foreign_key: cfg.cycleCounting.line_session_field,
+        label: 'Cycle Count Lines',
+        columns: [
+          cfg.cycleCounting.line_item_field,
+          cfg.cycleCounting.line_expected_field,
+          cfg.cycleCounting.line_counted_field,
+          cfg.cycleCounting.line_variance_field,
+          'status',
+        ],
+      });
+    }
+  }
+
+  _formatAutoName(value) {
+    return String(value || '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (l) => l.toUpperCase())
+      .trim();
   }
 
   async _applyBackendRuntimeModules(backendDir, sdf, backendEntities) {
@@ -564,10 +1511,38 @@ chmod +x dev.sh
 
     const modules = (sdf && sdf.modules) ? sdf.modules : {};
     const scheduled = modules?.scheduled_reports || {};
+    const priorityCfg = this._getInventoryPriorityAConfig(sdf);
+    const inventoryPriority = {
+      stock_entity: priorityCfg.stockEntity,
+      reservations: {
+        enabled: this._isPackEnabled(priorityCfg.reservations),
+        reservation_entity: priorityCfg.reservations.reservation_entity,
+        item_field: priorityCfg.reservations.item_field,
+        quantity_field: priorityCfg.reservations.quantity_field,
+        status_field: priorityCfg.reservations.status_field,
+      },
+      transactions: {
+        enabled: this._isPackEnabled(priorityCfg.transactions),
+        quantity_field: priorityCfg.transactions.quantity_field,
+      },
+      inbound: {
+        enabled: this._isPackEnabled(priorityCfg.inbound),
+        purchase_order_entity: priorityCfg.inbound.purchase_order_entity,
+        purchase_order_item_entity: priorityCfg.inbound.purchase_order_item_entity,
+        grn_entity: priorityCfg.inbound.grn_entity,
+        grn_item_entity: priorityCfg.inbound.grn_item_entity,
+      },
+      cycle_counting: {
+        enabled: this._isPackEnabled(priorityCfg.cycleCounting),
+        session_entity: priorityCfg.cycleCounting.session_entity,
+        line_entity: priorityCfg.cycleCounting.line_entity,
+      },
+    };
 
     // Generate optional runtime config for the backend entrypoint (scheduler, etc.)
     const systemConfig = {
       modules: {
+        inventory_priority_a: inventoryPriority,
         scheduled_reports: {
           enabled: scheduled.enabled === true,
           cron: scheduled.cron || '0 0 * * *',
@@ -596,7 +1571,11 @@ chmod +x dev.sh
     };
 
     const shouldWriteConfig =
-      systemConfig.modules.scheduled_reports.enabled === true;
+      systemConfig.modules.scheduled_reports.enabled === true ||
+      systemConfig.modules.inventory_priority_a.reservations.enabled === true ||
+      systemConfig.modules.inventory_priority_a.transactions.enabled === true ||
+      systemConfig.modules.inventory_priority_a.inbound.enabled === true ||
+      systemConfig.modules.inventory_priority_a.cycle_counting.enabled === true;
 
     if (shouldWriteConfig) {
       await fs.writeFile(
@@ -604,15 +1583,17 @@ chmod +x dev.sh
         'module.exports = ' + JSON.stringify(systemConfig, null, 2) + ';\n'
       );
 
-      // Ensure dependency exists
-      const pkgPath = path.join(backendDir, 'package.json');
-      const pkgRaw = await fs.readFile(pkgPath, 'utf8');
-      const pkg = JSON.parse(pkgRaw);
-      pkg.dependencies = pkg.dependencies || {};
-      if (!pkg.dependencies['node-cron']) {
-        pkg.dependencies['node-cron'] = '^3.0.3';
+      if (systemConfig.modules.scheduled_reports.enabled === true) {
+        // Ensure dependency exists only when scheduler is enabled.
+        const pkgPath = path.join(backendDir, 'package.json');
+        const pkgRaw = await fs.readFile(pkgPath, 'utf8');
+        const pkg = JSON.parse(pkgRaw);
+        pkg.dependencies = pkg.dependencies || {};
+        if (!pkg.dependencies['node-cron']) {
+          pkg.dependencies['node-cron'] = '^3.0.3';
+        }
+        await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2));
       }
-      await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2));
     }
 
     // Silence unused param lint in this file (kept for future modules)

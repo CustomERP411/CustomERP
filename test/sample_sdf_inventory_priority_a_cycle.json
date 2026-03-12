@@ -1,0 +1,39 @@
+{
+  "project_name": "Inventory Priority A - Cycle Count Only",
+  "modules": {
+    "inventory": {
+      "enabled": true,
+      "stock_entity": "products",
+      "cycle_counting": {
+        "enabled": true,
+        "session_entity": "cycle_count_sessions",
+        "line_entity": "cycle_count_lines",
+        "line_session_field": "cycle_count_session_id",
+        "line_item_field": "item_id",
+        "line_expected_field": "expected_quantity",
+        "line_counted_field": "counted_quantity",
+        "line_variance_field": "variance_quantity"
+      }
+    }
+  },
+  "entities": [
+    {
+      "slug": "products",
+      "display_name": "Products",
+      "display_field": "name",
+      "list": {
+        "columns": [
+          "name",
+          "quantity"
+        ]
+      },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Name", "required": true },
+        { "name": "quantity", "type": "decimal", "label": "Quantity", "required": true, "min": 0 }
+      ],
+      "features": {
+        "inventory": true
+      }
+    }
+  ]
+}

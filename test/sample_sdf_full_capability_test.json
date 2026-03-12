@@ -1,0 +1,591 @@
+{
+  "project_name": "Full Capability Test - Inventory & Invoice",
+  "modules": {
+    "inventory": {
+      "enabled": true,
+      "stock_entity": "products",
+      "transactions": {
+        "enabled": true,
+        "quantity_field": "quantity"
+      },
+      "reservations": {
+        "enabled": true,
+        "reservation_entity": "stock_reservations",
+        "item_field": "item_id",
+        "quantity_field": "quantity",
+        "status_field": "status",
+        "reserved_field": "reserved_quantity",
+        "committed_field": "committed_quantity",
+        "available_field": "available_quantity"
+      },
+      "inbound": {
+        "enabled": true,
+        "purchase_order_entity": "purchase_orders",
+        "purchase_order_item_entity": "purchase_order_items",
+        "grn_entity": "goods_receipts",
+        "grn_item_entity": "goods_receipt_items",
+        "po_item_parent_field": "purchase_order_id",
+        "po_item_item_field": "item_id",
+        "po_item_ordered_field": "ordered_quantity",
+        "po_item_received_field": "received_quantity",
+        "grn_parent_field": "purchase_order_id",
+        "grn_item_parent_field": "goods_receipt_id",
+        "grn_item_po_item_field": "purchase_order_item_id",
+        "grn_item_item_field": "item_id",
+        "grn_item_received_field": "received_quantity",
+        "grn_item_accepted_field": "accepted_quantity"
+      },
+      "cycle_counting": {
+        "enabled": true,
+        "session_entity": "cycle_count_sessions",
+        "line_entity": "cycle_count_lines",
+        "line_session_field": "cycle_count_session_id",
+        "line_item_field": "item_id",
+        "line_expected_field": "expected_quantity",
+        "line_counted_field": "counted_quantity",
+        "line_variance_field": "variance_quantity"
+      }
+    },
+    "invoice": {
+      "enabled": true,
+      "tax_rate": 10,
+      "currency": "USD",
+      "prefix": "INV-",
+      "transactions": {
+        "enabled": true,
+        "invoice_number_field": "invoice_number",
+        "idempotency_field": "idempotency_key",
+        "posted_at_field": "posted_at"
+      },
+      "payments": {
+        "enabled": true,
+        "payment_entity": "invoice_payments",
+        "allocation_entity": "invoice_payment_allocations"
+      },
+      "notes": {
+        "enabled": true,
+        "note_entity": "invoice_notes"
+      },
+      "lifecycle": {
+        "enabled": true,
+        "status_field": "status",
+        "statuses": ["Draft", "Sent", "Paid", "Overdue", "Cancelled"],
+        "enforce_transitions": true,
+        "transitions": {
+          "Draft": ["Sent", "Cancelled"],
+          "Sent": ["Paid", "Overdue", "Cancelled"],
+          "Overdue": ["Paid", "Cancelled"],
+          "Paid": [],
+          "Cancelled": []
+        }
+      },
+      "calculation_engine": {
+        "enabled": true,
+        "invoice_item_entity": "invoice_items",
+        "item_invoice_field": "invoice_id",
+        "item_quantity_field": "quantity",
+        "item_unit_price_field": "unit_price",
+        "item_line_subtotal_field": "line_subtotal",
+        "item_discount_type_field": "line_discount_type",
+        "item_discount_value_field": "line_discount_value",
+        "item_discount_total_field": "line_discount_total",
+        "item_tax_rate_field": "line_tax_rate",
+        "item_tax_total_field": "line_tax_total",
+        "item_additional_charge_field": "line_additional_charge",
+        "item_line_total_field": "line_total"
+      }
+    },
+    "hr": { "enabled": false }
+  },
+  "entities": [
+    {
+      "slug": "locations",
+      "display_name": "Locations",
+      "display_field": "name",
+      "module": "inventory",
+      "fields": [
+        { "name": "name", "type": "string", "label": "Location Name", "required": true, "unique": true },
+        { "name": "code", "type": "string", "label": "Location Code", "unique": true },
+        { "name": "address", "type": "text", "label": "Address" },
+        { "name": "is_active", "type": "boolean", "label": "Active", "default": true }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "suppliers",
+      "display_name": "Suppliers",
+      "display_field": "name",
+      "module": "inventory",
+      "fields": [
+        { "name": "name", "type": "string", "label": "Supplier Name", "required": true },
+        { "name": "code", "type": "string", "label": "Supplier Code", "unique": true },
+        { "name": "email", "type": "string", "label": "Email" },
+        { "name": "phone", "type": "string", "label": "Phone" },
+        { "name": "address", "type": "text", "label": "Address" },
+        { "name": "contact_person", "type": "string", "label": "Contact Person" }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "products",
+      "display_name": "Products",
+      "display_field": "name",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "name",
+          "sku",
+          "quantity",
+          "reserved_quantity",
+          "committed_quantity",
+          "available_quantity",
+          "reorder_point"
+        ]
+      },
+      "inventory_ops": {
+        "enabled": true,
+        "movement_entity": "stock_movements",
+        "location_entity": "locations",
+        "quantity_field": "quantity",
+        "receive": {
+          "enabled": true,
+          "label": "Receive"
+        },
+        "issue": {
+          "enabled": true,
+          "label": "Issue",
+          "allow_negative_stock": false
+        },
+        "adjust": {
+          "enabled": true,
+          "label": "Adjust"
+        },
+        "transfer": {
+          "enabled": true,
+          "label": "Transfer"
+        },
+        "quick_actions": true
+      },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Name", "required": true },
+        { "name": "sku", "type": "string", "label": "SKU", "unique": true },
+        { "name": "description", "type": "text", "label": "Description" },
+        { "name": "quantity", "type": "decimal", "label": "On Hand", "required": true, "min": 0 },
+        { "name": "reserved_quantity", "type": "decimal", "label": "Reserved", "min": 0, "default": 0 },
+        { "name": "committed_quantity", "type": "decimal", "label": "Committed", "min": 0, "default": 0 },
+        { "name": "available_quantity", "type": "decimal", "label": "Available", "min": 0 },
+        { "name": "reorder_point", "type": "decimal", "label": "Reorder Point", "min": 0 },
+        { "name": "unit_cost", "type": "decimal", "label": "Unit Cost", "min": 0 },
+        { "name": "location_id", "type": "reference", "label": "Default Location", "reference_entity": "locations" }
+      ],
+      "features": {
+        "inventory": true,
+        "multi_location": true,
+        "audit_trail": true
+      },
+      "ui": {
+        "search": true,
+        "csv_import": true,
+        "csv_export": true
+      }
+    },
+    {
+      "slug": "stock_movements",
+      "display_name": "Stock Movements",
+      "display_field": "reference_number",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "reference_number",
+          "item_id",
+          "movement_type",
+          "quantity",
+          "movement_date"
+        ]
+      },
+      "fields": [
+        { "name": "item_id", "type": "reference", "label": "Item", "required": true, "reference_entity": "products" },
+        { "name": "movement_type", "type": "string", "label": "Type", "required": true, "options": ["receive", "issue", "adjust", "transfer_in", "transfer_out"] },
+        { "name": "quantity", "type": "decimal", "label": "Quantity", "required": true },
+        { "name": "movement_date", "type": "datetime", "label": "Movement Date", "required": true },
+        { "name": "reference_number", "type": "string", "label": "Reference" },
+        { "name": "reason", "type": "text", "label": "Reason" },
+        { "name": "location_id", "type": "reference", "label": "Location", "reference_entity": "locations" },
+        { "name": "from_location_id", "type": "reference", "label": "From Location", "reference_entity": "locations" },
+        { "name": "to_location_id", "type": "reference", "label": "To Location", "reference_entity": "locations" },
+        { "name": "cost", "type": "decimal", "label": "Cost" },
+        { "name": "user_id", "type": "string", "label": "User" }
+      ],
+      "features": {
+        "audit_trail": true
+      }
+    },
+    {
+      "slug": "stock_reservations",
+      "display_name": "Stock Reservations",
+      "display_field": "reference_number",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "reference_number",
+          "item_id",
+          "quantity",
+          "status",
+          "expiry_date"
+        ]
+      },
+      "fields": [
+        { "name": "item_id", "type": "reference", "label": "Item", "required": true, "reference_entity": "products" },
+        { "name": "quantity", "type": "decimal", "label": "Quantity", "required": true, "min": 0 },
+        { "name": "status", "type": "string", "label": "Status", "required": true, "options": ["pending", "confirmed", "released", "expired", "cancelled"] },
+        { "name": "reference_number", "type": "string", "label": "Reference" },
+        { "name": "reference_type", "type": "string", "label": "Reference Type" },
+        { "name": "reference_id", "type": "string", "label": "Reference ID" },
+        { "name": "expiry_date", "type": "datetime", "label": "Expiry Date" },
+        { "name": "notes", "type": "text", "label": "Notes" }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "purchase_orders",
+      "display_name": "Purchase Orders",
+      "display_field": "po_number",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "po_number",
+          "supplier_id",
+          "order_date",
+          "status",
+          "total_amount"
+        ]
+      },
+      "children": [
+        {
+          "entity": "purchase_order_items",
+          "foreign_key": "purchase_order_id",
+          "label": "Line Items",
+          "columns": ["item_id", "ordered_quantity", "received_quantity", "unit_price"]
+        }
+      ],
+      "fields": [
+        { "name": "po_number", "type": "string", "label": "PO Number", "required": true, "unique": true },
+        { "name": "supplier_id", "type": "reference", "label": "Supplier", "required": true, "reference_entity": "suppliers" },
+        { "name": "order_date", "type": "date", "label": "Order Date", "required": true },
+        { "name": "expected_date", "type": "date", "label": "Expected Delivery" },
+        { "name": "status", "type": "string", "label": "Status", "required": true, "options": ["draft", "sent", "partial", "received", "cancelled"] },
+        { "name": "total_amount", "type": "decimal", "label": "Total Amount" },
+        { "name": "notes", "type": "text", "label": "Notes" }
+      ],
+      "features": {
+        "audit_trail": true
+      }
+    },
+    {
+      "slug": "purchase_order_items",
+      "display_name": "PO Line Items",
+      "module": "inventory",
+      "fields": [
+        { "name": "purchase_order_id", "type": "reference", "label": "Purchase Order", "required": true, "reference_entity": "purchase_orders" },
+        { "name": "item_id", "type": "reference", "label": "Item", "required": true, "reference_entity": "products" },
+        { "name": "ordered_quantity", "type": "decimal", "label": "Ordered Qty", "required": true, "min": 0 },
+        { "name": "received_quantity", "type": "decimal", "label": "Received Qty", "min": 0, "default": 0 },
+        { "name": "unit_price", "type": "decimal", "label": "Unit Price", "min": 0 },
+        { "name": "line_total", "type": "decimal", "label": "Line Total" }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "goods_receipts",
+      "display_name": "Goods Receipts",
+      "display_field": "grn_number",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "grn_number",
+          "purchase_order_id",
+          "receipt_date",
+          "status"
+        ]
+      },
+      "children": [
+        {
+          "entity": "goods_receipt_items",
+          "foreign_key": "goods_receipt_id",
+          "label": "Received Items",
+          "columns": ["item_id", "received_quantity", "accepted_quantity"]
+        }
+      ],
+      "fields": [
+        { "name": "grn_number", "type": "string", "label": "GRN Number", "required": true, "unique": true },
+        { "name": "purchase_order_id", "type": "reference", "label": "Purchase Order", "reference_entity": "purchase_orders" },
+        { "name": "receipt_date", "type": "date", "label": "Receipt Date", "required": true },
+        { "name": "status", "type": "string", "label": "Status", "required": true, "options": ["draft", "inspecting", "completed", "cancelled"] },
+        { "name": "received_by", "type": "string", "label": "Received By" },
+        { "name": "notes", "type": "text", "label": "Notes" }
+      ],
+      "features": {
+        "audit_trail": true
+      }
+    },
+    {
+      "slug": "goods_receipt_items",
+      "display_name": "GRN Line Items",
+      "module": "inventory",
+      "fields": [
+        { "name": "goods_receipt_id", "type": "reference", "label": "Goods Receipt", "required": true, "reference_entity": "goods_receipts" },
+        { "name": "purchase_order_item_id", "type": "reference", "label": "PO Line Item", "reference_entity": "purchase_order_items" },
+        { "name": "item_id", "type": "reference", "label": "Item", "required": true, "reference_entity": "products" },
+        { "name": "received_quantity", "type": "decimal", "label": "Received Qty", "required": true, "min": 0 },
+        { "name": "accepted_quantity", "type": "decimal", "label": "Accepted Qty", "min": 0 },
+        { "name": "rejected_quantity", "type": "decimal", "label": "Rejected Qty", "min": 0 },
+        { "name": "rejection_reason", "type": "text", "label": "Rejection Reason" }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "cycle_count_sessions",
+      "display_name": "Cycle Count Sessions",
+      "display_field": "session_number",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "session_number",
+          "count_date",
+          "location_id",
+          "status"
+        ]
+      },
+      "children": [
+        {
+          "entity": "cycle_count_lines",
+          "foreign_key": "cycle_count_session_id",
+          "label": "Count Lines",
+          "columns": ["item_id", "expected_quantity", "counted_quantity", "variance_quantity"]
+        }
+      ],
+      "fields": [
+        { "name": "session_number", "type": "string", "label": "Session Number", "required": true, "unique": true },
+        { "name": "count_date", "type": "date", "label": "Count Date", "required": true },
+        { "name": "location_id", "type": "reference", "label": "Location", "reference_entity": "locations" },
+        { "name": "status", "type": "string", "label": "Status", "required": true, "options": ["draft", "in_progress", "pending_approval", "approved", "posted", "cancelled"] },
+        { "name": "counted_by", "type": "string", "label": "Counted By" },
+        { "name": "approved_by", "type": "string", "label": "Approved By" },
+        { "name": "notes", "type": "text", "label": "Notes" }
+      ],
+      "features": {
+        "audit_trail": true
+      }
+    },
+    {
+      "slug": "cycle_count_lines",
+      "display_name": "Cycle Count Lines",
+      "module": "inventory",
+      "fields": [
+        { "name": "cycle_count_session_id", "type": "reference", "label": "Session", "required": true, "reference_entity": "cycle_count_sessions" },
+        { "name": "item_id", "type": "reference", "label": "Item", "required": true, "reference_entity": "products" },
+        { "name": "expected_quantity", "type": "decimal", "label": "Expected Qty", "required": true },
+        { "name": "counted_quantity", "type": "decimal", "label": "Counted Qty" },
+        { "name": "variance_quantity", "type": "decimal", "label": "Variance" },
+        { "name": "variance_reason", "type": "text", "label": "Variance Reason" }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "customers",
+      "display_name": "Customers",
+      "display_field": "name",
+      "module": "shared",
+      "list": {
+        "columns": [
+          "name",
+          "email",
+          "phone",
+          "credit_limit"
+        ]
+      },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Customer Name", "required": true },
+        { "name": "code", "type": "string", "label": "Customer Code", "unique": true },
+        { "name": "email", "type": "string", "label": "Email" },
+        { "name": "phone", "type": "string", "label": "Phone" },
+        { "name": "billing_address", "type": "text", "label": "Billing Address" },
+        { "name": "shipping_address", "type": "text", "label": "Shipping Address" },
+        { "name": "tax_id", "type": "string", "label": "Tax ID / VAT Number" },
+        { "name": "payment_terms", "type": "string", "label": "Payment Terms", "options": ["Due on receipt", "Net 7", "Net 15", "Net 30", "Net 60"] },
+        { "name": "credit_limit", "type": "decimal", "label": "Credit Limit", "min": 0 },
+        { "name": "current_balance", "type": "decimal", "label": "Current Balance" }
+      ],
+      "features": {
+        "audit_trail": true
+      }
+    },
+    {
+      "slug": "invoices",
+      "display_name": "Invoices",
+      "display_field": "invoice_number",
+      "module": "invoice",
+      "list": {
+        "columns": [
+          "invoice_number",
+          "customer_id",
+          "issue_date",
+          "due_date",
+          "status",
+          "grand_total",
+          "outstanding_balance"
+        ]
+      },
+      "features": {
+        "print_invoice": true,
+        "audit_trail": true
+      },
+      "children": [
+        {
+          "entity": "invoice_items",
+          "foreign_key": "invoice_id",
+          "label": "Line Items",
+          "columns": ["description", "quantity", "unit_price", "line_discount_total", "line_tax_total", "line_total"]
+        }
+      ],
+      "fields": [
+        { "name": "invoice_number", "type": "string", "label": "Invoice Number", "required": true, "unique": true },
+        { "name": "customer_id", "type": "reference", "label": "Customer", "required": true, "reference_entity": "customers" },
+        { "name": "issue_date", "type": "date", "label": "Issue Date", "required": true },
+        { "name": "due_date", "type": "date", "label": "Due Date", "required": true },
+        { "name": "status", "type": "string", "label": "Status", "required": true, "options": ["Draft", "Sent", "Paid", "Overdue", "Cancelled"] },
+        { "name": "subtotal", "type": "decimal", "label": "Subtotal" },
+        { "name": "discount_total", "type": "decimal", "label": "Total Discount" },
+        { "name": "additional_charges_total", "type": "decimal", "label": "Additional Charges" },
+        { "name": "tax_total", "type": "decimal", "label": "Tax Total" },
+        { "name": "grand_total", "type": "decimal", "label": "Grand Total" },
+        { "name": "paid_total", "type": "decimal", "label": "Paid Amount" },
+        { "name": "outstanding_balance", "type": "decimal", "label": "Outstanding Balance" },
+        { "name": "idempotency_key", "type": "string", "label": "Idempotency Key", "unique": true },
+        { "name": "posted_at", "type": "datetime", "label": "Posted At" },
+        { "name": "terms_and_conditions", "type": "text", "label": "Terms & Conditions" },
+        { "name": "internal_notes", "type": "text", "label": "Internal Notes" }
+      ]
+    },
+    {
+      "slug": "invoice_items",
+      "display_name": "Invoice Line Items",
+      "display_field": "description",
+      "module": "invoice",
+      "fields": [
+        { "name": "invoice_id", "type": "reference", "label": "Invoice", "required": true, "reference_entity": "invoices" },
+        { "name": "product_id", "type": "reference", "label": "Product", "reference_entity": "products" },
+        { "name": "description", "type": "string", "label": "Description", "required": true },
+        { "name": "quantity", "type": "decimal", "label": "Quantity", "required": true, "min": 0 },
+        { "name": "unit_price", "type": "decimal", "label": "Unit Price", "required": true, "min": 0 },
+        { "name": "line_subtotal", "type": "decimal", "label": "Subtotal" },
+        { "name": "line_discount_type", "type": "string", "label": "Discount Type", "options": ["percentage", "fixed"] },
+        { "name": "line_discount_value", "type": "decimal", "label": "Discount Value" },
+        { "name": "line_discount_total", "type": "decimal", "label": "Discount Amount" },
+        { "name": "line_tax_rate", "type": "decimal", "label": "Tax Rate %" },
+        { "name": "line_tax_total", "type": "decimal", "label": "Tax Amount" },
+        { "name": "line_additional_charge", "type": "decimal", "label": "Additional Charge" },
+        { "name": "line_total", "type": "decimal", "label": "Line Total" }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "invoice_payments",
+      "display_name": "Payments",
+      "display_field": "payment_number",
+      "module": "invoice",
+      "list": {
+        "columns": [
+          "payment_number",
+          "customer_id",
+          "payment_date",
+          "amount",
+          "payment_method"
+        ]
+      },
+      "children": [
+        {
+          "entity": "invoice_payment_allocations",
+          "foreign_key": "payment_id",
+          "label": "Allocations",
+          "columns": ["invoice_id", "allocated_amount"]
+        }
+      ],
+      "fields": [
+        { "name": "payment_number", "type": "string", "label": "Payment Number", "required": true, "unique": true },
+        { "name": "customer_id", "type": "reference", "label": "Customer", "required": true, "reference_entity": "customers" },
+        { "name": "payment_date", "type": "date", "label": "Payment Date", "required": true },
+        { "name": "amount", "type": "decimal", "label": "Amount", "required": true, "min": 0 },
+        { "name": "payment_method", "type": "string", "label": "Payment Method", "options": ["cash", "check", "bank_transfer", "credit_card", "online"] },
+        { "name": "reference", "type": "string", "label": "Reference / Check Number" },
+        { "name": "allocated_amount", "type": "decimal", "label": "Allocated Amount" },
+        { "name": "unallocated_amount", "type": "decimal", "label": "Unallocated Amount" },
+        { "name": "notes", "type": "text", "label": "Notes" }
+      ],
+      "features": {
+        "audit_trail": true
+      }
+    },
+    {
+      "slug": "invoice_payment_allocations",
+      "display_name": "Payment Allocations",
+      "module": "invoice",
+      "fields": [
+        { "name": "payment_id", "type": "reference", "label": "Payment", "required": true, "reference_entity": "invoice_payments" },
+        { "name": "invoice_id", "type": "reference", "label": "Invoice", "required": true, "reference_entity": "invoices" },
+        { "name": "allocated_amount", "type": "decimal", "label": "Allocated Amount", "required": true, "min": 0 },
+        { "name": "allocation_date", "type": "date", "label": "Allocation Date" }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "invoice_notes",
+      "display_name": "Invoice Notes",
+      "module": "invoice",
+      "list": {
+        "columns": [
+          "invoice_id",
+          "note_type",
+          "created_at"
+        ]
+      },
+      "fields": [
+        { "name": "invoice_id", "type": "reference", "label": "Invoice", "required": true, "reference_entity": "invoices" },
+        { "name": "note_type", "type": "string", "label": "Note Type", "options": ["internal", "customer_visible", "reminder", "collection"] },
+        { "name": "content", "type": "text", "label": "Note Content", "required": true },
+        { "name": "created_by", "type": "string", "label": "Created By" },
+        { "name": "created_at", "type": "datetime", "label": "Created At" }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "credit_notes",
+      "display_name": "Credit Notes",
+      "display_field": "credit_note_number",
+      "module": "invoice",
+      "list": {
+        "columns": [
+          "credit_note_number",
+          "invoice_id",
+          "customer_id",
+          "issue_date",
+          "amount",
+          "status"
+        ]
+      },
+      "fields": [
+        { "name": "credit_note_number", "type": "string", "label": "Credit Note Number", "required": true, "unique": true },
+        { "name": "invoice_id", "type": "reference", "label": "Original Invoice", "reference_entity": "invoices" },
+        { "name": "customer_id", "type": "reference", "label": "Customer", "required": true, "reference_entity": "customers" },
+        { "name": "issue_date", "type": "date", "label": "Issue Date", "required": true },
+        { "name": "reason", "type": "string", "label": "Reason", "options": ["return", "pricing_error", "service_issue", "cancellation", "goodwill"] },
+        { "name": "amount", "type": "decimal", "label": "Amount", "required": true, "min": 0 },
+        { "name": "status", "type": "string", "label": "Status", "options": ["draft", "issued", "applied", "cancelled"] },
+        { "name": "notes", "type": "text", "label": "Notes" }
+      ],
+      "features": {
+        "audit_trail": true
+      }
+    }
+  ]
+}

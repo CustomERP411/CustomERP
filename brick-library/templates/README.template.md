@@ -84,6 +84,31 @@ When enabled via `modules.inventory` pack toggles in your SDF, generated APIs al
 If pack entities are not present in SDF, assembler auto-adds required entities/fields.
 See `SDF_REFERENCE.md` for full module-level config shape.
 
+## Invoice Priority A workflows (optional)
+
+When enabled via `modules.invoice` pack toggles in your SDF, generated APIs also include:
+
+- **Transactions pack** (on invoice header entity):
+  - `POST /api/{invoice_entity}/:id/issue`
+  - `POST /api/{invoice_entity}/:id/cancel`
+- **Payments pack**:
+  - `GET /api/{invoice_entity}/:id/payments`
+  - `POST /api/{invoice_entity}/:id/payments`
+  - `POST /api/{payment_entity}/:id/post`
+  - `POST /api/{payment_entity}/:id/cancel`
+- **Notes pack**:
+  - `GET /api/{invoice_entity}/:id/notes`
+  - `POST /api/{invoice_entity}/:id/notes`
+  - `POST /api/{note_entity}/:id/post`
+  - `POST /api/{note_entity}/:id/cancel`
+- **Lifecycle pack**:
+  - Strict status transition enforcement on invoice updates/actions.
+- **Calculation engine pack**:
+  - Line-level tax/discount/additional-charge calculations and header total rollups.
+
+If invoice pack entities are missing in SDF, assembler auto-adds required entities/fields
+(`invoice_payments`, `invoice_payment_allocations`, `invoice_notes`, and required invoice line fields).
+
 ## Troubleshooting
 
 - If startup fails with DB connection errors, verify `PG*` env values.

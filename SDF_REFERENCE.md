@@ -45,19 +45,118 @@ Enables invoicing, PDF generation, and payment tracking.
 - **`modules.invoice.payment_terms`** *(number, default 30)*: Default due date offset in days.
 - **`modules.invoice.prefix`** *(string, default "INV-")*: Invoice number prefix.
 
-### Expected Entities
-When enabled, the generator expects these entities:
+### Base expected entities
+When invoice is enabled, generator expects:
 
 1. **`invoices`** (Header) — **required**
-   - **Fields**: `invoice_number`, `customer_id` (reference), `issue_date`, `due_date`, `status` (Draft, Sent, Paid, Overdue), `subtotal`, `tax_total`, `grand_total`.
-   - **Features**: `features.print_invoice: true` (auto-generates PDF button).
-
+   - Core fields: `invoice_number`, `customer_id` (reference), `issue_date`, `due_date`, `status`, `subtotal`, `tax_total`, `grand_total`.
 2. **`customers`** (Shared) — **required**
-   - Used for the `customer_id` reference.
+   - Used for the invoice customer reference.
+3. **`invoice_items`** (Line Items) — optional baseline, but required for calculation-engine pack.
+   - Typical fields: `invoice_id`, `description`, `quantity`, `unit_price`, `line_total`.
 
-3. **`invoice_items`** (Line Items) — **optional**
-   - **Fields**: `invoice_id`, `description`, `quantity`, `unit_price`, `line_total`.
-   - If present, you can add `children` on `invoices` to embed line items in the invoice form UI.
+### Invoice Priority A Capability Packs (`modules.invoice`)
+
+Use these optional packs to enable production-grade invoice behavior per generated ERP.
+Each pack is toggle-based and can be enabled independently.
+
+```json
+{
+  "modules": {
+    "invoice": {
+      "enabled": true,
+      "transactions": { "enabled": true },
+      "payments": { "enabled": true },
+      "notes": { "enabled": true },
+      "lifecycle": { "enabled": true },
+      "calculation_engine": { "enabled": true }
+    }
+  }
+}
+```
+
+#### Pack: transactions (DB-safe numbering/posting)
+
+- **`modules.invoice.transactions.enabled`** *(boolean)*
+- **`modules.invoice.transactions.invoice_entity`** *(string, default `"invoices"`)*  
+- **`modules.invoice.transactions.invoice_item_entity`** *(string, default `"invoice_items"`)*  
+- **`modules.invoice.transactions.invoice_number_field`** *(string, default `"invoice_number"`)*  
+- **`modules.invoice.transactions.idempotency_field`** *(string, default `"idempotency_key"`)*  
+- **`modules.invoice.transactions.posted_at_field`** *(string, default `"posted_at"`)*  
+
+Generated backend APIs (on invoice header entity):
+- `POST /api/<invoice_entity>/:id/issue`
+- `POST /api/<invoice_entity>/:id/cancel`
+
+#### Pack: payments (record and allocate)
+
+- **`modules.invoice.payments.enabled`** *(boolean)*
+- **`modules.invoice.payments.payment_entity`** *(string, default `"invoice_payments"`)*  
+- **`modules.invoice.payments.allocation_entity`** *(string, default `"invoice_payment_allocations"`)*  
+- **`modules.invoice.payments.payment_number_field`** *(string, default `"payment_number"`)*  
+- **`modules.invoice.payments.amount_field`** *(string, default `"amount"`)*  
+- **`modules.invoice.payments.unallocated_field`** *(string, default `"unallocated_amount"`)*  
+- **`modules.invoice.payments.status_field`** *(string, default `"status"`)*  
+- **`modules.invoice.payments.allocation_payment_field`** *(string, default `"payment_id"`)*  
+- **`modules.invoice.payments.allocation_invoice_field`** *(string, default `"invoice_id"`)*  
+- **`modules.invoice.payments.allocation_amount_field`** *(string, default `"amount"`)*  
+
+Generated backend APIs:
+- `POST /api/<invoice_entity>/:id/payments`
+- `GET /api/<invoice_entity>/:id/payments`
+- `POST /api/<payment_entity>/:id/post`
+- `POST /api/<payment_entity>/:id/cancel`
+
+#### Pack: notes (credit/debit note workflow)
+
+- **`modules.invoice.notes.enabled`** *(boolean)*
+- **`modules.invoice.notes.note_entity`** *(string, default `"invoice_notes"`)*  
+- **`modules.invoice.notes.note_number_field`** *(string, default `"note_number"`)*  
+- **`modules.invoice.notes.note_invoice_field`** *(string, default `"source_invoice_id"`)*  
+- **`modules.invoice.notes.note_type_field`** *(string, default `"note_type"`; values: `Credit`, `Debit`)*  
+- **`modules.invoice.notes.note_status_field`** *(string, default `"status"`)*  
+- **`modules.invoice.notes.note_amount_field`** *(string, default `"amount"`)*  
+
+Generated backend APIs:
+- `POST /api/<invoice_entity>/:id/notes`
+- `GET /api/<invoice_entity>/:id/notes`
+- `POST /api/<note_entity>/:id/post`
+- `POST /api/<note_entity>/:id/cancel`
+
+#### Pack: lifecycle (strict status rules)
+
+- **`modules.invoice.lifecycle.enabled`** *(boolean)*
+- **`modules.invoice.lifecycle.status_field`** *(string, default `"status"`)*  
+- **`modules.invoice.lifecycle.statuses`** *(array, default `["Draft","Sent","Paid","Overdue","Cancelled"]`)*  
+- **`modules.invoice.lifecycle.enforce_transitions`** *(boolean, default `true`)*  
+
+When enabled, generated services enforce strict state transitions for invoice status updates.
+
+#### Pack: calculation_engine (line-level pricing/tax/discount/charges)
+
+- **`modules.invoice.calculation_engine.enabled`** *(boolean)*
+- **`modules.invoice.calculation_engine.invoice_item_entity`** *(string, default `"invoice_items"`)*  
+- **`modules.invoice.calculation_engine.item_invoice_field`** *(string, default `"invoice_id"`)*  
+- **`modules.invoice.calculation_engine.item_quantity_field`** *(string, default `"quantity"`)*  
+- **`modules.invoice.calculation_engine.item_unit_price_field`** *(string, default `"unit_price"`)*  
+- **`modules.invoice.calculation_engine.item_line_subtotal_field`** *(string, default `"line_subtotal"`)*  
+- **`modules.invoice.calculation_engine.item_discount_type_field`** *(string, default `"line_discount_type"`)*  
+- **`modules.invoice.calculation_engine.item_discount_value_field`** *(string, default `"line_discount_value"`)*  
+- **`modules.invoice.calculation_engine.item_discount_total_field`** *(string, default `"line_discount_total"`)*  
+- **`modules.invoice.calculation_engine.item_tax_rate_field`** *(string, default `"line_tax_rate"`)*  
+- **`modules.invoice.calculation_engine.item_tax_total_field`** *(string, default `"line_tax_total"`)*  
+- **`modules.invoice.calculation_engine.item_additional_charge_field`** *(string, default `"line_additional_charge"`)*  
+- **`modules.invoice.calculation_engine.item_line_total_field`** *(string, default `"line_total"`)*  
+
+When enabled, generated backend computes invoice totals from line-level values (discount/tax/charge) instead of relying only on a global tax default.
+
+### Auto-entity behavior
+If Invoice Priority A packs are enabled and required entities/fields are missing, assembler auto-adds minimal runtime entities/fields:
+- `invoice_payments`, `invoice_payment_allocations` for payments,
+- `invoice_notes` for credit/debit notes,
+- extra invoice and invoice-item fields needed by transaction/lifecycle/calculation packs.
+
+This keeps capabilities toggle-driven and backward-compatible for generated ERP projects.
 
 ---
 

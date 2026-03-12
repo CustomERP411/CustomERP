@@ -158,48 +158,72 @@ class ProjectAssembler {
 
     const invoiceEnabled = enabledSet.has('invoice');
     if (invoiceEnabled) {
-      const invoicesEntity = requireEntity('invoices', 'invoice header');
-      const customersEntity = requireEntity('customers', 'customer list');
+      const invoiceCfg = this._getInvoicePriorityAConfig(sdf);
+      const invoicesEntity = requireEntity(invoiceCfg.invoiceEntity, 'invoice header');
+      const customersEntity = requireEntity(invoiceCfg.customerEntity, 'customer list');
 
       const invoicesModule = this._normalizeEntityModule(invoicesEntity, { hasErpConfig });
       const customersModule = this._normalizeEntityModule(customersEntity, { hasErpConfig });
 
       if (invoicesModule !== 'invoice') {
-        throw new Error(`SDF Validation Error: Entity 'invoices' must be in module 'invoice'.`);
+        throw new Error(`SDF Validation Error: Entity '${invoiceCfg.invoiceEntity}' must be in module 'invoice'.`);
       }
       if (customersModule !== 'shared' && customersModule !== 'invoice') {
-        throw new Error(`SDF Validation Error: Entity 'customers' must be 'shared' or in module 'invoice'.`);
+        throw new Error(`SDF Validation Error: Entity '${invoiceCfg.customerEntity}' must be 'shared' or in module 'invoice'.`);
       }
 
-      ensureFields(invoicesEntity, ['invoice_number', 'customer_id', 'issue_date', 'due_date', 'status', 'subtotal', 'tax_total', 'grand_total'], 'invoices');
+      ensureFields(
+        invoicesEntity,
+        [
+          invoiceCfg.invoice_number_field,
+          invoiceCfg.customer_field,
+          'issue_date',
+          'due_date',
+          invoiceCfg.status_field,
+          invoiceCfg.subtotal_field,
+          invoiceCfg.tax_total_field,
+          invoiceCfg.grand_total_field,
+        ],
+        invoiceCfg.invoiceEntity
+      );
 
-      const itemsEntity = allBySlug.get('invoice_items');
+      const itemsEntity = allBySlug.get(invoiceCfg.itemEntity);
       if (itemsEntity) {
         const itemsModule = this._normalizeEntityModule(itemsEntity, { hasErpConfig });
         if (itemsModule !== 'invoice') {
-          throw new Error(`SDF Validation Error: Entity 'invoice_items' must be in module 'invoice'.`);
+          throw new Error(`SDF Validation Error: Entity '${invoiceCfg.itemEntity}' must be in module 'invoice'.`);
         }
 
         const children = Array.isArray(invoicesEntity.children) ? invoicesEntity.children : [];
         const invoiceChild = children.find((child) => {
           const slug = child && (child.entity || child.slug);
-          return slug === 'invoice_items';
+          return slug === invoiceCfg.itemEntity;
         });
         if (invoiceChild) {
           const invoiceFk = invoiceChild.foreign_key || invoiceChild.foreignKey;
           if (!invoiceFk) {
-            throw new Error(`SDF Validation Error: Child relation for 'invoice_items' must define a foreign key.`);
+            throw new Error(`SDF Validation Error: Child relation for '${invoiceCfg.itemEntity}' must define a foreign key.`);
           }
           const itemFields = Array.isArray(itemsEntity.fields) ? itemsEntity.fields : [];
           const hasInvoiceFk = itemFields.some((f) => f && f.name === invoiceFk);
           if (!hasInvoiceFk) {
             throw new Error(
-              `SDF Validation Error: Entity 'invoice_items' must include foreign key field '${invoiceFk}'.`
+              `SDF Validation Error: Entity '${invoiceCfg.itemEntity}' must include foreign key field '${invoiceFk}'.`
             );
           }
         }
 
-        ensureFields(itemsEntity, ['invoice_id', 'description', 'quantity', 'unit_price', 'line_total'], 'invoice_items');
+        ensureFields(
+          itemsEntity,
+          [
+            invoiceCfg.item_invoice_field,
+            'description',
+            invoiceCfg.item_quantity_field,
+            invoiceCfg.item_unit_price_field,
+            invoiceCfg.item_line_total_field,
+          ],
+          invoiceCfg.itemEntity
+        );
       }
     }
 
@@ -232,6 +256,14 @@ class ProjectAssembler {
     }
 
     this._validateInventoryPriorityAConfig({
+      sdf,
+      enabledSet,
+      hasErpConfig,
+      allBySlug,
+      requireEntity,
+      ensureFields,
+    });
+    this._validateInvoicePriorityAConfig({
       sdf,
       enabledSet,
       hasErpConfig,
@@ -491,6 +523,147 @@ class ProjectAssembler {
           cfg.cycleCounting.line_variance_field,
         ],
         cfg.cycleCounting.line_entity
+      );
+    }
+
+    // Keep unused helper warning clean for strict lint configs.
+    void allBySlug;
+  }
+
+  _validateInvoicePriorityAConfig({
+    sdf,
+    enabledSet,
+    hasErpConfig,
+    allBySlug,
+    requireEntity,
+    ensureFields,
+  }) {
+    const cfg = this._getInvoicePriorityAConfig(sdf);
+    const packsEnabled =
+      this._isPackEnabled(cfg.transactions) ||
+      this._isPackEnabled(cfg.payments) ||
+      this._isPackEnabled(cfg.notes) ||
+      this._isPackEnabled(cfg.lifecycle) ||
+      this._isPackEnabled(cfg.calculationEngine);
+
+    if (!packsEnabled) return;
+
+    const invoiceEnabled = enabledSet.has('invoice');
+    if (!invoiceEnabled) {
+      throw new Error(
+        'SDF Validation Error: Invoice Priority A capability packs require module \'invoice\' to be enabled.'
+      );
+    }
+
+    const invoiceEntity = requireEntity(cfg.invoiceEntity, 'invoice header');
+    const invoiceModule = this._normalizeEntityModule(invoiceEntity, { hasErpConfig });
+    if (invoiceModule !== 'invoice') {
+      throw new Error(
+        `SDF Validation Error: Invoice header entity '${cfg.invoiceEntity}' must be in module 'invoice'.`
+      );
+    }
+
+    ensureFields(
+      invoiceEntity,
+      [
+        cfg.customer_field,
+        cfg.status_field,
+        cfg.subtotal_field,
+        cfg.tax_total_field,
+        cfg.grand_total_field,
+        cfg.outstanding_field,
+      ],
+      cfg.invoiceEntity
+    );
+
+    if (this._isPackEnabled(cfg.transactions)) {
+      ensureFields(
+        invoiceEntity,
+        [cfg.invoice_number_field, cfg.idempotency_field],
+        cfg.invoiceEntity
+      );
+    }
+
+    if (this._isPackEnabled(cfg.lifecycle)) {
+      ensureFields(invoiceEntity, [cfg.status_field], cfg.invoiceEntity);
+    }
+
+    if (this._isPackEnabled(cfg.calculationEngine)) {
+      const itemEntity = requireEntity(cfg.itemEntity, 'invoice line items');
+      const itemsModule = this._normalizeEntityModule(itemEntity, { hasErpConfig });
+      if (itemsModule !== 'invoice') {
+        throw new Error(
+          `SDF Validation Error: Invoice line entity '${cfg.itemEntity}' must be in module 'invoice'.`
+        );
+      }
+      ensureFields(
+        itemEntity,
+        [
+          cfg.item_invoice_field,
+          cfg.item_quantity_field,
+          cfg.item_unit_price_field,
+          cfg.item_line_subtotal_field,
+          cfg.item_discount_value_field,
+          cfg.item_discount_total_field,
+          cfg.item_tax_rate_field,
+          cfg.item_tax_total_field,
+          cfg.item_additional_charge_field,
+          cfg.item_line_total_field,
+        ],
+        cfg.itemEntity
+      );
+    }
+
+    if (this._isPackEnabled(cfg.payments)) {
+      const paymentEntity = requireEntity(cfg.payments.payment_entity, 'invoice payment header');
+      const allocationEntity = requireEntity(cfg.payments.allocation_entity, 'invoice payment allocation');
+      [paymentEntity, allocationEntity].forEach((entity) => {
+        const mod = this._normalizeEntityModule(entity, { hasErpConfig });
+        if (mod !== 'invoice') {
+          throw new Error(
+            `SDF Validation Error: Invoice payment workflow entity '${entity.slug}' must be in module 'invoice'.`
+          );
+        }
+      });
+      ensureFields(
+        paymentEntity,
+        [
+          cfg.payments.payment_number_field,
+          cfg.payments.amount_field,
+          cfg.payments.unallocated_field,
+          cfg.payments.status_field,
+        ],
+        cfg.payments.payment_entity
+      );
+      ensureFields(
+        allocationEntity,
+        [
+          cfg.payments.allocation_payment_field,
+          cfg.payments.allocation_invoice_field,
+          cfg.payments.allocation_amount_field,
+        ],
+        cfg.payments.allocation_entity
+      );
+    }
+
+    if (this._isPackEnabled(cfg.notes)) {
+      const noteEntity = requireEntity(cfg.notes.note_entity, 'invoice adjustment notes');
+      const noteModule = this._normalizeEntityModule(noteEntity, { hasErpConfig });
+      if (noteModule !== 'invoice') {
+        throw new Error(
+          `SDF Validation Error: Invoice note entity '${cfg.notes.note_entity}' must be in module 'invoice'.`
+        );
+      }
+      ensureFields(
+        noteEntity,
+        [
+          cfg.notes.note_number_field,
+          cfg.notes.note_invoice_field,
+          cfg.notes.note_type_field,
+          cfg.notes.note_status_field,
+          cfg.notes.note_amount_field,
+        ],
+        cfg.notes.note_entity
       );
     }
 
@@ -781,6 +954,402 @@ class ProjectAssembler {
     };
   }
 
+  _getInvoicePriorityAConfig(sdf) {
+    const modules = (sdf && sdf.modules) ? sdf.modules : {};
+    const invoice = (modules.invoice && typeof modules.invoice === 'object') ? modules.invoice : {};
+
+    const normalizePack = (rawValue, defaults = {}) => {
+      if (rawValue === true) return { ...defaults, enabled: true };
+      if (rawValue === false || rawValue === null || rawValue === undefined) {
+        return { ...defaults, enabled: false };
+      }
+      if (typeof rawValue === 'object') {
+        return {
+          ...defaults,
+          ...rawValue,
+          enabled: rawValue.enabled !== false,
+        };
+      }
+      return { ...defaults, enabled: false };
+    };
+
+    const transactions = normalizePack(
+      invoice.transactions || invoice.transaction,
+      {
+        invoice_entity: 'invoices',
+        invoice_item_entity: 'invoice_items',
+        invoice_number_field: 'invoice_number',
+        idempotency_field: 'idempotency_key',
+        posted_at_field: 'posted_at',
+      }
+    );
+
+    const payments = normalizePack(
+      invoice.payments || invoice.payment,
+      {
+        payment_entity: 'invoice_payments',
+        allocation_entity: 'invoice_payment_allocations',
+        payment_number_field: 'payment_number',
+        payment_customer_field: 'customer_id',
+        payment_date_field: 'payment_date',
+        payment_method_field: 'payment_method',
+        amount_field: 'amount',
+        unallocated_field: 'unallocated_amount',
+        status_field: 'status',
+        allocation_payment_field: 'payment_id',
+        allocation_invoice_field: 'invoice_id',
+        allocation_amount_field: 'amount',
+        allocation_date_field: 'allocated_at',
+      }
+    );
+
+    const notes = normalizePack(
+      invoice.notes || invoice.credit_debit_notes || invoice.creditDebitNotes,
+      {
+        note_entity: 'invoice_notes',
+        note_number_field: 'note_number',
+        note_invoice_field: 'source_invoice_id',
+        note_type_field: 'note_type',
+        note_status_field: 'status',
+        note_amount_field: 'amount',
+        note_tax_total_field: 'tax_total',
+        note_grand_total_field: 'grand_total',
+        note_posted_at_field: 'posted_at',
+      }
+    );
+
+    const lifecycle = normalizePack(
+      invoice.lifecycle || invoice.invoice_lifecycle || invoice.invoiceLifecycle,
+      {
+        status_field: 'status',
+        statuses: ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'],
+        enforce_transitions: true,
+      }
+    );
+
+    const calculationEngine = normalizePack(
+      invoice.calculation_engine || invoice.calculationEngine || invoice.pricing_engine || invoice.pricingEngine,
+      {
+        invoice_item_entity: 'invoice_items',
+        item_invoice_field: 'invoice_id',
+        item_quantity_field: 'quantity',
+        item_unit_price_field: 'unit_price',
+        item_line_subtotal_field: 'line_subtotal',
+        item_discount_type_field: 'line_discount_type',
+        item_discount_value_field: 'line_discount_value',
+        item_discount_total_field: 'line_discount_total',
+        item_tax_rate_field: 'line_tax_rate',
+        item_tax_total_field: 'line_tax_total',
+        item_additional_charge_field: 'line_additional_charge',
+        item_line_total_field: 'line_total',
+        subtotal_field: 'subtotal',
+        tax_total_field: 'tax_total',
+        discount_total_field: 'discount_total',
+        additional_charges_field: 'additional_charges_total',
+        grand_total_field: 'grand_total',
+      }
+    );
+
+    const invoiceEntity = this._pickFirstString(
+      invoice.invoice_entity,
+      invoice.invoiceEntity,
+      transactions.invoice_entity,
+      transactions.invoiceEntity,
+      'invoices'
+    );
+    const itemEntity = this._pickFirstString(
+      invoice.invoice_item_entity,
+      invoice.invoiceItemEntity,
+      transactions.invoice_item_entity,
+      transactions.invoiceItemEntity,
+      calculationEngine.invoice_item_entity,
+      calculationEngine.invoiceItemEntity,
+      'invoice_items'
+    );
+    const customerEntity = this._pickFirstString(
+      invoice.customer_entity,
+      invoice.customerEntity,
+      'customers'
+    );
+
+    const invoice_number_field = this._pickFirstString(
+      transactions.invoice_number_field,
+      transactions.invoiceNumberField,
+      'invoice_number'
+    );
+    const customer_field = this._pickFirstString(
+      invoice.customer_field,
+      invoice.customerField,
+      'customer_id'
+    );
+    const status_field = this._pickFirstString(
+      lifecycle.status_field,
+      lifecycle.statusField,
+      'status'
+    );
+    const subtotal_field = this._pickFirstString(
+      calculationEngine.subtotal_field,
+      calculationEngine.subtotalField,
+      'subtotal'
+    );
+    const tax_total_field = this._pickFirstString(
+      calculationEngine.tax_total_field,
+      calculationEngine.taxTotalField,
+      'tax_total'
+    );
+    const discount_total_field = this._pickFirstString(
+      calculationEngine.discount_total_field,
+      calculationEngine.discountTotalField,
+      'discount_total'
+    );
+    const additional_charges_field = this._pickFirstString(
+      calculationEngine.additional_charges_field,
+      calculationEngine.additionalChargesField,
+      'additional_charges_total'
+    );
+    const grand_total_field = this._pickFirstString(
+      calculationEngine.grand_total_field,
+      calculationEngine.grandTotalField,
+      'grand_total'
+    );
+    const paid_total_field = this._pickFirstString(
+      invoice.paid_total_field,
+      invoice.paidTotalField,
+      'paid_total'
+    );
+    const outstanding_field = this._pickFirstString(
+      invoice.outstanding_balance_field,
+      invoice.outstandingBalanceField,
+      'outstanding_balance'
+    );
+    const idempotency_field = this._pickFirstString(
+      transactions.idempotency_field,
+      transactions.idempotencyField,
+      'idempotency_key'
+    );
+    const posted_at_field = this._pickFirstString(
+      transactions.posted_at_field,
+      transactions.postedAtField,
+      'posted_at'
+    );
+    const cancelled_at_field = this._pickFirstString(
+      invoice.cancelled_at_field,
+      invoice.cancelledAtField,
+      'cancelled_at'
+    );
+
+    const item_invoice_field = this._pickFirstString(
+      calculationEngine.item_invoice_field,
+      calculationEngine.itemInvoiceField,
+      'invoice_id'
+    );
+    const item_quantity_field = this._pickFirstString(
+      calculationEngine.item_quantity_field,
+      calculationEngine.itemQuantityField,
+      'quantity'
+    );
+    const item_unit_price_field = this._pickFirstString(
+      calculationEngine.item_unit_price_field,
+      calculationEngine.itemUnitPriceField,
+      'unit_price'
+    );
+    const item_line_subtotal_field = this._pickFirstString(
+      calculationEngine.item_line_subtotal_field,
+      calculationEngine.itemLineSubtotalField,
+      'line_subtotal'
+    );
+    const item_discount_type_field = this._pickFirstString(
+      calculationEngine.item_discount_type_field,
+      calculationEngine.itemDiscountTypeField,
+      'line_discount_type'
+    );
+    const item_discount_value_field = this._pickFirstString(
+      calculationEngine.item_discount_value_field,
+      calculationEngine.itemDiscountValueField,
+      'line_discount_value'
+    );
+    const item_discount_total_field = this._pickFirstString(
+      calculationEngine.item_discount_total_field,
+      calculationEngine.itemDiscountTotalField,
+      'line_discount_total'
+    );
+    const item_tax_rate_field = this._pickFirstString(
+      calculationEngine.item_tax_rate_field,
+      calculationEngine.itemTaxRateField,
+      'line_tax_rate'
+    );
+    const item_tax_total_field = this._pickFirstString(
+      calculationEngine.item_tax_total_field,
+      calculationEngine.itemTaxTotalField,
+      'line_tax_total'
+    );
+    const item_additional_charge_field = this._pickFirstString(
+      calculationEngine.item_additional_charge_field,
+      calculationEngine.itemAdditionalChargeField,
+      'line_additional_charge'
+    );
+    const item_line_total_field = this._pickFirstString(
+      calculationEngine.item_line_total_field,
+      calculationEngine.itemLineTotalField,
+      'line_total'
+    );
+
+    payments.payment_entity = this._pickFirstString(
+      payments.payment_entity,
+      payments.paymentEntity,
+      'invoice_payments'
+    );
+    payments.allocation_entity = this._pickFirstString(
+      payments.allocation_entity,
+      payments.allocationEntity,
+      'invoice_payment_allocations'
+    );
+    payments.payment_number_field = this._pickFirstString(
+      payments.payment_number_field,
+      payments.paymentNumberField,
+      'payment_number'
+    );
+    payments.payment_customer_field = this._pickFirstString(
+      payments.payment_customer_field,
+      payments.paymentCustomerField,
+      customer_field
+    );
+    payments.payment_date_field = this._pickFirstString(
+      payments.payment_date_field,
+      payments.paymentDateField,
+      'payment_date'
+    );
+    payments.payment_method_field = this._pickFirstString(
+      payments.payment_method_field,
+      payments.paymentMethodField,
+      'payment_method'
+    );
+    payments.amount_field = this._pickFirstString(
+      payments.amount_field,
+      payments.amountField,
+      'amount'
+    );
+    payments.unallocated_field = this._pickFirstString(
+      payments.unallocated_field,
+      payments.unallocatedField,
+      'unallocated_amount'
+    );
+    payments.status_field = this._pickFirstString(
+      payments.status_field,
+      payments.statusField,
+      'status'
+    );
+    payments.allocation_payment_field = this._pickFirstString(
+      payments.allocation_payment_field,
+      payments.allocationPaymentField,
+      'payment_id'
+    );
+    payments.allocation_invoice_field = this._pickFirstString(
+      payments.allocation_invoice_field,
+      payments.allocationInvoiceField,
+      item_invoice_field
+    );
+    payments.allocation_amount_field = this._pickFirstString(
+      payments.allocation_amount_field,
+      payments.allocationAmountField,
+      'amount'
+    );
+    payments.allocation_date_field = this._pickFirstString(
+      payments.allocation_date_field,
+      payments.allocationDateField,
+      'allocated_at'
+    );
+
+    notes.note_entity = this._pickFirstString(
+      notes.note_entity,
+      notes.noteEntity,
+      'invoice_notes'
+    );
+    notes.note_number_field = this._pickFirstString(
+      notes.note_number_field,
+      notes.noteNumberField,
+      'note_number'
+    );
+    notes.note_invoice_field = this._pickFirstString(
+      notes.note_invoice_field,
+      notes.noteInvoiceField,
+      'source_invoice_id'
+    );
+    notes.note_type_field = this._pickFirstString(
+      notes.note_type_field,
+      notes.noteTypeField,
+      'note_type'
+    );
+    notes.note_status_field = this._pickFirstString(
+      notes.note_status_field,
+      notes.noteStatusField,
+      'status'
+    );
+    notes.note_amount_field = this._pickFirstString(
+      notes.note_amount_field,
+      notes.noteAmountField,
+      'amount'
+    );
+    notes.note_tax_total_field = this._pickFirstString(
+      notes.note_tax_total_field,
+      notes.noteTaxTotalField,
+      'tax_total'
+    );
+    notes.note_grand_total_field = this._pickFirstString(
+      notes.note_grand_total_field,
+      notes.noteGrandTotalField,
+      'grand_total'
+    );
+    notes.note_posted_at_field = this._pickFirstString(
+      notes.note_posted_at_field,
+      notes.notePostedAtField,
+      'posted_at'
+    );
+
+    lifecycle.status_field = status_field;
+    lifecycle.statuses = Array.isArray(lifecycle.statuses) && lifecycle.statuses.length
+      ? lifecycle.statuses
+      : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
+    lifecycle.enforce_transitions =
+      lifecycle.enforce_transitions !== false &&
+      lifecycle.enforceTransitions !== false;
+
+    return {
+      invoiceEntity,
+      itemEntity,
+      customerEntity,
+      invoice_number_field,
+      customer_field,
+      status_field,
+      subtotal_field,
+      tax_total_field,
+      discount_total_field,
+      additional_charges_field,
+      grand_total_field,
+      paid_total_field,
+      outstanding_field,
+      idempotency_field,
+      posted_at_field,
+      cancelled_at_field,
+      item_invoice_field,
+      item_quantity_field,
+      item_unit_price_field,
+      item_line_subtotal_field,
+      item_discount_type_field,
+      item_discount_value_field,
+      item_discount_total_field,
+      item_tax_rate_field,
+      item_tax_total_field,
+      item_additional_charge_field,
+      item_line_total_field,
+      transactions,
+      payments,
+      notes,
+      lifecycle,
+      calculationEngine,
+    };
+  }
+
   _resolveErpModules(sdf) {
     const modules = (sdf && sdf.modules) ? sdf.modules : {};
     const hasErpConfig = ERP_MODULE_KEYS.some((key) => Object.prototype.hasOwnProperty.call(modules, key));
@@ -1051,6 +1620,7 @@ PGPASSWORD=erppassword
     }
 
     this._withInventoryPriorityAEntities(entities, sdf);
+    this._withInvoicePriorityAEntities(entities, sdf);
 
     return entities;
   }
@@ -1498,6 +2068,341 @@ PGPASSWORD=erppassword
     }
   }
 
+  _withInvoicePriorityAEntities(entities, sdf) {
+    const cfg = this._getInvoicePriorityAConfig(sdf);
+    const { enabledModules } = this._resolveErpModules(sdf);
+    const enabledSet = new Set(enabledModules || []);
+    const invoiceEnabled = enabledSet.has('invoice');
+    const packsEnabled =
+      this._isPackEnabled(cfg.transactions) ||
+      this._isPackEnabled(cfg.payments) ||
+      this._isPackEnabled(cfg.notes) ||
+      this._isPackEnabled(cfg.lifecycle) ||
+      this._isPackEnabled(cfg.calculationEngine);
+
+    if (!invoiceEnabled || !packsEnabled) return;
+
+    const bySlug = new Map();
+    for (const entity of entities) {
+      if (!entity || !entity.slug) continue;
+      bySlug.set(entity.slug, entity);
+    }
+
+    const ensureEntity = (slug, defaultModule, factory) => {
+      if (bySlug.has(slug)) {
+        const existing = bySlug.get(slug);
+        if (!existing.module && defaultModule) existing.module = defaultModule;
+        return existing;
+      }
+      const created = factory();
+      entities.push(created);
+      bySlug.set(slug, created);
+      return created;
+    };
+
+    const ensureField = (entity, field) => {
+      if (!entity || !field || !field.name) return;
+      if (!Array.isArray(entity.fields)) entity.fields = [];
+      if (entity.fields.some((f) => f && f.name === field.name)) return;
+      entity.fields.push({ ...field });
+    };
+
+    const ensureChild = (entity, childCfg) => {
+      if (!entity || !childCfg || !childCfg.entity || !childCfg.foreign_key) return;
+      if (!Array.isArray(entity.children)) entity.children = [];
+      const exists = entity.children.some((c) => {
+        const childSlug = c && (c.entity || c.slug);
+        const fk = c && (c.foreign_key || c.foreignKey);
+        return childSlug === childCfg.entity && fk === childCfg.foreign_key;
+      });
+      if (!exists) {
+        entity.children.push({ ...childCfg });
+      }
+    };
+
+    const customerEntity = ensureEntity(cfg.customerEntity, 'shared', () => ({
+      slug: cfg.customerEntity,
+      display_name: 'Customers',
+      display_field: 'name',
+      module: 'shared',
+      ui: { search: true, csv_import: true, csv_export: true, print: true },
+      list: { columns: ['name', 'email'] },
+      fields: [],
+      features: {},
+    }));
+    ensureField(customerEntity, { name: 'name', type: 'string', label: 'Name', required: true });
+    ensureField(customerEntity, { name: 'email', type: 'string', label: 'Email', required: false });
+    ensureField(customerEntity, { name: 'phone', type: 'string', label: 'Phone', required: false });
+
+    const invoiceEntity = ensureEntity(cfg.invoiceEntity, 'invoice', () => ({
+      slug: cfg.invoiceEntity,
+      display_name: 'Invoices',
+      display_field: cfg.invoice_number_field,
+      module: 'invoice',
+      ui: { search: true, csv_import: true, csv_export: true, print: true },
+      list: { columns: [cfg.invoice_number_field, cfg.customer_field, cfg.status_field, cfg.grand_total_field, cfg.outstanding_field] },
+      fields: [],
+      features: { print_invoice: true },
+    }));
+
+    const statusOptions = Array.from(
+      new Set(
+        (Array.isArray(cfg.lifecycle.statuses) && cfg.lifecycle.statuses.length
+          ? cfg.lifecycle.statuses
+          : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled']).map((s) => String(s))
+      )
+    );
+
+    ensureField(invoiceEntity, { name: cfg.invoice_number_field, type: 'string', label: 'Invoice Number', required: true, unique: true });
+    ensureField(invoiceEntity, {
+      name: cfg.customer_field,
+      type: 'reference',
+      label: 'Customer',
+      required: true,
+      reference_entity: cfg.customerEntity,
+    });
+    ensureField(invoiceEntity, { name: 'issue_date', type: 'date', label: 'Issue Date', required: true });
+    ensureField(invoiceEntity, { name: 'due_date', type: 'date', label: 'Due Date', required: true });
+    ensureField(invoiceEntity, {
+      name: cfg.status_field,
+      type: 'string',
+      label: 'Status',
+      required: true,
+      options: statusOptions,
+    });
+    ensureField(invoiceEntity, { name: cfg.subtotal_field, type: 'decimal', label: 'Subtotal', required: true, min: 0 });
+    ensureField(invoiceEntity, { name: cfg.tax_total_field, type: 'decimal', label: 'Tax Total', required: true, min: 0 });
+    ensureField(invoiceEntity, { name: cfg.grand_total_field, type: 'decimal', label: 'Grand Total', required: true, min: 0 });
+    ensureField(invoiceEntity, { name: cfg.paid_total_field, type: 'decimal', label: 'Paid Total', required: false, min: 0 });
+    ensureField(invoiceEntity, { name: cfg.outstanding_field, type: 'decimal', label: 'Outstanding Balance', required: false, min: 0 });
+    ensureField(invoiceEntity, { name: 'currency', type: 'string', label: 'Currency', required: false });
+
+    if (this._isPackEnabled(cfg.transactions)) {
+      ensureField(invoiceEntity, { name: cfg.idempotency_field, type: 'string', label: 'Idempotency Key', required: false, unique: true });
+      ensureField(invoiceEntity, { name: cfg.posted_at_field, type: 'datetime', label: 'Posted At', required: false });
+      ensureField(invoiceEntity, { name: cfg.cancelled_at_field, type: 'datetime', label: 'Cancelled At', required: false });
+    }
+
+    if (this._isPackEnabled(cfg.calculationEngine)) {
+      ensureField(invoiceEntity, { name: cfg.discount_total_field, type: 'decimal', label: 'Discount Total', required: false, min: 0 });
+      ensureField(invoiceEntity, { name: cfg.additional_charges_field, type: 'decimal', label: 'Additional Charges', required: false, min: 0 });
+
+      const itemEntity = ensureEntity(cfg.itemEntity, 'invoice', () => ({
+        slug: cfg.itemEntity,
+        display_name: 'Invoice Items',
+        display_field: 'description',
+        module: 'invoice',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.item_invoice_field,
+            'description',
+            cfg.item_quantity_field,
+            cfg.item_unit_price_field,
+            cfg.item_line_total_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+
+      ensureField(itemEntity, {
+        name: cfg.item_invoice_field,
+        type: 'reference',
+        label: 'Invoice',
+        required: true,
+        reference_entity: cfg.invoiceEntity,
+      });
+      ensureField(itemEntity, { name: 'description', type: 'string', label: 'Description', required: true });
+      ensureField(itemEntity, { name: cfg.item_quantity_field, type: 'decimal', label: 'Quantity', required: true, min: 0 });
+      ensureField(itemEntity, { name: cfg.item_unit_price_field, type: 'decimal', label: 'Unit Price', required: true, min: 0 });
+      ensureField(itemEntity, { name: cfg.item_line_subtotal_field, type: 'decimal', label: 'Line Subtotal', required: false, min: 0 });
+      ensureField(itemEntity, {
+        name: cfg.item_discount_type_field,
+        type: 'string',
+        label: 'Discount Type',
+        required: false,
+        options: ['Amount', 'Percent'],
+      });
+      ensureField(itemEntity, { name: cfg.item_discount_value_field, type: 'decimal', label: 'Discount Value', required: false, min: 0 });
+      ensureField(itemEntity, { name: cfg.item_discount_total_field, type: 'decimal', label: 'Discount Total', required: false, min: 0 });
+      ensureField(itemEntity, { name: cfg.item_tax_rate_field, type: 'decimal', label: 'Tax Rate', required: false, min: 0 });
+      ensureField(itemEntity, { name: cfg.item_tax_total_field, type: 'decimal', label: 'Tax Total', required: false, min: 0 });
+      ensureField(itemEntity, { name: cfg.item_additional_charge_field, type: 'decimal', label: 'Additional Charge', required: false, min: 0 });
+      ensureField(itemEntity, { name: cfg.item_line_total_field, type: 'decimal', label: 'Line Total', required: false, min: 0 });
+
+      ensureChild(invoiceEntity, {
+        entity: cfg.itemEntity,
+        foreign_key: cfg.item_invoice_field,
+        label: 'Invoice Items',
+        columns: ['description', cfg.item_quantity_field, cfg.item_unit_price_field, cfg.item_line_total_field],
+      });
+    }
+
+    if (this._isPackEnabled(cfg.payments)) {
+      const paymentEntity = ensureEntity(cfg.payments.payment_entity, 'invoice', () => ({
+        slug: cfg.payments.payment_entity,
+        display_name: 'Invoice Payments',
+        display_field: cfg.payments.payment_number_field,
+        module: 'invoice',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.payments.payment_number_field,
+            cfg.payments.payment_customer_field,
+            cfg.payments.payment_date_field,
+            cfg.payments.amount_field,
+            cfg.payments.unallocated_field,
+            cfg.payments.status_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(paymentEntity, { name: cfg.payments.payment_number_field, type: 'string', label: 'Payment Number', required: true, unique: true });
+      ensureField(paymentEntity, {
+        name: cfg.payments.payment_customer_field,
+        type: 'reference',
+        label: 'Customer',
+        required: false,
+        reference_entity: cfg.customerEntity,
+      });
+      ensureField(paymentEntity, { name: cfg.payments.payment_date_field, type: 'date', label: 'Payment Date', required: true });
+      ensureField(paymentEntity, { name: cfg.payments.payment_method_field, type: 'string', label: 'Payment Method', required: false });
+      ensureField(paymentEntity, { name: cfg.payments.amount_field, type: 'decimal', label: 'Amount', required: true, min: 0 });
+      ensureField(paymentEntity, { name: cfg.payments.unallocated_field, type: 'decimal', label: 'Unallocated Amount', required: false, min: 0 });
+      ensureField(paymentEntity, {
+        name: cfg.payments.status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Draft', 'Posted', 'Cancelled'],
+      });
+      ensureField(paymentEntity, { name: 'reference_number', type: 'string', label: 'Reference Number', required: false });
+      ensureField(paymentEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+      ensureField(paymentEntity, { name: 'posted_at', type: 'datetime', label: 'Posted At', required: false });
+
+      const allocationEntity = ensureEntity(cfg.payments.allocation_entity, 'invoice', () => ({
+        slug: cfg.payments.allocation_entity,
+        display_name: 'Payment Allocations',
+        display_field: cfg.payments.allocation_invoice_field,
+        module: 'invoice',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.payments.allocation_payment_field,
+            cfg.payments.allocation_invoice_field,
+            cfg.payments.allocation_amount_field,
+            cfg.payments.allocation_date_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(allocationEntity, {
+        name: cfg.payments.allocation_payment_field,
+        type: 'reference',
+        label: 'Payment',
+        required: true,
+        reference_entity: cfg.payments.payment_entity,
+      });
+      ensureField(allocationEntity, {
+        name: cfg.payments.allocation_invoice_field,
+        type: 'reference',
+        label: 'Invoice',
+        required: true,
+        reference_entity: cfg.invoiceEntity,
+      });
+      ensureField(allocationEntity, {
+        name: cfg.payments.allocation_amount_field,
+        type: 'decimal',
+        label: 'Allocated Amount',
+        required: true,
+        min: 0,
+      });
+      ensureField(allocationEntity, {
+        name: cfg.payments.allocation_date_field,
+        type: 'datetime',
+        label: 'Allocated At',
+        required: false,
+      });
+      ensureField(allocationEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+
+      ensureChild(paymentEntity, {
+        entity: cfg.payments.allocation_entity,
+        foreign_key: cfg.payments.allocation_payment_field,
+        label: 'Allocations',
+        columns: [
+          cfg.payments.allocation_invoice_field,
+          cfg.payments.allocation_amount_field,
+          cfg.payments.allocation_date_field,
+        ],
+      });
+    }
+
+    if (this._isPackEnabled(cfg.notes)) {
+      const noteEntity = ensureEntity(cfg.notes.note_entity, 'invoice', () => ({
+        slug: cfg.notes.note_entity,
+        display_name: 'Invoice Notes',
+        display_field: cfg.notes.note_number_field,
+        module: 'invoice',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.notes.note_number_field,
+            cfg.notes.note_invoice_field,
+            cfg.notes.note_type_field,
+            cfg.notes.note_status_field,
+            cfg.notes.note_grand_total_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(noteEntity, { name: cfg.notes.note_number_field, type: 'string', label: 'Note Number', required: true, unique: true });
+      ensureField(noteEntity, {
+        name: cfg.notes.note_invoice_field,
+        type: 'reference',
+        label: 'Source Invoice',
+        required: true,
+        reference_entity: cfg.invoiceEntity,
+      });
+      ensureField(noteEntity, {
+        name: cfg.notes.note_type_field,
+        type: 'string',
+        label: 'Note Type',
+        required: true,
+        options: ['Credit', 'Debit'],
+      });
+      ensureField(noteEntity, {
+        name: cfg.notes.note_status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Draft', 'Posted', 'Cancelled'],
+      });
+      ensureField(noteEntity, { name: 'issue_date', type: 'date', label: 'Issue Date', required: true });
+      ensureField(noteEntity, { name: 'reason', type: 'text', label: 'Reason', required: false });
+      ensureField(noteEntity, { name: cfg.notes.note_amount_field, type: 'decimal', label: 'Amount', required: true, min: 0 });
+      ensureField(noteEntity, { name: cfg.notes.note_tax_total_field, type: 'decimal', label: 'Tax Total', required: false, min: 0 });
+      ensureField(noteEntity, { name: cfg.notes.note_grand_total_field, type: 'decimal', label: 'Grand Total', required: false, min: 0 });
+      ensureField(noteEntity, { name: cfg.notes.note_posted_at_field, type: 'datetime', label: 'Posted At', required: false });
+      ensureField(noteEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+
+      ensureChild(invoiceEntity, {
+        entity: cfg.notes.note_entity,
+        foreign_key: cfg.notes.note_invoice_field,
+        label: 'Notes',
+        columns: [
+          cfg.notes.note_number_field,
+          cfg.notes.note_type_field,
+          cfg.notes.note_status_field,
+          cfg.notes.note_grand_total_field,
+        ],
+      });
+    }
+  }
+
   _formatAutoName(value) {
     return String(value || '')
       .replace(/_/g, ' ')
@@ -1511,31 +2416,60 @@ PGPASSWORD=erppassword
 
     const modules = (sdf && sdf.modules) ? sdf.modules : {};
     const scheduled = modules?.scheduled_reports || {};
-    const priorityCfg = this._getInventoryPriorityAConfig(sdf);
+    const inventoryCfg = this._getInventoryPriorityAConfig(sdf);
     const inventoryPriority = {
-      stock_entity: priorityCfg.stockEntity,
+      stock_entity: inventoryCfg.stockEntity,
       reservations: {
-        enabled: this._isPackEnabled(priorityCfg.reservations),
-        reservation_entity: priorityCfg.reservations.reservation_entity,
-        item_field: priorityCfg.reservations.item_field,
-        quantity_field: priorityCfg.reservations.quantity_field,
-        status_field: priorityCfg.reservations.status_field,
+        enabled: this._isPackEnabled(inventoryCfg.reservations),
+        reservation_entity: inventoryCfg.reservations.reservation_entity,
+        item_field: inventoryCfg.reservations.item_field,
+        quantity_field: inventoryCfg.reservations.quantity_field,
+        status_field: inventoryCfg.reservations.status_field,
       },
       transactions: {
-        enabled: this._isPackEnabled(priorityCfg.transactions),
-        quantity_field: priorityCfg.transactions.quantity_field,
+        enabled: this._isPackEnabled(inventoryCfg.transactions),
+        quantity_field: inventoryCfg.transactions.quantity_field,
       },
       inbound: {
-        enabled: this._isPackEnabled(priorityCfg.inbound),
-        purchase_order_entity: priorityCfg.inbound.purchase_order_entity,
-        purchase_order_item_entity: priorityCfg.inbound.purchase_order_item_entity,
-        grn_entity: priorityCfg.inbound.grn_entity,
-        grn_item_entity: priorityCfg.inbound.grn_item_entity,
+        enabled: this._isPackEnabled(inventoryCfg.inbound),
+        purchase_order_entity: inventoryCfg.inbound.purchase_order_entity,
+        purchase_order_item_entity: inventoryCfg.inbound.purchase_order_item_entity,
+        grn_entity: inventoryCfg.inbound.grn_entity,
+        grn_item_entity: inventoryCfg.inbound.grn_item_entity,
       },
       cycle_counting: {
-        enabled: this._isPackEnabled(priorityCfg.cycleCounting),
-        session_entity: priorityCfg.cycleCounting.session_entity,
-        line_entity: priorityCfg.cycleCounting.line_entity,
+        enabled: this._isPackEnabled(inventoryCfg.cycleCounting),
+        session_entity: inventoryCfg.cycleCounting.session_entity,
+        line_entity: inventoryCfg.cycleCounting.line_entity,
+      },
+    };
+
+    const invoiceCfg = this._getInvoicePriorityAConfig(sdf);
+    const invoicePriority = {
+      invoice_entity: invoiceCfg.invoiceEntity,
+      invoice_item_entity: invoiceCfg.itemEntity,
+      transactions: {
+        enabled: this._isPackEnabled(invoiceCfg.transactions),
+        invoice_number_field: invoiceCfg.invoice_number_field,
+        idempotency_field: invoiceCfg.idempotency_field,
+      },
+      payments: {
+        enabled: this._isPackEnabled(invoiceCfg.payments),
+        payment_entity: invoiceCfg.payments.payment_entity,
+        allocation_entity: invoiceCfg.payments.allocation_entity,
+      },
+      notes: {
+        enabled: this._isPackEnabled(invoiceCfg.notes),
+        note_entity: invoiceCfg.notes.note_entity,
+      },
+      lifecycle: {
+        enabled: this._isPackEnabled(invoiceCfg.lifecycle),
+        status_field: invoiceCfg.status_field,
+        statuses: invoiceCfg.lifecycle.statuses,
+      },
+      calculation_engine: {
+        enabled: this._isPackEnabled(invoiceCfg.calculationEngine),
+        line_total_field: invoiceCfg.item_line_total_field,
       },
     };
 
@@ -1543,6 +2477,7 @@ PGPASSWORD=erppassword
     const systemConfig = {
       modules: {
         inventory_priority_a: inventoryPriority,
+        invoice_priority_a: invoicePriority,
         scheduled_reports: {
           enabled: scheduled.enabled === true,
           cron: scheduled.cron || '0 0 * * *',
@@ -1575,7 +2510,12 @@ PGPASSWORD=erppassword
       systemConfig.modules.inventory_priority_a.reservations.enabled === true ||
       systemConfig.modules.inventory_priority_a.transactions.enabled === true ||
       systemConfig.modules.inventory_priority_a.inbound.enabled === true ||
-      systemConfig.modules.inventory_priority_a.cycle_counting.enabled === true;
+      systemConfig.modules.inventory_priority_a.cycle_counting.enabled === true ||
+      systemConfig.modules.invoice_priority_a.transactions.enabled === true ||
+      systemConfig.modules.invoice_priority_a.payments.enabled === true ||
+      systemConfig.modules.invoice_priority_a.notes.enabled === true ||
+      systemConfig.modules.invoice_priority_a.lifecycle.enabled === true ||
+      systemConfig.modules.invoice_priority_a.calculation_engine.enabled === true;
 
     if (shouldWriteConfig) {
       await fs.writeFile(

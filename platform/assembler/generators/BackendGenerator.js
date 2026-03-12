@@ -325,6 +325,415 @@ class BackendGenerator {
     };
   }
 
+  _getInvoicePriorityAConfig() {
+    const invoice =
+      this.modules && this.modules.invoice && typeof this.modules.invoice === 'object'
+        ? this.modules.invoice
+        : {};
+
+    const normalizePack = (rawValue, defaults = {}) => {
+      if (rawValue === true) return { ...defaults, enabled: true };
+      if (rawValue === false || rawValue === null || rawValue === undefined) {
+        return { ...defaults, enabled: false };
+      }
+      if (typeof rawValue === 'object') {
+        return {
+          ...defaults,
+          ...rawValue,
+          enabled: rawValue.enabled !== false,
+        };
+      }
+      return { ...defaults, enabled: false };
+    };
+
+    const transactions = normalizePack(
+      invoice.transactions || invoice.transaction,
+      {
+        invoice_entity: 'invoices',
+        invoice_item_entity: 'invoice_items',
+        invoice_number_field: 'invoice_number',
+        idempotency_field: 'idempotency_key',
+        posted_at_field: 'posted_at',
+      }
+    );
+    const payments = normalizePack(
+      invoice.payments || invoice.payment,
+      {
+        payment_entity: 'invoice_payments',
+        allocation_entity: 'invoice_payment_allocations',
+        payment_number_field: 'payment_number',
+        payment_customer_field: 'customer_id',
+        payment_date_field: 'payment_date',
+        payment_method_field: 'payment_method',
+        amount_field: 'amount',
+        unallocated_field: 'unallocated_amount',
+        status_field: 'status',
+        allocation_payment_field: 'payment_id',
+        allocation_invoice_field: 'invoice_id',
+        allocation_amount_field: 'amount',
+        allocation_date_field: 'allocated_at',
+      }
+    );
+    const notes = normalizePack(
+      invoice.notes || invoice.credit_debit_notes || invoice.creditDebitNotes,
+      {
+        note_entity: 'invoice_notes',
+        note_number_field: 'note_number',
+        note_invoice_field: 'source_invoice_id',
+        note_type_field: 'note_type',
+        note_status_field: 'status',
+        note_amount_field: 'amount',
+        note_tax_total_field: 'tax_total',
+        note_grand_total_field: 'grand_total',
+        note_posted_at_field: 'posted_at',
+      }
+    );
+    const lifecycle = normalizePack(
+      invoice.lifecycle || invoice.invoice_lifecycle || invoice.invoiceLifecycle,
+      {
+        status_field: 'status',
+        statuses: ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'],
+        enforce_transitions: true,
+      }
+    );
+    const calculationEngine = normalizePack(
+      invoice.calculation_engine || invoice.calculationEngine || invoice.pricing_engine || invoice.pricingEngine,
+      {
+        invoice_item_entity: 'invoice_items',
+        item_invoice_field: 'invoice_id',
+        item_quantity_field: 'quantity',
+        item_unit_price_field: 'unit_price',
+        item_line_subtotal_field: 'line_subtotal',
+        item_discount_type_field: 'line_discount_type',
+        item_discount_value_field: 'line_discount_value',
+        item_discount_total_field: 'line_discount_total',
+        item_tax_rate_field: 'line_tax_rate',
+        item_tax_total_field: 'line_tax_total',
+        item_additional_charge_field: 'line_additional_charge',
+        item_line_total_field: 'line_total',
+        subtotal_field: 'subtotal',
+        tax_total_field: 'tax_total',
+        discount_total_field: 'discount_total',
+        additional_charges_field: 'additional_charges_total',
+        grand_total_field: 'grand_total',
+      }
+    );
+
+    const invoiceEntity = this._pickFirstString(
+      invoice.invoice_entity,
+      invoice.invoiceEntity,
+      transactions.invoice_entity,
+      transactions.invoiceEntity,
+      'invoices'
+    );
+    const itemEntity = this._pickFirstString(
+      invoice.invoice_item_entity,
+      invoice.invoiceItemEntity,
+      transactions.invoice_item_entity,
+      transactions.invoiceItemEntity,
+      calculationEngine.invoice_item_entity,
+      calculationEngine.invoiceItemEntity,
+      'invoice_items'
+    );
+
+    const statusField = this._pickFirstString(
+      lifecycle.status_field,
+      lifecycle.statusField,
+      'status'
+    );
+    const grandTotalField = this._pickFirstString(
+      calculationEngine.grand_total_field,
+      calculationEngine.grandTotalField,
+      'grand_total'
+    );
+    const paidTotalField = this._pickFirstString(
+      invoice.paid_total_field,
+      invoice.paidTotalField,
+      'paid_total'
+    );
+    const outstandingField = this._pickFirstString(
+      invoice.outstanding_balance_field,
+      invoice.outstandingBalanceField,
+      'outstanding_balance'
+    );
+
+    transactions.invoice_entity = this._pickFirstString(
+      transactions.invoice_entity,
+      transactions.invoiceEntity,
+      invoiceEntity
+    );
+    transactions.invoice_item_entity = this._pickFirstString(
+      transactions.invoice_item_entity,
+      transactions.invoiceItemEntity,
+      itemEntity
+    );
+    transactions.invoice_number_field = this._pickFirstString(
+      transactions.invoice_number_field,
+      transactions.invoiceNumberField,
+      'invoice_number'
+    );
+    transactions.idempotency_field = this._pickFirstString(
+      transactions.idempotency_field,
+      transactions.idempotencyField,
+      'idempotency_key'
+    );
+    transactions.posted_at_field = this._pickFirstString(
+      transactions.posted_at_field,
+      transactions.postedAtField,
+      'posted_at'
+    );
+    transactions.status_field = this._pickFirstString(
+      transactions.status_field,
+      transactions.statusField,
+      statusField
+    );
+    transactions.grand_total_field = this._pickFirstString(
+      transactions.grand_total_field,
+      transactions.grandTotalField,
+      grandTotalField
+    );
+    transactions.paid_total_field = this._pickFirstString(
+      transactions.paid_total_field,
+      transactions.paidTotalField,
+      paidTotalField
+    );
+    transactions.outstanding_field = this._pickFirstString(
+      transactions.outstanding_field,
+      transactions.outstandingField,
+      outstandingField
+    );
+
+    payments.payment_entity = this._pickFirstString(
+      payments.payment_entity,
+      payments.paymentEntity,
+      'invoice_payments'
+    );
+    payments.allocation_entity = this._pickFirstString(
+      payments.allocation_entity,
+      payments.allocationEntity,
+      'invoice_payment_allocations'
+    );
+    payments.payment_number_field = this._pickFirstString(
+      payments.payment_number_field,
+      payments.paymentNumberField,
+      'payment_number'
+    );
+    payments.payment_customer_field = this._pickFirstString(
+      payments.payment_customer_field,
+      payments.paymentCustomerField,
+      'customer_id'
+    );
+    payments.payment_date_field = this._pickFirstString(
+      payments.payment_date_field,
+      payments.paymentDateField,
+      'payment_date'
+    );
+    payments.payment_method_field = this._pickFirstString(
+      payments.payment_method_field,
+      payments.paymentMethodField,
+      'payment_method'
+    );
+    payments.amount_field = this._pickFirstString(
+      payments.amount_field,
+      payments.amountField,
+      'amount'
+    );
+    payments.unallocated_field = this._pickFirstString(
+      payments.unallocated_field,
+      payments.unallocatedField,
+      'unallocated_amount'
+    );
+    payments.status_field = this._pickFirstString(
+      payments.status_field,
+      payments.statusField,
+      'status'
+    );
+    payments.allocation_payment_field = this._pickFirstString(
+      payments.allocation_payment_field,
+      payments.allocationPaymentField,
+      'payment_id'
+    );
+    payments.allocation_invoice_field = this._pickFirstString(
+      payments.allocation_invoice_field,
+      payments.allocationInvoiceField,
+      'invoice_id'
+    );
+    payments.allocation_amount_field = this._pickFirstString(
+      payments.allocation_amount_field,
+      payments.allocationAmountField,
+      'amount'
+    );
+    payments.allocation_date_field = this._pickFirstString(
+      payments.allocation_date_field,
+      payments.allocationDateField,
+      'allocated_at'
+    );
+
+    notes.note_entity = this._pickFirstString(
+      notes.note_entity,
+      notes.noteEntity,
+      'invoice_notes'
+    );
+    notes.note_number_field = this._pickFirstString(
+      notes.note_number_field,
+      notes.noteNumberField,
+      'note_number'
+    );
+    notes.note_invoice_field = this._pickFirstString(
+      notes.note_invoice_field,
+      notes.noteInvoiceField,
+      'source_invoice_id'
+    );
+    notes.note_type_field = this._pickFirstString(
+      notes.note_type_field,
+      notes.noteTypeField,
+      'note_type'
+    );
+    notes.note_status_field = this._pickFirstString(
+      notes.note_status_field,
+      notes.noteStatusField,
+      'status'
+    );
+    notes.note_amount_field = this._pickFirstString(
+      notes.note_amount_field,
+      notes.noteAmountField,
+      'amount'
+    );
+    notes.note_tax_total_field = this._pickFirstString(
+      notes.note_tax_total_field,
+      notes.noteTaxTotalField,
+      'tax_total'
+    );
+    notes.note_grand_total_field = this._pickFirstString(
+      notes.note_grand_total_field,
+      notes.noteGrandTotalField,
+      'grand_total'
+    );
+    notes.note_posted_at_field = this._pickFirstString(
+      notes.note_posted_at_field,
+      notes.notePostedAtField,
+      'posted_at'
+    );
+
+    lifecycle.status_field = statusField;
+    lifecycle.statuses = Array.isArray(lifecycle.statuses) && lifecycle.statuses.length
+      ? lifecycle.statuses
+      : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
+    lifecycle.enforce_transitions =
+      lifecycle.enforce_transitions !== false &&
+      lifecycle.enforceTransitions !== false;
+    lifecycle.transitions =
+      lifecycle.transitions && typeof lifecycle.transitions === 'object'
+        ? lifecycle.transitions
+        : {
+            Draft: ['Sent', 'Cancelled'],
+            Sent: ['Paid', 'Overdue', 'Cancelled'],
+            Overdue: ['Paid', 'Cancelled'],
+            Paid: [],
+            Cancelled: [],
+          };
+
+    calculationEngine.invoice_item_entity = this._pickFirstString(
+      calculationEngine.invoice_item_entity,
+      calculationEngine.invoiceItemEntity,
+      itemEntity
+    );
+    calculationEngine.item_invoice_field = this._pickFirstString(
+      calculationEngine.item_invoice_field,
+      calculationEngine.itemInvoiceField,
+      'invoice_id'
+    );
+    calculationEngine.item_quantity_field = this._pickFirstString(
+      calculationEngine.item_quantity_field,
+      calculationEngine.itemQuantityField,
+      'quantity'
+    );
+    calculationEngine.item_unit_price_field = this._pickFirstString(
+      calculationEngine.item_unit_price_field,
+      calculationEngine.itemUnitPriceField,
+      'unit_price'
+    );
+    calculationEngine.item_line_subtotal_field = this._pickFirstString(
+      calculationEngine.item_line_subtotal_field,
+      calculationEngine.itemLineSubtotalField,
+      'line_subtotal'
+    );
+    calculationEngine.item_discount_type_field = this._pickFirstString(
+      calculationEngine.item_discount_type_field,
+      calculationEngine.itemDiscountTypeField,
+      'line_discount_type'
+    );
+    calculationEngine.item_discount_value_field = this._pickFirstString(
+      calculationEngine.item_discount_value_field,
+      calculationEngine.itemDiscountValueField,
+      'line_discount_value'
+    );
+    calculationEngine.item_discount_total_field = this._pickFirstString(
+      calculationEngine.item_discount_total_field,
+      calculationEngine.itemDiscountTotalField,
+      'line_discount_total'
+    );
+    calculationEngine.item_tax_rate_field = this._pickFirstString(
+      calculationEngine.item_tax_rate_field,
+      calculationEngine.itemTaxRateField,
+      'line_tax_rate'
+    );
+    calculationEngine.item_tax_total_field = this._pickFirstString(
+      calculationEngine.item_tax_total_field,
+      calculationEngine.itemTaxTotalField,
+      'line_tax_total'
+    );
+    calculationEngine.item_additional_charge_field = this._pickFirstString(
+      calculationEngine.item_additional_charge_field,
+      calculationEngine.itemAdditionalChargeField,
+      'line_additional_charge'
+    );
+    calculationEngine.item_line_total_field = this._pickFirstString(
+      calculationEngine.item_line_total_field,
+      calculationEngine.itemLineTotalField,
+      'line_total'
+    );
+    calculationEngine.subtotal_field = this._pickFirstString(
+      calculationEngine.subtotal_field,
+      calculationEngine.subtotalField,
+      'subtotal'
+    );
+    calculationEngine.tax_total_field = this._pickFirstString(
+      calculationEngine.tax_total_field,
+      calculationEngine.taxTotalField,
+      'tax_total'
+    );
+    calculationEngine.discount_total_field = this._pickFirstString(
+      calculationEngine.discount_total_field,
+      calculationEngine.discountTotalField,
+      'discount_total'
+    );
+    calculationEngine.additional_charges_field = this._pickFirstString(
+      calculationEngine.additional_charges_field,
+      calculationEngine.additionalChargesField,
+      'additional_charges_total'
+    );
+    calculationEngine.grand_total_field = this._pickFirstString(
+      calculationEngine.grand_total_field,
+      calculationEngine.grandTotalField,
+      grandTotalField
+    );
+
+    return {
+      invoiceEntity,
+      itemEntity,
+      statusField,
+      grandTotalField,
+      paidTotalField,
+      outstandingField,
+      transactions,
+      payments,
+      notes,
+      lifecycle,
+      calculationEngine,
+    };
+  }
+
   async _ensureModuleDirs(outputDir, moduleKey) {
     if (this._moduleDirs.has(moduleKey)) return;
 
@@ -597,17 +1006,65 @@ class BackendGenerator {
       }
     }
 
-    const invoiceConfig = (this.modules && this.modules.invoice && typeof this.modules.invoice === 'object')
+    const invoiceModuleConfig = (this.modules && this.modules.invoice && typeof this.modules.invoice === 'object')
       ? this.modules.invoice
       : {};
-    if (moduleKey === 'invoice' && slug === 'invoices') {
-      addMixin('InvoiceMixin', invoiceConfig, 'modules');
+    const invoicePriorityCfg = this._getInvoicePriorityAConfig();
+    const invoiceTransactionsEnabled = this._isPackEnabled(invoicePriorityCfg.transactions);
+    const invoicePaymentsEnabled = this._isPackEnabled(invoicePriorityCfg.payments);
+    const invoiceNotesEnabled = this._isPackEnabled(invoicePriorityCfg.notes);
+    const invoiceLifecycleEnabled = this._isPackEnabled(invoicePriorityCfg.lifecycle);
+    const invoiceCalcEnabled = this._isPackEnabled(invoicePriorityCfg.calculationEngine);
+    const invoiceTxnCfg = this._buildInvoiceTransactionMixinConfig(invoicePriorityCfg, invoiceModuleConfig);
+    const invoicePaymentCfg = this._buildInvoicePaymentMixinConfig(invoicePriorityCfg, invoiceTxnCfg);
+    const invoiceNoteCfg = this._buildInvoiceNoteMixinConfig(invoicePriorityCfg, invoiceTxnCfg);
+    const invoiceCalcCfg = this._buildInvoiceCalculationMixinConfig(invoicePriorityCfg);
+    const invoiceLifecycleCfg = this._buildInvoiceLifecycleMixinConfig(invoicePriorityCfg);
+    const invoiceSlug = String(invoicePriorityCfg.invoiceEntity || 'invoices');
+    const invoiceItemSlug = String(invoicePriorityCfg.itemEntity || 'invoice_items');
+    const invoicePaymentSlug = String(invoicePriorityCfg.payments?.payment_entity || 'invoice_payments');
+    const invoiceNoteSlug = String(invoicePriorityCfg.notes?.note_entity || 'invoice_notes');
+
+    if (moduleKey === 'invoice' && slug === invoiceSlug) {
+      addMixin(
+        'InvoiceMixin',
+        {
+          ...invoiceModuleConfig,
+          use_calculation_engine: invoiceCalcEnabled,
+          calculation_engine_enabled: invoiceCalcEnabled,
+          auto_number_mode: invoiceTransactionsEnabled ? 'workflow' : 'create',
+          status_field: invoiceLifecycleCfg.status_field,
+          statuses: invoiceLifecycleCfg.statuses,
+        },
+        'modules'
+      );
+      addMixin(
+        'InvoiceLifecycleMixin',
+        invoiceLifecycleEnabled ? invoiceLifecycleCfg : {},
+        'modules'
+      );
+      if (invoiceTransactionsEnabled) {
+        addMixin('InvoiceTransactionSafetyMixin', invoiceTxnCfg, 'modules');
+      }
+      if (invoicePaymentsEnabled) {
+        addMixin('InvoicePaymentWorkflowMixin', invoicePaymentCfg, 'modules');
+      }
+      if (invoiceNotesEnabled) {
+        addMixin('InvoiceNoteWorkflowMixin', invoiceNoteCfg, 'modules');
+      }
     }
-    if (moduleKey === 'invoice' && slug === 'invoice_items') {
-      addMixin('InvoiceItemsMixin', invoiceConfig, 'modules');
+    if (moduleKey === 'invoice' && slug === invoiceItemSlug) {
+      if (invoiceCalcEnabled) {
+        addMixin('InvoiceCalculationEngineMixin', invoiceCalcCfg, 'modules');
+      } else {
+        addMixin('InvoiceItemsMixin', invoiceModuleConfig, 'modules');
+      }
     }
-    if (moduleKey === 'invoice' && slug === 'invoices') {
-      addMixin('InvoiceLifecycleMixin');
+    if (moduleKey === 'invoice' && slug === invoicePaymentSlug && invoicePaymentsEnabled) {
+      addMixin('InvoicePaymentWorkflowMixin', invoicePaymentCfg, 'modules');
+    }
+    if (moduleKey === 'invoice' && slug === invoiceNoteSlug && invoiceNotesEnabled) {
+      addMixin('InvoiceNoteWorkflowMixin', invoiceNoteCfg, 'modules');
     }
 
     if (moduleKey === 'hr' && slug === 'employees') {
@@ -873,6 +1330,157 @@ class BackendGenerator {
     };
   }
 
+  _buildInvoiceTransactionMixinConfig(invoiceCfg, moduleInvoiceCfg = {}) {
+    return {
+      ...(moduleInvoiceCfg || {}),
+      ...(invoiceCfg?.transactions || {}),
+      invoice_entity: invoiceCfg?.invoiceEntity || 'invoices',
+      invoice_number_field: invoiceCfg?.transactions?.invoice_number_field || 'invoice_number',
+      idempotency_field: invoiceCfg?.transactions?.idempotency_field || 'idempotency_key',
+      posted_at_field: invoiceCfg?.transactions?.posted_at_field || 'posted_at',
+      status_field: invoiceCfg?.statusField || 'status',
+      grand_total_field: invoiceCfg?.grandTotalField || 'grand_total',
+      paid_total_field: invoiceCfg?.paidTotalField || 'paid_total',
+      outstanding_field: invoiceCfg?.outstandingField || 'outstanding_balance',
+      number_prefix: this._pickFirstString(
+        moduleInvoiceCfg.prefix,
+        moduleInvoiceCfg.invoice_prefix,
+        moduleInvoiceCfg.invoicePrefix,
+        'INV-'
+      ),
+      number_padding: Number(
+        this._pickFirstString(
+          invoiceCfg?.transactions?.number_padding,
+          invoiceCfg?.transactions?.numberPadding,
+          '6'
+        )
+      ) || 6,
+    };
+  }
+
+  _buildInvoicePaymentMixinConfig(invoiceCfg, transactionCfg = {}) {
+    return {
+      ...(invoiceCfg?.payments || {}),
+      invoice_entity: invoiceCfg?.invoiceEntity || 'invoices',
+      payment_entity: invoiceCfg?.payments?.payment_entity || 'invoice_payments',
+      allocation_entity: invoiceCfg?.payments?.allocation_entity || 'invoice_payment_allocations',
+      invoice_status_field: transactionCfg.status_field || invoiceCfg?.statusField || 'status',
+      invoice_grand_total_field: transactionCfg.grand_total_field || invoiceCfg?.grandTotalField || 'grand_total',
+      invoice_paid_total_field: transactionCfg.paid_total_field || invoiceCfg?.paidTotalField || 'paid_total',
+      invoice_outstanding_field: transactionCfg.outstanding_field || invoiceCfg?.outstandingField || 'outstanding_balance',
+      payment_number_field: invoiceCfg?.payments?.payment_number_field || 'payment_number',
+      payment_customer_field: invoiceCfg?.payments?.payment_customer_field || 'customer_id',
+      payment_date_field: invoiceCfg?.payments?.payment_date_field || 'payment_date',
+      payment_method_field: invoiceCfg?.payments?.payment_method_field || 'payment_method',
+      payment_amount_field: invoiceCfg?.payments?.amount_field || 'amount',
+      payment_unallocated_field: invoiceCfg?.payments?.unallocated_field || 'unallocated_amount',
+      payment_status_field: invoiceCfg?.payments?.status_field || 'status',
+      allocation_payment_field: invoiceCfg?.payments?.allocation_payment_field || 'payment_id',
+      allocation_invoice_field: invoiceCfg?.payments?.allocation_invoice_field || 'invoice_id',
+      allocation_amount_field: invoiceCfg?.payments?.allocation_amount_field || 'amount',
+      allocation_date_field: invoiceCfg?.payments?.allocation_date_field || 'allocated_at',
+      payment_number_prefix: this._pickFirstString(
+        invoiceCfg?.payments?.payment_number_prefix,
+        invoiceCfg?.payments?.paymentNumberPrefix,
+        'PAY-'
+      ),
+      payment_number_padding: Number(
+        this._pickFirstString(
+          invoiceCfg?.payments?.payment_number_padding,
+          invoiceCfg?.payments?.paymentNumberPadding,
+          '6'
+        )
+      ) || 6,
+    };
+  }
+
+  _buildInvoiceNoteMixinConfig(invoiceCfg, transactionCfg = {}) {
+    return {
+      ...(invoiceCfg?.notes || {}),
+      invoice_entity: invoiceCfg?.invoiceEntity || 'invoices',
+      note_entity: invoiceCfg?.notes?.note_entity || 'invoice_notes',
+      invoice_status_field: transactionCfg.status_field || invoiceCfg?.statusField || 'status',
+      invoice_grand_total_field: transactionCfg.grand_total_field || invoiceCfg?.grandTotalField || 'grand_total',
+      invoice_paid_total_field: transactionCfg.paid_total_field || invoiceCfg?.paidTotalField || 'paid_total',
+      invoice_outstanding_field: transactionCfg.outstanding_field || invoiceCfg?.outstandingField || 'outstanding_balance',
+      note_number_field: invoiceCfg?.notes?.note_number_field || 'note_number',
+      note_invoice_field: invoiceCfg?.notes?.note_invoice_field || 'source_invoice_id',
+      note_type_field: invoiceCfg?.notes?.note_type_field || 'note_type',
+      note_status_field: invoiceCfg?.notes?.note_status_field || 'status',
+      note_amount_field: invoiceCfg?.notes?.note_amount_field || 'amount',
+      note_tax_total_field: invoiceCfg?.notes?.note_tax_total_field || 'tax_total',
+      note_grand_total_field: invoiceCfg?.notes?.note_grand_total_field || 'grand_total',
+      note_posted_at_field: invoiceCfg?.notes?.note_posted_at_field || 'posted_at',
+      note_number_credit_prefix: this._pickFirstString(
+        invoiceCfg?.notes?.note_number_credit_prefix,
+        invoiceCfg?.notes?.noteNumberCreditPrefix,
+        'CN-'
+      ),
+      note_number_debit_prefix: this._pickFirstString(
+        invoiceCfg?.notes?.note_number_debit_prefix,
+        invoiceCfg?.notes?.noteNumberDebitPrefix,
+        'DN-'
+      ),
+      note_number_padding: Number(
+        this._pickFirstString(
+          invoiceCfg?.notes?.note_number_padding,
+          invoiceCfg?.notes?.noteNumberPadding,
+          '6'
+        )
+      ) || 6,
+    };
+  }
+
+  _buildInvoiceCalculationMixinConfig(invoiceCfg) {
+    return {
+      ...(invoiceCfg?.calculationEngine || {}),
+      invoice_entity: invoiceCfg?.invoiceEntity || 'invoices',
+      invoice_item_entity: invoiceCfg?.itemEntity || 'invoice_items',
+      item_invoice_field: invoiceCfg?.calculationEngine?.item_invoice_field || 'invoice_id',
+      item_quantity_field: invoiceCfg?.calculationEngine?.item_quantity_field || 'quantity',
+      item_unit_price_field: invoiceCfg?.calculationEngine?.item_unit_price_field || 'unit_price',
+      item_line_subtotal_field: invoiceCfg?.calculationEngine?.item_line_subtotal_field || 'line_subtotal',
+      item_discount_type_field: invoiceCfg?.calculationEngine?.item_discount_type_field || 'line_discount_type',
+      item_discount_value_field: invoiceCfg?.calculationEngine?.item_discount_value_field || 'line_discount_value',
+      item_discount_total_field: invoiceCfg?.calculationEngine?.item_discount_total_field || 'line_discount_total',
+      item_tax_rate_field: invoiceCfg?.calculationEngine?.item_tax_rate_field || 'line_tax_rate',
+      item_tax_total_field: invoiceCfg?.calculationEngine?.item_tax_total_field || 'line_tax_total',
+      item_additional_charge_field: invoiceCfg?.calculationEngine?.item_additional_charge_field || 'line_additional_charge',
+      item_line_total_field: invoiceCfg?.calculationEngine?.item_line_total_field || 'line_total',
+      subtotal_field: invoiceCfg?.calculationEngine?.subtotal_field || 'subtotal',
+      tax_total_field: invoiceCfg?.calculationEngine?.tax_total_field || 'tax_total',
+      discount_total_field: invoiceCfg?.calculationEngine?.discount_total_field || 'discount_total',
+      additional_charges_field: invoiceCfg?.calculationEngine?.additional_charges_field || 'additional_charges_total',
+      grand_total_field: invoiceCfg?.calculationEngine?.grand_total_field || 'grand_total',
+      paid_total_field: invoiceCfg?.paidTotalField || 'paid_total',
+      outstanding_field: invoiceCfg?.outstandingField || 'outstanding_balance',
+    };
+  }
+
+  _buildInvoiceLifecycleMixinConfig(invoiceCfg) {
+    return {
+      ...(invoiceCfg?.lifecycle || {}),
+      status_field: invoiceCfg?.statusField || 'status',
+      statuses:
+        (Array.isArray(invoiceCfg?.lifecycle?.statuses) && invoiceCfg.lifecycle.statuses.length
+          ? invoiceCfg.lifecycle.statuses
+          : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled']),
+      enforce_transitions:
+        invoiceCfg?.lifecycle?.enforce_transitions !== false &&
+        invoiceCfg?.lifecycle?.enforceTransitions !== false,
+      transitions:
+        (invoiceCfg?.lifecycle?.transitions && typeof invoiceCfg.lifecycle.transitions === 'object')
+          ? invoiceCfg.lifecycle.transitions
+          : {
+              Draft: ['Sent', 'Cancelled'],
+              Sent: ['Paid', 'Overdue', 'Cancelled'],
+              Overdue: ['Paid', 'Cancelled'],
+              Paid: [],
+              Cancelled: [],
+            },
+    };
+  }
+
   async _orderMixins(entries, { entity, allEntities }) {
     const baseOrder = [
       'InventoryMixin',
@@ -887,8 +1495,12 @@ class BackendGenerator {
       'SerialTrackingMixin',
       'AuditMixin',
       'LocationMixin',
+      'InvoiceTransactionSafetyMixin',
       'InvoiceMixin',
+      'InvoiceCalculationEngineMixin',
       'InvoiceItemsMixin',
+      'InvoicePaymentWorkflowMixin',
+      'InvoiceNoteWorkflowMixin',
       'InvoiceLifecycleMixin',
       'HREmployeeMixin',
       'HREmployeeStatusMixin',
@@ -1016,46 +1628,91 @@ module.exports = router;
 
   _buildWorkflowRouteDefinitions(entity) {
     const moduleKey = this._getModuleKey(entity);
-    if (moduleKey !== 'inventory') return '';
+    if (moduleKey !== 'inventory' && moduleKey !== 'invoice') return '';
 
     const slug = String(entity && entity.slug ? entity.slug : '');
     if (!slug) return '';
 
-    const cfg = this._getInventoryPriorityAConfig();
     const routes = [];
 
-    if (this._isPackEnabled(cfg.transactions) && slug === cfg.stockEntity) {
-      routes.push(
-        `router.post('/:id/inventory/receive', (req, res) => controller.runAction(req, res, 'applyStockReceive', req.params.id, req.body || {}));`,
-        `router.post('/:id/inventory/issue', (req, res) => controller.runAction(req, res, 'applyStockIssue', req.params.id, req.body || {}));`,
-        `router.post('/:id/inventory/adjust', (req, res) => controller.runAction(req, res, 'applyStockAdjust', req.params.id, req.body || {}));`,
-        `router.post('/:id/inventory/transfer', (req, res) => controller.runAction(req, res, 'applyStockTransfer', req.params.id, req.body || {}));`
-      );
+    if (moduleKey === 'inventory') {
+      const cfg = this._getInventoryPriorityAConfig();
+
+      if (this._isPackEnabled(cfg.transactions) && slug === cfg.stockEntity) {
+        routes.push(
+          `router.post('/:id/inventory/receive', (req, res) => controller.runAction(req, res, 'applyStockReceive', req.params.id, req.body || {}));`,
+          `router.post('/:id/inventory/issue', (req, res) => controller.runAction(req, res, 'applyStockIssue', req.params.id, req.body || {}));`,
+          `router.post('/:id/inventory/adjust', (req, res) => controller.runAction(req, res, 'applyStockAdjust', req.params.id, req.body || {}));`,
+          `router.post('/:id/inventory/transfer', (req, res) => controller.runAction(req, res, 'applyStockTransfer', req.params.id, req.body || {}));`
+        );
+      }
+
+      if (this._isPackEnabled(cfg.reservations) && slug === cfg.stockEntity) {
+        routes.push(
+          `router.get('/:id/reservations', (req, res) => controller.runAction(req, res, 'listReservations', req.params.id, req.query || {}));`,
+          `router.post('/:id/reservations', (req, res) => controller.runAction(req, res, 'reserveStock', req.params.id, req.body || {}));`,
+          `router.post('/:id/reservations/:reservationId/release', (req, res) => controller.runAction(req, res, 'releaseReservation', req.params.id, req.params.reservationId, req.body || {}));`,
+          `router.post('/:id/reservations/:reservationId/commit', (req, res) => controller.runAction(req, res, 'commitReservation', req.params.id, req.params.reservationId, req.body || {}));`
+        );
+      }
+
+      if (this._isPackEnabled(cfg.inbound) && slug === cfg.inbound.grn_entity) {
+        routes.push(
+          `router.post('/:id/post', (req, res) => controller.runAction(req, res, 'postGoodsReceipt', req.params.id, req.body || {}));`,
+          `router.post('/:id/cancel', (req, res) => controller.runAction(req, res, 'cancelGoodsReceipt', req.params.id, req.body || {}));`
+        );
+      }
+
+      if (this._isPackEnabled(cfg.cycleCounting) && slug === cfg.cycleCounting.session_entity) {
+        routes.push(
+          `router.post('/:id/start', (req, res) => controller.runAction(req, res, 'startCycleSession', req.params.id, req.body || {}));`,
+          `router.post('/:id/recalculate', (req, res) => controller.runAction(req, res, 'recalculateCycleCount', req.params.id, req.body || {}));`,
+          `router.post('/:id/approve', (req, res) => controller.runAction(req, res, 'approveCycleSession', req.params.id, req.body || {}));`,
+          `router.post('/:id/post', (req, res) => controller.runAction(req, res, 'postCycleSession', req.params.id, req.body || {}));`
+        );
+      }
     }
 
-    if (this._isPackEnabled(cfg.reservations) && slug === cfg.stockEntity) {
-      routes.push(
-        `router.get('/:id/reservations', (req, res) => controller.runAction(req, res, 'listReservations', req.params.id, req.query || {}));`,
-        `router.post('/:id/reservations', (req, res) => controller.runAction(req, res, 'reserveStock', req.params.id, req.body || {}));`,
-        `router.post('/:id/reservations/:reservationId/release', (req, res) => controller.runAction(req, res, 'releaseReservation', req.params.id, req.params.reservationId, req.body || {}));`,
-        `router.post('/:id/reservations/:reservationId/commit', (req, res) => controller.runAction(req, res, 'commitReservation', req.params.id, req.params.reservationId, req.body || {}));`
-      );
-    }
+    if (moduleKey === 'invoice') {
+      const cfg = this._getInvoicePriorityAConfig();
+      const invoiceSlug = String(cfg.invoiceEntity || 'invoices');
+      const paymentSlug = String(cfg.payments?.payment_entity || 'invoice_payments');
+      const noteSlug = String(cfg.notes?.note_entity || 'invoice_notes');
 
-    if (this._isPackEnabled(cfg.inbound) && slug === cfg.inbound.grn_entity) {
-      routes.push(
-        `router.post('/:id/post', (req, res) => controller.runAction(req, res, 'postGoodsReceipt', req.params.id, req.body || {}));`,
-        `router.post('/:id/cancel', (req, res) => controller.runAction(req, res, 'cancelGoodsReceipt', req.params.id, req.body || {}));`
-      );
-    }
+      if (this._isPackEnabled(cfg.transactions) && slug === invoiceSlug) {
+        routes.push(
+          `router.post('/:id/issue', (req, res) => controller.runAction(req, res, 'issueInvoice', req.params.id, req.body || {}));`,
+          `router.post('/:id/cancel', (req, res) => controller.runAction(req, res, 'cancelInvoice', req.params.id, req.body || {}));`
+        );
+      }
 
-    if (this._isPackEnabled(cfg.cycleCounting) && slug === cfg.cycleCounting.session_entity) {
-      routes.push(
-        `router.post('/:id/start', (req, res) => controller.runAction(req, res, 'startCycleSession', req.params.id, req.body || {}));`,
-        `router.post('/:id/recalculate', (req, res) => controller.runAction(req, res, 'recalculateCycleCount', req.params.id, req.body || {}));`,
-        `router.post('/:id/approve', (req, res) => controller.runAction(req, res, 'approveCycleSession', req.params.id, req.body || {}));`,
-        `router.post('/:id/post', (req, res) => controller.runAction(req, res, 'postCycleSession', req.params.id, req.body || {}));`
-      );
+      if (this._isPackEnabled(cfg.payments) && slug === invoiceSlug) {
+        routes.push(
+          `router.get('/:id/payments', (req, res) => controller.runAction(req, res, 'listInvoicePayments', req.params.id, req.query || {}));`,
+          `router.post('/:id/payments', (req, res) => controller.runAction(req, res, 'recordInvoicePayment', req.params.id, req.body || {}));`
+        );
+      }
+
+      if (this._isPackEnabled(cfg.notes) && slug === invoiceSlug) {
+        routes.push(
+          `router.get('/:id/notes', (req, res) => controller.runAction(req, res, 'listInvoiceNotes', req.params.id, req.query || {}));`,
+          `router.post('/:id/notes', (req, res) => controller.runAction(req, res, 'createInvoiceNote', req.params.id, req.body || {}));`
+        );
+      }
+
+      if (this._isPackEnabled(cfg.payments) && slug === paymentSlug) {
+        routes.push(
+          `router.post('/:id/post', (req, res) => controller.runAction(req, res, 'postPayment', req.params.id, req.body || {}));`,
+          `router.post('/:id/cancel', (req, res) => controller.runAction(req, res, 'cancelPayment', req.params.id, req.body || {}));`
+        );
+      }
+
+      if (this._isPackEnabled(cfg.notes) && slug === noteSlug) {
+        routes.push(
+          `router.post('/:id/post', (req, res) => controller.runAction(req, res, 'postInvoiceNote', req.params.id, req.body || {}));`,
+          `router.post('/:id/cancel', (req, res) => controller.runAction(req, res, 'cancelInvoiceNote', req.params.id, req.body || {}));`
+        );
+      }
     }
 
     return routes.join('\n');
@@ -1646,6 +2303,7 @@ module.exports = router;
         bySlug.set(entity.slug, entity);
       }
     }
+    const deferredForeignKeys = [];
 
     const lines = [
       '-- Generated by CustomERP assembler',
@@ -1675,6 +2333,28 @@ module.exports = router;
         const notNull = field.required ? ' NOT NULL' : '';
         const defaultClause = this._isFieldMultiple(field) ? ` DEFAULT '[]'::jsonb` : '';
         columns.push(`${this._quoteSqlIdentifier(fieldName)} ${pgType}${notNull}${defaultClause}`);
+
+        const fieldType = String(field.type || '').toLowerCase();
+        const referenceEntity = this._pickFirstString(
+          field.reference_entity,
+          field.referenceEntity
+        );
+        if (
+          fieldType === 'reference' &&
+          referenceEntity &&
+          bySlug.has(referenceEntity) &&
+          !this._isFieldMultiple(field)
+        ) {
+          const constraintName = `fk_${slug}_${fieldName}`
+            .replace(/[^a-zA-Z0-9_]/g, '_')
+            .slice(0, 60);
+          deferredForeignKeys.push({
+            tableSlug: slug,
+            fieldName,
+            referenceEntity,
+            constraintName,
+          });
+        }
       }
 
       lines.push(`CREATE TABLE IF NOT EXISTS ${table} (`);
@@ -1727,6 +2407,92 @@ module.exports = router;
           const compositeCols = `${this._quoteSqlIdentifier(fieldName)}, ${this._quoteSqlIdentifier('status')}`;
           emitIndex(`ix_${slug}_${fieldName}_status`, compositeCols);
         }
+      }
+      lines.push('');
+    }
+
+    const emittedGlobalIndexes = new Set();
+    const emitGlobalIndex = (tableSlug, rawName, columns, unique = false) => {
+      const tableEntity = bySlug.get(tableSlug);
+      if (!tableEntity) return;
+      const fieldNames = new Set(
+        (Array.isArray(tableEntity.fields) ? tableEntity.fields : [])
+          .map((f) => (f && f.name ? String(f.name) : ''))
+          .filter(Boolean)
+      );
+      const normalizedColumns = (Array.isArray(columns) ? columns : [])
+        .map((col) => String(col || '').trim())
+        .filter(Boolean);
+      if (!normalizedColumns.length) return;
+      if (normalizedColumns.some((col) => !fieldNames.has(col))) return;
+
+      const safe = String(rawName || '')
+        .replace(/[^a-zA-Z0-9_]/g, '_')
+        .slice(0, 60);
+      if (!safe || emittedGlobalIndexes.has(safe)) return;
+      emittedGlobalIndexes.add(safe);
+
+      const table = this._quoteSqlIdentifier(tableSlug);
+      const columnsSql = normalizedColumns.map((col) => this._quoteSqlIdentifier(col)).join(', ');
+      if (unique) {
+        lines.push(
+          `CREATE UNIQUE INDEX IF NOT EXISTS ${this._quoteSqlIdentifier(safe)} ON ${table} (${columnsSql});`
+        );
+      } else {
+        lines.push(`CREATE INDEX IF NOT EXISTS ${this._quoteSqlIdentifier(safe)} ON ${table} (${columnsSql});`);
+      }
+    };
+
+    const invoiceCfg = this._getInvoicePriorityAConfig();
+    if (this._isPackEnabled(invoiceCfg.payments)) {
+      emitGlobalIndex(
+        invoiceCfg.payments.payment_entity,
+        `ix_${invoiceCfg.payments.payment_entity}_${invoiceCfg.payments.payment_date_field}_status`,
+        [invoiceCfg.payments.payment_date_field, invoiceCfg.payments.status_field]
+      );
+      emitGlobalIndex(
+        invoiceCfg.payments.allocation_entity,
+        `ix_${invoiceCfg.payments.allocation_entity}_${invoiceCfg.payments.allocation_invoice_field}_${invoiceCfg.payments.allocation_payment_field}`,
+        [invoiceCfg.payments.allocation_invoice_field, invoiceCfg.payments.allocation_payment_field]
+      );
+      emitGlobalIndex(
+        invoiceCfg.payments.allocation_entity,
+        `ix_${invoiceCfg.payments.allocation_entity}_${invoiceCfg.payments.allocation_payment_field}_${invoiceCfg.payments.allocation_invoice_field}`,
+        [invoiceCfg.payments.allocation_payment_field, invoiceCfg.payments.allocation_invoice_field]
+      );
+    }
+    if (this._isPackEnabled(invoiceCfg.notes)) {
+      emitGlobalIndex(
+        invoiceCfg.notes.note_entity,
+        `ix_${invoiceCfg.notes.note_entity}_${invoiceCfg.notes.note_type_field}_${invoiceCfg.notes.note_status_field}`,
+        [invoiceCfg.notes.note_type_field, invoiceCfg.notes.note_status_field]
+      );
+    }
+    if (this._isPackEnabled(invoiceCfg.transactions)) {
+      emitGlobalIndex(
+        invoiceCfg.invoiceEntity,
+        `ix_${invoiceCfg.invoiceEntity}_${invoiceCfg.statusField}_${invoiceCfg.transactions.posted_at_field}`,
+        [invoiceCfg.statusField, invoiceCfg.transactions.posted_at_field]
+      );
+    }
+
+    if (deferredForeignKeys.length) {
+      lines.push('-- Foreign key constraints');
+      for (const fk of deferredForeignKeys) {
+        const table = this._quoteSqlIdentifier(fk.tableSlug);
+        const refTable = this._quoteSqlIdentifier(fk.referenceEntity);
+        const field = this._quoteSqlIdentifier(fk.fieldName);
+        const constraint = this._quoteSqlIdentifier(fk.constraintName);
+        const constraintLiteral = String(fk.constraintName).replace(/'/g, "''");
+        lines.push(`DO $$`);
+        lines.push(`BEGIN`);
+        lines.push(`  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '${constraintLiteral}') THEN`);
+        lines.push(`    ALTER TABLE ${table}`);
+        lines.push(`      ADD CONSTRAINT ${constraint}`);
+        lines.push(`      FOREIGN KEY (${field}) REFERENCES ${refTable} (${this._quoteSqlIdentifier('id')})`);
+        lines.push(`      ON UPDATE CASCADE ON DELETE RESTRICT;`);
+        lines.push(`  END IF;`);
+        lines.push(`END $$;`);
       }
       lines.push('');
     }

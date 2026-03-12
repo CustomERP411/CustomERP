@@ -1,0 +1,68 @@
+{
+  "project_name": "Invoice Priority A - Lifecycle",
+  "modules": {
+    "inventory": { "enabled": false },
+    "invoice": {
+      "enabled": true,
+      "tax_rate": 10,
+      "currency": "USD",
+      "lifecycle": {
+        "enabled": true,
+        "status_field": "status",
+        "statuses": ["Draft", "Sent", "Paid", "Overdue", "Cancelled"],
+        "enforce_transitions": true,
+        "transitions": {
+          "Draft": ["Sent", "Cancelled"],
+          "Sent": ["Paid", "Overdue", "Cancelled"],
+          "Overdue": ["Paid", "Cancelled"],
+          "Paid": [],
+          "Cancelled": []
+        }
+      }
+    },
+    "hr": { "enabled": false }
+  },
+  "entities": [
+    {
+      "slug": "customers",
+      "display_name": "Customers",
+      "display_field": "name",
+      "module": "shared",
+      "fields": [
+        { "name": "name", "type": "string", "required": true },
+        { "name": "email", "type": "string" }
+      ]
+    },
+    {
+      "slug": "invoices",
+      "display_name": "Invoices",
+      "display_field": "invoice_number",
+      "module": "invoice",
+      "features": {
+        "print_invoice": true
+      },
+      "fields": [
+        { "name": "invoice_number", "type": "string", "unique": true },
+        { "name": "customer_id", "type": "reference", "reference_entity": "customers", "required": true },
+        { "name": "issue_date", "type": "date", "required": true },
+        { "name": "due_date", "type": "date", "required": true },
+        { "name": "status", "type": "string", "required": true, "options": ["Draft", "Sent", "Paid", "Overdue", "Cancelled"] },
+        { "name": "subtotal", "type": "decimal", "required": true },
+        { "name": "tax_total", "type": "decimal", "required": true },
+        { "name": "grand_total", "type": "decimal", "required": true }
+      ]
+    },
+    {
+      "slug": "invoice_items",
+      "display_name": "Invoice Items",
+      "module": "invoice",
+      "fields": [
+        { "name": "invoice_id", "type": "reference", "reference_entity": "invoices", "required": true },
+        { "name": "description", "type": "string", "required": true },
+        { "name": "quantity", "type": "decimal", "required": true },
+        { "name": "unit_price", "type": "decimal", "required": true },
+        { "name": "line_total", "type": "decimal" }
+      ]
+    }
+  ]
+}

@@ -734,16 +734,81 @@ export default function ${entityName}FormPage() {
   const [statusChanging, setStatusChanging] = useState(false);
 
   const invoiceEnabled = !!INVOICE_CFG;
-  const invoiceItems = invoiceEnabled ? (childItemsBySlug['invoice_items'] || []) : [];
+  const invoiceCalcCfg = invoiceEnabled && INVOICE_CFG.calculation_engine && INVOICE_CFG.calculation_engine.enabled !== false
+    ? INVOICE_CFG.calculation_engine
+    : null;
+  const invoiceItemsEntitySlug = invoiceEnabled
+    ? String(invoiceCalcCfg?.invoice_item_entity || 'invoice_items')
+    : 'invoice_items';
+  const invoiceItems = invoiceEnabled ? (childItemsBySlug[invoiceItemsEntitySlug] || []) : [];
+  const lineSubtotalField = String(invoiceCalcCfg?.item_line_subtotal_field || 'line_subtotal');
+  const lineDiscountTotalField = String(invoiceCalcCfg?.item_discount_total_field || 'line_discount_total');
+  const lineTaxTotalField = String(invoiceCalcCfg?.item_tax_total_field || 'line_tax_total');
+  const lineAdditionalChargeField = String(invoiceCalcCfg?.item_additional_charge_field || 'line_additional_charge');
+  const lineTotalField = String(invoiceCalcCfg?.item_line_total_field || 'line_total');
+  const lineQtyField = String(invoiceCalcCfg?.item_quantity_field || 'quantity');
+  const linePriceField = String(invoiceCalcCfg?.item_unit_price_field || 'unit_price');
   const invoiceSubtotal = invoiceEnabled
-    ? invoiceItems.reduce((sum: number, item: any) => {
-        const line = Number(item?.line_total ?? (Number(item?.quantity) * Number(item?.unit_price)) ?? 0);
-        return sum + (isNaN(line) ? 0 : line);
-      }, 0)
+    ? Number(
+        invoiceItems
+          .reduce((sum: number, item: any) => {
+            const fallback = Number(item?.[lineQtyField] ?? 0) * Number(item?.[linePriceField] ?? 0);
+            const line = Number(item?.[lineSubtotalField] ?? fallback ?? 0);
+            return sum + (isNaN(line) ? 0 : line);
+          }, 0)
+          .toFixed(2)
+      )
     : 0;
-  const invoiceTaxRate = invoiceEnabled ? Number(INVOICE_CFG.tax_rate ?? 0) || 0 : 0;
-  const invoiceTaxTotal = invoiceEnabled ? Number(((invoiceSubtotal * invoiceTaxRate) / 100).toFixed(2)) : 0;
-  const invoiceGrandTotal = invoiceEnabled ? Number((invoiceSubtotal + invoiceTaxTotal).toFixed(2)) : 0;
+  const invoiceDiscountTotal = invoiceEnabled
+    ? Number(
+        invoiceItems
+          .reduce((sum: number, item: any) => {
+            const line = Number(item?.[lineDiscountTotalField] ?? 0);
+            return sum + (isNaN(line) ? 0 : line);
+          }, 0)
+          .toFixed(2)
+      )
+    : 0;
+  const invoiceAdditionalChargeTotal = invoiceEnabled
+    ? Number(
+        invoiceItems
+          .reduce((sum: number, item: any) => {
+            const line = Number(item?.[lineAdditionalChargeField] ?? 0);
+            return sum + (isNaN(line) ? 0 : line);
+          }, 0)
+          .toFixed(2)
+      )
+    : 0;
+  const invoiceTaxRate = invoiceEnabled && !invoiceCalcCfg ? Number(INVOICE_CFG.tax_rate ?? 0) || 0 : 0;
+  const invoiceTaxTotal = invoiceEnabled
+    ? (
+        invoiceCalcCfg
+          ? Number(
+              invoiceItems
+                .reduce((sum: number, item: any) => {
+                  const line = Number(item?.[lineTaxTotalField] ?? 0);
+                  return sum + (isNaN(line) ? 0 : line);
+                }, 0)
+                .toFixed(2)
+            )
+          : Number(((invoiceSubtotal * invoiceTaxRate) / 100).toFixed(2))
+      )
+    : 0;
+  const invoiceGrandTotal = invoiceEnabled
+    ? (
+        invoiceCalcCfg
+          ? Number(
+              invoiceItems
+                .reduce((sum: number, item: any) => {
+                  const fallback = Number(item?.[lineQtyField] ?? 0) * Number(item?.[linePriceField] ?? 0);
+                  const line = Number(item?.[lineTotalField] ?? fallback ?? 0);
+                  return sum + (isNaN(line) ? 0 : line);
+                }, 0)
+                .toFixed(2)
+            )
+          : Number((invoiceSubtotal + invoiceTaxTotal).toFixed(2))
+      )
+    : 0;
   const formatMoney = (value: any) => {
     if (!invoiceEnabled) return String(value ?? '');
     const currency = String(INVOICE_CFG.currency || 'USD');
@@ -1135,13 +1200,27 @@ export default function ${entityName}FormPage() {
             <div className="rounded-lg bg-white p-6 shadow">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-slate-900">Invoice totals</div>
-                <div className="text-xs text-slate-500">Tax rate: {invoiceTaxRate}%</div>
+                <div className="text-xs text-slate-500">
+                  {invoiceCalcCfg ? 'Line-level calculation engine' : \`Tax rate: \${invoiceTaxRate}%\`}
+                </div>
               </div>
               <div className="mt-4 space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Subtotal</span>
                   <span className="font-semibold text-slate-900">{formatMoney(invoiceSubtotal)}</span>
                 </div>
+                {invoiceCalcCfg ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Discount</span>
+                      <span className="font-semibold text-slate-900">-{formatMoney(invoiceDiscountTotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Additional charges</span>
+                      <span className="font-semibold text-slate-900">{formatMoney(invoiceAdditionalChargeTotal)}</span>
+                    </div>
+                  </>
+                ) : null}
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Tax</span>
                   <span className="font-semibold text-slate-900">{formatMoney(invoiceTaxTotal)}</span>

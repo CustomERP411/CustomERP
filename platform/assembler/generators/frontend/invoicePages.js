@@ -1,7 +1,14 @@
-function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, title }) {
+function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, invoicePriorityCfg, title }) {
   const base = importBase || '..';
   const config = invoiceConfig && typeof invoiceConfig === 'object' ? invoiceConfig : {};
   const currency = String(config.currency || 'USD');
+  const lifecycle =
+    invoicePriorityCfg && invoicePriorityCfg.lifecycle && typeof invoicePriorityCfg.lifecycle === 'object'
+      ? invoicePriorityCfg.lifecycle
+      : {};
+  const statusOptions = Array.isArray(lifecycle.statuses) && lifecycle.statuses.length
+    ? lifecycle.statuses
+    : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
   const pageTitle = title || entityName;
 
   return `import { useEffect, useState } from 'react';
@@ -11,7 +18,7 @@ import { useToast } from '${base}/components/ui/toast';
 import InvoiceCard from '${base}/components/modules/invoice/InvoiceCard';
 
 const currency = '${currency}';
-const STATUS_OPTIONS = ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
+const STATUS_OPTIONS = ${JSON.stringify(statusOptions)};
 
 export default function ${entityName}Page() {
   const { toast } = useToast();

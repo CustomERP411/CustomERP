@@ -29,6 +29,13 @@ const {
   buildGrnPostingPage,
   buildCycleWorkflowPage,
 } = require('./frontend/inventoryPriorityPages');
+const {
+  buildInvoiceWorkflowPage,
+  buildInvoicePaymentsPage,
+  buildInvoiceNotesPage,
+  buildPaymentWorkflowPage,
+  buildNoteWorkflowPage,
+} = require('./frontend/invoicePriorityPages');
 
 class FrontendGenerator {
   constructor(brickRepo) {
@@ -268,6 +275,101 @@ class FrontendGenerator {
       transactions,
       inbound,
       cycleCounting,
+    };
+  }
+
+  _getInvoicePriorityAConfig(sdf = {}) {
+    const modules = sdf && sdf.modules ? sdf.modules : {};
+    const invoice =
+      modules.invoice && typeof modules.invoice === 'object'
+        ? modules.invoice
+        : {};
+
+    const normalizePack = (rawValue, defaults = {}) => {
+      if (rawValue === true) return { ...defaults, enabled: true };
+      if (rawValue === false || rawValue === null || rawValue === undefined) {
+        return { ...defaults, enabled: false };
+      }
+      if (typeof rawValue === 'object') {
+        return {
+          ...defaults,
+          ...rawValue,
+          enabled: rawValue.enabled !== false,
+        };
+      }
+      return { ...defaults, enabled: false };
+    };
+
+    const transactions = normalizePack(
+      invoice.transactions || invoice.transaction,
+      {
+        invoice_entity: 'invoices',
+      }
+    );
+    const payments = normalizePack(
+      invoice.payments || invoice.payment,
+      {
+        payment_entity: 'invoice_payments',
+        allocation_entity: 'invoice_payment_allocations',
+      }
+    );
+    const notes = normalizePack(
+      invoice.notes || invoice.credit_debit_notes || invoice.creditDebitNotes,
+      {
+        note_entity: 'invoice_notes',
+      }
+    );
+    const lifecycle = normalizePack(
+      invoice.lifecycle || invoice.invoice_lifecycle || invoice.invoiceLifecycle,
+      {
+        statuses: ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'],
+      }
+    );
+    const calculationEngine = normalizePack(
+      invoice.calculation_engine || invoice.calculationEngine || invoice.pricing_engine || invoice.pricingEngine,
+      {
+        invoice_item_entity: 'invoice_items',
+      }
+    );
+
+    const invoiceEntity = this._pickFirstString(
+      invoice.invoice_entity,
+      invoice.invoiceEntity,
+      transactions.invoice_entity,
+      transactions.invoiceEntity,
+      'invoices'
+    );
+    const paymentEntity = this._pickFirstString(
+      payments.payment_entity,
+      payments.paymentEntity,
+      'invoice_payments'
+    );
+    const noteEntity = this._pickFirstString(
+      notes.note_entity,
+      notes.noteEntity,
+      'invoice_notes'
+    );
+    const itemEntity = this._pickFirstString(
+      invoice.invoice_item_entity,
+      invoice.invoiceItemEntity,
+      calculationEngine.invoice_item_entity,
+      calculationEngine.invoiceItemEntity,
+      'invoice_items'
+    );
+    lifecycle.statuses = Array.isArray(lifecycle.statuses) && lifecycle.statuses.length
+      ? lifecycle.statuses
+      : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
+
+    return {
+      invoiceEntity,
+      paymentEntity,
+      noteEntity,
+      itemEntity,
+      transactions,
+      payments,
+      notes,
+      lifecycle,
+      calculationEngine,
     };
   }
 
@@ -579,9 +681,13 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const enableActivityLog = (modules.activity_log || modules.activityLog || {}).enabled === true;
     const enableReports = (modules.scheduled_reports || modules.scheduledReports || {}).enabled === true;
     const priorityCfg = this._getInventoryPriorityAConfig(sdf);
+    const invoicePriorityCfg = this._getInvoicePriorityAConfig(sdf);
     const reservationsEnabled = this._isPackEnabled(priorityCfg.reservations);
     const inboundEnabled = this._isPackEnabled(priorityCfg.inbound);
     const cycleEnabled = this._isPackEnabled(priorityCfg.cycleCounting);
+    const invoiceTransactionsEnabled = this._isPackEnabled(invoicePriorityCfg.transactions);
+    const invoicePaymentsEnabled = this._isPackEnabled(invoicePriorityCfg.payments);
+    const invoiceNotesEnabled = this._isPackEnabled(invoicePriorityCfg.notes);
 
     // Shared entity registry (navigation + display fields)
     const entityRegistry = buildEntitiesRegistry({
@@ -643,6 +749,26 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           cycleEnabled &&
           moduleKey === 'inventory' &&
           String(e.slug || '') === String(priorityCfg.cycleCounting.session_entity || '');
+        const enableInvoiceWorkflowPage =
+          invoiceTransactionsEnabled &&
+          moduleKey === 'invoice' &&
+          String(e.slug || '') === String(invoicePriorityCfg.invoiceEntity || 'invoices');
+        const enableInvoicePaymentsPage =
+          invoicePaymentsEnabled &&
+          moduleKey === 'invoice' &&
+          String(e.slug || '') === String(invoicePriorityCfg.invoiceEntity || 'invoices');
+        const enableInvoiceNotesPage =
+          invoiceNotesEnabled &&
+          moduleKey === 'invoice' &&
+          String(e.slug || '') === String(invoicePriorityCfg.invoiceEntity || 'invoices');
+        const enablePaymentWorkflowPage =
+          invoicePaymentsEnabled &&
+          moduleKey === 'invoice' &&
+          String(e.slug || '') === String(invoicePriorityCfg.paymentEntity || 'invoice_payments');
+        const enableNoteWorkflowPage =
+          invoiceNotesEnabled &&
+          moduleKey === 'invoice' &&
+          String(e.slug || '') === String(invoicePriorityCfg.noteEntity || 'invoice_notes');
         return [
           `import ${cap}Page from '${modulePageBase}Page';`,
           `import ${cap}FormPage from '${modulePageBase}FormPage';`,
@@ -655,6 +781,11 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           enableReservationsPage ? `import ${cap}ReservationsPage from '${modulePageBase}ReservationsPage';` : '',
           enableGrnPostingPage ? `import ${cap}PostingPage from '${modulePageBase}PostingPage';` : '',
           enableCycleWorkflowPage ? `import ${cap}WorkflowPage from '${modulePageBase}WorkflowPage';` : '',
+          enableInvoiceWorkflowPage ? `import ${cap}WorkflowPage from '${modulePageBase}WorkflowPage';` : '',
+          enableInvoicePaymentsPage ? `import ${cap}PaymentsPage from '${modulePageBase}PaymentsPage';` : '',
+          enableInvoiceNotesPage ? `import ${cap}NotesPage from '${modulePageBase}NotesPage';` : '',
+          enablePaymentWorkflowPage ? `import ${cap}WorkflowPage from '${modulePageBase}WorkflowPage';` : '',
+          enableNoteWorkflowPage ? `import ${cap}WorkflowPage from '${modulePageBase}WorkflowPage';` : '',
         ].filter(Boolean).join('\n');
       })
       .join('\n');
@@ -695,6 +826,26 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           cycleEnabled &&
           moduleKey === 'inventory' &&
           String(e.slug || '') === String(priorityCfg.cycleCounting.session_entity || '');
+        const enableInvoiceWorkflowPage =
+          invoiceTransactionsEnabled &&
+          moduleKey === 'invoice' &&
+          String(e.slug || '') === String(invoicePriorityCfg.invoiceEntity || 'invoices');
+        const enableInvoicePaymentsPage =
+          invoicePaymentsEnabled &&
+          moduleKey === 'invoice' &&
+          String(e.slug || '') === String(invoicePriorityCfg.invoiceEntity || 'invoices');
+        const enableInvoiceNotesPage =
+          invoiceNotesEnabled &&
+          moduleKey === 'invoice' &&
+          String(e.slug || '') === String(invoicePriorityCfg.invoiceEntity || 'invoices');
+        const enablePaymentWorkflowPage =
+          invoicePaymentsEnabled &&
+          moduleKey === 'invoice' &&
+          String(e.slug || '') === String(invoicePriorityCfg.paymentEntity || 'invoice_payments');
+        const enableNoteWorkflowPage =
+          invoiceNotesEnabled &&
+          moduleKey === 'invoice' &&
+          String(e.slug || '') === String(invoicePriorityCfg.noteEntity || 'invoice_notes');
         return [
           `          <Route path="/${e.slug}" element={<${cap}Page />} />`,
           `          <Route path="/${e.slug}/new" element={<${cap}FormPage />} />`,
@@ -708,6 +859,11 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           enableReservationsPage ? `          <Route path="/${e.slug}/reservations" element={<${cap}ReservationsPage />} />` : '',
           enableGrnPostingPage ? `          <Route path="/${e.slug}/posting" element={<${cap}PostingPage />} />` : '',
           enableCycleWorkflowPage ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
+          enableInvoiceWorkflowPage ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
+          enableInvoicePaymentsPage ? `          <Route path="/${e.slug}/payments" element={<${cap}PaymentsPage />} />` : '',
+          enableInvoiceNotesPage ? `          <Route path="/${e.slug}/notes" element={<${cap}NotesPage />} />` : '',
+          enablePaymentWorkflowPage ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
+          enableNoteWorkflowPage ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
         ].filter(Boolean).join('\n');
       })
       .join('\n');
@@ -722,9 +878,13 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const enableActivityLog = (modules.activity_log || modules.activityLog || {}).enabled === true;
     const enableReports = (modules.scheduled_reports || modules.scheduledReports || {}).enabled === true;
     const priorityCfg = this._getInventoryPriorityAConfig(sdf);
+    const invoicePriorityCfg = this._getInvoicePriorityAConfig(sdf);
     const reservationsEnabled = this._isPackEnabled(priorityCfg.reservations);
     const inboundEnabled = this._isPackEnabled(priorityCfg.inbound);
     const cycleEnabled = this._isPackEnabled(priorityCfg.cycleCounting);
+    const invoiceTransactionsEnabled = this._isPackEnabled(invoicePriorityCfg.transactions);
+    const invoicePaymentsEnabled = this._isPackEnabled(invoicePriorityCfg.payments);
+    const invoiceNotesEnabled = this._isPackEnabled(invoicePriorityCfg.notes);
     const availableSlugs = new Set((entities || []).map((e) => String((e && e.slug) || '')).filter(Boolean));
 
     const toolsBlock = (enableActivityLog || enableReports)
@@ -763,6 +923,22 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     if (cycleEnabled && availableSlugs.has(String(priorityCfg.cycleCounting.session_entity || ''))) {
       workflowLinks.push({ path: `/${priorityCfg.cycleCounting.session_entity}/workflow`, label: 'Cycle Count Workflow' });
     }
+    const invoiceWorkflowLinks = [];
+    if (invoiceTransactionsEnabled && availableSlugs.has(String(invoicePriorityCfg.invoiceEntity || ''))) {
+      invoiceWorkflowLinks.push({ path: `/${invoicePriorityCfg.invoiceEntity}/workflow`, label: 'Invoice Lifecycle' });
+    }
+    if (invoicePaymentsEnabled && availableSlugs.has(String(invoicePriorityCfg.invoiceEntity || ''))) {
+      invoiceWorkflowLinks.push({ path: `/${invoicePriorityCfg.invoiceEntity}/payments`, label: 'Invoice Payments' });
+    }
+    if (invoiceNotesEnabled && availableSlugs.has(String(invoicePriorityCfg.invoiceEntity || ''))) {
+      invoiceWorkflowLinks.push({ path: `/${invoicePriorityCfg.invoiceEntity}/notes`, label: 'Invoice Notes' });
+    }
+    if (invoicePaymentsEnabled && availableSlugs.has(String(invoicePriorityCfg.paymentEntity || ''))) {
+      invoiceWorkflowLinks.push({ path: `/${invoicePriorityCfg.paymentEntity}/workflow`, label: 'Payment Posting' });
+    }
+    if (invoiceNotesEnabled && availableSlugs.has(String(invoicePriorityCfg.noteEntity || ''))) {
+      invoiceWorkflowLinks.push({ path: `/${invoicePriorityCfg.noteEntity}/workflow`, label: 'Note Posting' });
+    }
 
     const workflowBlock = workflowLinks.length
       ? `
@@ -779,8 +955,23 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         </Link>`).join('')}
       `
       : '';
+    const invoiceWorkflowBlock = invoiceWorkflowLinks.length
+      ? `
+        <div className="my-2 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Invoice Workflows</div>
+        ${invoiceWorkflowLinks.map((entry) => `
+        <Link
+          to="${entry.path}"
+          className={[
+            'mb-1 block rounded-lg px-3 py-2 text-sm font-medium',
+            location.pathname.startsWith('${entry.path}') ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-slate-100',
+          ].join(' ')}
+        >
+          ${entry.label}
+        </Link>`).join('')}
+      `
+      : '';
 
-    const fullToolsBlock = [toolsBlock, workflowBlock].filter(Boolean).join('\n');
+    const fullToolsBlock = [toolsBlock, workflowBlock, invoiceWorkflowBlock].filter(Boolean).join('\n');
 
     const sidebarContent = buildSidebar({ 
       toolsBlock: fullToolsBlock,
@@ -795,7 +986,10 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     await this._ensureModuleDirs(outputDir, moduleKey);
     const modulePagesDir = path.join(outputDir, 'modules', moduleKey, 'pages');
     const importBase = '../../../src';
-    const isInvoiceEntity = moduleKey === 'invoice' && String(entity.slug || '') === 'invoices';
+    const invoicePriorityCfg = this._getInvoicePriorityAConfig(sdf);
+    const isInvoiceEntity =
+      moduleKey === 'invoice' &&
+      String(entity.slug || '') === String(invoicePriorityCfg.invoiceEntity || 'invoices');
     const rawInvoiceConfig = sdf && sdf.modules ? sdf.modules.invoice : null;
     const invoiceConfig = rawInvoiceConfig && typeof rawInvoiceConfig === 'object' ? rawInvoiceConfig : {};
     const enablePrintInvoice =
@@ -815,6 +1009,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const reservationsEnabled = this._isPackEnabled(priorityCfg.reservations);
     const inboundEnabled = this._isPackEnabled(priorityCfg.inbound);
     const cycleEnabled = this._isPackEnabled(priorityCfg.cycleCounting);
+    const invoiceTransactionsEnabled = this._isPackEnabled(invoicePriorityCfg.transactions);
+    const invoicePaymentsEnabled = this._isPackEnabled(invoicePriorityCfg.payments);
+    const invoiceNotesEnabled = this._isPackEnabled(invoicePriorityCfg.notes);
 
     const entityName = this._capitalize(entity.slug);
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
@@ -942,6 +1139,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           entityName,
           importBase,
           invoiceConfig,
+          invoicePriorityCfg,
           title: this._escapeJsString(entity.display_name || entityName),
         })
       : isEmployeeEntity
@@ -1267,6 +1465,59 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         entityName,
         importBase,
         cycleCfg: priorityCfg.cycleCounting,
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}WorkflowPage.tsx`), workflowPageContent);
+    }
+
+    // ===================== Invoice Priority A workflow pages =====================
+    const isInvoiceHost =
+      moduleKey === 'invoice' &&
+      String(entity.slug || '') === String(invoicePriorityCfg.invoiceEntity || 'invoices');
+    const isPaymentHost =
+      moduleKey === 'invoice' &&
+      String(entity.slug || '') === String(invoicePriorityCfg.paymentEntity || 'invoice_payments');
+    const isNoteHost =
+      moduleKey === 'invoice' &&
+      String(entity.slug || '') === String(invoicePriorityCfg.noteEntity || 'invoice_notes');
+
+    if (isInvoiceHost && invoiceTransactionsEnabled) {
+      const workflowPageContent = buildInvoiceWorkflowPage({
+        entity,
+        entityName,
+        importBase,
+        lifecycleCfg: invoicePriorityCfg.lifecycle,
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}WorkflowPage.tsx`), workflowPageContent);
+    }
+    if (isInvoiceHost && invoicePaymentsEnabled) {
+      const paymentsPageContent = buildInvoicePaymentsPage({
+        entity,
+        entityName,
+        importBase,
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}PaymentsPage.tsx`), paymentsPageContent);
+    }
+    if (isInvoiceHost && invoiceNotesEnabled) {
+      const notesPageContent = buildInvoiceNotesPage({
+        entity,
+        entityName,
+        importBase,
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}NotesPage.tsx`), notesPageContent);
+    }
+    if (isPaymentHost && invoicePaymentsEnabled) {
+      const workflowPageContent = buildPaymentWorkflowPage({
+        entity,
+        entityName,
+        importBase,
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}WorkflowPage.tsx`), workflowPageContent);
+    }
+    if (isNoteHost && invoiceNotesEnabled) {
+      const workflowPageContent = buildNoteWorkflowPage({
+        entity,
+        entityName,
+        importBase,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}WorkflowPage.tsx`), workflowPageContent);
     }

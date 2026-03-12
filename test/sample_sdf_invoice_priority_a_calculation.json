@@ -1,0 +1,88 @@
+{
+  "project_name": "Invoice Priority A - Calculation Engine",
+  "modules": {
+    "inventory": { "enabled": false },
+    "invoice": {
+      "enabled": true,
+      "currency": "USD",
+      "calculation_engine": {
+        "enabled": true,
+        "invoice_item_entity": "invoice_items",
+        "item_invoice_field": "invoice_id",
+        "item_quantity_field": "quantity",
+        "item_unit_price_field": "unit_price",
+        "item_line_subtotal_field": "line_subtotal",
+        "item_discount_type_field": "line_discount_type",
+        "item_discount_value_field": "line_discount_value",
+        "item_discount_total_field": "line_discount_total",
+        "item_tax_rate_field": "line_tax_rate",
+        "item_tax_total_field": "line_tax_total",
+        "item_additional_charge_field": "line_additional_charge",
+        "item_line_total_field": "line_total"
+      }
+    },
+    "hr": { "enabled": false }
+  },
+  "entities": [
+    {
+      "slug": "customers",
+      "display_name": "Customers",
+      "display_field": "name",
+      "module": "shared",
+      "fields": [
+        { "name": "name", "type": "string", "required": true },
+        { "name": "email", "type": "string" }
+      ]
+    },
+    {
+      "slug": "invoices",
+      "display_name": "Invoices",
+      "display_field": "invoice_number",
+      "module": "invoice",
+      "features": {
+        "print_invoice": true
+      },
+      "children": [
+        {
+          "entity": "invoice_items",
+          "foreign_key": "invoice_id",
+          "label": "Line Items",
+          "columns": ["description", "quantity", "unit_price", "line_total"]
+        }
+      ],
+      "fields": [
+        { "name": "invoice_number", "type": "string", "unique": true },
+        { "name": "customer_id", "type": "reference", "reference_entity": "customers", "required": true },
+        { "name": "issue_date", "type": "date", "required": true },
+        { "name": "due_date", "type": "date", "required": true },
+        { "name": "status", "type": "string", "required": true },
+        { "name": "subtotal", "type": "decimal" },
+        { "name": "discount_total", "type": "decimal" },
+        { "name": "additional_charges_total", "type": "decimal" },
+        { "name": "tax_total", "type": "decimal" },
+        { "name": "grand_total", "type": "decimal" },
+        { "name": "paid_total", "type": "decimal" },
+        { "name": "outstanding_balance", "type": "decimal" }
+      ]
+    },
+    {
+      "slug": "invoice_items",
+      "display_name": "Invoice Items",
+      "module": "invoice",
+      "fields": [
+        { "name": "invoice_id", "type": "reference", "reference_entity": "invoices", "required": true },
+        { "name": "description", "type": "string", "required": true },
+        { "name": "quantity", "type": "decimal", "required": true },
+        { "name": "unit_price", "type": "decimal", "required": true },
+        { "name": "line_subtotal", "type": "decimal" },
+        { "name": "line_discount_type", "type": "string" },
+        { "name": "line_discount_value", "type": "decimal" },
+        { "name": "line_discount_total", "type": "decimal" },
+        { "name": "line_tax_rate", "type": "decimal" },
+        { "name": "line_tax_total", "type": "decimal" },
+        { "name": "line_additional_charge", "type": "decimal" },
+        { "name": "line_total", "type": "decimal" }
+      ]
+    }
+  ]
+}

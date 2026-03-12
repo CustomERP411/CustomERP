@@ -314,6 +314,134 @@ class PostgresProvider {
     return this._normalizeRow(res.rows[0], columns);
   }
 
+  async findOneByFieldForUpdate(entitySlug, fieldName, value, client = null) {
+    if (!client) {
+      return this.withTransaction((tx) =>
+        this.findOneByFieldForUpdate(entitySlug, fieldName, value, tx)
+      );
+    }
+    const slug = this._normalizeSlug(entitySlug);
+    const field = String(fieldName || '').trim();
+    if (!field) {
+      throw this._buildError('Field name is required for row lock lookup');
+    }
+    const columns = await this._getColumns(slug, client);
+    const columnsMap = this._columnsMap(columns);
+    if (!columnsMap.has(field)) {
+      throw this._buildError(`Field '${field}' does not exist on entity '${slug}'`, 400);
+    }
+    const sql = `SELECT * FROM ${this._quoteIdent(slug)} WHERE ${this._quoteIdent(field)} = $1 LIMIT 1 FOR UPDATE`;
+    const res = await this._runQuery(client, sql, [value]);
+    if (!res.rows.length) return null;
+    return this._normalizeRow(res.rows[0], columns);
+  }
+
+  async allocatePrefixedNumber(entitySlug, fieldName, prefix = '', options = {}, client = null) {
+    if (!client) {
+      return this.withTransaction((tx) =>
+        this.allocatePrefixedNumber(entitySlug, fieldName, prefix, options, tx)
+      );
+    }
+
+    const slug = this._normalizeSlug(entitySlug);
+    const field = String(fieldName || '').trim();
+    if (!field) {
+      throw this._buildError('Field name is required for prefixed number allocation');
+    }
+    const pad = Number(options.padding || options.pad || 6) || 6;
+    const safePrefix = String(prefix || '');
+
+    const columns = await this._getColumns(slug, client);
+    const columnsMap = this._columnsMap(columns);
+    if (!columnsMap.has(field)) {
+      throw this._buildError(`Field '${field}' does not exist on entity '${slug}'`, 400);
+    }
+
+    const sql = `SELECT ${this._quoteIdent(field)} AS value
+      FROM ${this._quoteIdent(slug)}
+      WHERE ${this._quoteIdent(field)} LIKE $1
+      ORDER BY ${this._quoteIdent(field)} DESC
+      LIMIT 1
+      FOR UPDATE`;
+    const res = await this._runQuery(client, sql, [`${safePrefix}%`]);
+    const lastValue = res.rows.length ? String(res.rows[0].value || '') : '';
+    const suffix = lastValue.startsWith(safePrefix) ? lastValue.slice(safePrefix.length) : '';
+    const parsed = parseInt(suffix, 10);
+    const next = Number.isNaN(parsed) ? 1 : parsed + 1;
+    return safePrefix + String(next).padStart(pad, '0');
+  }
+
+  async atomicAdjustInvoiceFinancials(entitySlug, id, options = {}, client = null) {
+    if (!client) {
+      return this.withTransaction((tx) =>
+        this.atomicAdjustInvoiceFinancials(entitySlug, id, options, tx)
+      );
+    }
+
+    const grandField = String(options.grandTotalField || options.grand_total_field || 'grand_total');
+    const paidField = String(options.paidField || options.paid_field || 'paid_total');
+    const outstandingField = String(options.outstandingField || options.outstanding_field || 'outstanding_balance');
+    const statusField = String(options.statusField || options.status_field || 'status');
+
+    const grandDelta = Number(options.grandDelta || options.grand_delta || 0);
+    const paidDelta = Number(options.paidDelta || options.paid_delta || 0);
+    if (!Number.isFinite(grandDelta) || !Number.isFinite(paidDelta)) {
+      throw this._buildError('Invoice delta values must be numeric', 400);
+    }
+
+    const locked = await this.findByIdForUpdate(entitySlug, id, client);
+    if (!locked) {
+      throw this._buildError('Invoice not found', 404);
+    }
+
+    const num = (raw) => {
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const round = (raw) => Number(num(raw).toFixed(2));
+
+    const currentGrand = num(locked[grandField]);
+    const currentPaid = num(locked[paidField]);
+    const nextGrand = round(currentGrand + grandDelta);
+    const nextPaid = round(currentPaid + paidDelta);
+    if (nextGrand < 0) {
+      throw this._buildError('Invoice grand total cannot be negative', 409, {
+        grand_total: nextGrand,
+      });
+    }
+    if (nextPaid < 0) {
+      throw this._buildError('Invoice paid total cannot be negative', 409, {
+        paid_total: nextPaid,
+      });
+    }
+    if (nextPaid > nextGrand + 0.0001) {
+      throw this._buildError('Invoice paid total cannot exceed invoice grand total', 409, {
+        paid_total: nextPaid,
+        grand_total: nextGrand,
+      });
+    }
+
+    const nextOutstanding = round(Math.max(nextGrand - nextPaid, 0));
+    const patch = {
+      [grandField]: nextGrand,
+      [paidField]: nextPaid,
+      [outstandingField]: nextOutstanding,
+    };
+
+    if (options.autoStatus === true || options.auto_status === true) {
+      const currentStatus = String(locked[statusField] || 'Draft');
+      if (currentStatus !== 'Cancelled') {
+        patch[statusField] = nextOutstanding <= 0 ? 'Paid' : (currentStatus === 'Draft' || currentStatus === 'Paid' ? 'Sent' : currentStatus);
+      }
+    }
+
+    if (options.extraPatch && typeof options.extraPatch === 'object') {
+      Object.assign(patch, options.extraPatch);
+    }
+
+    return this.update(entitySlug, id, patch, client);
+  }
+
   async atomicAdjustQuantity(entitySlug, id, delta, options = {}, client = null) {
     if (!client) {
       return this.withTransaction((tx) =>

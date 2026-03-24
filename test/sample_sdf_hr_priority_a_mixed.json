@@ -1,0 +1,50 @@
+{
+  "project_name": "HR Priority A - Mixed Capabilities",
+  "modules": {
+    "inventory": { "enabled": false },
+    "invoice": { "enabled": false },
+    "hr": {
+      "enabled": true,
+      "employee_entity": "staff_members",
+      "leave_entity": "leave_requests",
+      "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      "daily_hours": 8,
+      "leave_engine": {
+        "enabled": true,
+        "balance_entity": "staff_leave_balances",
+        "days_field": "requested_days",
+        "available_field": "remaining_days"
+      },
+      "leave_approvals": {
+        "enabled": true,
+        "status_field": "approval_status",
+        "approver_field": "approved_by"
+      },
+      "attendance_time": {
+        "enabled": true,
+        "attendance_entity": "attendance_logs",
+        "shift_entity": "staff_shifts",
+        "timesheet_entity": "timesheet_logs"
+      },
+      "compensation_ledger": {
+        "enabled": true,
+        "ledger_entity": "payroll_ledger",
+        "snapshot_entity": "payroll_snapshots"
+      }
+    }
+  },
+  "entities": [
+    {
+      "slug": "staff_members",
+      "display_name": "Staff Members",
+      "display_field": "first_name",
+      "module": "shared",
+      "fields": [
+        { "name": "first_name", "type": "string", "required": true },
+        { "name": "last_name", "type": "string", "required": true },
+        { "name": "email", "type": "string", "required": true, "unique": true },
+        { "name": "status", "type": "string", "required": true, "options": ["Active", "On Leave", "Terminated"] }
+      ]
+    }
+  ]
+}

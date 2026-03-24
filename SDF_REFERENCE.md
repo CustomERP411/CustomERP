@@ -181,6 +181,121 @@ When enabled, the generator expects these entities:
 3. **`leaves`** / **`leave_requests`** — **optional**
    - Typical fields: `employee_id` (reference), `leave_type`, `start_date`, `end_date`, `reason`, `status`.
 
+### HR Priority A Capability Packs (`modules.hr`)
+
+Use these optional packs to enable production-grade HR workflows per generated ERP.
+Each pack is toggle-based and can be enabled independently.
+
+```json
+{
+  "modules": {
+    "hr": {
+      "enabled": true,
+      "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      "daily_hours": 8,
+      "leave_engine": { "enabled": true },
+      "leave_approvals": { "enabled": true },
+      "attendance_time": { "enabled": true },
+      "compensation_ledger": { "enabled": true }
+    }
+  }
+}
+```
+
+#### Shared HR base config
+
+- **`modules.hr.employee_entity`** *(string, default `"employees"`)*  
+- **`modules.hr.department_entity`** *(string, default `"departments"`)*  
+- **`modules.hr.leave_entity`** *(string, default `"leaves"`)*  
+
+#### Pack: leave_engine (leave policy + balances)
+
+- **`modules.hr.leave_engine.enabled`** *(boolean)*
+- **`modules.hr.leave_engine.leave_entity`** *(string, default `"leaves"`)*  
+- **`modules.hr.leave_engine.balance_entity`** *(string, default `"leave_balances"`)*  
+- **`modules.hr.leave_engine.employee_field`** *(string, default `"employee_id"`)*  
+- **`modules.hr.leave_engine.leave_type_field`** *(string, default `"leave_type"`)*  
+- **`modules.hr.leave_engine.start_date_field`** *(string, default `"start_date"`)*  
+- **`modules.hr.leave_engine.end_date_field`** *(string, default `"end_date"`)*  
+- **`modules.hr.leave_engine.days_field`** *(string, default `"leave_days"`)*  
+- **`modules.hr.leave_engine.entitlement_field`** *(string, default `"annual_entitlement"`)*  
+- **`modules.hr.leave_engine.accrued_field`** *(string, default `"accrued_days"`)*  
+- **`modules.hr.leave_engine.consumed_field`** *(string, default `"consumed_days"`)*  
+- **`modules.hr.leave_engine.carry_forward_field`** *(string, default `"carry_forward_days"`)*  
+- **`modules.hr.leave_engine.available_field`** *(string, default `"available_days"`)*  
+- **`modules.hr.leave_engine.fiscal_year_field`** *(string, default `"year"`)*  
+- **`modules.hr.leave_engine.default_entitlement`** *(number, default `18`)*
+
+Generated backend APIs:
+- `GET /api/<employee_entity>/:id/leave-balance`
+- `POST /api/<employee_entity>/:id/leave-balance/accrue`
+- `POST /api/<employee_entity>/:id/leave-balance/adjust`
+- `POST /api/<leave_entity>/:id/recalculate-days`
+
+#### Pack: leave_approvals (strict approval transitions + audit)
+
+- **`modules.hr.leave_approvals.enabled`** *(boolean)*
+- **`modules.hr.leave_approvals.leave_entity`** *(string, default `"leaves"`)*  
+- **`modules.hr.leave_approvals.status_field`** *(string, default `"status"`)*  
+- **`modules.hr.leave_approvals.approver_field`** *(string, default `"approver_id"`)*  
+- **`modules.hr.leave_approvals.approved_at_field`** *(string, default `"approved_at"`)*  
+- **`modules.hr.leave_approvals.rejected_at_field`** *(string, default `"rejected_at"`)*  
+- **`modules.hr.leave_approvals.rejection_reason_field`** *(string, default `"rejection_reason"`)*  
+- **`modules.hr.leave_approvals.decision_key_field`** *(string, default `"decision_key"`)*  
+- **`modules.hr.leave_approvals.statuses`** *(array, default `["Pending","Approved","Rejected","Cancelled"]`)*  
+- **`modules.hr.leave_approvals.enforce_transitions`** *(boolean, default `true`)*  
+
+Generated backend APIs:
+- `GET /api/<leave_entity>/approvals/pending`
+- `POST /api/<leave_entity>/:id/approve`
+- `POST /api/<leave_entity>/:id/reject`
+- `POST /api/<leave_entity>/:id/cancel`
+
+#### Pack: attendance_time (attendance + shift + timesheet core)
+
+- **`modules.hr.attendance_time.enabled`** *(boolean)*
+- **`modules.hr.attendance_time.attendance_entity`** *(string, default `"attendance_entries"`)*  
+- **`modules.hr.attendance_time.shift_entity`** *(string, default `"shift_assignments"`)*  
+- **`modules.hr.attendance_time.timesheet_entity`** *(string, default `"timesheet_entries"`)*  
+- **`modules.hr.attendance_time.attendance_employee_field`** *(string, default `"employee_id"`)*  
+- **`modules.hr.attendance_time.attendance_date_field`** *(string, default `"work_date"`)*  
+- **`modules.hr.attendance_time.check_in_field`** *(string, default `"check_in_at"`)*  
+- **`modules.hr.attendance_time.check_out_field`** *(string, default `"check_out_at"`)*  
+- **`modules.hr.attendance_time.worked_hours_field`** *(string, default `"worked_hours"`)*  
+- **`modules.hr.attendance_time.timesheet_hours_field`** *(string, default `"regular_hours"`)*  
+- **`modules.hr.attendance_time.timesheet_overtime_field`** *(string, default `"overtime_hours"`)*  
+
+Generated backend APIs:
+- `POST /api/<attendance_entity>/record`
+- `POST /api/<attendance_entity>/:id/recalculate`
+- `POST /api/<timesheet_entity>/sync`
+- `POST /api/<timesheet_entity>/:id/approve`
+
+#### Pack: compensation_ledger (payroll-ready ledger + period snapshots)
+
+- **`modules.hr.compensation_ledger.enabled`** *(boolean)*
+- **`modules.hr.compensation_ledger.ledger_entity`** *(string, default `"compensation_ledger"`)*  
+- **`modules.hr.compensation_ledger.snapshot_entity`** *(string, default `"compensation_snapshots"`)*  
+- **`modules.hr.compensation_ledger.ledger_employee_field`** *(string, default `"employee_id"`)*  
+- **`modules.hr.compensation_ledger.ledger_period_field`** *(string, default `"pay_period"`)*  
+- **`modules.hr.compensation_ledger.ledger_type_field`** *(string, default `"component_type"`)*  
+- **`modules.hr.compensation_ledger.ledger_amount_field`** *(string, default `"amount"`)*  
+
+Generated backend APIs:
+- `POST /api/<ledger_entity>/snapshot`
+- `POST /api/<ledger_entity>/:id/post`
+- `POST /api/<snapshot_entity>/:id/post`
+
+### Auto-entity behavior
+
+If HR Priority A packs are enabled and required entities/fields are missing, assembler auto-adds runtime HR entities/fields:
+- `leave_balances` (leave balance engine),
+- `attendance_entries`, `shift_assignments`, `timesheet_entries` (attendance/time core),
+- `compensation_ledger`, `compensation_snapshots` (payroll-ready ledger/snapshots),
+- required leave approval/balance audit fields on leave entities.
+
+This keeps capability packs optional and backward-compatible for generated ERP projects.
+
 ---
 
 ## Inventory Priority A Capability Packs (`modules.inventory`)

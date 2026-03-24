@@ -229,22 +229,30 @@ class ProjectAssembler {
 
     const hrEnabled = enabledSet.has('hr');
     if (hrEnabled) {
-      const employeesEntity = requireEntity('employees', 'employee list');
+      const hrCfg = this._getHRPriorityAConfig(sdf);
+      const employeeEntitySlug = hrCfg.employeeEntity || 'employees';
+      const departmentEntitySlug = hrCfg.departmentEntity || 'departments';
+      const leaveEntitySlug = hrCfg.leaveEntity || 'leaves';
+
+      const employeesEntity = requireEntity(employeeEntitySlug, 'employee list');
       const employeesModule = this._normalizeEntityModule(employeesEntity, { hasErpConfig });
 
       if (employeesModule !== 'hr' && employeesModule !== 'shared') {
-        throw new Error(`SDF Validation Error: Entity 'employees' must be in module 'hr' or 'shared'.`);
+        throw new Error(
+          `SDF Validation Error: Entity '${employeeEntitySlug}' must be in module 'hr' or 'shared'.`
+        );
       }
 
-      const departmentsEntity = allBySlug.get('departments');
+      const departmentsEntity = allBySlug.get(departmentEntitySlug);
       if (departmentsEntity) {
         const departmentsModule = this._normalizeEntityModule(departmentsEntity, { hasErpConfig });
         if (departmentsModule !== 'hr') {
-          throw new Error(`SDF Validation Error: Entity 'departments' must be in module 'hr'.`);
+          throw new Error(`SDF Validation Error: Entity '${departmentEntitySlug}' must be in module 'hr'.`);
         }
       }
 
-      const leaveEntities = ['leaves', 'leave_requests']
+      const leaveEntities = [leaveEntitySlug, 'leaves', 'leave_requests']
+        .filter((slug, idx, arr) => arr.indexOf(slug) === idx)
         .map((slug) => allBySlug.get(slug))
         .filter(Boolean);
       leaveEntities.forEach((leaveEntity) => {
@@ -264,6 +272,14 @@ class ProjectAssembler {
       ensureFields,
     });
     this._validateInvoicePriorityAConfig({
+      sdf,
+      enabledSet,
+      hasErpConfig,
+      allBySlug,
+      requireEntity,
+      ensureFields,
+    });
+    this._validateHRPriorityAConfig({
       sdf,
       enabledSet,
       hasErpConfig,
@@ -664,6 +680,188 @@ class ProjectAssembler {
           cfg.notes.note_amount_field,
         ],
         cfg.notes.note_entity
+      );
+    }
+
+    // Keep unused helper warning clean for strict lint configs.
+    void allBySlug;
+  }
+
+  _validateHRPriorityAConfig({
+    sdf,
+    enabledSet,
+    hasErpConfig,
+    allBySlug,
+    requireEntity,
+    ensureFields,
+  }) {
+    const cfg = this._getHRPriorityAConfig(sdf);
+    const packsEnabled =
+      this._isPackEnabled(cfg.leaveEngine) ||
+      this._isPackEnabled(cfg.leaveApprovals) ||
+      this._isPackEnabled(cfg.attendanceTime) ||
+      this._isPackEnabled(cfg.compensationLedger);
+
+    if (!packsEnabled) return;
+
+    if (!enabledSet.has('hr')) {
+      throw new Error(
+        'SDF Validation Error: HR Priority A capability packs require module \'hr\' to be enabled.'
+      );
+    }
+
+    const employeeEntity = requireEntity(cfg.employeeEntity, 'hr employee master');
+    const employeeModule = this._normalizeEntityModule(employeeEntity, { hasErpConfig });
+    if (employeeModule !== 'hr' && employeeModule !== 'shared') {
+      throw new Error(
+        `SDF Validation Error: HR employee entity '${cfg.employeeEntity}' must be in module 'hr' or 'shared'.`
+      );
+    }
+
+    if (this._isPackEnabled(cfg.leaveEngine) || this._isPackEnabled(cfg.leaveApprovals)) {
+      const leaveEntity = requireEntity(cfg.leaveEntity, 'hr leave requests');
+      const leaveModule = this._normalizeEntityModule(leaveEntity, { hasErpConfig });
+      if (leaveModule !== 'hr') {
+        throw new Error(
+          `SDF Validation Error: HR leave entity '${cfg.leaveEntity}' must be in module 'hr'.`
+        );
+      }
+      ensureFields(
+        leaveEntity,
+        [
+          cfg.leaveEngine.employee_field,
+          cfg.leaveEngine.leave_type_field,
+          cfg.leaveEngine.start_date_field,
+          cfg.leaveEngine.end_date_field,
+          cfg.leaveEngine.status_field,
+        ],
+        cfg.leaveEntity
+      );
+    }
+
+    if (this._isPackEnabled(cfg.leaveEngine)) {
+      const balanceEntity = requireEntity(cfg.leaveEngine.balance_entity, 'hr leave balances');
+      const balanceModule = this._normalizeEntityModule(balanceEntity, { hasErpConfig });
+      if (balanceModule !== 'hr') {
+        throw new Error(
+          `SDF Validation Error: HR leave balance entity '${cfg.leaveEngine.balance_entity}' must be in module 'hr'.`
+        );
+      }
+      ensureFields(
+        balanceEntity,
+        [
+          cfg.leaveEngine.employee_field,
+          cfg.leaveEngine.leave_type_field,
+          cfg.leaveEngine.entitlement_field,
+          cfg.leaveEngine.accrued_field,
+          cfg.leaveEngine.consumed_field,
+          cfg.leaveEngine.carry_forward_field,
+          cfg.leaveEngine.available_field,
+          cfg.leaveEngine.fiscal_year_field,
+        ],
+        cfg.leaveEngine.balance_entity
+      );
+    }
+
+    if (this._isPackEnabled(cfg.leaveApprovals)) {
+      const leaveEntity = requireEntity(cfg.leaveEntity, 'hr leave approvals');
+      ensureFields(
+        leaveEntity,
+        [
+          cfg.leaveApprovals.status_field,
+          cfg.leaveApprovals.approver_field,
+          cfg.leaveApprovals.approved_at_field,
+          cfg.leaveApprovals.rejected_at_field,
+        ],
+        cfg.leaveEntity
+      );
+    }
+
+    if (this._isPackEnabled(cfg.attendanceTime)) {
+      const attendanceEntity = requireEntity(cfg.attendanceTime.attendance_entity, 'hr attendance entries');
+      const shiftEntity = requireEntity(cfg.attendanceTime.shift_entity, 'hr shift assignments');
+      const timesheetEntity = requireEntity(cfg.attendanceTime.timesheet_entity, 'hr timesheets');
+
+      [attendanceEntity, shiftEntity, timesheetEntity].forEach((entity) => {
+        const mod = this._normalizeEntityModule(entity, { hasErpConfig });
+        if (mod !== 'hr') {
+          throw new Error(
+            `SDF Validation Error: HR attendance/time entity '${entity.slug}' must be in module 'hr'.`
+          );
+        }
+      });
+
+      ensureFields(
+        attendanceEntity,
+        [
+          cfg.attendanceTime.attendance_employee_field,
+          cfg.attendanceTime.attendance_date_field,
+          cfg.attendanceTime.check_in_field,
+          cfg.attendanceTime.check_out_field,
+          cfg.attendanceTime.worked_hours_field,
+          cfg.attendanceTime.attendance_status_field,
+        ],
+        cfg.attendanceTime.attendance_entity
+      );
+      ensureFields(
+        shiftEntity,
+        [
+          cfg.attendanceTime.shift_employee_field,
+          cfg.attendanceTime.shift_start_field,
+          cfg.attendanceTime.shift_end_field,
+          cfg.attendanceTime.shift_status_field,
+        ],
+        cfg.attendanceTime.shift_entity
+      );
+      ensureFields(
+        timesheetEntity,
+        [
+          cfg.attendanceTime.timesheet_employee_field,
+          cfg.attendanceTime.timesheet_date_field,
+          cfg.attendanceTime.timesheet_hours_field,
+          cfg.attendanceTime.timesheet_overtime_field,
+          cfg.attendanceTime.timesheet_status_field,
+        ],
+        cfg.attendanceTime.timesheet_entity
+      );
+    }
+
+    if (this._isPackEnabled(cfg.compensationLedger)) {
+      const ledgerEntity = requireEntity(cfg.compensationLedger.ledger_entity, 'hr compensation ledger');
+      const snapshotEntity = requireEntity(cfg.compensationLedger.snapshot_entity, 'hr compensation snapshots');
+
+      [ledgerEntity, snapshotEntity].forEach((entity) => {
+        const mod = this._normalizeEntityModule(entity, { hasErpConfig });
+        if (mod !== 'hr') {
+          throw new Error(
+            `SDF Validation Error: HR compensation entity '${entity.slug}' must be in module 'hr'.`
+          );
+        }
+      });
+
+      ensureFields(
+        ledgerEntity,
+        [
+          cfg.compensationLedger.ledger_employee_field,
+          cfg.compensationLedger.ledger_period_field,
+          cfg.compensationLedger.ledger_component_field,
+          cfg.compensationLedger.ledger_type_field,
+          cfg.compensationLedger.ledger_amount_field,
+          cfg.compensationLedger.ledger_status_field,
+        ],
+        cfg.compensationLedger.ledger_entity
+      );
+      ensureFields(
+        snapshotEntity,
+        [
+          cfg.compensationLedger.snapshot_employee_field,
+          cfg.compensationLedger.snapshot_period_field,
+          cfg.compensationLedger.snapshot_gross_field,
+          cfg.compensationLedger.snapshot_deduction_field,
+          cfg.compensationLedger.snapshot_net_field,
+          cfg.compensationLedger.snapshot_status_field,
+        ],
+        cfg.compensationLedger.snapshot_entity
       );
     }
 
@@ -1350,6 +1548,473 @@ class ProjectAssembler {
     };
   }
 
+  _getHRPriorityAConfig(sdf) {
+    const modules = (sdf && sdf.modules) ? sdf.modules : {};
+    const hr = (modules.hr && typeof modules.hr === 'object') ? modules.hr : {};
+
+    const normalizePack = (rawValue, defaults = {}) => {
+      if (rawValue === true) return { ...defaults, enabled: true };
+      if (rawValue === false || rawValue === null || rawValue === undefined) {
+        return { ...defaults, enabled: false };
+      }
+      if (typeof rawValue === 'object') {
+        return {
+          ...defaults,
+          ...rawValue,
+          enabled: rawValue.enabled !== false,
+        };
+      }
+      return { ...defaults, enabled: false };
+    };
+
+    const leaveEngine = normalizePack(
+      hr.leave_engine || hr.leaveEngine || hr.leave_policy || hr.leavePolicy,
+      {
+        leave_entity: 'leaves',
+        balance_entity: 'leave_balances',
+        employee_field: 'employee_id',
+        leave_type_field: 'leave_type',
+        start_date_field: 'start_date',
+        end_date_field: 'end_date',
+        days_field: 'leave_days',
+        status_field: 'status',
+        entitlement_field: 'annual_entitlement',
+        accrued_field: 'accrued_days',
+        consumed_field: 'consumed_days',
+        carry_forward_field: 'carry_forward_days',
+        available_field: 'available_days',
+        fiscal_year_field: 'year',
+        last_accrual_at_field: 'last_accrual_at',
+        default_entitlement: 18,
+        auto_create_balance: true,
+      }
+    );
+    const leaveApprovals = normalizePack(
+      hr.leave_approvals ||
+      hr.leaveApprovals ||
+      hr.leave_approval ||
+      hr.leaveApproval ||
+      hr.approval_workflow ||
+      hr.approvalWorkflow,
+      {
+        leave_entity: 'leaves',
+        status_field: 'status',
+        approver_field: 'approver_id',
+        approved_at_field: 'approved_at',
+        rejected_at_field: 'rejected_at',
+        cancelled_at_field: 'cancelled_at',
+        rejection_reason_field: 'rejection_reason',
+        decision_key_field: 'decision_key',
+        statuses: ['Pending', 'Approved', 'Rejected', 'Cancelled'],
+        enforce_transitions: true,
+        consume_on_approval: true,
+      }
+    );
+    const attendanceTime = normalizePack(
+      hr.attendance_time || hr.attendanceTime || hr.attendance || hr.time_tracking || hr.timeTracking,
+      {
+        attendance_entity: 'attendance_entries',
+        shift_entity: 'shift_assignments',
+        timesheet_entity: 'timesheet_entries',
+        attendance_employee_field: 'employee_id',
+        attendance_date_field: 'work_date',
+        check_in_field: 'check_in_at',
+        check_out_field: 'check_out_at',
+        worked_hours_field: 'worked_hours',
+        attendance_status_field: 'status',
+        shift_employee_field: 'employee_id',
+        shift_start_field: 'start_time',
+        shift_end_field: 'end_time',
+        shift_days_field: 'work_days',
+        shift_status_field: 'status',
+        timesheet_employee_field: 'employee_id',
+        timesheet_date_field: 'work_date',
+        timesheet_hours_field: 'regular_hours',
+        timesheet_overtime_field: 'overtime_hours',
+        timesheet_status_field: 'status',
+        timesheet_attendance_field: 'attendance_id',
+      }
+    );
+    const compensationLedger = normalizePack(
+      hr.compensation_ledger || hr.compensationLedger || hr.payroll_ledger || hr.payrollLedger,
+      {
+        ledger_entity: 'compensation_ledger',
+        snapshot_entity: 'compensation_snapshots',
+        ledger_employee_field: 'employee_id',
+        ledger_period_field: 'pay_period',
+        ledger_component_field: 'component',
+        ledger_type_field: 'component_type',
+        ledger_amount_field: 'amount',
+        ledger_status_field: 'status',
+        snapshot_employee_field: 'employee_id',
+        snapshot_period_field: 'pay_period',
+        snapshot_gross_field: 'gross_amount',
+        snapshot_deduction_field: 'deduction_amount',
+        snapshot_net_field: 'net_amount',
+        snapshot_status_field: 'status',
+        snapshot_posted_at_field: 'posted_at',
+      }
+    );
+
+    const employeeEntity = this._pickFirstString(
+      hr.employee_entity,
+      hr.employeeEntity,
+      leaveEngine.employee_entity,
+      leaveEngine.employeeEntity,
+      attendanceTime.employee_entity,
+      attendanceTime.employeeEntity,
+      compensationLedger.employee_entity,
+      compensationLedger.employeeEntity,
+      'employees'
+    );
+    const departmentEntity = this._pickFirstString(
+      hr.department_entity,
+      hr.departmentEntity,
+      'departments'
+    );
+    const leaveEntity = this._pickFirstString(
+      hr.leave_entity,
+      hr.leaveEntity,
+      leaveEngine.leave_entity,
+      leaveEngine.leaveEntity,
+      leaveApprovals.leave_entity,
+      leaveApprovals.leaveEntity,
+      'leaves'
+    );
+
+    leaveEngine.leave_entity = this._pickFirstString(
+      leaveEngine.leave_entity,
+      leaveEngine.leaveEntity,
+      leaveEntity
+    );
+    leaveEngine.balance_entity = this._pickFirstString(
+      leaveEngine.balance_entity,
+      leaveEngine.balanceEntity,
+      'leave_balances'
+    );
+    leaveEngine.employee_field = this._pickFirstString(
+      leaveEngine.employee_field,
+      leaveEngine.employeeField,
+      'employee_id'
+    );
+    leaveEngine.leave_type_field = this._pickFirstString(
+      leaveEngine.leave_type_field,
+      leaveEngine.leaveTypeField,
+      'leave_type'
+    );
+    leaveEngine.start_date_field = this._pickFirstString(
+      leaveEngine.start_date_field,
+      leaveEngine.startDateField,
+      'start_date'
+    );
+    leaveEngine.end_date_field = this._pickFirstString(
+      leaveEngine.end_date_field,
+      leaveEngine.endDateField,
+      'end_date'
+    );
+    leaveEngine.days_field = this._pickFirstString(
+      leaveEngine.days_field,
+      leaveEngine.daysField,
+      'leave_days'
+    );
+    leaveEngine.status_field = this._pickFirstString(
+      leaveEngine.status_field,
+      leaveEngine.statusField,
+      'status'
+    );
+    leaveEngine.entitlement_field = this._pickFirstString(
+      leaveEngine.entitlement_field,
+      leaveEngine.entitlementField,
+      'annual_entitlement'
+    );
+    leaveEngine.accrued_field = this._pickFirstString(
+      leaveEngine.accrued_field,
+      leaveEngine.accruedField,
+      'accrued_days'
+    );
+    leaveEngine.consumed_field = this._pickFirstString(
+      leaveEngine.consumed_field,
+      leaveEngine.consumedField,
+      'consumed_days'
+    );
+    leaveEngine.carry_forward_field = this._pickFirstString(
+      leaveEngine.carry_forward_field,
+      leaveEngine.carryForwardField,
+      'carry_forward_days'
+    );
+    leaveEngine.available_field = this._pickFirstString(
+      leaveEngine.available_field,
+      leaveEngine.availableField,
+      'available_days'
+    );
+    leaveEngine.fiscal_year_field = this._pickFirstString(
+      leaveEngine.fiscal_year_field,
+      leaveEngine.fiscalYearField,
+      'year'
+    );
+    leaveEngine.last_accrual_at_field = this._pickFirstString(
+      leaveEngine.last_accrual_at_field,
+      leaveEngine.lastAccrualAtField,
+      'last_accrual_at'
+    );
+    leaveEngine.default_entitlement = Number(leaveEngine.default_entitlement || leaveEngine.defaultEntitlement || 18);
+    if (!Number.isFinite(leaveEngine.default_entitlement) || leaveEngine.default_entitlement < 0) {
+      leaveEngine.default_entitlement = 18;
+    }
+    leaveEngine.auto_create_balance =
+      leaveEngine.auto_create_balance !== false &&
+      leaveEngine.autoCreateBalance !== false;
+
+    leaveApprovals.leave_entity = this._pickFirstString(
+      leaveApprovals.leave_entity,
+      leaveApprovals.leaveEntity,
+      leaveEntity
+    );
+    leaveApprovals.status_field = this._pickFirstString(
+      leaveApprovals.status_field,
+      leaveApprovals.statusField,
+      leaveEngine.status_field
+    );
+    leaveApprovals.approver_field = this._pickFirstString(
+      leaveApprovals.approver_field,
+      leaveApprovals.approverField,
+      'approver_id'
+    );
+    leaveApprovals.approved_at_field = this._pickFirstString(
+      leaveApprovals.approved_at_field,
+      leaveApprovals.approvedAtField,
+      'approved_at'
+    );
+    leaveApprovals.rejected_at_field = this._pickFirstString(
+      leaveApprovals.rejected_at_field,
+      leaveApprovals.rejectedAtField,
+      'rejected_at'
+    );
+    leaveApprovals.cancelled_at_field = this._pickFirstString(
+      leaveApprovals.cancelled_at_field,
+      leaveApprovals.cancelledAtField,
+      'cancelled_at'
+    );
+    leaveApprovals.rejection_reason_field = this._pickFirstString(
+      leaveApprovals.rejection_reason_field,
+      leaveApprovals.rejectionReasonField,
+      'rejection_reason'
+    );
+    leaveApprovals.decision_key_field = this._pickFirstString(
+      leaveApprovals.decision_key_field,
+      leaveApprovals.decisionKeyField,
+      'decision_key'
+    );
+    leaveApprovals.statuses = Array.isArray(leaveApprovals.statuses) && leaveApprovals.statuses.length
+      ? leaveApprovals.statuses
+      : ['Pending', 'Approved', 'Rejected', 'Cancelled'];
+    leaveApprovals.enforce_transitions =
+      leaveApprovals.enforce_transitions !== false &&
+      leaveApprovals.enforceTransitions !== false;
+    leaveApprovals.consume_on_approval =
+      leaveApprovals.consume_on_approval !== false &&
+      leaveApprovals.consumeOnApproval !== false;
+
+    attendanceTime.attendance_entity = this._pickFirstString(
+      attendanceTime.attendance_entity,
+      attendanceTime.attendanceEntity,
+      'attendance_entries'
+    );
+    attendanceTime.shift_entity = this._pickFirstString(
+      attendanceTime.shift_entity,
+      attendanceTime.shiftEntity,
+      'shift_assignments'
+    );
+    attendanceTime.timesheet_entity = this._pickFirstString(
+      attendanceTime.timesheet_entity,
+      attendanceTime.timesheetEntity,
+      'timesheet_entries'
+    );
+    attendanceTime.attendance_employee_field = this._pickFirstString(
+      attendanceTime.attendance_employee_field,
+      attendanceTime.attendanceEmployeeField,
+      'employee_id'
+    );
+    attendanceTime.attendance_date_field = this._pickFirstString(
+      attendanceTime.attendance_date_field,
+      attendanceTime.attendanceDateField,
+      'work_date'
+    );
+    attendanceTime.check_in_field = this._pickFirstString(
+      attendanceTime.check_in_field,
+      attendanceTime.checkInField,
+      'check_in_at'
+    );
+    attendanceTime.check_out_field = this._pickFirstString(
+      attendanceTime.check_out_field,
+      attendanceTime.checkOutField,
+      'check_out_at'
+    );
+    attendanceTime.worked_hours_field = this._pickFirstString(
+      attendanceTime.worked_hours_field,
+      attendanceTime.workedHoursField,
+      'worked_hours'
+    );
+    attendanceTime.attendance_status_field = this._pickFirstString(
+      attendanceTime.attendance_status_field,
+      attendanceTime.attendanceStatusField,
+      'status'
+    );
+    attendanceTime.shift_employee_field = this._pickFirstString(
+      attendanceTime.shift_employee_field,
+      attendanceTime.shiftEmployeeField,
+      'employee_id'
+    );
+    attendanceTime.shift_start_field = this._pickFirstString(
+      attendanceTime.shift_start_field,
+      attendanceTime.shiftStartField,
+      'start_time'
+    );
+    attendanceTime.shift_end_field = this._pickFirstString(
+      attendanceTime.shift_end_field,
+      attendanceTime.shiftEndField,
+      'end_time'
+    );
+    attendanceTime.shift_days_field = this._pickFirstString(
+      attendanceTime.shift_days_field,
+      attendanceTime.shiftDaysField,
+      'work_days'
+    );
+    attendanceTime.shift_status_field = this._pickFirstString(
+      attendanceTime.shift_status_field,
+      attendanceTime.shiftStatusField,
+      'status'
+    );
+    attendanceTime.timesheet_employee_field = this._pickFirstString(
+      attendanceTime.timesheet_employee_field,
+      attendanceTime.timesheetEmployeeField,
+      'employee_id'
+    );
+    attendanceTime.timesheet_date_field = this._pickFirstString(
+      attendanceTime.timesheet_date_field,
+      attendanceTime.timesheetDateField,
+      'work_date'
+    );
+    attendanceTime.timesheet_hours_field = this._pickFirstString(
+      attendanceTime.timesheet_hours_field,
+      attendanceTime.timesheetHoursField,
+      'regular_hours'
+    );
+    attendanceTime.timesheet_overtime_field = this._pickFirstString(
+      attendanceTime.timesheet_overtime_field,
+      attendanceTime.timesheetOvertimeField,
+      'overtime_hours'
+    );
+    attendanceTime.timesheet_status_field = this._pickFirstString(
+      attendanceTime.timesheet_status_field,
+      attendanceTime.timesheetStatusField,
+      'status'
+    );
+    attendanceTime.timesheet_attendance_field = this._pickFirstString(
+      attendanceTime.timesheet_attendance_field,
+      attendanceTime.timesheetAttendanceField,
+      'attendance_id'
+    );
+    attendanceTime.work_days = Array.isArray(attendanceTime.work_days)
+      ? attendanceTime.work_days
+      : (Array.isArray(attendanceTime.workDays) ? attendanceTime.workDays : null);
+    if (!Array.isArray(attendanceTime.work_days) || !attendanceTime.work_days.length) {
+      attendanceTime.work_days = Array.isArray(hr.work_days) && hr.work_days.length
+        ? hr.work_days
+        : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    }
+    attendanceTime.daily_hours = Number(attendanceTime.daily_hours || attendanceTime.dailyHours || hr.daily_hours || hr.dailyHours || 8);
+    if (!Number.isFinite(attendanceTime.daily_hours) || attendanceTime.daily_hours <= 0) {
+      attendanceTime.daily_hours = 8;
+    }
+
+    compensationLedger.ledger_entity = this._pickFirstString(
+      compensationLedger.ledger_entity,
+      compensationLedger.ledgerEntity,
+      'compensation_ledger'
+    );
+    compensationLedger.snapshot_entity = this._pickFirstString(
+      compensationLedger.snapshot_entity,
+      compensationLedger.snapshotEntity,
+      'compensation_snapshots'
+    );
+    compensationLedger.ledger_employee_field = this._pickFirstString(
+      compensationLedger.ledger_employee_field,
+      compensationLedger.ledgerEmployeeField,
+      'employee_id'
+    );
+    compensationLedger.ledger_period_field = this._pickFirstString(
+      compensationLedger.ledger_period_field,
+      compensationLedger.ledgerPeriodField,
+      'pay_period'
+    );
+    compensationLedger.ledger_component_field = this._pickFirstString(
+      compensationLedger.ledger_component_field,
+      compensationLedger.ledgerComponentField,
+      'component'
+    );
+    compensationLedger.ledger_type_field = this._pickFirstString(
+      compensationLedger.ledger_type_field,
+      compensationLedger.ledgerTypeField,
+      'component_type'
+    );
+    compensationLedger.ledger_amount_field = this._pickFirstString(
+      compensationLedger.ledger_amount_field,
+      compensationLedger.ledgerAmountField,
+      'amount'
+    );
+    compensationLedger.ledger_status_field = this._pickFirstString(
+      compensationLedger.ledger_status_field,
+      compensationLedger.ledgerStatusField,
+      'status'
+    );
+    compensationLedger.snapshot_employee_field = this._pickFirstString(
+      compensationLedger.snapshot_employee_field,
+      compensationLedger.snapshotEmployeeField,
+      'employee_id'
+    );
+    compensationLedger.snapshot_period_field = this._pickFirstString(
+      compensationLedger.snapshot_period_field,
+      compensationLedger.snapshotPeriodField,
+      'pay_period'
+    );
+    compensationLedger.snapshot_gross_field = this._pickFirstString(
+      compensationLedger.snapshot_gross_field,
+      compensationLedger.snapshotGrossField,
+      'gross_amount'
+    );
+    compensationLedger.snapshot_deduction_field = this._pickFirstString(
+      compensationLedger.snapshot_deduction_field,
+      compensationLedger.snapshotDeductionField,
+      'deduction_amount'
+    );
+    compensationLedger.snapshot_net_field = this._pickFirstString(
+      compensationLedger.snapshot_net_field,
+      compensationLedger.snapshotNetField,
+      'net_amount'
+    );
+    compensationLedger.snapshot_status_field = this._pickFirstString(
+      compensationLedger.snapshot_status_field,
+      compensationLedger.snapshotStatusField,
+      'status'
+    );
+    compensationLedger.snapshot_posted_at_field = this._pickFirstString(
+      compensationLedger.snapshot_posted_at_field,
+      compensationLedger.snapshotPostedAtField,
+      'posted_at'
+    );
+
+    return {
+      employeeEntity,
+      departmentEntity,
+      leaveEntity,
+      leaveEngine,
+      leaveApprovals,
+      attendanceTime,
+      compensationLedger,
+    };
+  }
+
   _resolveErpModules(sdf) {
     const modules = (sdf && sdf.modules) ? sdf.modules : {};
     const hasErpConfig = ERP_MODULE_KEYS.some((key) => Object.prototype.hasOwnProperty.call(modules, key));
@@ -1621,6 +2286,7 @@ PGPASSWORD=erppassword
 
     this._withInventoryPriorityAEntities(entities, sdf);
     this._withInvoicePriorityAEntities(entities, sdf);
+    this._withHRPriorityAEntities(entities, sdf);
 
     return entities;
   }
@@ -2403,6 +3069,680 @@ PGPASSWORD=erppassword
     }
   }
 
+  _withHRPriorityAEntities(entities, sdf) {
+    const cfg = this._getHRPriorityAConfig(sdf);
+    const { enabledModules } = this._resolveErpModules(sdf);
+    const enabledSet = new Set(enabledModules || []);
+    const hrEnabled = enabledSet.has('hr');
+    const packsEnabled =
+      this._isPackEnabled(cfg.leaveEngine) ||
+      this._isPackEnabled(cfg.leaveApprovals) ||
+      this._isPackEnabled(cfg.attendanceTime) ||
+      this._isPackEnabled(cfg.compensationLedger);
+
+    if (!hrEnabled || !packsEnabled) return;
+
+    const bySlug = new Map();
+    for (const entity of entities) {
+      if (!entity || !entity.slug) continue;
+      bySlug.set(entity.slug, entity);
+    }
+
+    const ensureEntity = (slug, defaultModule, factory) => {
+      if (bySlug.has(slug)) {
+        const existing = bySlug.get(slug);
+        if (!existing.module && defaultModule) existing.module = defaultModule;
+        return existing;
+      }
+      const created = factory();
+      entities.push(created);
+      bySlug.set(slug, created);
+      return created;
+    };
+
+    const ensureField = (entity, field) => {
+      if (!entity || !field || !field.name) return;
+      if (!Array.isArray(entity.fields)) entity.fields = [];
+      if (entity.fields.some((f) => f && f.name === field.name)) return;
+      entity.fields.push({ ...field });
+    };
+
+    const ensureChild = (entity, childCfg) => {
+      if (!entity || !childCfg || !childCfg.entity || !childCfg.foreign_key) return;
+      if (!Array.isArray(entity.children)) entity.children = [];
+      const exists = entity.children.some((c) => {
+        const childSlug = c && (c.entity || c.slug);
+        const fk = c && (c.foreign_key || c.foreignKey);
+        return childSlug === childCfg.entity && fk === childCfg.foreign_key;
+      });
+      if (!exists) {
+        entity.children.push({ ...childCfg });
+      }
+    };
+
+    const employeeEntity = ensureEntity(cfg.employeeEntity, 'hr', () => ({
+      slug: cfg.employeeEntity,
+      display_name: 'Employees',
+      display_field: 'first_name',
+      module: 'hr',
+      ui: { search: true, csv_import: true, csv_export: true, print: true },
+      list: { columns: ['first_name', 'last_name', 'email', 'status', 'job_title'] },
+      fields: [],
+      features: { audit_trail: true },
+    }));
+    ensureField(employeeEntity, { name: 'first_name', type: 'string', label: 'First Name', required: true });
+    ensureField(employeeEntity, { name: 'last_name', type: 'string', label: 'Last Name', required: true });
+    ensureField(employeeEntity, { name: 'email', type: 'string', label: 'Email', required: true, unique: true });
+    ensureField(employeeEntity, { name: 'job_title', type: 'string', label: 'Job Title', required: false });
+    ensureField(employeeEntity, { name: 'hire_date', type: 'date', label: 'Hire Date', required: false });
+    ensureField(employeeEntity, {
+      name: 'status',
+      type: 'string',
+      label: 'Status',
+      required: true,
+      options: ['Active', 'On Leave', 'Terminated'],
+    });
+
+    const departmentsEntity = ensureEntity(cfg.departmentEntity, 'hr', () => ({
+      slug: cfg.departmentEntity,
+      display_name: 'Departments',
+      display_field: 'name',
+      module: 'hr',
+      ui: { search: true, csv_import: true, csv_export: true, print: true },
+      list: { columns: ['name', 'manager_id', 'location'] },
+      fields: [],
+      features: {},
+    }));
+    ensureField(departmentsEntity, { name: 'name', type: 'string', label: 'Department', required: true, unique: true });
+    ensureField(departmentsEntity, {
+      name: 'manager_id',
+      type: 'reference',
+      label: 'Manager',
+      required: false,
+      reference_entity: cfg.employeeEntity,
+    });
+    ensureField(departmentsEntity, { name: 'location', type: 'string', label: 'Location', required: false });
+    const employeeModule = String(employeeEntity.module || 'hr').trim().toLowerCase();
+    const departmentModule = String(departmentsEntity.module || 'hr').trim().toLowerCase();
+    const canLinkDepartmentFromEmployee =
+      employeeModule === departmentModule ||
+      employeeModule === 'hr' ||
+      departmentModule === 'shared';
+    const canLinkEmployeeChildEntity = (childEntity) => {
+      const childModule = String((childEntity && childEntity.module) || 'hr').trim().toLowerCase();
+      return (
+        employeeModule === childModule ||
+        employeeModule === 'hr' ||
+        childModule === 'shared'
+      );
+    };
+    if (canLinkDepartmentFromEmployee) {
+      ensureField(employeeEntity, {
+        name: 'department_id',
+        type: 'reference',
+        label: 'Department',
+        required: false,
+        reference_entity: cfg.departmentEntity,
+      });
+    }
+
+    if (this._isPackEnabled(cfg.leaveEngine) || this._isPackEnabled(cfg.leaveApprovals)) {
+      const leaveEntity = ensureEntity(cfg.leaveEntity, 'hr', () => ({
+        slug: cfg.leaveEntity,
+        display_name: 'Leave Requests',
+        display_field: cfg.leaveEngine.leave_type_field,
+        module: 'hr',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.leaveEngine.employee_field,
+            cfg.leaveEngine.leave_type_field,
+            cfg.leaveEngine.start_date_field,
+            cfg.leaveEngine.end_date_field,
+            cfg.leaveEngine.status_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(leaveEntity, {
+        name: cfg.leaveEngine.employee_field,
+        type: 'reference',
+        label: 'Employee',
+        required: true,
+        reference_entity: cfg.employeeEntity,
+      });
+      ensureField(leaveEntity, {
+        name: cfg.leaveEngine.leave_type_field,
+        type: 'string',
+        label: 'Leave Type',
+        required: true,
+        options: ['Annual', 'Sick', 'Casual', 'Unpaid'],
+      });
+      ensureField(leaveEntity, { name: cfg.leaveEngine.start_date_field, type: 'date', label: 'Start Date', required: true });
+      ensureField(leaveEntity, { name: cfg.leaveEngine.end_date_field, type: 'date', label: 'End Date', required: true });
+      ensureField(leaveEntity, { name: cfg.leaveEngine.days_field, type: 'decimal', label: 'Leave Days', required: false, min: 0 });
+      ensureField(leaveEntity, {
+        name: cfg.leaveEngine.status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: cfg.leaveApprovals.statuses,
+      });
+      if (cfg.leaveApprovals.status_field !== cfg.leaveEngine.status_field) {
+        ensureField(leaveEntity, {
+          name: cfg.leaveApprovals.status_field,
+          type: 'string',
+          label: 'Approval Status',
+          required: true,
+          options: cfg.leaveApprovals.statuses,
+        });
+      }
+      ensureField(leaveEntity, { name: 'reason', type: 'text', label: 'Reason', required: false });
+      ensureField(leaveEntity, {
+        name: cfg.leaveApprovals.approver_field,
+        type: 'reference',
+        label: 'Approver',
+        required: false,
+        reference_entity: cfg.employeeEntity,
+      });
+      ensureField(leaveEntity, {
+        name: cfg.leaveApprovals.approved_at_field,
+        type: 'datetime',
+        label: 'Approved At',
+        required: false,
+      });
+      ensureField(leaveEntity, {
+        name: cfg.leaveApprovals.rejected_at_field,
+        type: 'datetime',
+        label: 'Rejected At',
+        required: false,
+      });
+      ensureField(leaveEntity, {
+        name: cfg.leaveApprovals.cancelled_at_field,
+        type: 'datetime',
+        label: 'Cancelled At',
+        required: false,
+      });
+      ensureField(leaveEntity, {
+        name: cfg.leaveApprovals.rejection_reason_field,
+        type: 'text',
+        label: 'Rejection Reason',
+        required: false,
+      });
+      ensureField(leaveEntity, {
+        name: cfg.leaveApprovals.decision_key_field,
+        type: 'string',
+        label: 'Decision Key',
+        required: false,
+      });
+
+      if (canLinkEmployeeChildEntity(leaveEntity)) {
+        ensureChild(employeeEntity, {
+          entity: cfg.leaveEntity,
+          foreign_key: cfg.leaveEngine.employee_field,
+          label: 'Leave Requests',
+          columns: [
+            cfg.leaveEngine.leave_type_field,
+            cfg.leaveEngine.start_date_field,
+            cfg.leaveEngine.end_date_field,
+            cfg.leaveEngine.status_field,
+          ],
+        });
+      }
+    }
+
+    if (this._isPackEnabled(cfg.leaveEngine)) {
+      const balanceEntity = ensureEntity(cfg.leaveEngine.balance_entity, 'hr', () => ({
+        slug: cfg.leaveEngine.balance_entity,
+        display_name: 'Leave Balances',
+        display_field: cfg.leaveEngine.leave_type_field,
+        module: 'hr',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.leaveEngine.employee_field,
+            cfg.leaveEngine.leave_type_field,
+            cfg.leaveEngine.available_field,
+            cfg.leaveEngine.fiscal_year_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(balanceEntity, {
+        name: cfg.leaveEngine.employee_field,
+        type: 'reference',
+        label: 'Employee',
+        required: true,
+        reference_entity: cfg.employeeEntity,
+      });
+      ensureField(balanceEntity, {
+        name: cfg.leaveEngine.leave_type_field,
+        type: 'string',
+        label: 'Leave Type',
+        required: true,
+      });
+      ensureField(balanceEntity, {
+        name: cfg.leaveEngine.entitlement_field,
+        type: 'decimal',
+        label: 'Entitlement',
+        required: true,
+        min: 0,
+      });
+      ensureField(balanceEntity, {
+        name: cfg.leaveEngine.accrued_field,
+        type: 'decimal',
+        label: 'Accrued',
+        required: true,
+        min: 0,
+      });
+      ensureField(balanceEntity, {
+        name: cfg.leaveEngine.consumed_field,
+        type: 'decimal',
+        label: 'Consumed',
+        required: true,
+        min: 0,
+      });
+      ensureField(balanceEntity, {
+        name: cfg.leaveEngine.carry_forward_field,
+        type: 'decimal',
+        label: 'Carry Forward',
+        required: true,
+        min: 0,
+      });
+      ensureField(balanceEntity, {
+        name: cfg.leaveEngine.available_field,
+        type: 'decimal',
+        label: 'Available',
+        required: true,
+      });
+      ensureField(balanceEntity, {
+        name: cfg.leaveEngine.fiscal_year_field,
+        type: 'string',
+        label: 'Year',
+        required: true,
+      });
+      ensureField(balanceEntity, {
+        name: cfg.leaveEngine.last_accrual_at_field,
+        type: 'datetime',
+        label: 'Last Accrual At',
+        required: false,
+      });
+      ensureField(balanceEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+
+      if (canLinkEmployeeChildEntity(balanceEntity)) {
+        ensureChild(employeeEntity, {
+          entity: cfg.leaveEngine.balance_entity,
+          foreign_key: cfg.leaveEngine.employee_field,
+          label: 'Leave Balances',
+          columns: [
+            cfg.leaveEngine.leave_type_field,
+            cfg.leaveEngine.entitlement_field,
+            cfg.leaveEngine.accrued_field,
+            cfg.leaveEngine.available_field,
+          ],
+        });
+      }
+    }
+
+    if (this._isPackEnabled(cfg.attendanceTime)) {
+      const attendanceEntity = ensureEntity(cfg.attendanceTime.attendance_entity, 'hr', () => ({
+        slug: cfg.attendanceTime.attendance_entity,
+        display_name: 'Attendance Entries',
+        display_field: cfg.attendanceTime.attendance_date_field,
+        module: 'hr',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.attendanceTime.attendance_employee_field,
+            cfg.attendanceTime.attendance_date_field,
+            cfg.attendanceTime.worked_hours_field,
+            cfg.attendanceTime.attendance_status_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(attendanceEntity, {
+        name: cfg.attendanceTime.attendance_employee_field,
+        type: 'reference',
+        label: 'Employee',
+        required: true,
+        reference_entity: cfg.employeeEntity,
+      });
+      ensureField(attendanceEntity, {
+        name: cfg.attendanceTime.attendance_date_field,
+        type: 'date',
+        label: 'Work Date',
+        required: true,
+      });
+      ensureField(attendanceEntity, {
+        name: cfg.attendanceTime.check_in_field,
+        type: 'datetime',
+        label: 'Check In',
+        required: false,
+      });
+      ensureField(attendanceEntity, {
+        name: cfg.attendanceTime.check_out_field,
+        type: 'datetime',
+        label: 'Check Out',
+        required: false,
+      });
+      ensureField(attendanceEntity, {
+        name: cfg.attendanceTime.worked_hours_field,
+        type: 'decimal',
+        label: 'Worked Hours',
+        required: false,
+        min: 0,
+      });
+      ensureField(attendanceEntity, {
+        name: cfg.attendanceTime.attendance_status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Present', 'Absent', 'Half Day', 'On Leave'],
+      });
+      ensureField(attendanceEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+      ensureField(attendanceEntity, { name: 'idempotency_key', type: 'string', label: 'Idempotency Key', required: false, unique: true });
+
+      const shiftEntity = ensureEntity(cfg.attendanceTime.shift_entity, 'hr', () => ({
+        slug: cfg.attendanceTime.shift_entity,
+        display_name: 'Shift Assignments',
+        display_field: 'shift_name',
+        module: 'hr',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.attendanceTime.shift_employee_field,
+            'shift_name',
+            cfg.attendanceTime.shift_start_field,
+            cfg.attendanceTime.shift_end_field,
+            cfg.attendanceTime.shift_status_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(shiftEntity, {
+        name: cfg.attendanceTime.shift_employee_field,
+        type: 'reference',
+        label: 'Employee',
+        required: true,
+        reference_entity: cfg.employeeEntity,
+      });
+      ensureField(shiftEntity, { name: 'shift_name', type: 'string', label: 'Shift Name', required: true });
+      ensureField(shiftEntity, {
+        name: cfg.attendanceTime.shift_start_field,
+        type: 'string',
+        label: 'Start Time',
+        required: true,
+      });
+      ensureField(shiftEntity, {
+        name: cfg.attendanceTime.shift_end_field,
+        type: 'string',
+        label: 'End Time',
+        required: true,
+      });
+      ensureField(shiftEntity, {
+        name: cfg.attendanceTime.shift_days_field,
+        type: 'text',
+        label: 'Work Days',
+        required: false,
+      });
+      ensureField(shiftEntity, {
+        name: cfg.attendanceTime.shift_status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Active', 'Inactive'],
+      });
+      ensureField(shiftEntity, { name: 'effective_from', type: 'date', label: 'Effective From', required: false });
+      ensureField(shiftEntity, { name: 'effective_to', type: 'date', label: 'Effective To', required: false });
+
+      const timesheetEntity = ensureEntity(cfg.attendanceTime.timesheet_entity, 'hr', () => ({
+        slug: cfg.attendanceTime.timesheet_entity,
+        display_name: 'Timesheets',
+        display_field: cfg.attendanceTime.timesheet_date_field,
+        module: 'hr',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.attendanceTime.timesheet_employee_field,
+            cfg.attendanceTime.timesheet_date_field,
+            cfg.attendanceTime.timesheet_hours_field,
+            cfg.attendanceTime.timesheet_overtime_field,
+            cfg.attendanceTime.timesheet_status_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(timesheetEntity, {
+        name: cfg.attendanceTime.timesheet_employee_field,
+        type: 'reference',
+        label: 'Employee',
+        required: true,
+        reference_entity: cfg.employeeEntity,
+      });
+      ensureField(timesheetEntity, {
+        name: cfg.attendanceTime.timesheet_date_field,
+        type: 'date',
+        label: 'Work Date',
+        required: true,
+      });
+      ensureField(timesheetEntity, {
+        name: cfg.attendanceTime.timesheet_hours_field,
+        type: 'decimal',
+        label: 'Regular Hours',
+        required: false,
+        min: 0,
+      });
+      ensureField(timesheetEntity, {
+        name: cfg.attendanceTime.timesheet_overtime_field,
+        type: 'decimal',
+        label: 'Overtime Hours',
+        required: false,
+        min: 0,
+      });
+      ensureField(timesheetEntity, {
+        name: cfg.attendanceTime.timesheet_status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Draft', 'Submitted', 'Approved', 'Rejected'],
+      });
+      ensureField(timesheetEntity, {
+        name: cfg.attendanceTime.timesheet_attendance_field,
+        type: 'reference',
+        label: 'Attendance',
+        required: false,
+        reference_entity: cfg.attendanceTime.attendance_entity,
+      });
+      ensureField(timesheetEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+
+      if (canLinkEmployeeChildEntity(attendanceEntity)) {
+        ensureChild(employeeEntity, {
+          entity: cfg.attendanceTime.attendance_entity,
+          foreign_key: cfg.attendanceTime.attendance_employee_field,
+          label: 'Attendance',
+          columns: [
+            cfg.attendanceTime.attendance_date_field,
+            cfg.attendanceTime.worked_hours_field,
+            cfg.attendanceTime.attendance_status_field,
+          ],
+        });
+      }
+      if (canLinkEmployeeChildEntity(timesheetEntity)) {
+        ensureChild(employeeEntity, {
+          entity: cfg.attendanceTime.timesheet_entity,
+          foreign_key: cfg.attendanceTime.timesheet_employee_field,
+          label: 'Timesheets',
+          columns: [
+            cfg.attendanceTime.timesheet_date_field,
+            cfg.attendanceTime.timesheet_hours_field,
+            cfg.attendanceTime.timesheet_overtime_field,
+            cfg.attendanceTime.timesheet_status_field,
+          ],
+        });
+      }
+    }
+
+    if (this._isPackEnabled(cfg.compensationLedger)) {
+      const ledgerEntity = ensureEntity(cfg.compensationLedger.ledger_entity, 'hr', () => ({
+        slug: cfg.compensationLedger.ledger_entity,
+        display_name: 'Compensation Ledger',
+        display_field: cfg.compensationLedger.ledger_period_field,
+        module: 'hr',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.compensationLedger.ledger_employee_field,
+            cfg.compensationLedger.ledger_period_field,
+            cfg.compensationLedger.ledger_component_field,
+            cfg.compensationLedger.ledger_amount_field,
+            cfg.compensationLedger.ledger_status_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(ledgerEntity, {
+        name: cfg.compensationLedger.ledger_employee_field,
+        type: 'reference',
+        label: 'Employee',
+        required: true,
+        reference_entity: cfg.employeeEntity,
+      });
+      ensureField(ledgerEntity, {
+        name: cfg.compensationLedger.ledger_period_field,
+        type: 'string',
+        label: 'Pay Period',
+        required: true,
+      });
+      ensureField(ledgerEntity, {
+        name: cfg.compensationLedger.ledger_component_field,
+        type: 'string',
+        label: 'Component',
+        required: true,
+      });
+      ensureField(ledgerEntity, {
+        name: cfg.compensationLedger.ledger_type_field,
+        type: 'string',
+        label: 'Type',
+        required: true,
+        options: ['Earning', 'Deduction'],
+      });
+      ensureField(ledgerEntity, {
+        name: cfg.compensationLedger.ledger_amount_field,
+        type: 'decimal',
+        label: 'Amount',
+        required: true,
+      });
+      ensureField(ledgerEntity, {
+        name: cfg.compensationLedger.ledger_status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Draft', 'Posted', 'Cancelled'],
+      });
+      ensureField(ledgerEntity, { name: 'posted_at', type: 'datetime', label: 'Posted At', required: false });
+      ensureField(ledgerEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+
+      const snapshotEntity = ensureEntity(cfg.compensationLedger.snapshot_entity, 'hr', () => ({
+        slug: cfg.compensationLedger.snapshot_entity,
+        display_name: 'Compensation Snapshots',
+        display_field: cfg.compensationLedger.snapshot_period_field,
+        module: 'hr',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: {
+          columns: [
+            cfg.compensationLedger.snapshot_employee_field,
+            cfg.compensationLedger.snapshot_period_field,
+            cfg.compensationLedger.snapshot_gross_field,
+            cfg.compensationLedger.snapshot_deduction_field,
+            cfg.compensationLedger.snapshot_net_field,
+            cfg.compensationLedger.snapshot_status_field,
+          ],
+        },
+        fields: [],
+        features: {},
+      }));
+      ensureField(snapshotEntity, {
+        name: cfg.compensationLedger.snapshot_employee_field,
+        type: 'reference',
+        label: 'Employee',
+        required: true,
+        reference_entity: cfg.employeeEntity,
+      });
+      ensureField(snapshotEntity, {
+        name: cfg.compensationLedger.snapshot_period_field,
+        type: 'string',
+        label: 'Pay Period',
+        required: true,
+      });
+      ensureField(snapshotEntity, {
+        name: cfg.compensationLedger.snapshot_gross_field,
+        type: 'decimal',
+        label: 'Gross Amount',
+        required: true,
+      });
+      ensureField(snapshotEntity, {
+        name: cfg.compensationLedger.snapshot_deduction_field,
+        type: 'decimal',
+        label: 'Deduction Amount',
+        required: true,
+      });
+      ensureField(snapshotEntity, {
+        name: cfg.compensationLedger.snapshot_net_field,
+        type: 'decimal',
+        label: 'Net Amount',
+        required: true,
+      });
+      ensureField(snapshotEntity, {
+        name: cfg.compensationLedger.snapshot_status_field,
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['Draft', 'Posted'],
+      });
+      ensureField(snapshotEntity, {
+        name: cfg.compensationLedger.snapshot_posted_at_field,
+        type: 'datetime',
+        label: 'Posted At',
+        required: false,
+      });
+      ensureField(snapshotEntity, { name: 'note', type: 'text', label: 'Note', required: false });
+
+      if (canLinkEmployeeChildEntity(ledgerEntity)) {
+        ensureChild(employeeEntity, {
+          entity: cfg.compensationLedger.ledger_entity,
+          foreign_key: cfg.compensationLedger.ledger_employee_field,
+          label: 'Compensation Ledger',
+          columns: [
+            cfg.compensationLedger.ledger_period_field,
+            cfg.compensationLedger.ledger_component_field,
+            cfg.compensationLedger.ledger_amount_field,
+            cfg.compensationLedger.ledger_status_field,
+          ],
+        });
+      }
+      if (canLinkEmployeeChildEntity(snapshotEntity)) {
+        ensureChild(employeeEntity, {
+          entity: cfg.compensationLedger.snapshot_entity,
+          foreign_key: cfg.compensationLedger.snapshot_employee_field,
+          label: 'Compensation Snapshots',
+          columns: [
+            cfg.compensationLedger.snapshot_period_field,
+            cfg.compensationLedger.snapshot_gross_field,
+            cfg.compensationLedger.snapshot_deduction_field,
+            cfg.compensationLedger.snapshot_net_field,
+          ],
+        });
+      }
+    }
+  }
+
   _formatAutoName(value) {
     return String(value || '')
       .replace(/_/g, ' ')
@@ -2473,11 +3813,45 @@ PGPASSWORD=erppassword
       },
     };
 
+    const hrCfg = this._getHRPriorityAConfig(sdf);
+    const hrPriority = {
+      employee_entity: hrCfg.employeeEntity,
+      leave_entity: hrCfg.leaveEntity,
+      leave_engine: {
+        enabled: this._isPackEnabled(hrCfg.leaveEngine),
+        balance_entity: hrCfg.leaveEngine.balance_entity,
+        employee_field: hrCfg.leaveEngine.employee_field,
+        leave_type_field: hrCfg.leaveEngine.leave_type_field,
+        available_field: hrCfg.leaveEngine.available_field,
+        fiscal_year_field: hrCfg.leaveEngine.fiscal_year_field,
+      },
+      leave_approvals: {
+        enabled: this._isPackEnabled(hrCfg.leaveApprovals),
+        status_field: hrCfg.leaveApprovals.status_field,
+        approver_field: hrCfg.leaveApprovals.approver_field,
+        statuses: hrCfg.leaveApprovals.statuses,
+      },
+      attendance_time: {
+        enabled: this._isPackEnabled(hrCfg.attendanceTime),
+        attendance_entity: hrCfg.attendanceTime.attendance_entity,
+        shift_entity: hrCfg.attendanceTime.shift_entity,
+        timesheet_entity: hrCfg.attendanceTime.timesheet_entity,
+        work_days: hrCfg.attendanceTime.work_days,
+        daily_hours: hrCfg.attendanceTime.daily_hours,
+      },
+      compensation_ledger: {
+        enabled: this._isPackEnabled(hrCfg.compensationLedger),
+        ledger_entity: hrCfg.compensationLedger.ledger_entity,
+        snapshot_entity: hrCfg.compensationLedger.snapshot_entity,
+      },
+    };
+
     // Generate optional runtime config for the backend entrypoint (scheduler, etc.)
     const systemConfig = {
       modules: {
         inventory_priority_a: inventoryPriority,
         invoice_priority_a: invoicePriority,
+        hr_priority_a: hrPriority,
         scheduled_reports: {
           enabled: scheduled.enabled === true,
           cron: scheduled.cron || '0 0 * * *',
@@ -2515,7 +3889,11 @@ PGPASSWORD=erppassword
       systemConfig.modules.invoice_priority_a.payments.enabled === true ||
       systemConfig.modules.invoice_priority_a.notes.enabled === true ||
       systemConfig.modules.invoice_priority_a.lifecycle.enabled === true ||
-      systemConfig.modules.invoice_priority_a.calculation_engine.enabled === true;
+      systemConfig.modules.invoice_priority_a.calculation_engine.enabled === true ||
+      systemConfig.modules.hr_priority_a.leave_engine.enabled === true ||
+      systemConfig.modules.hr_priority_a.leave_approvals.enabled === true ||
+      systemConfig.modules.hr_priority_a.attendance_time.enabled === true ||
+      systemConfig.modules.hr_priority_a.compensation_ledger.enabled === true;
 
     if (shouldWriteConfig) {
       await fs.writeFile(

@@ -560,6 +560,628 @@ class PostgresProvider {
 
     return this.update(entitySlug, id, patch, client);
   }
+
+  async atomicAdjustLeaveBalance(entitySlug, lookup = {}, options = {}, client = null) {
+    if (!client) {
+      return this.withTransaction((tx) =>
+        this.atomicAdjustLeaveBalance(entitySlug, lookup, options, tx)
+      );
+    }
+
+    const slug = this._normalizeSlug(entitySlug);
+    const employeeField = String(options.employee_field || options.employeeField || 'employee_id');
+    const leaveTypeField = String(options.leave_type_field || options.leaveTypeField || 'leave_type');
+    const fiscalYearField = String(options.fiscal_year_field || options.fiscalYearField || 'year');
+    const entitlementField = String(options.entitlement_field || options.entitlementField || 'annual_entitlement');
+    const accruedField = String(options.accrued_field || options.accruedField || 'accrued_days');
+    const consumedField = String(options.consumed_field || options.consumedField || 'consumed_days');
+    const carryForwardField = String(options.carry_forward_field || options.carryForwardField || 'carry_forward_days');
+    const availableField = String(options.available_field || options.availableField || 'available_days');
+    const lastAccrualAtField = String(options.last_accrual_at_field || options.lastAccrualAtField || 'last_accrual_at');
+
+    const employeeId =
+      lookup[employeeField] ??
+      lookup.employee_id ??
+      lookup.employeeId ??
+      null;
+    const leaveType =
+      lookup[leaveTypeField] ??
+      lookup.leave_type ??
+      lookup.leaveType ??
+      null;
+    const fiscalYear =
+      lookup[fiscalYearField] ??
+      lookup.fiscal_year ??
+      lookup.fiscalYear ??
+      null;
+    if (!employeeId) throw this._buildError('employee_id is required for leave balance updates');
+    if (!leaveType) throw this._buildError('leave_type is required for leave balance updates');
+    if (!fiscalYear) throw this._buildError('fiscal_year is required for leave balance updates');
+
+    const entitlementDelta = Number(options.entitlement_delta || options.entitlementDelta || 0);
+    const accruedDelta = Number(options.accrued_delta || options.accruedDelta || 0);
+    const consumedDelta = Number(options.consumed_delta || options.consumedDelta || 0);
+    const carryForwardDelta = Number(options.carry_forward_delta || options.carryForwardDelta || 0);
+    const availableDeltaRaw = options.available_delta ?? options.availableDelta;
+    const hasAvailableDelta = availableDeltaRaw !== undefined && availableDeltaRaw !== null && availableDeltaRaw !== '';
+    const availableDelta = hasAvailableDelta ? Number(availableDeltaRaw) : 0;
+    if (
+      !Number.isFinite(entitlementDelta) ||
+      !Number.isFinite(accruedDelta) ||
+      !Number.isFinite(consumedDelta) ||
+      !Number.isFinite(carryForwardDelta) ||
+      !Number.isFinite(availableDelta)
+    ) {
+      throw this._buildError('Leave balance delta values must be numeric', 400);
+    }
+
+    const columns = await this._getColumns(slug, client);
+    const columnsMap = this._columnsMap(columns);
+    const requiredColumns = [
+      employeeField,
+      leaveTypeField,
+      fiscalYearField,
+      entitlementField,
+      accruedField,
+      consumedField,
+      carryForwardField,
+      availableField,
+    ];
+    for (const field of requiredColumns) {
+      if (!columnsMap.has(field)) {
+        throw this._buildError(`Field '${field}' does not exist on entity '${slug}'`, 400);
+      }
+    }
+
+    const table = this._quoteIdent(slug);
+    const selectSql = `SELECT * FROM ${table}
+      WHERE ${this._quoteIdent(employeeField)} = $1
+        AND ${this._quoteIdent(leaveTypeField)} = $2
+        AND ${this._quoteIdent(fiscalYearField)} = $3
+      LIMIT 1
+      FOR UPDATE`;
+    const selectRes = await this._runQuery(client, selectSql, [
+      String(employeeId),
+      String(leaveType),
+      String(fiscalYear),
+    ]);
+
+    let row = selectRes.rows.length ? this._normalizeRow(selectRes.rows[0], columns) : null;
+    const createIfMissing =
+      options.create_if_missing === true ||
+      options.createIfMissing === true;
+    if (!row && createIfMissing) {
+      const defaultEntitlement = Number(options.default_entitlement || options.defaultEntitlement || 0);
+      const baseEntitlement = Number.isFinite(defaultEntitlement) ? defaultEntitlement : 0;
+      const created = await this.createWithClient(slug, {
+        [employeeField]: employeeId,
+        [leaveTypeField]: leaveType,
+        [fiscalYearField]: String(fiscalYear),
+        [entitlementField]: baseEntitlement,
+        [accruedField]: baseEntitlement,
+        [consumedField]: 0,
+        [carryForwardField]: 0,
+        [availableField]: baseEntitlement,
+        ...(columnsMap.has(lastAccrualAtField) ? { [lastAccrualAtField]: new Date().toISOString() } : {}),
+      }, client);
+      row = await this.findByIdForUpdate(slug, created.id, client);
+    }
+    if (!row) {
+      throw this._buildError('Leave balance record not found', 404);
+    }
+
+    const num = (val) => {
+      const parsed = Number(val);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const round = (val) => Number(num(val).toFixed(2));
+
+    const currentEntitlement = num(row[entitlementField]);
+    const currentAccrued = num(row[accruedField]);
+    const currentConsumed = num(row[consumedField]);
+    const currentCarryForward = num(row[carryForwardField]);
+    const currentAvailable = num(row[availableField]);
+
+    const nextEntitlement = round(currentEntitlement + entitlementDelta);
+    const nextAccrued = round(currentAccrued + accruedDelta);
+    const nextConsumed = round(currentConsumed + consumedDelta);
+    const nextCarryForward = round(currentCarryForward + carryForwardDelta);
+    const recomputedAvailable = round(nextEntitlement + nextAccrued + nextCarryForward - nextConsumed);
+    const nextAvailable = hasAvailableDelta
+      ? round(currentAvailable + availableDelta)
+      : recomputedAvailable;
+
+    if (nextEntitlement < 0 || nextAccrued < 0 || nextConsumed < 0 || nextCarryForward < 0) {
+      throw this._buildError('Leave balance component values cannot be negative', 409, {
+        entitlement: nextEntitlement,
+        accrued: nextAccrued,
+        consumed: nextConsumed,
+        carry_forward: nextCarryForward,
+      });
+    }
+    const allowNegativeAvailable =
+      options.allow_negative_available === true ||
+      options.allowNegativeAvailable === true;
+    if (!allowNegativeAvailable && nextAvailable < 0) {
+      throw this._buildError('Leave available balance cannot go negative', 409, {
+        available: nextAvailable,
+      });
+    }
+
+    const patch = {
+      [entitlementField]: nextEntitlement,
+      [accruedField]: nextAccrued,
+      [consumedField]: nextConsumed,
+      [carryForwardField]: nextCarryForward,
+      [availableField]: nextAvailable,
+    };
+    if (columnsMap.has(lastAccrualAtField)) {
+      patch[lastAccrualAtField] = new Date().toISOString();
+    }
+    if (options.note !== undefined && columnsMap.has('note')) {
+      patch.note = options.note;
+    }
+
+    return this.updateWithClient(slug, row.id, patch, client);
+  }
+
+  async applyLeaveDecisionIdempotent(entitySlug, id, options = {}, client = null) {
+    if (!client) {
+      return this.withTransaction((tx) =>
+        this.applyLeaveDecisionIdempotent(entitySlug, id, options, tx)
+      );
+    }
+
+    const slug = this._normalizeSlug(entitySlug);
+    const statusField = String(options.status_field || options.statusField || 'status');
+    const approverField = String(options.approver_field || options.approverField || 'approver_id');
+    const approvedAtField = String(options.approved_at_field || options.approvedAtField || 'approved_at');
+    const rejectedAtField = String(options.rejected_at_field || options.rejectedAtField || 'rejected_at');
+    const cancelledAtField = String(options.cancelled_at_field || options.cancelledAtField || 'cancelled_at');
+    const rejectionReasonField = String(options.rejection_reason_field || options.rejectionReasonField || 'rejection_reason');
+    const decisionKeyField = String(options.decision_key_field || options.decisionKeyField || 'decision_key');
+
+    const targetStatus = String(options.target_status || options.targetStatus || '').trim();
+    if (!targetStatus) throw this._buildError('target_status is required for leave decision');
+
+    const leave = await this.findByIdForUpdate(slug, id, client);
+    if (!leave) throw this._buildError('Leave request not found', 404);
+
+    const currentStatus = String(leave[statusField] || 'Pending');
+    const decisionKey = options.decision_key || options.decisionKey || null;
+    const existingDecisionKey = String(leave[decisionKeyField] || '');
+    if (decisionKey && existingDecisionKey && existingDecisionKey === String(decisionKey) && currentStatus === targetStatus) {
+      return {
+        leave,
+        balance: null,
+        idempotent: true,
+      };
+    }
+
+    const enforceTransitions =
+      options.enforce_transitions !== false &&
+      options.enforceTransitions !== false;
+    const transitions = options.transitions && typeof options.transitions === 'object'
+      ? options.transitions
+      : {
+          Pending: ['Approved', 'Rejected', 'Cancelled'],
+          Approved: ['Cancelled'],
+          Rejected: [],
+          Cancelled: [],
+        };
+    if (enforceTransitions && currentStatus !== targetStatus) {
+      const allowed = Array.isArray(transitions[currentStatus]) ? transitions[currentStatus] : [];
+      if (!allowed.includes(targetStatus)) {
+        throw this._buildError(`Invalid leave status transition: ${currentStatus} -> ${targetStatus}`, 409);
+      }
+    }
+
+    const patch = {
+      [statusField]: targetStatus,
+    };
+    if (decisionKey) patch[decisionKeyField] = String(decisionKey);
+    const approverId = options.approver_id || options.approverId || options[approverField] || null;
+    if (approverId) patch[approverField] = approverId;
+    const reason = options.reason || options[rejectionReasonField] || null;
+    const nowIso = new Date().toISOString();
+    if (targetStatus === 'Approved') patch[approvedAtField] = nowIso;
+    if (targetStatus === 'Rejected') {
+      patch[rejectedAtField] = nowIso;
+      if (reason !== null) patch[rejectionReasonField] = reason;
+    }
+    if (targetStatus === 'Cancelled') patch[cancelledAtField] = nowIso;
+
+    let balance = null;
+    const consumeOnApproval =
+      options.consume_on_approval !== false &&
+      options.consumeOnApproval !== false;
+    const revertOnUnapprove =
+      options.revert_consumption_on_unapprove === true ||
+      options.revertConsumptionOnUnapprove === true;
+
+    const employeeField = String(options.employee_field || options.employeeField || 'employee_id');
+    const leaveTypeField = String(options.leave_type_field || options.leaveTypeField || 'leave_type');
+    const daysField = String(options.days_field || options.daysField || 'leave_days');
+    const startDateField = String(options.start_date_field || options.startDateField || 'start_date');
+    const endDateField = String(options.end_date_field || options.endDateField || 'end_date');
+    const balanceEntity = String(options.balance_entity || options.balanceEntity || '');
+    const fiscalYearField = String(options.fiscal_year_field || options.fiscalYearField || 'year');
+
+    const computeLeaveDays = () => {
+      const explicit = Number(options.leave_days ?? options.leaveDays ?? leave[daysField]);
+      if (Number.isFinite(explicit) && explicit > 0) return Number(explicit.toFixed(2));
+      const start = new Date(leave[startDateField]);
+      const end = new Date(leave[endDateField]);
+      if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return 0;
+      const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      if (diff < 0) return 0;
+      return Number((diff + 1).toFixed(2));
+    };
+    const resolveFiscalYear = () => {
+      const explicit = options[fiscalYearField] || options.fiscal_year || options.fiscalYear;
+      if (explicit) return String(explicit);
+      const start = new Date(leave[startDateField]);
+      if (Number.isFinite(start.getTime())) return String(start.getUTCFullYear());
+      return String(new Date().getUTCFullYear());
+    };
+
+    if (balanceEntity) {
+      const employeeId = leave[employeeField];
+      const leaveType = leave[leaveTypeField];
+      const leaveDays = computeLeaveDays();
+      const fiscalYear = resolveFiscalYear();
+      if (targetStatus === 'Approved' && currentStatus !== 'Approved' && consumeOnApproval && leaveDays > 0) {
+        balance = await this.atomicAdjustLeaveBalance(
+          balanceEntity,
+          {
+            [employeeField]: employeeId,
+            [leaveTypeField]: leaveType,
+            [fiscalYearField]: fiscalYear,
+          },
+          {
+            employee_field: employeeField,
+            leave_type_field: leaveTypeField,
+            fiscal_year_field: fiscalYearField,
+            entitlement_field: options.entitlement_field,
+            accrued_field: options.accrued_field,
+            consumed_field: options.consumed_field,
+            carry_forward_field: options.carry_forward_field,
+            available_field: options.available_field,
+            consumed_delta: leaveDays,
+            available_delta: -leaveDays,
+            create_if_missing: true,
+            default_entitlement: options.default_entitlement || options.defaultEntitlement || 0,
+          },
+          client
+        );
+      }
+      if (currentStatus === 'Approved' && targetStatus !== 'Approved' && revertOnUnapprove && leaveDays > 0) {
+        balance = await this.atomicAdjustLeaveBalance(
+          balanceEntity,
+          {
+            [employeeField]: employeeId,
+            [leaveTypeField]: leaveType,
+            [fiscalYearField]: fiscalYear,
+          },
+          {
+            employee_field: employeeField,
+            leave_type_field: leaveTypeField,
+            fiscal_year_field: fiscalYearField,
+            entitlement_field: options.entitlement_field,
+            accrued_field: options.accrued_field,
+            consumed_field: options.consumed_field,
+            carry_forward_field: options.carry_forward_field,
+            available_field: options.available_field,
+            consumed_delta: -leaveDays,
+            available_delta: leaveDays,
+            create_if_missing: true,
+            default_entitlement: options.default_entitlement || options.defaultEntitlement || 0,
+          },
+          client
+        );
+      }
+    }
+
+    const updatedLeave = await this.updateWithClient(slug, id, patch, client);
+    return {
+      leave: updatedLeave,
+      balance,
+      idempotent: false,
+    };
+  }
+
+  async atomicUpsertAttendanceTimesheet(attendanceEntitySlug, timesheetEntitySlug, options = {}, client = null) {
+    if (!client) {
+      return this.withTransaction((tx) =>
+        this.atomicUpsertAttendanceTimesheet(attendanceEntitySlug, timesheetEntitySlug, options, tx)
+      );
+    }
+
+    const attendanceSlug = this._normalizeSlug(attendanceEntitySlug);
+    const timesheetSlug = this._normalizeSlug(timesheetEntitySlug);
+
+    const attendanceEmployeeField = String(options.attendance_employee_field || options.attendanceEmployeeField || 'employee_id');
+    const attendanceDateField = String(options.attendance_date_field || options.attendanceDateField || 'work_date');
+    const checkInField = String(options.check_in_field || options.checkInField || 'check_in_at');
+    const checkOutField = String(options.check_out_field || options.checkOutField || 'check_out_at');
+    const workedHoursField = String(options.worked_hours_field || options.workedHoursField || 'worked_hours');
+    const attendanceStatusField = String(options.attendance_status_field || options.attendanceStatusField || 'status');
+
+    const timesheetEmployeeField = String(options.timesheet_employee_field || options.timesheetEmployeeField || 'employee_id');
+    const timesheetDateField = String(options.timesheet_date_field || options.timesheetDateField || 'work_date');
+    const timesheetHoursField = String(options.timesheet_hours_field || options.timesheetHoursField || 'regular_hours');
+    const timesheetOvertimeField = String(options.timesheet_overtime_field || options.timesheetOvertimeField || 'overtime_hours');
+    const timesheetStatusField = String(options.timesheet_status_field || options.timesheetStatusField || 'status');
+    const timesheetAttendanceField = String(options.timesheet_attendance_field || options.timesheetAttendanceField || 'attendance_id');
+
+    const employeeId = options.employee_id || options.employeeId || options[attendanceEmployeeField];
+    const workDate = options.work_date || options.workDate || options[attendanceDateField];
+    if (!employeeId) throw this._buildError('employee_id is required for attendance/timesheet upsert');
+    if (!workDate) throw this._buildError('work_date is required for attendance/timesheet upsert');
+
+    const attendanceColumns = await this._getColumns(attendanceSlug, client);
+    const attendanceColumnsMap = this._columnsMap(attendanceColumns);
+    const timesheetColumns = await this._getColumns(timesheetSlug, client);
+    const timesheetColumnsMap = this._columnsMap(timesheetColumns);
+    const requireColumns = (columnsMap, slug, fields) => {
+      for (const field of fields) {
+        if (!columnsMap.has(field)) {
+          throw this._buildError(`Field '${field}' does not exist on entity '${slug}'`, 400);
+        }
+      }
+    };
+    requireColumns(attendanceColumnsMap, attendanceSlug, [attendanceEmployeeField, attendanceDateField, workedHoursField, attendanceStatusField]);
+    requireColumns(timesheetColumnsMap, timesheetSlug, [timesheetEmployeeField, timesheetDateField, timesheetHoursField, timesheetOvertimeField, timesheetStatusField]);
+
+    const attendancePatch = options.attendance_patch && typeof options.attendance_patch === 'object'
+      ? options.attendance_patch
+      : {};
+    const checkIn = attendancePatch[checkInField] ?? attendancePatch.check_in_at ?? attendancePatch.checkInAt ?? null;
+    const checkOut = attendancePatch[checkOutField] ?? attendancePatch.check_out_at ?? attendancePatch.checkOutAt ?? null;
+    const workedHoursRaw = attendancePatch[workedHoursField] ?? attendancePatch.worked_hours ?? null;
+
+    const calcWorkedHours = () => {
+      if (workedHoursRaw !== null && workedHoursRaw !== undefined && workedHoursRaw !== '') {
+        const value = Number(workedHoursRaw);
+        if (!Number.isFinite(value) || value < 0) throw this._buildError('worked_hours must be a non-negative number', 400);
+        return Number(value.toFixed(2));
+      }
+      if (!checkIn || !checkOut) return null;
+      const inDate = new Date(checkIn);
+      const outDate = new Date(checkOut);
+      if (!Number.isFinite(inDate.getTime()) || !Number.isFinite(outDate.getTime())) {
+        throw this._buildError('Invalid check-in/check-out datetime values', 400);
+      }
+      if (outDate.getTime() < inDate.getTime()) {
+        throw this._buildError('check_out_at must be on or after check_in_at', 400);
+      }
+      const hours = (outDate.getTime() - inDate.getTime()) / (1000 * 60 * 60);
+      return Number(hours.toFixed(2));
+    };
+
+    const attendanceTable = this._quoteIdent(attendanceSlug);
+    let attendance = null;
+    if (options.attendance_id || options.attendanceId) {
+      attendance = await this.findByIdForUpdate(attendanceSlug, options.attendance_id || options.attendanceId, client);
+    } else {
+      const attendanceLookupSql = `SELECT * FROM ${attendanceTable}
+        WHERE ${this._quoteIdent(attendanceEmployeeField)} = $1
+          AND ${this._quoteIdent(attendanceDateField)} = $2
+        LIMIT 1
+        FOR UPDATE`;
+      const attendanceLookupRes = await this._runQuery(client, attendanceLookupSql, [String(employeeId), String(workDate)]);
+      if (attendanceLookupRes.rows.length) {
+        attendance = this._normalizeRow(attendanceLookupRes.rows[0], attendanceColumns);
+      }
+    }
+
+    const workedHours = calcWorkedHours();
+    const attendancePayload = {
+      [attendanceEmployeeField]: employeeId,
+      [attendanceDateField]: String(workDate),
+      [attendanceStatusField]:
+        attendancePatch[attendanceStatusField] ||
+        attendancePatch.status ||
+        (attendance ? attendance[attendanceStatusField] : null) ||
+        'Present',
+    };
+    if (attendanceColumnsMap.has(checkInField)) attendancePayload[checkInField] = checkIn || null;
+    if (attendanceColumnsMap.has(checkOutField)) attendancePayload[checkOutField] = checkOut || null;
+    if (workedHours !== null) {
+      attendancePayload[workedHoursField] = workedHours;
+    } else if (attendance && attendance[workedHoursField] !== undefined) {
+      attendancePayload[workedHoursField] = attendance[workedHoursField];
+    } else {
+      attendancePayload[workedHoursField] = 0;
+    }
+    if (attendancePatch.note !== undefined && attendanceColumnsMap.has('note')) {
+      attendancePayload.note = attendancePatch.note;
+    }
+
+    const persistedAttendance = attendance
+      ? await this.updateWithClient(attendanceSlug, attendance.id, attendancePayload, client)
+      : await this.createWithClient(attendanceSlug, attendancePayload, client);
+
+    const dailyHours = Number(options.daily_hours || options.dailyHours || 8) || 8;
+    const persistedWorked = Number(persistedAttendance[workedHoursField] || 0);
+    const safeWorked = Number.isFinite(persistedWorked) ? persistedWorked : 0;
+    const regularHours = Number(Math.min(safeWorked, dailyHours).toFixed(2));
+    const overtimeHours = Number(Math.max(safeWorked - dailyHours, 0).toFixed(2));
+
+    const timesheetTable = this._quoteIdent(timesheetSlug);
+    const timesheetLookupSql = `SELECT * FROM ${timesheetTable}
+      WHERE ${this._quoteIdent(timesheetEmployeeField)} = $1
+        AND ${this._quoteIdent(timesheetDateField)} = $2
+      LIMIT 1
+      FOR UPDATE`;
+    const timesheetLookupRes = await this._runQuery(client, timesheetLookupSql, [String(employeeId), String(workDate)]);
+    const timesheet = timesheetLookupRes.rows.length
+      ? this._normalizeRow(timesheetLookupRes.rows[0], timesheetColumns)
+      : null;
+
+    const timesheetPayload = {
+      [timesheetEmployeeField]: employeeId,
+      [timesheetDateField]: String(workDate),
+      [timesheetHoursField]: regularHours,
+      [timesheetOvertimeField]: overtimeHours,
+      [timesheetStatusField]:
+        (timesheet ? timesheet[timesheetStatusField] : null) ||
+        options.default_timesheet_status ||
+        options.defaultTimesheetStatus ||
+        'Draft',
+    };
+    if (timesheetColumnsMap.has(timesheetAttendanceField)) {
+      timesheetPayload[timesheetAttendanceField] = persistedAttendance.id;
+    }
+    if (options.timesheet_note !== undefined && timesheetColumnsMap.has('note')) {
+      timesheetPayload.note = options.timesheet_note;
+    }
+
+    const persistedTimesheet = timesheet
+      ? await this.updateWithClient(timesheetSlug, timesheet.id, timesheetPayload, client)
+      : await this.createWithClient(timesheetSlug, timesheetPayload, client);
+
+    return {
+      attendance: persistedAttendance,
+      timesheet: persistedTimesheet,
+    };
+  }
+
+  async atomicApplyCompensationSnapshot(ledgerEntitySlug, snapshotEntitySlug, options = {}, client = null) {
+    if (!client) {
+      return this.withTransaction((tx) =>
+        this.atomicApplyCompensationSnapshot(ledgerEntitySlug, snapshotEntitySlug, options, tx)
+      );
+    }
+
+    const ledgerSlug = this._normalizeSlug(ledgerEntitySlug);
+    const snapshotSlug = this._normalizeSlug(snapshotEntitySlug);
+
+    const ledgerEmployeeField = String(options.ledger_employee_field || options.ledgerEmployeeField || 'employee_id');
+    const ledgerPeriodField = String(options.ledger_period_field || options.ledgerPeriodField || 'pay_period');
+    const ledgerTypeField = String(options.ledger_type_field || options.ledgerTypeField || 'component_type');
+    const ledgerAmountField = String(options.ledger_amount_field || options.ledgerAmountField || 'amount');
+    const ledgerStatusField = String(options.ledger_status_field || options.ledgerStatusField || 'status');
+
+    const snapshotEmployeeField = String(options.snapshot_employee_field || options.snapshotEmployeeField || 'employee_id');
+    const snapshotPeriodField = String(options.snapshot_period_field || options.snapshotPeriodField || 'pay_period');
+    const snapshotGrossField = String(options.snapshot_gross_field || options.snapshotGrossField || 'gross_amount');
+    const snapshotDeductionField = String(options.snapshot_deduction_field || options.snapshotDeductionField || 'deduction_amount');
+    const snapshotNetField = String(options.snapshot_net_field || options.snapshotNetField || 'net_amount');
+    const snapshotStatusField = String(options.snapshot_status_field || options.snapshotStatusField || 'status');
+    const snapshotPostedAtField = String(options.snapshot_posted_at_field || options.snapshotPostedAtField || 'posted_at');
+
+    const employeeId = options.employee_id || options.employeeId || options[ledgerEmployeeField];
+    const payPeriod = options.pay_period || options.payPeriod || options[ledgerPeriodField];
+    if (!employeeId) throw this._buildError('employee_id is required for compensation snapshot generation');
+    if (!payPeriod) throw this._buildError('pay_period is required for compensation snapshot generation');
+
+    const ledgerColumns = await this._getColumns(ledgerSlug, client);
+    const ledgerColumnsMap = this._columnsMap(ledgerColumns);
+    const snapshotColumns = await this._getColumns(snapshotSlug, client);
+    const snapshotColumnsMap = this._columnsMap(snapshotColumns);
+
+    const requireColumns = (columnsMap, slug, fields) => {
+      for (const field of fields) {
+        if (!columnsMap.has(field)) {
+          throw this._buildError(`Field '${field}' does not exist on entity '${slug}'`, 400);
+        }
+      }
+    };
+    requireColumns(ledgerColumnsMap, ledgerSlug, [ledgerEmployeeField, ledgerPeriodField, ledgerTypeField, ledgerAmountField]);
+    requireColumns(snapshotColumnsMap, snapshotSlug, [snapshotEmployeeField, snapshotPeriodField, snapshotGrossField, snapshotDeductionField, snapshotNetField, snapshotStatusField]);
+
+    const ledgerRows = await this.findAllWithClient(ledgerSlug, {
+      [ledgerEmployeeField]: employeeId,
+      [ledgerPeriodField]: String(payPeriod),
+    }, client);
+    const includeStatuses = Array.isArray(options.include_statuses)
+      ? options.include_statuses.map((s) => String(s))
+      : (Array.isArray(options.includeStatuses) ? options.includeStatuses.map((s) => String(s)) : ['Draft', 'Posted']);
+
+    const filteredRows = (Array.isArray(ledgerRows) ? ledgerRows : []).filter((row) => {
+      if (!ledgerColumnsMap.has(ledgerStatusField)) return true;
+      if (!includeStatuses.length) return true;
+      const status = String(row[ledgerStatusField] || '');
+      return includeStatuses.includes(status);
+    });
+
+    const round = (raw) => {
+      const n = Number(raw);
+      return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
+    };
+    const normalizeType = (raw) => {
+      const value = String(raw || '').trim().toLowerCase();
+      if (value === 'earning' || value === 'earnings') return 'Earning';
+      if (value === 'deduction' || value === 'deductions') return 'Deduction';
+      return 'Earning';
+    };
+
+    let gross = 0;
+    let deductions = 0;
+    for (const row of filteredRows) {
+      const amount = round(row[ledgerAmountField] || 0);
+      const type = normalizeType(row[ledgerTypeField] || 'Earning');
+      if (type === 'Deduction') deductions += amount;
+      else gross += amount;
+    }
+    gross = round(gross);
+    deductions = round(deductions);
+    const net = round(gross - deductions);
+
+    const snapshotTable = this._quoteIdent(snapshotSlug);
+    const snapshotLookupSql = `SELECT * FROM ${snapshotTable}
+      WHERE ${this._quoteIdent(snapshotEmployeeField)} = $1
+        AND ${this._quoteIdent(snapshotPeriodField)} = $2
+      LIMIT 1
+      FOR UPDATE`;
+    const snapshotLookupRes = await this._runQuery(client, snapshotLookupSql, [String(employeeId), String(payPeriod)]);
+    const existingSnapshot = snapshotLookupRes.rows.length
+      ? this._normalizeRow(snapshotLookupRes.rows[0], snapshotColumns)
+      : null;
+
+    const snapshotPayload = {
+      [snapshotEmployeeField]: employeeId,
+      [snapshotPeriodField]: String(payPeriod),
+      [snapshotGrossField]: gross,
+      [snapshotDeductionField]: deductions,
+      [snapshotNetField]: net,
+      [snapshotStatusField]: options.snapshot_status || options.snapshotStatus || 'Draft',
+    };
+    if (options.snapshot_note !== undefined && snapshotColumnsMap.has('note')) {
+      snapshotPayload.note = options.snapshot_note;
+    }
+    if (snapshotColumnsMap.has(snapshotPostedAtField)) {
+      snapshotPayload[snapshotPostedAtField] = null;
+    }
+
+    const snapshot = existingSnapshot
+      ? await this.updateWithClient(snapshotSlug, existingSnapshot.id, snapshotPayload, client)
+      : await this.createWithClient(snapshotSlug, snapshotPayload, client);
+
+    const markLedgerPosted =
+      options.mark_ledger_posted === true ||
+      options.markLedgerPosted === true;
+    if (markLedgerPosted && ledgerColumnsMap.has(ledgerStatusField)) {
+      for (const row of filteredRows) {
+        if (!row || !row.id) continue;
+        await this.updateWithClient(ledgerSlug, row.id, {
+          [ledgerStatusField]: 'Posted',
+          ...(ledgerColumnsMap.has('posted_at') ? { posted_at: new Date().toISOString() } : {}),
+        }, client);
+      }
+    }
+
+    return {
+      snapshot,
+      totals: {
+        gross_amount: gross,
+        deduction_amount: deductions,
+        net_amount: net,
+        entry_count: filteredRows.length,
+      },
+    };
+  }
 }
 
 module.exports = PostgresProvider;

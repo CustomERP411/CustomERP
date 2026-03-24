@@ -109,6 +109,34 @@ When enabled via `modules.invoice` pack toggles in your SDF, generated APIs also
 If invoice pack entities are missing in SDF, assembler auto-adds required entities/fields
 (`invoice_payments`, `invoice_payment_allocations`, `invoice_notes`, and required invoice line fields).
 
+## HR Priority A workflows (optional)
+
+When enabled via `modules.hr` pack toggles in your SDF, generated APIs also include:
+
+- **Leave engine pack**:
+  - `GET /api/{employee_entity}/:id/leave-balance`
+  - `POST /api/{employee_entity}/:id/leave-balance/accrue`
+  - `POST /api/{employee_entity}/:id/leave-balance/adjust`
+  - `POST /api/{leave_entity}/:id/recalculate-days`
+- **Leave approvals pack**:
+  - `GET /api/{leave_entity}/approvals/pending`
+  - `POST /api/{leave_entity}/:id/approve`
+  - `POST /api/{leave_entity}/:id/reject`
+  - `POST /api/{leave_entity}/:id/cancel`
+- **Attendance/time pack**:
+  - `POST /api/{attendance_entity}/record`
+  - `POST /api/{attendance_entity}/:id/recalculate`
+  - `POST /api/{timesheet_entity}/sync`
+  - `POST /api/{timesheet_entity}/:id/approve`
+- **Compensation ledger pack**:
+  - `POST /api/{ledger_entity}/snapshot`
+  - `POST /api/{ledger_entity}/:id/post`
+  - `POST /api/{snapshot_entity}/:id/post`
+
+If HR pack entities are missing in SDF, assembler auto-adds required entities/fields
+(`leave_balances`, `attendance_entries`, `shift_assignments`, `timesheet_entries`,
+`compensation_ledger`, `compensation_snapshots`, and approval/balance fields on leave requests).
+
 ## Troubleshooting
 
 - If startup fails with DB connection errors, verify `PG*` env values.

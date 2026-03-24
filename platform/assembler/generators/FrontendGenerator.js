@@ -36,6 +36,11 @@ const {
   buildPaymentWorkflowPage,
   buildNoteWorkflowPage,
 } = require('./frontend/invoicePriorityPages');
+const {
+  buildLeaveApprovalsPage,
+  buildLeaveBalancesPage,
+  buildAttendanceEntriesPage,
+} = require('./frontend/hrPriorityPages');
 
 class FrontendGenerator {
   constructor(brickRepo) {
@@ -373,6 +378,261 @@ class FrontendGenerator {
     };
   }
 
+  _getHRPriorityAConfig(sdf = {}) {
+    const modules = sdf && sdf.modules ? sdf.modules : {};
+    const hr =
+      modules.hr && typeof modules.hr === 'object'
+        ? modules.hr
+        : {};
+
+    const normalizePack = (rawValue, defaults = {}) => {
+      if (rawValue === true) return { ...defaults, enabled: true };
+      if (rawValue === false || rawValue === null || rawValue === undefined) {
+        return { ...defaults, enabled: false };
+      }
+      if (typeof rawValue === 'object') {
+        return {
+          ...defaults,
+          ...rawValue,
+          enabled: rawValue.enabled !== false,
+        };
+      }
+      return { ...defaults, enabled: false };
+    };
+
+    const leaveEngine = normalizePack(
+      hr.leave_engine || hr.leaveEngine || hr.leave_policy || hr.leavePolicy,
+      {
+        leave_entity: 'leaves',
+        balance_entity: 'leave_balances',
+        employee_field: 'employee_id',
+        leave_type_field: 'leave_type',
+        start_date_field: 'start_date',
+        end_date_field: 'end_date',
+        days_field: 'leave_days',
+        status_field: 'status',
+        available_field: 'available_days',
+        fiscal_year_field: 'year',
+      }
+    );
+    const leaveApprovals = normalizePack(
+      hr.leave_approvals ||
+      hr.leaveApprovals ||
+      hr.leave_approval ||
+      hr.leaveApproval ||
+      hr.approval_workflow ||
+      hr.approvalWorkflow,
+      {
+        leave_entity: 'leaves',
+        status_field: 'status',
+        approver_field: 'approver_id',
+        approved_at_field: 'approved_at',
+        rejected_at_field: 'rejected_at',
+        rejection_reason_field: 'rejection_reason',
+        statuses: ['Pending', 'Approved', 'Rejected', 'Cancelled'],
+      }
+    );
+    const attendanceTime = normalizePack(
+      hr.attendance_time || hr.attendanceTime || hr.attendance || hr.time_tracking || hr.timeTracking,
+      {
+        attendance_entity: 'attendance_entries',
+        shift_entity: 'shift_assignments',
+        timesheet_entity: 'timesheet_entries',
+        attendance_employee_field: 'employee_id',
+        attendance_date_field: 'work_date',
+        check_in_field: 'check_in_at',
+        check_out_field: 'check_out_at',
+        worked_hours_field: 'worked_hours',
+        attendance_status_field: 'status',
+      }
+    );
+    const compensationLedger = normalizePack(
+      hr.compensation_ledger || hr.compensationLedger || hr.payroll_ledger || hr.payrollLedger,
+      {
+        ledger_entity: 'compensation_ledger',
+        snapshot_entity: 'compensation_snapshots',
+      }
+    );
+
+    const employeeEntity = this._pickFirstString(
+      hr.employee_entity,
+      hr.employeeEntity,
+      'employees'
+    );
+    const leaveEntity = this._pickFirstString(
+      hr.leave_entity,
+      hr.leaveEntity,
+      leaveEngine.leave_entity,
+      leaveEngine.leaveEntity,
+      leaveApprovals.leave_entity,
+      leaveApprovals.leaveEntity,
+      'leaves'
+    );
+
+    leaveEngine.leave_entity = this._pickFirstString(
+      leaveEngine.leave_entity,
+      leaveEngine.leaveEntity,
+      leaveEntity
+    );
+    leaveEngine.balance_entity = this._pickFirstString(
+      leaveEngine.balance_entity,
+      leaveEngine.balanceEntity,
+      'leave_balances'
+    );
+    leaveEngine.employee_field = this._pickFirstString(
+      leaveEngine.employee_field,
+      leaveEngine.employeeField,
+      'employee_id'
+    );
+    leaveEngine.leave_type_field = this._pickFirstString(
+      leaveEngine.leave_type_field,
+      leaveEngine.leaveTypeField,
+      'leave_type'
+    );
+    leaveEngine.start_date_field = this._pickFirstString(
+      leaveEngine.start_date_field,
+      leaveEngine.startDateField,
+      'start_date'
+    );
+    leaveEngine.end_date_field = this._pickFirstString(
+      leaveEngine.end_date_field,
+      leaveEngine.endDateField,
+      'end_date'
+    );
+    leaveEngine.days_field = this._pickFirstString(
+      leaveEngine.days_field,
+      leaveEngine.daysField,
+      'leave_days'
+    );
+    leaveEngine.status_field = this._pickFirstString(
+      leaveEngine.status_field,
+      leaveEngine.statusField,
+      'status'
+    );
+    leaveEngine.available_field = this._pickFirstString(
+      leaveEngine.available_field,
+      leaveEngine.availableField,
+      'available_days'
+    );
+    leaveEngine.fiscal_year_field = this._pickFirstString(
+      leaveEngine.fiscal_year_field,
+      leaveEngine.fiscalYearField,
+      'year'
+    );
+
+    leaveApprovals.leave_entity = this._pickFirstString(
+      leaveApprovals.leave_entity,
+      leaveApprovals.leaveEntity,
+      leaveEntity
+    );
+    leaveApprovals.status_field = this._pickFirstString(
+      leaveApprovals.status_field,
+      leaveApprovals.statusField,
+      leaveEngine.status_field
+    );
+    leaveApprovals.approver_field = this._pickFirstString(
+      leaveApprovals.approver_field,
+      leaveApprovals.approverField,
+      'approver_id'
+    );
+    leaveApprovals.approved_at_field = this._pickFirstString(
+      leaveApprovals.approved_at_field,
+      leaveApprovals.approvedAtField,
+      'approved_at'
+    );
+    leaveApprovals.rejected_at_field = this._pickFirstString(
+      leaveApprovals.rejected_at_field,
+      leaveApprovals.rejectedAtField,
+      'rejected_at'
+    );
+    leaveApprovals.rejection_reason_field = this._pickFirstString(
+      leaveApprovals.rejection_reason_field,
+      leaveApprovals.rejectionReasonField,
+      'rejection_reason'
+    );
+    leaveApprovals.statuses = Array.isArray(leaveApprovals.statuses) && leaveApprovals.statuses.length
+      ? leaveApprovals.statuses
+      : ['Pending', 'Approved', 'Rejected', 'Cancelled'];
+
+    attendanceTime.attendance_entity = this._pickFirstString(
+      attendanceTime.attendance_entity,
+      attendanceTime.attendanceEntity,
+      'attendance_entries'
+    );
+    attendanceTime.shift_entity = this._pickFirstString(
+      attendanceTime.shift_entity,
+      attendanceTime.shiftEntity,
+      'shift_assignments'
+    );
+    attendanceTime.timesheet_entity = this._pickFirstString(
+      attendanceTime.timesheet_entity,
+      attendanceTime.timesheetEntity,
+      'timesheet_entries'
+    );
+    attendanceTime.attendance_employee_field = this._pickFirstString(
+      attendanceTime.attendance_employee_field,
+      attendanceTime.attendanceEmployeeField,
+      'employee_id'
+    );
+    attendanceTime.attendance_date_field = this._pickFirstString(
+      attendanceTime.attendance_date_field,
+      attendanceTime.attendanceDateField,
+      'work_date'
+    );
+    attendanceTime.check_in_field = this._pickFirstString(
+      attendanceTime.check_in_field,
+      attendanceTime.checkInField,
+      'check_in_at'
+    );
+    attendanceTime.check_out_field = this._pickFirstString(
+      attendanceTime.check_out_field,
+      attendanceTime.checkOutField,
+      'check_out_at'
+    );
+    attendanceTime.worked_hours_field = this._pickFirstString(
+      attendanceTime.worked_hours_field,
+      attendanceTime.workedHoursField,
+      'worked_hours'
+    );
+    attendanceTime.attendance_status_field = this._pickFirstString(
+      attendanceTime.attendance_status_field,
+      attendanceTime.attendanceStatusField,
+      'status'
+    );
+    attendanceTime.work_days = Array.isArray(attendanceTime.work_days)
+      ? attendanceTime.work_days
+      : (Array.isArray(attendanceTime.workDays) ? attendanceTime.workDays : null);
+    if (!Array.isArray(attendanceTime.work_days) || !attendanceTime.work_days.length) {
+      attendanceTime.work_days = Array.isArray(hr.work_days) && hr.work_days.length
+        ? hr.work_days
+        : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    }
+    attendanceTime.daily_hours = Number(attendanceTime.daily_hours || attendanceTime.dailyHours || hr.daily_hours || hr.dailyHours || 8);
+    if (!Number.isFinite(attendanceTime.daily_hours) || attendanceTime.daily_hours <= 0) {
+      attendanceTime.daily_hours = 8;
+    }
+
+    compensationLedger.ledger_entity = this._pickFirstString(
+      compensationLedger.ledger_entity,
+      compensationLedger.ledgerEntity,
+      'compensation_ledger'
+    );
+    compensationLedger.snapshot_entity = this._pickFirstString(
+      compensationLedger.snapshot_entity,
+      compensationLedger.snapshotEntity,
+      'compensation_snapshots'
+    );
+
+    return {
+      employeeEntity,
+      leaveEntity,
+      leaveEngine,
+      leaveApprovals,
+      attendanceTime,
+      compensationLedger,
+    };
+  }
+
   async _ensureModuleDirs(outputDir, moduleKey) {
     if (this._moduleDirs.has(moduleKey)) return;
     const modulePagesDir = path.join(outputDir, 'modules', moduleKey, 'pages');
@@ -381,6 +641,9 @@ class FrontendGenerator {
   }
 
   async scaffold(outputDir, sdf = {}) {
+    // Reset per-project module cache for repeated assemblies in one process.
+    this._moduleDirs = new Set();
+
     const dirs = [
       'src/components',
       'src/components/layout',
@@ -682,12 +945,16 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const enableReports = (modules.scheduled_reports || modules.scheduledReports || {}).enabled === true;
     const priorityCfg = this._getInventoryPriorityAConfig(sdf);
     const invoicePriorityCfg = this._getInvoicePriorityAConfig(sdf);
+    const hrPriorityCfg = this._getHRPriorityAConfig(sdf);
     const reservationsEnabled = this._isPackEnabled(priorityCfg.reservations);
     const inboundEnabled = this._isPackEnabled(priorityCfg.inbound);
     const cycleEnabled = this._isPackEnabled(priorityCfg.cycleCounting);
     const invoiceTransactionsEnabled = this._isPackEnabled(invoicePriorityCfg.transactions);
     const invoicePaymentsEnabled = this._isPackEnabled(invoicePriorityCfg.payments);
     const invoiceNotesEnabled = this._isPackEnabled(invoicePriorityCfg.notes);
+    const hrLeaveEngineEnabled = this._isPackEnabled(hrPriorityCfg.leaveEngine);
+    const hrLeaveApprovalsEnabled = this._isPackEnabled(hrPriorityCfg.leaveApprovals);
+    const hrAttendanceEnabled = this._isPackEnabled(hrPriorityCfg.attendanceTime);
 
     // Shared entity registry (navigation + display fields)
     const entityRegistry = buildEntitiesRegistry({
@@ -769,6 +1036,18 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           invoiceNotesEnabled &&
           moduleKey === 'invoice' &&
           String(e.slug || '') === String(invoicePriorityCfg.noteEntity || 'invoice_notes');
+        const enableLeaveApprovalsPage =
+          hrLeaveApprovalsEnabled &&
+          moduleKey === 'hr' &&
+          String(e.slug || '') === String(hrPriorityCfg.leaveEntity || 'leaves');
+        const enableLeaveBalancesPage =
+          hrLeaveEngineEnabled &&
+          (moduleKey === 'hr' || moduleKey === 'shared') &&
+          String(e.slug || '') === String(hrPriorityCfg.employeeEntity || 'employees');
+        const enableAttendanceEntriesPage =
+          hrAttendanceEnabled &&
+          moduleKey === 'hr' &&
+          String(e.slug || '') === String(hrPriorityCfg.attendanceTime?.attendance_entity || 'attendance_entries');
         return [
           `import ${cap}Page from '${modulePageBase}Page';`,
           `import ${cap}FormPage from '${modulePageBase}FormPage';`,
@@ -786,6 +1065,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           enableInvoiceNotesPage ? `import ${cap}NotesPage from '${modulePageBase}NotesPage';` : '',
           enablePaymentWorkflowPage ? `import ${cap}WorkflowPage from '${modulePageBase}WorkflowPage';` : '',
           enableNoteWorkflowPage ? `import ${cap}WorkflowPage from '${modulePageBase}WorkflowPage';` : '',
+          enableLeaveApprovalsPage ? `import ${cap}ApprovalsPage from '${modulePageBase}ApprovalsPage';` : '',
+          enableLeaveBalancesPage ? `import ${cap}BalancesPage from '${modulePageBase}BalancesPage';` : '',
+          enableAttendanceEntriesPage ? `import ${cap}AttendancePage from '${modulePageBase}AttendancePage';` : '',
         ].filter(Boolean).join('\n');
       })
       .join('\n');
@@ -846,6 +1128,18 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           invoiceNotesEnabled &&
           moduleKey === 'invoice' &&
           String(e.slug || '') === String(invoicePriorityCfg.noteEntity || 'invoice_notes');
+        const enableLeaveApprovalsPage =
+          hrLeaveApprovalsEnabled &&
+          moduleKey === 'hr' &&
+          String(e.slug || '') === String(hrPriorityCfg.leaveEntity || 'leaves');
+        const enableLeaveBalancesPage =
+          hrLeaveEngineEnabled &&
+          (moduleKey === 'hr' || moduleKey === 'shared') &&
+          String(e.slug || '') === String(hrPriorityCfg.employeeEntity || 'employees');
+        const enableAttendanceEntriesPage =
+          hrAttendanceEnabled &&
+          moduleKey === 'hr' &&
+          String(e.slug || '') === String(hrPriorityCfg.attendanceTime?.attendance_entity || 'attendance_entries');
         return [
           `          <Route path="/${e.slug}" element={<${cap}Page />} />`,
           `          <Route path="/${e.slug}/new" element={<${cap}FormPage />} />`,
@@ -864,6 +1158,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
           enableInvoiceNotesPage ? `          <Route path="/${e.slug}/notes" element={<${cap}NotesPage />} />` : '',
           enablePaymentWorkflowPage ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
           enableNoteWorkflowPage ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
+          enableLeaveApprovalsPage ? `          <Route path="/${e.slug}/approvals" element={<${cap}ApprovalsPage />} />` : '',
+          enableLeaveBalancesPage ? `          <Route path="/${e.slug}/balances" element={<${cap}BalancesPage />} />` : '',
+          enableAttendanceEntriesPage ? `          <Route path="/${e.slug}/attendance" element={<${cap}AttendancePage />} />` : '',
         ].filter(Boolean).join('\n');
       })
       .join('\n');
@@ -879,12 +1176,16 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const enableReports = (modules.scheduled_reports || modules.scheduledReports || {}).enabled === true;
     const priorityCfg = this._getInventoryPriorityAConfig(sdf);
     const invoicePriorityCfg = this._getInvoicePriorityAConfig(sdf);
+    const hrPriorityCfg = this._getHRPriorityAConfig(sdf);
     const reservationsEnabled = this._isPackEnabled(priorityCfg.reservations);
     const inboundEnabled = this._isPackEnabled(priorityCfg.inbound);
     const cycleEnabled = this._isPackEnabled(priorityCfg.cycleCounting);
     const invoiceTransactionsEnabled = this._isPackEnabled(invoicePriorityCfg.transactions);
     const invoicePaymentsEnabled = this._isPackEnabled(invoicePriorityCfg.payments);
     const invoiceNotesEnabled = this._isPackEnabled(invoicePriorityCfg.notes);
+    const hrLeaveEngineEnabled = this._isPackEnabled(hrPriorityCfg.leaveEngine);
+    const hrLeaveApprovalsEnabled = this._isPackEnabled(hrPriorityCfg.leaveApprovals);
+    const hrAttendanceEnabled = this._isPackEnabled(hrPriorityCfg.attendanceTime);
     const availableSlugs = new Set((entities || []).map((e) => String((e && e.slug) || '')).filter(Boolean));
 
     const toolsBlock = (enableActivityLog || enableReports)
@@ -939,6 +1240,16 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     if (invoiceNotesEnabled && availableSlugs.has(String(invoicePriorityCfg.noteEntity || ''))) {
       invoiceWorkflowLinks.push({ path: `/${invoicePriorityCfg.noteEntity}/workflow`, label: 'Note Posting' });
     }
+    const hrWorkflowLinks = [];
+    if (hrLeaveApprovalsEnabled && availableSlugs.has(String(hrPriorityCfg.leaveEntity || ''))) {
+      hrWorkflowLinks.push({ path: `/${hrPriorityCfg.leaveEntity}/approvals`, label: 'Leave Approvals' });
+    }
+    if (hrLeaveEngineEnabled && availableSlugs.has(String(hrPriorityCfg.employeeEntity || ''))) {
+      hrWorkflowLinks.push({ path: `/${hrPriorityCfg.employeeEntity}/balances`, label: 'Leave Balances' });
+    }
+    if (hrAttendanceEnabled && availableSlugs.has(String(hrPriorityCfg.attendanceTime?.attendance_entity || ''))) {
+      hrWorkflowLinks.push({ path: `/${hrPriorityCfg.attendanceTime.attendance_entity}/attendance`, label: 'Attendance Entries' });
+    }
 
     const workflowBlock = workflowLinks.length
       ? `
@@ -970,8 +1281,23 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         </Link>`).join('')}
       `
       : '';
+    const hrWorkflowBlock = hrWorkflowLinks.length
+      ? `
+        <div className="my-2 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">HR Workflows</div>
+        ${hrWorkflowLinks.map((entry) => `
+        <Link
+          to="${entry.path}"
+          className={[
+            'mb-1 block rounded-lg px-3 py-2 text-sm font-medium',
+            location.pathname.startsWith('${entry.path}') ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-slate-100',
+          ].join(' ')}
+        >
+          ${entry.label}
+        </Link>`).join('')}
+      `
+      : '';
 
-    const fullToolsBlock = [toolsBlock, workflowBlock, invoiceWorkflowBlock].filter(Boolean).join('\n');
+    const fullToolsBlock = [toolsBlock, workflowBlock, invoiceWorkflowBlock, hrWorkflowBlock].filter(Boolean).join('\n');
 
     const sidebarContent = buildSidebar({ 
       toolsBlock: fullToolsBlock,
@@ -987,6 +1313,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const modulePagesDir = path.join(outputDir, 'modules', moduleKey, 'pages');
     const importBase = '../../../src';
     const invoicePriorityCfg = this._getInvoicePriorityAConfig(sdf);
+    const hrPriorityCfg = this._getHRPriorityAConfig(sdf);
     const isInvoiceEntity =
       moduleKey === 'invoice' &&
       String(entity.slug || '') === String(invoicePriorityCfg.invoiceEntity || 'invoices');
@@ -1012,6 +1339,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
     const invoiceTransactionsEnabled = this._isPackEnabled(invoicePriorityCfg.transactions);
     const invoicePaymentsEnabled = this._isPackEnabled(invoicePriorityCfg.payments);
     const invoiceNotesEnabled = this._isPackEnabled(invoicePriorityCfg.notes);
+    const hrLeaveEngineEnabled = this._isPackEnabled(hrPriorityCfg.leaveEngine);
+    const hrLeaveApprovalsEnabled = this._isPackEnabled(hrPriorityCfg.leaveApprovals);
+    const hrAttendanceEnabled = this._isPackEnabled(hrPriorityCfg.attendanceTime);
 
     const entityName = this._capitalize(entity.slug);
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
@@ -1520,6 +1850,52 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
         importBase,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}WorkflowPage.tsx`), workflowPageContent);
+    }
+
+    // ===================== HR Priority A workflow pages =====================
+    const isLeaveApprovalHost =
+      moduleKey === 'hr' &&
+      hrLeaveApprovalsEnabled &&
+      String(entity.slug || '') === String(hrPriorityCfg.leaveEntity || 'leaves');
+    const isLeaveBalanceHost =
+      (moduleKey === 'hr' || moduleKey === 'shared') &&
+      hrLeaveEngineEnabled &&
+      String(entity.slug || '') === String(hrPriorityCfg.employeeEntity || 'employees');
+    const isAttendanceHost =
+      moduleKey === 'hr' &&
+      hrAttendanceEnabled &&
+      String(entity.slug || '') === String(hrPriorityCfg.attendanceTime?.attendance_entity || 'attendance_entries');
+
+    if (isLeaveApprovalHost) {
+      const approvalsPageContent = buildLeaveApprovalsPage({
+        entity,
+        entityName,
+        importBase,
+        leaveCfg: hrPriorityCfg.leaveEngine,
+        approvalCfg: hrPriorityCfg.leaveApprovals,
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}ApprovalsPage.tsx`), approvalsPageContent);
+    }
+    if (isLeaveBalanceHost) {
+      const balancesPageContent = buildLeaveBalancesPage({
+        entity,
+        entityName,
+        importBase,
+        leaveCfg: hrPriorityCfg.leaveEngine,
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}BalancesPage.tsx`), balancesPageContent);
+    }
+    if (isAttendanceHost) {
+      const attendancePageContent = buildAttendanceEntriesPage({
+        entity,
+        entityName,
+        importBase,
+        attendanceCfg: {
+          ...hrPriorityCfg.attendanceTime,
+          employee_entity: hrPriorityCfg.employeeEntity,
+        },
+      });
+      await fs.writeFile(path.join(modulePagesDir, `${entityName}AttendancePage.tsx`), attendancePageContent);
     }
   }
 

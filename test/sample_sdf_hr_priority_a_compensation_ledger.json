@@ -1,0 +1,29 @@
+{
+  "project_name": "HR Priority A - Compensation Ledger",
+  "modules": {
+    "inventory": { "enabled": false },
+    "invoice": { "enabled": false },
+    "hr": {
+      "enabled": true,
+      "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      "daily_hours": 8,
+      "compensation_ledger": {
+        "enabled": true
+      }
+    }
+  },
+  "entities": [
+    {
+      "slug": "employees",
+      "display_name": "Employees",
+      "display_field": "first_name",
+      "module": "hr",
+      "fields": [
+        { "name": "first_name", "type": "string", "required": true },
+        { "name": "last_name", "type": "string", "required": true },
+        { "name": "email", "type": "string", "required": true, "unique": true },
+        { "name": "status", "type": "string", "required": true, "options": ["Active", "On Leave", "Terminated"] }
+      ]
+    }
+  ]
+}

@@ -1,3 +1,201 @@
+# Inventory Module Default Questions (SDF-Impact Only)
+
+## Purpose
+
+This questionnaire includes only questions that directly change generated SDF for inventory capabilities we currently support.
+
+If an answer does not affect SDF output, it is intentionally excluded.
+
+---
+
+## Scope Covered (Current Capabilities)
+
+- Core inventory item + stock operations
+- Priority A inventory packs:
+  - reservations
+  - transaction safety
+  - inbound PO/GRN
+  - cycle counting
+- Optional naming customization for generated entities
+
+---
+
+## Question Flow
+
+1. Ask core inventory questions.
+2. Ask only enabled capability packs.
+3. Ask naming/customization only when user wants custom names.
+4. Build prefilled SDF from these answers before AI generation.
+
+---
+
+## Core Questions (Always Ask)
+
+### Q1
+- ID: `inv_enable_module`
+- User question: "Do you want Inventory in your ERP?"
+- Input: `yes_no`
+- SDF mapping: `modules.inventory.enabled`
+
+### Q2
+- ID: `inv_stock_name`
+- User question: "What should we call your stock records?"
+- Input: `choice + custom`
+- Options: `Products`, `Items`, `Materials`, `Stock`, `Custom`
+- SDF mapping: `modules.inventory.stock_entity` (slug form, e.g. `products`)
+
+### Q3
+- ID: `inv_multi_location`
+- User question: "Do you store stock in more than one location?"
+- Input: `yes_no`
+- SDF mapping:
+  - `entities.<stock_entity>.features.multi_location`
+  - adds/uses `locations` entity in prefilled SDF
+
+### Q4
+- ID: `inv_enable_ops`
+- User question: "Do you want stock actions (Receive, Issue, Adjust, Transfer) on item pages?"
+- Input: `yes_no`
+- SDF mapping: `entities.<stock_entity>.inventory_ops.enabled`
+
+### Q5
+- ID: `inv_allow_negative_stock`
+- User question: "If stock is not enough, should Issue still be allowed?"
+- Input: `yes_no`
+- Condition: ask when Q4 = yes
+- SDF mapping: `entities.<stock_entity>.inventory_ops.issue.allow_negative_stock`
+
+### Q6
+- ID: `inv_enable_transactions_pack`
+- User question: "Do you want transaction-safe stock updates (recommended)?"
+- Input: `yes_no`
+- SDF mapping: `modules.inventory.transactions.enabled`
+
+### Q7
+- ID: `inv_enable_reservations_pack`
+- User question: "Do you want reservation/allocation (reserve stock before confirming)?"
+- Input: `yes_no`
+- SDF mapping: `modules.inventory.reservations.enabled`
+
+### Q8
+- ID: `inv_enable_inbound_pack`
+- User question: "Do you want purchase receiving workflow (PO + Goods Receipt)?"
+- Input: `yes_no`
+- SDF mapping: `modules.inventory.inbound.enabled`
+
+### Q9
+- ID: `inv_enable_cycle_counting_pack`
+- User question: "Do you want cycle count sessions for stock verification?"
+- Input: `yes_no`
+- SDF mapping: `modules.inventory.cycle_counting.enabled`
+
+---
+
+## Naming Questions (Only If User Wants Custom Names)
+
+### Q10
+- ID: `inv_use_default_pack_names`
+- User question: "Use default workflow names (Stock Reservations, Purchase Orders, Goods Receipts, Cycle Count Sessions)?"
+- Input: `yes_no`
+- If `yes`: keep defaults.
+- If `no`: ask Q11-Q14.
+
+### Q11
+- ID: `inv_reservation_entity_name`
+- User question: "What should we call reservation records?"
+- Input: `text`
+- Condition: Q7 = yes and Q10 = no
+- SDF mapping: `modules.inventory.reservations.reservation_entity`
+
+### Q12
+- ID: `inv_inbound_entity_names`
+- User question: "What should we call inbound records?"
+- Input: `group_text`
+- Fields:
+  - `purchase_order_entity`
+  - `purchase_order_item_entity`
+  - `grn_entity`
+  - `grn_item_entity`
+- Condition: Q8 = yes and Q10 = no
+- SDF mapping:
+  - `modules.inventory.inbound.purchase_order_entity`
+  - `modules.inventory.inbound.purchase_order_item_entity`
+  - `modules.inventory.inbound.grn_entity`
+  - `modules.inventory.inbound.grn_item_entity`
+
+### Q13
+- ID: `inv_cycle_entity_names`
+- User question: "What should we call cycle count records?"
+- Input: `group_text`
+- Fields:
+  - `session_entity`
+  - `line_entity`
+- Condition: Q9 = yes and Q10 = no
+- SDF mapping:
+  - `modules.inventory.cycle_counting.session_entity`
+  - `modules.inventory.cycle_counting.line_entity`
+
+### Q14
+- ID: `inv_quantity_field_name`
+- User question: "Use default quantity field name 'quantity'?"
+- Input: `yes_no + custom`
+- Condition: Q6 = yes and Q10 = no
+- SDF mapping: `modules.inventory.transactions.quantity_field`
+
+---
+
+## Internal Mapping Checklist (System Side)
+
+Map only these keys from answers:
+
+- `modules.inventory.enabled`
+- `modules.inventory.stock_entity`
+- `modules.inventory.transactions.*`
+- `modules.inventory.reservations.*`
+- `modules.inventory.inbound.*`
+- `modules.inventory.cycle_counting.*`
+- `entities.<stock_entity>.inventory_ops.*`
+- `entities.<stock_entity>.features.multi_location`
+
+If a question does not map to one of these, remove it.
+
+---
+
+## Validation Gates Before AI Call
+
+- Do not call AI if Q1 is unanswered.
+- Do not call AI if any enabled pack has missing required naming answers.
+- Do not call AI until prefilled SDF is generated and confirmed.
+
+---
+
+## Minimal Example Handoff
+
+```json
+{
+  "module": "inventory",
+  "mandatory_answers": {
+    "inv_enable_module": "yes",
+    "inv_stock_name": "Products",
+    "inv_enable_transactions_pack": "yes",
+    "inv_enable_reservations_pack": "yes",
+    "inv_enable_inbound_pack": "yes",
+    "inv_enable_cycle_counting_pack": "yes"
+  },
+  "prefilled_sdf": {
+    "modules": {
+      "inventory": {
+        "enabled": true,
+        "stock_entity": "products",
+        "transactions": { "enabled": true },
+        "reservations": { "enabled": true },
+        "inbound": { "enabled": true },
+        "cycle_counting": { "enabled": true }
+      }
+    }
+  }
+}
+```
 # Inventory Module Default Questions (SMB-Friendly, Full-Capability Target)
 
 ## Purpose

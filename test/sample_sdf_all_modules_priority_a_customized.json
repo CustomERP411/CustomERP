@@ -1,0 +1,218 @@
+{
+  "project_name": "ERP Full Capability Stress Test - Priority A",
+  "modules": {
+    "inventory": {
+      "enabled": true,
+      "stock_entity": "products",
+      "transactions": {
+        "enabled": true,
+        "quantity_field": "quantity"
+      },
+      "reservations": {
+        "enabled": true
+      },
+      "inbound": {
+        "enabled": true
+      },
+      "cycle_counting": {
+        "enabled": true
+      }
+    },
+    "invoice": {
+      "enabled": true,
+      "tax_rate": 12,
+      "currency": "USD",
+      "prefix": "INV-",
+      "transactions": { "enabled": true },
+      "payments": { "enabled": true },
+      "notes": { "enabled": true },
+      "lifecycle": {
+        "enabled": true,
+        "status_field": "status",
+        "statuses": ["Draft", "Sent", "Paid", "Overdue", "Cancelled"],
+        "enforce_transitions": true
+      },
+      "calculation_engine": { "enabled": true }
+    },
+    "hr": {
+      "enabled": true,
+      "employee_entity": "staff_members",
+      "leave_entity": "leave_requests",
+      "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      "daily_hours": 8,
+      "leave_engine": {
+        "enabled": true,
+        "balance_entity": "staff_leave_balances",
+        "days_field": "requested_days",
+        "available_field": "remaining_days"
+      },
+      "leave_approvals": {
+        "enabled": true,
+        "status_field": "approval_status",
+        "approver_field": "approved_by"
+      },
+      "attendance_time": {
+        "enabled": true,
+        "attendance_entity": "attendance_logs",
+        "shift_entity": "staff_shifts",
+        "timesheet_entity": "timesheet_logs"
+      },
+      "compensation_ledger": {
+        "enabled": true,
+        "ledger_entity": "payroll_ledger",
+        "snapshot_entity": "payroll_snapshots"
+      }
+    }
+  },
+  "entities": [
+    {
+      "slug": "locations",
+      "display_name": "Locations",
+      "display_field": "name",
+      "module": "inventory",
+      "fields": [
+        { "name": "name", "type": "string", "label": "Location Name", "required": true, "unique": true }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "products",
+      "display_name": "Products",
+      "display_field": "name",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "name",
+          "quantity",
+          "reserved_quantity",
+          "committed_quantity",
+          "available_quantity"
+        ]
+      },
+      "inventory_ops": {
+        "enabled": true,
+        "movement_entity": "stock_movements",
+        "location_entity": "locations",
+        "quantity_field": "quantity",
+        "issue": {
+          "enabled": true,
+          "label": "Issue",
+          "allow_negative_stock": false
+        },
+        "adjust": {
+          "enabled": true
+        },
+        "transfer": {
+          "enabled": true
+        }
+      },
+      "fields": [
+        { "name": "name", "type": "string", "label": "Name", "required": true },
+        { "name": "quantity", "type": "decimal", "label": "Quantity", "required": true, "min": 0 }
+      ],
+      "features": {
+        "inventory": true,
+        "multi_location": true
+      }
+    },
+    {
+      "slug": "stock_movements",
+      "display_name": "Stock Movements",
+      "display_field": "reference_number",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "item_id",
+          "movement_type",
+          "quantity",
+          "movement_date"
+        ]
+      },
+      "fields": [
+        { "name": "item_id", "type": "reference", "label": "Item", "required": true, "reference_entity": "products" },
+        { "name": "movement_type", "type": "string", "label": "Type", "required": true },
+        { "name": "quantity", "type": "decimal", "label": "Quantity", "required": true },
+        { "name": "movement_date", "type": "datetime", "label": "Movement Date", "required": false },
+        { "name": "reference_number", "type": "string", "label": "Reference", "required": false },
+        { "name": "reason", "type": "text", "label": "Reason", "required": false },
+        { "name": "location_id", "type": "reference", "label": "Location", "required": false, "reference_entity": "locations" },
+        { "name": "from_location_id", "type": "reference", "label": "From Location", "required": false, "reference_entity": "locations" },
+        { "name": "to_location_id", "type": "reference", "label": "To Location", "required": false, "reference_entity": "locations" }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "customers",
+      "display_name": "Customers",
+      "display_field": "name",
+      "module": "shared",
+      "fields": [
+        { "name": "name", "type": "string", "required": true },
+        { "name": "email", "type": "string" },
+        { "name": "phone", "type": "string" }
+      ]
+    },
+    {
+      "slug": "invoices",
+      "display_name": "Invoices",
+      "display_field": "invoice_number",
+      "module": "invoice",
+      "features": {
+        "print_invoice": true
+      },
+      "children": [
+        {
+          "entity": "invoice_items",
+          "foreign_key": "invoice_id",
+          "label": "Line Items",
+          "columns": ["description", "quantity", "unit_price", "line_total"]
+        }
+      ],
+      "fields": [
+        { "name": "invoice_number", "type": "string", "unique": true },
+        { "name": "customer_id", "type": "reference", "reference_entity": "customers", "required": true },
+        { "name": "issue_date", "type": "date", "required": true },
+        { "name": "due_date", "type": "date", "required": true },
+        { "name": "status", "type": "string", "required": true, "options": ["Draft", "Sent", "Paid", "Overdue", "Cancelled"] },
+        { "name": "subtotal", "type": "decimal" },
+        { "name": "discount_total", "type": "decimal" },
+        { "name": "additional_charges_total", "type": "decimal" },
+        { "name": "tax_total", "type": "decimal" },
+        { "name": "grand_total", "type": "decimal" },
+        { "name": "paid_total", "type": "decimal" },
+        { "name": "outstanding_balance", "type": "decimal" }
+      ]
+    },
+    {
+      "slug": "invoice_items",
+      "display_name": "Invoice Items",
+      "module": "invoice",
+      "fields": [
+        { "name": "invoice_id", "type": "reference", "reference_entity": "invoices", "required": true },
+        { "name": "description", "type": "string", "required": true },
+        { "name": "quantity", "type": "decimal", "required": true },
+        { "name": "unit_price", "type": "decimal", "required": true },
+        { "name": "line_subtotal", "type": "decimal" },
+        { "name": "line_discount_type", "type": "string" },
+        { "name": "line_discount_value", "type": "decimal" },
+        { "name": "line_discount_total", "type": "decimal" },
+        { "name": "line_tax_rate", "type": "decimal" },
+        { "name": "line_tax_total", "type": "decimal" },
+        { "name": "line_additional_charge", "type": "decimal" },
+        { "name": "line_total", "type": "decimal" }
+      ]
+    },
+    {
+      "slug": "staff_members",
+      "display_name": "Staff Members",
+      "display_field": "first_name",
+      "module": "shared",
+      "fields": [
+        { "name": "first_name", "type": "string", "required": true },
+        { "name": "last_name", "type": "string", "required": true },
+        { "name": "email", "type": "string", "required": true, "unique": true },
+        { "name": "status", "type": "string", "required": true, "options": ["Active", "On Leave", "Terminated"] }
+      ]
+    }
+  ]
+}

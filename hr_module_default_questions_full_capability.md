@@ -1,3 +1,215 @@
+# HR Module Default Questions (SDF-Impact Only)
+
+## Purpose
+
+This questionnaire includes only questions that directly change generated SDF for HR capabilities we currently support.
+
+If an answer does not affect SDF output, it is intentionally excluded.
+
+---
+
+## Scope Covered (Current Capabilities)
+
+- Core HR setup (`work_days`, `daily_hours`)
+- Priority A HR packs:
+  - leave_engine
+  - leave_approvals
+  - attendance_time
+  - compensation_ledger
+- Optional naming customization for generated entities
+
+---
+
+## Question Flow
+
+1. Ask core HR questions.
+2. Ask only enabled capability packs.
+3. Ask naming/customization only when user wants custom names.
+4. Build prefilled SDF from these answers before AI generation.
+
+---
+
+## Core Questions (Always Ask)
+
+### Q1
+- ID: `hr_enable_module`
+- User question: "Do you want HR in your ERP?"
+- Input: `yes_no`
+- SDF mapping: `modules.hr.enabled`
+
+### Q2
+- ID: `hr_work_days`
+- User question: "What are your normal working days?"
+- Input: `multi_choice`
+- Options: `Mon`, `Tue`, `Wed`, `Thu`, `Fri`, `Sat`, `Sun`
+- SDF mapping: `modules.hr.work_days`
+
+### Q3
+- ID: `hr_daily_hours`
+- User question: "How many hours is a normal work day?"
+- Input: `number`
+- SDF mapping: `modules.hr.daily_hours`
+
+### Q4
+- ID: `hr_enable_leave_engine_pack`
+- User question: "Do you want leave balance and accrual tracking?"
+- Input: `yes_no`
+- SDF mapping: `modules.hr.leave_engine.enabled`
+
+### Q5
+- ID: `hr_enable_leave_approvals_pack`
+- User question: "Do leave requests need approval workflow?"
+- Input: `yes_no`
+- SDF mapping: `modules.hr.leave_approvals.enabled`
+
+### Q6
+- ID: `hr_enable_attendance_time_pack`
+- User question: "Do you want attendance + shift + timesheet tracking?"
+- Input: `yes_no`
+- SDF mapping: `modules.hr.attendance_time.enabled`
+
+### Q7
+- ID: `hr_enable_compensation_ledger_pack`
+- User question: "Do you want compensation ledger and payroll snapshots?"
+- Input: `yes_no`
+- SDF mapping: `modules.hr.compensation_ledger.enabled`
+
+---
+
+## Leave Workflow Detail (Ask Only If Leave Packs Enabled)
+
+### Q8
+- ID: `hr_leave_status_field_name`
+- User question: "Use default leave status field name 'status'?"
+- Input: `yes_no + custom`
+- Condition: Q4 = yes or Q5 = yes
+- SDF mapping:
+  - `modules.hr.leave_engine.status_field`
+  - `modules.hr.leave_approvals.status_field` (same value unless user sets separately)
+
+### Q9
+- ID: `hr_leave_approval_strict_transitions`
+- User question: "Should leave status transitions be strictly enforced?"
+- Input: `yes_no`
+- Condition: Q5 = yes
+- SDF mapping: `modules.hr.leave_approvals.enforce_transitions`
+
+---
+
+## Naming Questions (Only If User Wants Custom Names)
+
+### Q10
+- ID: `hr_use_default_entity_names`
+- User question: "Use default HR record names (employees, departments, leaves, leave_balances, attendance_entries, shift_assignments, timesheet_entries, compensation_ledger, compensation_snapshots)?"
+- Input: `yes_no`
+- If `yes`: keep defaults.
+- If `no`: ask Q11-Q14.
+
+### Q11
+- ID: `hr_core_entity_names`
+- User question: "What should we call core HR records?"
+- Input: `group_text`
+- Fields:
+  - `employee_entity`
+  - `department_entity`
+  - `leave_entity`
+- Condition: Q10 = no
+- SDF mapping:
+  - `modules.hr.employee_entity`
+  - `modules.hr.department_entity`
+  - `modules.hr.leave_entity`
+
+### Q12
+- ID: `hr_leave_engine_entity_name`
+- User question: "What should we call leave balance records?"
+- Input: `text`
+- Condition: Q4 = yes and Q10 = no
+- SDF mapping: `modules.hr.leave_engine.balance_entity`
+
+### Q13
+- ID: `hr_attendance_entity_names`
+- User question: "What should we call attendance records?"
+- Input: `group_text`
+- Fields:
+  - `attendance_entity`
+  - `shift_entity`
+  - `timesheet_entity`
+- Condition: Q6 = yes and Q10 = no
+- SDF mapping:
+  - `modules.hr.attendance_time.attendance_entity`
+  - `modules.hr.attendance_time.shift_entity`
+  - `modules.hr.attendance_time.timesheet_entity`
+
+### Q14
+- ID: `hr_compensation_entity_names`
+- User question: "What should we call compensation records?"
+- Input: `group_text`
+- Fields:
+  - `ledger_entity`
+  - `snapshot_entity`
+- Condition: Q7 = yes and Q10 = no
+- SDF mapping:
+  - `modules.hr.compensation_ledger.ledger_entity`
+  - `modules.hr.compensation_ledger.snapshot_entity`
+
+---
+
+## Internal Mapping Checklist (System Side)
+
+Map only these keys from answers:
+
+- `modules.hr.enabled`
+- `modules.hr.work_days`
+- `modules.hr.daily_hours`
+- `modules.hr.employee_entity`
+- `modules.hr.department_entity`
+- `modules.hr.leave_entity`
+- `modules.hr.leave_engine.*`
+- `modules.hr.leave_approvals.*`
+- `modules.hr.attendance_time.*`
+- `modules.hr.compensation_ledger.*`
+
+If a question does not map to one of these, remove it.
+
+---
+
+## Validation Gates Before AI Call
+
+- Do not call AI if Q1 is unanswered.
+- Do not call AI if any enabled pack has missing required answers.
+- Do not call AI until prefilled SDF is generated and confirmed.
+
+---
+
+## Minimal Example Handoff
+
+```json
+{
+  "module": "hr",
+  "mandatory_answers": {
+    "hr_enable_module": "yes",
+    "hr_work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    "hr_daily_hours": 8,
+    "hr_enable_leave_engine_pack": "yes",
+    "hr_enable_leave_approvals_pack": "yes",
+    "hr_enable_attendance_time_pack": "yes",
+    "hr_enable_compensation_ledger_pack": "yes"
+  },
+  "prefilled_sdf": {
+    "modules": {
+      "hr": {
+        "enabled": true,
+        "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        "daily_hours": 8,
+        "leave_engine": { "enabled": true },
+        "leave_approvals": { "enabled": true },
+        "attendance_time": { "enabled": true },
+        "compensation_ledger": { "enabled": true }
+      }
+    }
+  }
+}
+```
 # HR Module Default Questions (SMB-Friendly, Full-Capability Target)
 
 ## Purpose

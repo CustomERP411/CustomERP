@@ -6,8 +6,8 @@ Implemented end-to-end platform flow so users answer default module questions be
 
 Current module coverage:
 - Inventory: full-capability question pack loaded from `inventory_module_default_questions_full_capability.md`
-- Invoice: temporary core pack (v1-temp)
-- HR: temporary core pack (v1-temp)
+- Invoice: compact SDF-impact pack (v1)
+- HR: compact SDF-impact pack (v1)
 
 ## Backend changes
 
@@ -112,4 +112,6 @@ Current module coverage:
 ## Notes
 
 - No DB migration added in this step (explicitly reused current schema).
-- Inventory pack is source-of-truth markdown driven; invoice/hr are intentionally temporary and file-replaceable later.
+- Inventory runtime pack is embedded in code from canonical docs (no runtime markdown file reads).
+- Invoice now uses compact SDF-impact runtime pack (`invoice.v1`).
+- HR now uses compact SDF-impact runtime pack (`hr.v1`); the broader full-capability HR doc remains reference/backlog scope.

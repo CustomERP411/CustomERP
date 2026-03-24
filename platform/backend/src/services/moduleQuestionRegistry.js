@@ -10,8 +10,8 @@ const PACKS_BY_MODULE = {
 
 const ACTIVE_VERSION_BY_MODULE = {
   inventory: 'inventory.v1',
-  invoice: 'invoice.v1-temp',
-  hr: 'hr.v1-temp',
+  invoice: 'invoice.v1',
+  hr: 'hr.v1',
 };
 
 function listSupportedModules() {

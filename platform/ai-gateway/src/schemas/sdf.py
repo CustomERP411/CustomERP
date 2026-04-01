@@ -39,6 +39,7 @@ class ClarificationQuestion(BaseModel):
     question: str = Field(..., description="The text of the question to ask the user.")
     type: Literal["yes_no", "choice", "text"] = Field(..., description="The type of answer expected.")
     options: Optional[List[str]] = Field(default=None, description="Options for choice questions.")
+    module: Optional[str] = Field(default=None, description="Source module (hr, invoice, inventory).")
 
 
 class EntityField(BaseModel):

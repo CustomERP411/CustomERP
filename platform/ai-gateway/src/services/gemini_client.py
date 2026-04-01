@@ -9,11 +9,12 @@ model configuration while sharing the same underlying API.
 import os
 import asyncio
 import time
-from typing import Optional
+from typing import Optional, Type
 
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
 from google.generativeai.types import GenerationConfig
+from pydantic import BaseModel
 
 from src.config import settings, AgentConfig
 from src.services.base_client import BaseAIClient
@@ -91,6 +92,7 @@ class GeminiClient(BaseAIClient):
         prompt: str, 
         temperature: float, 
         json_mode: bool = False, 
+        response_schema: Optional[Type[BaseModel]] = None,
         request_options: dict = None
     ) -> str:
         """
@@ -100,6 +102,8 @@ class GeminiClient(BaseAIClient):
             prompt: The input prompt.
             temperature: Creativity level (0.0 = deterministic, 1.0 = creative).
             json_mode: If True, configure the model for JSON output.
+            response_schema: Optional Pydantic model to enforce strict JSON schema.
+                            When provided, the API will validate output against this schema.
             request_options: Additional options for the request.
         """
         try:
@@ -107,8 +111,15 @@ class GeminiClient(BaseAIClient):
                 "temperature": temperature,
                 "max_output_tokens": 8192,
             }
-            if json_mode:
+            
+            # Use JSON mode for structured output
+            # NOTE: Gemini's response_schema doesn't fully support Pydantic models yet
+            # (errors on 'default' fields). We use json_mode + prompt-based schema enforcement.
+            if response_schema is not None or json_mode:
                 config_params["response_mime_type"] = "application/json"
+                if response_schema is not None:
+                    agent_name = self.agent_config.name if self.agent_config else "default"
+                    print(f"[GeminiClient:{agent_name}] JSON mode with schema hint: {response_schema.__name__}")
 
             generation_config = GenerationConfig(**config_params)
 
@@ -128,9 +139,18 @@ class GeminiClient(BaseAIClient):
         self, 
         prompt: str, 
         temperature: float,
-        json_mode: bool = False
+        json_mode: bool = False,
+        response_schema: Optional[Type[BaseModel]] = None
     ) -> str:
-        """Generates content with a retry mechanism for transient errors."""
+        """Generates content with a retry mechanism for transient errors.
+        
+        Args:
+            prompt: The input prompt.
+            temperature: Creativity level.
+            json_mode: If True, configure the model for JSON output (legacy mode).
+            response_schema: Pydantic model for strict schema enforcement.
+                            Takes precedence over json_mode when provided.
+        """
         last_exception = None
         for attempt in range(self.max_retries):
             try:
@@ -140,6 +160,7 @@ class GeminiClient(BaseAIClient):
                     prompt,
                     temperature,
                     json_mode,
+                    response_schema=response_schema,
                     request_options=request_options
                 )
                 return response

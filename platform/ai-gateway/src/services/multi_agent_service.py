@@ -17,7 +17,9 @@ from src.config import settings, AgentConfig
 from src.services.gemini_client import GeminiClient
 from src.services.base_client import BaseAIClient
 from src.schemas.multi_agent import (
+    ClarificationQuestion,
     DistributorOutput,
+    IntegratorOutput,
     ModuleContext,
     ModuleGeneratorOutput,
     PipelineResult,
@@ -192,20 +194,33 @@ class MultiAgentService:
             if isinstance(final_sdf.get("warnings"), list):
                 warnings.extend(final_sdf.get("warnings", []))
             
+            # ─────────────────────────────────────────────────────────────
+            # Step 4: Aggregate and deduplicate clarification questions
+            # ─────────────────────────────────────────────────────────────
+            integrator_clarifications = final_sdf.get("clarifications_needed", [])
+            aggregated_clarifications = self._aggregate_clarifications(
+                module_outputs,
+                integrator_clarifications,
+            )
+            
             return PipelineResult(
                 success=True,
                 sdf=final_sdf,
                 distributor_output=distributor_output,
                 module_outputs=module_outputs,
+                clarifications_needed=aggregated_clarifications,
                 errors=errors,
                 warnings=warnings,
             )
         except Exception as e:
             print(f"[MultiAgentService] Integrator failed: {e}")
+            # Still aggregate clarifications from module outputs on failure
+            partial_clarifications = self._aggregate_clarifications(module_outputs, [])
             return PipelineResult(
                 success=False,
                 distributor_output=distributor_output,
                 module_outputs=module_outputs,
+                clarifications_needed=partial_clarifications,
                 errors=errors + [f"Integrator agent failed: {str(e)}"],
                 warnings=warnings,
             )
@@ -235,7 +250,7 @@ class MultiAgentService:
         response = await self.distributor_client.generate_with_retry(
             prompt,
             temperature=self.distributor_client.get_temperature(),
-            json_mode=True,
+            response_schema=DistributorOutput,
         )
         
         data = self._parse_json(response)
@@ -280,16 +295,20 @@ class MultiAgentService:
         response = await self.hr_client.generate_with_retry(
             prompt,
             temperature=self.hr_client.get_temperature(),
-            json_mode=True,
+            response_schema=ModuleGeneratorOutput,
         )
         
         data = self._parse_json(response)
+        
+        # Parse clarifications with module tagging
+        raw_clarifications = data.get("clarifications_needed", [])
+        clarifications = self._parse_clarifications(raw_clarifications, "hr")
         
         return ModuleGeneratorOutput(
             module="hr",
             entities=data.get("entities", []),
             module_config=data.get("module_config", {"enabled": True}),
-            clarifications_needed=data.get("clarifications_needed", []),
+            clarifications_needed=clarifications,
             warnings=data.get("warnings", []),
         )
     
@@ -312,16 +331,20 @@ class MultiAgentService:
         response = await self.invoice_client.generate_with_retry(
             prompt,
             temperature=self.invoice_client.get_temperature(),
-            json_mode=True,
+            response_schema=ModuleGeneratorOutput,
         )
         
         data = self._parse_json(response)
+        
+        # Parse clarifications with module tagging
+        raw_clarifications = data.get("clarifications_needed", [])
+        clarifications = self._parse_clarifications(raw_clarifications, "invoice")
         
         return ModuleGeneratorOutput(
             module="invoice",
             entities=data.get("entities", []),
             module_config=data.get("module_config", {"enabled": True, "tax_rate": 0, "currency": "USD"}),
-            clarifications_needed=data.get("clarifications_needed", []),
+            clarifications_needed=clarifications,
             warnings=data.get("warnings", []),
         )
     
@@ -344,16 +367,20 @@ class MultiAgentService:
         response = await self.inventory_client.generate_with_retry(
             prompt,
             temperature=self.inventory_client.get_temperature(),
-            json_mode=True,
+            response_schema=ModuleGeneratorOutput,
         )
         
         data = self._parse_json(response)
+        
+        # Parse clarifications with module tagging
+        raw_clarifications = data.get("clarifications_needed", [])
+        clarifications = self._parse_clarifications(raw_clarifications, "inventory")
         
         return ModuleGeneratorOutput(
             module="inventory",
             entities=data.get("entities", []),
             module_config=data.get("module_config", {}),
-            clarifications_needed=data.get("clarifications_needed", []),
+            clarifications_needed=clarifications,
             warnings=data.get("warnings", []),
         )
     
@@ -391,10 +418,11 @@ class MultiAgentService:
         response = await self.integrator_client.generate_with_retry(
             prompt,
             temperature=self.integrator_client.get_temperature(),
-            json_mode=True,
+            response_schema=IntegratorOutput,
         )
         
-        # Try parsing, with AI-based repair if needed
+        # With strict schema enforcement, parsing should be reliable
+        # but we keep fallback for edge cases
         try:
             return self._parse_json(response)
         except json.JSONDecodeError as e:
@@ -446,3 +474,74 @@ class MultiAgentService:
             print(f"[MultiAgentService] JSON parse error at position {e.pos}: {e.msg}")
             print(f"[MultiAgentService] Context around error: ...{json_str[max(0, e.pos-50):e.pos+50]}...")
             raise
+    
+    def _parse_clarifications(
+        self,
+        raw_clarifications: List[Any],
+        module: str,
+    ) -> List[ClarificationQuestion]:
+        """Parse raw clarification dicts into ClarificationQuestion objects with module tagging.
+        
+        Args:
+            raw_clarifications: List of clarification dicts from AI response.
+            module: Source module name to tag each question with.
+            
+        Returns:
+            List of ClarificationQuestion objects.
+        """
+        clarifications = []
+        for item in raw_clarifications:
+            if isinstance(item, dict):
+                try:
+                    # Ensure module is tagged
+                    item["module"] = item.get("module") or module
+                    clarifications.append(ClarificationQuestion(**item))
+                except Exception as e:
+                    print(f"[MultiAgentService] Failed to parse clarification: {item}, error: {e}")
+            elif isinstance(item, ClarificationQuestion):
+                if not item.module:
+                    item.module = module
+                clarifications.append(item)
+        return clarifications
+    
+    def _aggregate_clarifications(
+        self,
+        module_outputs: Dict[str, ModuleGeneratorOutput],
+        integrator_clarifications: List[Any],
+    ) -> List[ClarificationQuestion]:
+        """Aggregate and deduplicate clarification questions from all modules.
+        
+        Args:
+            module_outputs: Dict mapping module names to their outputs.
+            integrator_clarifications: Additional clarifications from integrator.
+            
+        Returns:
+            Deduplicated list of ClarificationQuestion objects.
+        """
+        seen_ids: set = set()
+        aggregated: List[ClarificationQuestion] = []
+        
+        # Collect from all module outputs
+        for module_name, output in module_outputs.items():
+            for clarification in output.clarifications_needed:
+                if clarification.id not in seen_ids:
+                    seen_ids.add(clarification.id)
+                    aggregated.append(clarification)
+        
+        # Add integrator clarifications (if any)
+        for item in integrator_clarifications:
+            if isinstance(item, dict):
+                q_id = item.get("id", "")
+                if q_id and q_id not in seen_ids:
+                    seen_ids.add(q_id)
+                    try:
+                        aggregated.append(ClarificationQuestion(**item))
+                    except Exception as e:
+                        print(f"[MultiAgentService] Failed to parse integrator clarification: {item}, error: {e}")
+            elif isinstance(item, ClarificationQuestion):
+                if item.id not in seen_ids:
+                    seen_ids.add(item.id)
+                    aggregated.append(item)
+        
+        print(f"[MultiAgentService] Aggregated {len(aggregated)} clarification questions (deduplicated)")
+        return aggregated

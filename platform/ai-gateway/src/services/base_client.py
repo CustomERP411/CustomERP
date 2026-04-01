@@ -6,7 +6,8 @@ Abstract base class for AI clients. Allows swapping between different AI provide
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Type
+from pydantic import BaseModel
 from src.config import AgentConfig, settings
 
 
@@ -38,6 +39,7 @@ class BaseAIClient(ABC):
         prompt: str,
         temperature: Optional[float] = None,
         json_mode: bool = False,
+        response_schema: Optional[Type[BaseModel]] = None,
         request_options: Optional[dict] = None,
     ) -> str:
         """Generate a response from the AI model.
@@ -46,7 +48,9 @@ class BaseAIClient(ABC):
             prompt: The input prompt.
             temperature: Creativity level (0.0 = deterministic, 1.0 = creative).
                         If None, uses the agent's default temperature.
-            json_mode: If True, configure the model for JSON output.
+            json_mode: If True, configure the model for JSON output (legacy).
+            response_schema: Pydantic model for strict JSON schema enforcement.
+                            Takes precedence over json_mode when provided.
             request_options: Additional provider-specific options.
             
         Returns:
@@ -60,13 +64,15 @@ class BaseAIClient(ABC):
         prompt: str,
         temperature: Optional[float] = None,
         json_mode: bool = False,
+        response_schema: Optional[Type[BaseModel]] = None,
     ) -> str:
         """Generate a response with automatic retry on transient errors.
         
         Args:
             prompt: The input prompt.
             temperature: Creativity level. If None, uses the agent's default.
-            json_mode: If True, configure the model for JSON output.
+            json_mode: If True, configure the model for JSON output (legacy).
+            response_schema: Pydantic model for strict JSON schema enforcement.
             
         Returns:
             The generated text response.

@@ -87,6 +87,14 @@ class SDFService:
         # Normalize the SDF
         data = self._normalize_generator_sdf(result.sdf, request_text=business_description)
         
+        # Inject aggregated clarifications from pipeline into normalized SDF
+        if result.clarifications_needed:
+            # Convert ClarificationQuestion objects to dicts for JSON serialization
+            data["clarifications_needed"] = [
+                q.model_dump(exclude_none=True) for q in result.clarifications_needed
+            ]
+            print(f"[SDFService] Injected {len(result.clarifications_needed)} aggregated clarifications into SDF")
+        
         # Validate against schema
         try:
             validated_sdf = SystemDefinitionFile.model_validate(data)

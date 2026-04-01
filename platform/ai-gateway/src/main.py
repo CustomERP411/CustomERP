@@ -147,6 +147,12 @@ async def analyze(request: AnalyzeRequest):
 async def clarify_sdf_endpoint(request: ClarifyRequest):
     """
     Refines an SDF based on user answers to clarification questions.
+    
+    Implements the stateless feedback loop (Cycle 2+):
+    - Takes the previous SDF state (prefilled_sdf)
+    - Takes user answers to clarifying questions (prior_context)
+    - Re-runs the multi-agent pipeline with full context
+    - Returns an updated SDF that APPENDS to existing state
     """
     sdf_service = get_sdf_service()
     if not sdf_service:
@@ -154,11 +160,18 @@ async def clarify_sdf_endpoint(request: ClarifyRequest):
             status_code=503,
             detail="AI service is not configured or failed to initialize."
         )
+    
     try:
-        refined_sdf = await sdf_service.clarify_sdf(
-            business_description=request.business_description or "",
-            partial_sdf=request.partial_sdf,
-            answers=request.answers
+        # Merge prior_context with legacy answers format
+        merged_context = request.get_merged_context()
+        
+        print(f"[API] /ai/clarify - Cycle 2+ with {len(merged_context)} answers")
+        
+        # Use multi-agent pipeline with prior context injected
+        refined_sdf = await sdf_service.generate_sdf_multi_agent(
+            business_description=request.business_description,
+            default_question_answers=merged_context,
+            prefilled_sdf=request.prefilled_sdf,
         )
         return refined_sdf
     except ValueError as e:

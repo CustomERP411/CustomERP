@@ -22,7 +22,24 @@ const MODULE_META: Record<string, { label: string; desc: string }> = {
 
 const MODULE_KEYS = Object.keys(MODULE_META);
 
-const STEPS = ['Choose Modules', 'Answer Questions', 'Describe Your Business', 'Review & Generate'];
+const STEPS = ['Choose Modules', 'Answer Questions', 'Describe Your Business', 'Review & Generate', 'Download & Run'];
+
+function detectUserPlatform(): string {
+  const ua = navigator.userAgent.toLowerCase();
+  const plat = (navigator as any).userAgentData?.platform?.toLowerCase?.() || navigator.platform?.toLowerCase?.() || '';
+  if (plat.includes('mac') || ua.includes('macintosh')) {
+    return ua.includes('arm') || (plat.includes('arm') || /apple\s*m[0-9]/i.test(ua)) ? 'macos-arm64' : 'macos-x64';
+  }
+  if (plat.includes('win') || ua.includes('windows')) return 'windows-x64';
+  return 'linux-x64';
+}
+
+const PLATFORM_INFO: Record<string, { label: string; icon: string; startFile: string; extractTip: string }> = {
+  'macos-arm64': { label: 'macOS (Apple Silicon)', icon: '\uD83D\uDDA5\uFE0F', startFile: 'start.command', extractTip: 'Double-click the .zip file in Finder to extract it.' },
+  'macos-x64':   { label: 'macOS (Intel)',         icon: '\uD83D\uDDA5\uFE0F', startFile: 'start.command', extractTip: 'Double-click the .zip file in Finder to extract it.' },
+  'windows-x64': { label: 'Windows',               icon: '\uD83D\uDDA5\uFE0F', startFile: 'start.bat',     extractTip: 'Right-click the .zip file and choose "Extract All..."' },
+  'linux-x64':   { label: 'Linux',                 icon: '\uD83D\uDDA5\uFE0F', startFile: 'start.sh',      extractTip: 'Run: unzip your-erp.zip  (or use your file manager)' },
+};
 
 const MOD_STYLES: Record<string, { sel: string; unsel: string; left: string; badge: string; dot: string; icon: string }> = {
   inventory: {
@@ -212,6 +229,10 @@ export default function ProjectDetailPage() {
   const [draftJson, setDraftJson] = useState('');
   const [draftError, setDraftError] = useState('');
   const [aiEditText, setAiEditText] = useState('');
+  const [downloadStarted, setDownloadStarted] = useState<string | null>(null);
+  const [showDockerAdvanced, setShowDockerAdvanced] = useState(false);
+
+  const detectedPlatform = useMemo(() => detectUserPlatform(), []);
 
   /* -------- helpers ------------------------------------------------ */
 
@@ -340,8 +361,9 @@ export default function ProjectDetailPage() {
     if (!selectedModules.length) return 0;
     if (!defaultCompletion?.is_complete) return 1;
     if (description.trim().length < 10) return 2;
+    if (sdf) return 4;
     return 3;
-  }, [selectedModules, defaultCompletion, description]);
+  }, [selectedModules, defaultCompletion, description, sdf]);
 
   const questionsByModule = useMemo(() => {
     const groups: Record<string, DefaultModuleQuestion[]> = {};
@@ -671,6 +693,7 @@ export default function ProjectDetailPage() {
       a.download = `${(sdf as any)?.project_name || project?.name || 'custom-erp'}-${platform}.zip`;
       a.click();
       URL.revokeObjectURL(url);
+      setDownloadStarted(platform);
     } catch (err: any) {
       try {
         const text = await (err?.response?.data instanceof Blob ? err.response.data.text() : Promise.resolve(''));
@@ -1112,50 +1135,140 @@ export default function ProjectDetailPage() {
                 &middot; {preview.entityCount} data sections &middot; ~{preview.screensTotal} screens
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={saveDraft} loading={running} disabled={running || !!standaloneRunning}>
-                Save Configuration
-              </Button>
-              <Button size="sm" onClick={downloadZip} loading={running} disabled={running || !!standaloneRunning}>
-                Docker ZIP
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={saveDraft} loading={running} disabled={running || !!standaloneRunning}>
+              Save Configuration
+            </Button>
           </div>
 
-          {/* ── One-Click Download ───────────────────────────── */}
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
-            <div>
-              <div className="text-sm font-semibold text-indigo-900">One-Click Download</div>
-              <p className="mt-0.5 text-xs text-indigo-700">
-                Download a ready-to-run ERP bundle. No Docker, Node.js, or database installation needed.
+          {/* ── 5. Download & Run ────────────────────────────── */}
+          <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 space-y-5">
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-emerald-900">5. Download & Run Your ERP</h3>
+              <p className="text-sm text-emerald-700">
+                Your ERP is ready. Download it, extract the ZIP, and double-click to start.
+                <br />
+                <span className="font-medium">No extra software, no internet connection, and no technical knowledge required.</span>
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { key: 'macos-arm64', label: 'macOS (Apple Silicon)' },
-                { key: 'macos-x64',   label: 'macOS (Intel)' },
-                { key: 'windows-x64', label: 'Windows' },
-                { key: 'linux-x64',   label: 'Linux' },
-              ].map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => downloadStandalone(p.key)}
-                  disabled={running || !!standaloneRunning}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition
-                    ${standaloneRunning === p.key
-                      ? 'border-indigo-300 bg-indigo-100 text-indigo-700 cursor-wait'
-                      : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 disabled:opacity-50'
-                    }`}
-                >
-                  {standaloneRunning === p.key ? 'Building...' : p.label}
-                </button>
-              ))}
+
+            {(() => {
+              const rec = PLATFORM_INFO[detectedPlatform] || PLATFORM_INFO['windows-x64'];
+              const otherPlatforms = Object.entries(PLATFORM_INFO).filter(([k]) => k !== detectedPlatform);
+              return (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-emerald-200 bg-white p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">Recommended for your computer</span>
+                    </div>
+                    <button
+                      onClick={() => downloadStandalone(detectedPlatform)}
+                      disabled={running || !!standaloneRunning}
+                      className={`w-full rounded-xl border-2 px-5 py-4 text-left font-semibold shadow-sm transition
+                        ${standaloneRunning === detectedPlatform
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-700 cursor-wait'
+                          : 'border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50'
+                        }`}
+                    >
+                      <div className="text-base">{standaloneRunning === detectedPlatform ? 'Building your ERP...' : `Download for ${rec.label}`}</div>
+                      <div className={`mt-0.5 text-xs font-normal ${standaloneRunning === detectedPlatform ? 'text-emerald-600' : 'text-emerald-100'}`}>
+                        Self-contained bundle &middot; includes everything needed to run
+                      </div>
+                    </button>
+                    {standaloneRunning === detectedPlatform && (
+                      <div className="flex items-center gap-2 text-xs text-emerald-600">
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                        Packaging your ERP with all dependencies. This may take a minute or two...
+                      </div>
+                    )}
+                  </div>
+
+                  <details className="group">
+                    <summary className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-700 select-none">
+                      Download for a different operating system
+                    </summary>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {otherPlatforms.map(([key, info]) => (
+                        <button
+                          key={key}
+                          onClick={() => downloadStandalone(key)}
+                          disabled={running || !!standaloneRunning}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition
+                            ${standaloneRunning === key
+                              ? 'border-slate-300 bg-slate-100 text-slate-600 cursor-wait'
+                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'
+                            }`}
+                        >
+                          {standaloneRunning === key ? 'Building...' : info.label}
+                        </button>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              );
+            })()}
+
+            {downloadStarted && (() => {
+              const dlInfo = PLATFORM_INFO[downloadStarted] || PLATFORM_INFO['windows-x64'];
+              return (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 space-y-4">
+                  <div className="text-sm font-bold text-blue-900">How to start your ERP</div>
+                  <ol className="space-y-3 text-sm text-blue-800">
+                    <li className="flex gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-800">1</span>
+                      <div>
+                        <div className="font-semibold">Find and extract the downloaded ZIP file</div>
+                        <div className="mt-0.5 text-xs text-blue-600">{dlInfo.extractTip}</div>
+                      </div>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-800">2</span>
+                      <div>
+                        <div className="font-semibold">Open the extracted folder and double-click <code className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-mono">{dlInfo.startFile}</code></div>
+                        <div className="mt-0.5 text-xs text-blue-600">
+                          {downloadStarted.startsWith('macos') && 'If macOS shows a security warning, right-click the file and choose "Open" instead.'}
+                          {downloadStarted.startsWith('windows') && 'If Windows shows a SmartScreen warning, click "More info" then "Run anyway".'}
+                          {downloadStarted.startsWith('linux') && 'You may need to run: chmod +x start.sh first, then ./start.sh'}
+                        </div>
+                      </div>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-800">3</span>
+                      <div>
+                        <div className="font-semibold">Your browser will open automatically at <code className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-mono">http://localhost:3000</code></div>
+                        <div className="mt-0.5 text-xs text-blue-600">That is your ERP. You can start adding data right away.</div>
+                      </div>
+                    </li>
+                  </ol>
+                  <div className="rounded-lg border border-blue-100 bg-white/60 p-3 text-xs text-blue-700">
+                    <span className="font-semibold">About your data:</span> Everything is stored locally on your computer in the <code className="rounded bg-blue-100 px-1 py-0.5 font-mono">app/data</code> folder.
+                    To back up, simply copy that folder to a safe location. No cloud account needed.
+                  </div>
+                </div>
+              );
+            })()}
+
+            <details className="group rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-left hover:bg-slate-50 select-none">
+                <span className="text-xs font-medium text-slate-500">Advanced: Docker Setup (for developers)</span>
+                <svg className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
+              </summary>
+              <div className="border-t px-4 py-3 space-y-2">
+                <p className="text-xs text-slate-500">
+                  This downloads a Docker-based version that requires Docker Desktop to be installed.
+                  Only use this if you are a developer or IT professional.
+                </p>
+                <Button variant="outline" size="sm" onClick={downloadZip} loading={running} disabled={running || !!standaloneRunning}>
+                  Download Docker ZIP
+                </Button>
+              </div>
+            </details>
+
+            <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+              <span className="font-semibold text-slate-600">What is this download?</span>{' '}
+              It is a complete, self-contained application that runs entirely on your computer.
+              It includes its own server, database, and interface. No internet connection is needed after downloading.
+              You do not need to install any other software.
             </div>
-            {standaloneRunning && (
-              <p className="text-xs text-indigo-600">
-                Building your standalone ERP bundle. This may take a minute...
-              </p>
-            )}
           </div>
 
           {preview.warnings?.length > 0 && (

@@ -102,5 +102,14 @@ export const projectService = {
     const response = await api.post(`/projects/${id}/generate`, {}, { responseType: 'blob' });
     return response.data as Blob;
   },
+
+  generateStandaloneErpZip: async (id: string, platform: string): Promise<Blob> => {
+    const response = await api.post(
+      `/projects/${id}/generate/standalone?platform=${encodeURIComponent(platform)}`,
+      {},
+      { responseType: 'blob', timeout: 300000 },
+    );
+    return response.data as Blob;
+  },
 };
 

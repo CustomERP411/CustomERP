@@ -40,12 +40,11 @@ async function rmDirRecursive(dir) {
   }
 }
 
-async function generateProjectDir({ projectId, sdf }) {
+async function generateProjectDir({ projectId, sdf, standalone = false }) {
   const { assemblerPath, brickLibraryPath, outputRoot } = getPaths();
 
   await ensureDir(outputRoot);
 
-  // Dynamic require so backend can run even if generator isn't mounted.
   const BrickRepository = require(path.join(assemblerPath, 'BrickRepository'));
   const ProjectAssembler = require(path.join(assemblerPath, 'ProjectAssembler'));
 
@@ -53,8 +52,34 @@ async function generateProjectDir({ projectId, sdf }) {
   const assembler = new ProjectAssembler(brickRepo, outputRoot);
 
   const genId = `${safeFileName(projectId)}-${Date.now()}`;
-  const outputDir = await assembler.assemble(genId, sdf);
+  const outputDir = await assembler.assemble(genId, sdf, { standalone });
   return { outputDir, genId };
+}
+
+async function generateStandaloneDir({ projectId, sdf, platform }) {
+  const { assemblerPath } = getPaths();
+  const StandalonePackager = require(path.join(assemblerPath, 'StandalonePackager'));
+
+  const supportedPlatforms = Object.keys(StandalonePackager.PLATFORMS);
+  if (!supportedPlatforms.includes(platform)) {
+    const err = new Error(`Unsupported platform '${platform}'. Supported: ${supportedPlatforms.join(', ')}`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const { outputDir } = await generateProjectDir({ projectId, sdf, standalone: true });
+
+  try {
+    await StandalonePackager.buildStandaloneBundle({
+      assembledDir: outputDir,
+      platform,
+      projectName: safeFileName(projectId),
+    });
+    return { outputDir };
+  } catch (err) {
+    await rmDirRecursive(outputDir);
+    throw err;
+  }
 }
 
 function streamZipFromDir(res, { outputDir, zipName }) {
@@ -94,6 +119,7 @@ function streamZipFromDir(res, { outputDir, zipName }) {
 module.exports = {
   getPaths,
   generateProjectDir,
+  generateStandaloneDir,
   streamZipFromDir,
   rmDirRecursive,
 };

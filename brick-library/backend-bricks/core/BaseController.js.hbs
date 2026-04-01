@@ -1,10 +1,10 @@
 // brick-library/backend-bricks/core/BaseController.js.hbs
-const PostgresProvider = require('../repository/PostgresProvider');
+const RepositoryProvider = require('../repository/{{ProviderName}}');
 const {{EntityName}}Service = require('../services/{{EntityName}}Service');
 
 class {{EntityName}}Controller {
   constructor() {
-    this.repository = new PostgresProvider();
+    this.repository = new RepositoryProvider();
     this.service = new {{EntityName}}Service(this.repository, {{mixinConfig}});
   }
 

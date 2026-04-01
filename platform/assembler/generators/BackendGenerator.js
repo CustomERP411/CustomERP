@@ -11,6 +11,7 @@ class BackendGenerator {
     this.modules = {};
     this.moduleMap = {};
     this._moduleDirs = new Set();
+    this._standalone = false;
     const customMixinsPath =
       process.env.CUSTOM_MIXINS_PATH ||
       path.resolve(this.brickRepo.libraryPath, '..', 'custom_mixins');
@@ -1227,23 +1228,33 @@ class BackendGenerator {
       await fs.mkdir(path.join(moduleRoot, dir), { recursive: true });
     }
 
-    await this.brickRepo.copyFile(
-      'backend-bricks/repository/PostgresProvider.js',
-      path.join(moduleRoot, 'src/repository/PostgresProvider.js')
-    );
-    await this.brickRepo.copyFile(
-      'backend-bricks/repository/db.js',
-      path.join(moduleRoot, 'src/repository/db.js')
-    );
+    if (this._standalone) {
+      await this.brickRepo.copyFile(
+        'backend-bricks/repository/SQLiteProvider.js',
+        path.join(moduleRoot, 'src/repository/SQLiteProvider.js')
+      );
+      await this.brickRepo.copyFile(
+        'backend-bricks/repository/sqliteDb.js',
+        path.join(moduleRoot, 'src/repository/sqliteDb.js')
+      );
+    } else {
+      await this.brickRepo.copyFile(
+        'backend-bricks/repository/PostgresProvider.js',
+        path.join(moduleRoot, 'src/repository/PostgresProvider.js')
+      );
+      await this.brickRepo.copyFile(
+        'backend-bricks/repository/db.js',
+        path.join(moduleRoot, 'src/repository/db.js')
+      );
+    }
 
     this._moduleDirs.add(moduleKey);
   }
 
-  async scaffold(outputDir, projectId) {
-    // Reset per-project module cache so repeated assemblies in one process remain safe.
+  async scaffold(outputDir, projectId, options = {}) {
     this._moduleDirs = new Set();
+    this._standalone = !!options.standalone;
 
-    // 1. Create directory structure
     const dirs = [
       'src/controllers',
       'src/routes',
@@ -1256,36 +1267,58 @@ class BackendGenerator {
       await fs.mkdir(path.join(outputDir, dir), { recursive: true });
     }
 
-    // 2. Generate Base Files (package.json, Dockerfile, etc.)
     await this._generateBaseFiles(outputDir, projectId);
 
-    // 3. Copy Static Helpers
-    await this.brickRepo.copyFile(
-      'backend-bricks/repository/PostgresProvider.js',
-      path.join(outputDir, 'src/repository/PostgresProvider.js')
-    );
-    await this.brickRepo.copyFile(
-      'backend-bricks/repository/db.js',
-      path.join(outputDir, 'src/repository/db.js')
-    );
-    await this.brickRepo.copyFile(
-      'backend-bricks/repository/runMigrations.js',
-      path.join(outputDir, 'src/repository/runMigrations.js')
-    );
+    if (this._standalone) {
+      await this.brickRepo.copyFile(
+        'backend-bricks/repository/SQLiteProvider.js',
+        path.join(outputDir, 'src/repository/SQLiteProvider.js')
+      );
+      await this.brickRepo.copyFile(
+        'backend-bricks/repository/sqliteDb.js',
+        path.join(outputDir, 'src/repository/sqliteDb.js')
+      );
+      await this.brickRepo.copyFile(
+        'backend-bricks/repository/runSQLiteMigrations.js',
+        path.join(outputDir, 'src/repository/runSQLiteMigrations.js')
+      );
+    } else {
+      await this.brickRepo.copyFile(
+        'backend-bricks/repository/PostgresProvider.js',
+        path.join(outputDir, 'src/repository/PostgresProvider.js')
+      );
+      await this.brickRepo.copyFile(
+        'backend-bricks/repository/db.js',
+        path.join(outputDir, 'src/repository/db.js')
+      );
+      await this.brickRepo.copyFile(
+        'backend-bricks/repository/runMigrations.js',
+        path.join(outputDir, 'src/repository/runMigrations.js')
+      );
+    }
   }
 
   async _generateBaseFiles(outputDir, projectId) {
-    const files = [
-      { template: 'package.json.template', dest: 'package.json' },
-      { template: 'Dockerfile.template', dest: 'Dockerfile' },
-      { template: 'docker-compose.template.yml', dest: 'docker-compose.yml' },
-      { template: 'README.template.md', dest: 'README.md' }
-    ];
+    console.log(`  Using ${this._standalone ? 'standalone' : 'docker'} templates`);
+    const files = this._standalone
+      ? [
+          { template: 'standalone/package.json.template', dest: 'package.json' },
+        ]
+      : [
+          { template: 'package.json.template', dest: 'package.json' },
+          { template: 'Dockerfile.template', dest: 'Dockerfile' },
+          { template: 'docker-compose.template.yml', dest: 'docker-compose.yml' },
+          { template: 'README.template.md', dest: 'README.md' },
+        ];
 
     for (const file of files) {
       const template = await this.brickRepo.getTemplate(file.template);
       const content = TemplateEngine.render(template, { projectId });
       await fs.writeFile(path.join(outputDir, file.dest), content);
+    }
+
+    if (this._standalone) {
+      await fs.writeFile(path.join(outputDir, '.standalone'), 'true\n');
     }
   }
 
@@ -1299,9 +1332,10 @@ class BackendGenerator {
     const effectiveMixinConfig = this._buildEffectiveMixinConfig(entity, mixinsToApply);
 
     const context = {
-      EntityName: this._capitalize(entity.slug), // e.g., "products" -> "Products"
+      EntityName: this._capitalize(entity.slug),
       entitySlug: entity.slug,
-      mixinConfig: JSON.stringify(effectiveMixinConfig)
+      mixinConfig: JSON.stringify(effectiveMixinConfig),
+      ProviderName: this._standalone ? 'SQLiteProvider' : 'PostgresProvider',
     };
 
     // 1. Generate Controller (Using BaseController template)
@@ -2461,12 +2495,17 @@ module.exports = router;
     const repoDir = path.join(outputDir, 'src/repository');
     const migrationsDir = path.join(repoDir, 'migrations');
     await fs.mkdir(migrationsDir, { recursive: true });
-    const sql = this._buildDatabaseSchemaSql(entities);
+    const sql = this._standalone
+      ? this._buildSQLiteSchemaSql(entities)
+      : this._buildDatabaseSchemaSql(entities);
     await fs.writeFile(path.join(migrationsDir, '001_initial_schema.sql'), sql);
   }
 
   async generateMainEntry(outputDir) {
-    const template = await this.brickRepo.getTemplate('index.js.template');
+    const templateName = this._standalone
+      ? 'standalone/index.js.template'
+      : 'index.js.template';
+    const template = await this.brickRepo.getTemplate(templateName);
     await fs.writeFile(path.join(outputDir, 'src/index.js'), template);
   }
 
@@ -3280,6 +3319,133 @@ module.exports = router;
         lines.push(`      ON UPDATE CASCADE ON DELETE RESTRICT;`);
         lines.push(`  END IF;`);
         lines.push(`END $$;`);
+      }
+      lines.push('');
+    }
+
+    if (lines.length <= 3) {
+      lines.push('-- No entities available to generate schema.');
+      lines.push('');
+    }
+
+    return `${lines.join('\n').trim()}\n`;
+  }
+
+  /* ------------------------------------------------------------------
+   *  SQLite schema generation (standalone mode)
+   * ------------------------------------------------------------------ */
+
+  _toSqliteType(field) {
+    if (this._isFieldMultiple(field)) return 'TEXT';
+    const type = String(field && field.type ? field.type : 'string').toLowerCase();
+    switch (type) {
+      case 'integer': return 'INTEGER';
+      case 'decimal':
+      case 'number': return 'REAL';
+      case 'boolean': return 'INTEGER';
+      case 'date':
+      case 'datetime': return 'TEXT';
+      case 'text':
+      case 'reference':
+      case 'string':
+      default: return 'TEXT';
+    }
+  }
+
+  _buildSQLiteSchemaSql(entities = []) {
+    const allEntities = Array.isArray(entities) ? entities : [];
+    const bySlug = new Map();
+    for (const entity of allEntities) {
+      if (!entity || !entity.slug) continue;
+      if (!bySlug.has(entity.slug)) bySlug.set(entity.slug, entity);
+    }
+
+    const lines = [
+      '-- Generated by CustomERP assembler (SQLite)',
+      '-- Database schema for generated ERP entities',
+      '',
+    ];
+
+    for (const entity of bySlug.values()) {
+      const slug = String(entity.slug || '').trim();
+      if (!slug) continue;
+      const fields = Array.isArray(entity.fields) ? entity.fields : [];
+      const table = this._quoteSqlIdentifier(slug);
+      const columns = [
+        `${this._quoteSqlIdentifier('id')} TEXT PRIMARY KEY`,
+        `${this._quoteSqlIdentifier('created_at')} TEXT NOT NULL DEFAULT (datetime('now'))`,
+        `${this._quoteSqlIdentifier('updated_at')} TEXT NOT NULL DEFAULT (datetime('now'))`,
+      ];
+
+      const seen = new Set(['id', 'created_at', 'updated_at']);
+      for (const field of fields) {
+        if (!field || !field.name) continue;
+        const fieldName = String(field.name);
+        if (!fieldName || seen.has(fieldName)) continue;
+        seen.add(fieldName);
+
+        const sqliteType = this._toSqliteType(field);
+        const notNull = field.required ? ' NOT NULL' : '';
+        const defaultClause = this._isFieldMultiple(field) ? ` DEFAULT '[]'` : '';
+
+        const fieldType = String(field.type || '').toLowerCase();
+        const referenceEntity = this._pickFirstString(field.reference_entity, field.referenceEntity);
+        let refClause = '';
+        if (
+          fieldType === 'reference' &&
+          referenceEntity &&
+          bySlug.has(referenceEntity) &&
+          !this._isFieldMultiple(field)
+        ) {
+          refClause = ` REFERENCES ${this._quoteSqlIdentifier(referenceEntity)}(${this._quoteSqlIdentifier('id')}) ON UPDATE CASCADE ON DELETE RESTRICT`;
+        }
+
+        columns.push(`${this._quoteSqlIdentifier(fieldName)} ${sqliteType}${notNull}${defaultClause}${refClause}`);
+      }
+
+      lines.push(`CREATE TABLE IF NOT EXISTS ${table} (`);
+      lines.push(`  ${columns.join(',\n  ')}`);
+      lines.push(');');
+      lines.push('');
+
+      for (const field of fields) {
+        if (!field || !field.name || !field.unique || this._isFieldMultiple(field)) continue;
+        const fieldName = String(field.name);
+        if (!fieldName || ['id', 'created_at', 'updated_at'].includes(fieldName)) continue;
+        const safeIndexName = `ux_${slug}_${fieldName}`.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 60);
+        lines.push(
+          `CREATE UNIQUE INDEX IF NOT EXISTS ${this._quoteSqlIdentifier(safeIndexName)} ON ${table} (${this._quoteSqlIdentifier(fieldName)}) WHERE ${this._quoteSqlIdentifier(fieldName)} IS NOT NULL;`
+        );
+      }
+
+      const fieldNames = new Set(fields.map((f) => (f && f.name ? String(f.name) : '')).filter(Boolean));
+      const emittedIndexes = new Set();
+      const emitIndex = (rawName, columnsSql) => {
+        const safe = String(rawName || '').replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 60);
+        if (!safe || emittedIndexes.has(safe)) return;
+        emittedIndexes.add(safe);
+        lines.push(`CREATE INDEX IF NOT EXISTS ${this._quoteSqlIdentifier(safe)} ON ${table} (${columnsSql});`);
+      };
+
+      for (const field of fields) {
+        if (!field || !field.name || this._isFieldMultiple(field)) continue;
+        const fieldName = String(field.name);
+        if (!fieldName || ['id', 'created_at', 'updated_at'].includes(fieldName)) continue;
+        const fieldType = String(field.type || '').toLowerCase();
+        const looksReference = fieldType === 'reference' || fieldName.endsWith('_id');
+        const looksStatus = fieldName === 'status';
+        const looksNumber = fieldType === 'integer' || fieldType === 'decimal' || fieldType === 'number';
+        if (looksReference || looksStatus || looksNumber) {
+          emitIndex(`ix_${slug}_${fieldName}`, this._quoteSqlIdentifier(fieldName));
+        }
+      }
+
+      if (fieldNames.has('status')) {
+        for (const fieldName of fieldNames) {
+          if (!fieldName.endsWith('_id')) continue;
+          const compositeCols = `${this._quoteSqlIdentifier(fieldName)}, ${this._quoteSqlIdentifier('status')}`;
+          emitIndex(`ix_${slug}_${fieldName}_status`, compositeCols);
+        }
       }
       lines.push('');
     }

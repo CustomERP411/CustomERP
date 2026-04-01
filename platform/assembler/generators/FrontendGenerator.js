@@ -48,6 +48,11 @@ class FrontendGenerator {
     this.modules = {};
     this.moduleMap = {};
     this._moduleDirs = new Set();
+    this._standalone = false;
+  }
+
+  setStandalone(flag) {
+    this._standalone = !!flag;
   }
 
   setModules(modules) {
@@ -797,11 +802,12 @@ export default defineConfig({
     };
     await fs.writeFile(path.join(outputDir, 'tsconfig.json'), JSON.stringify(tsConfig, null, 2));
 
-    // API service
+    // API service – in standalone the frontend is served from the same origin
+    const defaultApiUrl = this._standalone ? '/api' : 'http://localhost:3000/api';
     const apiService = `import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL || '${defaultApiUrl}',
 });
 
 export default api;`;
@@ -817,15 +823,11 @@ export default api;`;
 `;
     await fs.writeFile(path.join(outputDir, 'postcss.config.js'), postcssConfig);
 
-    // .dockerignore
-    const dockerIgnore = `node_modules
-dist
-.git
-`;
-    await fs.writeFile(path.join(outputDir, '.dockerignore'), dockerIgnore);
+    if (!this._standalone) {
+      const dockerIgnore = `node_modules\ndist\n.git\n`;
+      await fs.writeFile(path.join(outputDir, '.dockerignore'), dockerIgnore);
 
-    // Dockerfile (Vite dev server)
-    const dockerfile = `FROM node:20-alpine
+      const dockerfile = `FROM node:20-alpine
 
 WORKDIR /app
 
@@ -838,7 +840,8 @@ EXPOSE 5173
 
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 `;
-    await fs.writeFile(path.join(outputDir, 'Dockerfile'), dockerfile);
+      await fs.writeFile(path.join(outputDir, 'Dockerfile'), dockerfile);
+    }
   }
 
   async _generateSharedComponents(outputDir) {

@@ -1,0 +1,174 @@
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const routes = require('./routes');
+require('dotenv').config();
+
+let systemConfig = {};
+try {
+  systemConfig = require('./systemConfig');
+} catch (e) {
+  systemConfig = {};
+}
+
+let cron = null;
+try {
+  cron = require('node-cron');
+} catch (e) {
+  cron = null;
+}
+
+const SQLiteProvider = require('./repository/SQLiteProvider');
+const { testConnection } = require('./repository/sqliteDb');
+const { runMigrations } = require('./repository/runSQLiteMigrations');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+
+// Serve pre-built frontend
+const publicDir = path.join(__dirname, '..', 'public');
+app.use(express.static(publicDir));
+
+app.use('/api', routes);
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'generated-erp' });
+});
+
+// SPA fallback – serve index.html for any non-API route
+app.get('*', (req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
+});
+
+const scheduleReports = () => {
+  const cfg = systemConfig?.modules?.scheduled_reports;
+  if (!cfg?.enabled) return;
+  if (!cron) {
+    console.warn('[REPORTS] scheduled_reports enabled but node-cron is not installed.');
+    return;
+  }
+
+  const repo = new SQLiteProvider();
+
+  const job = async () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const reportDate = `${yyyy}-${mm}-${dd}`;
+    const generatedAt = now.toISOString();
+
+    const reportType = cfg.report_type || 'daily_summary';
+    const targetSlug = cfg.target_slug || '__reports';
+
+    try {
+      const data = {};
+      const toNumber = (v) => {
+        if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+        if (v === null || v === undefined) return null;
+        const s = String(v).trim();
+        if (!s) return null;
+        const normalized = s.replace(/,/g, '.');
+        const n = Number(normalized);
+        if (Number.isFinite(n)) return n;
+        const pf = parseFloat(normalized);
+        return Number.isFinite(pf) ? pf : null;
+      };
+
+      const entities = Array.isArray(cfg.entities) ? cfg.entities : [];
+      if (entities.length) {
+        const counts = {};
+        for (const slug of entities) {
+          try {
+            const rows = await repo.findAll(slug);
+            counts[slug] = Array.isArray(rows) ? rows.length : 0;
+          } catch (e) {
+            counts[slug] = 0;
+          }
+        }
+        data.entity_counts = counts;
+      }
+
+      if (cfg.low_stock?.enabled) {
+        const slug = cfg.low_stock.entity;
+        const qf = cfg.low_stock.quantity_field || 'quantity';
+        const rf = cfg.low_stock.reorder_point_field || 'reorder_point';
+        const limit = Number(cfg.low_stock.limit || 10);
+        const rows = await repo.findAll(slug);
+        const low = (Array.isArray(rows) ? rows : [])
+          .filter((r) => {
+            const q = toNumber(r?.[qf]);
+            const rp = toNumber(r?.[rf]);
+            if (q === null || rp === null) return false;
+            return q <= rp;
+          })
+          .sort((a, b) => (toNumber(a?.[qf]) ?? 0) - (toNumber(b?.[qf]) ?? 0))
+          .slice(0, limit);
+        data.low_stock = {
+          entity: slug,
+          count: low.length,
+          preview: low.map((r) => ({ id: r.id, quantity: r?.[qf], reorder_point: r?.[rf] })),
+        };
+      }
+
+      const existing = await repo.findAll(targetSlug);
+      const found = (Array.isArray(existing) ? existing : []).find(
+        (r) => r?.report_type === reportType && r?.report_date === reportDate
+      );
+      const record = {
+        report_date: reportDate,
+        report_type: reportType,
+        generated_at: generatedAt,
+        data: JSON.stringify(data),
+      };
+      if (found?.id) {
+        await repo.update(targetSlug, found.id, record);
+        console.log(`[REPORTS] Updated ${reportType} for ${reportDate}`);
+      } else {
+        await repo.create(targetSlug, record);
+        console.log(`[REPORTS] Created ${reportType} for ${reportDate}`);
+      }
+    } catch (e) {
+      console.warn('[REPORTS] Failed to generate report:', e?.message || e);
+    }
+  };
+
+  cron.schedule(cfg.cron || '0 0 * * *', job);
+  job();
+};
+
+const openBrowser = (url) => {
+  try {
+    const { exec } = require('child_process');
+    switch (process.platform) {
+      case 'darwin':  exec(`open "${url}"`); break;
+      case 'win32':   exec(`start "" "${url}"`); break;
+      default:        exec(`xdg-open "${url}" 2>/dev/null`); break;
+    }
+  } catch (_) {
+    // Browser auto-open is best-effort
+  }
+};
+
+const start = () => {
+  try {
+    testConnection();
+    console.log('[BOOT] SQLite database ready.');
+    runMigrations();
+
+    app.listen(PORT, () => {
+      const url = `http://localhost:${PORT}`;
+      console.log(`\n  Your ERP is running at ${url}\n`);
+      openBrowser(url);
+      scheduleReports();
+    });
+  } catch (err) {
+    console.error('[BOOT] Startup failed:', err.message || err);
+    process.exit(1);
+  }
+};
+
+start();

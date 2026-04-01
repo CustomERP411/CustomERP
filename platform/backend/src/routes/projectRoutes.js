@@ -26,6 +26,7 @@ router.post('/:id/sdf/ai-edit', projectController.aiEditSdf);
 
 // Generator: produce downloadable zip
 router.post('/:id/generate', projectController.generateErpZip);
+router.post('/:id/generate/standalone', projectController.generateStandaloneErpZip);
 
 module.exports = router;
 

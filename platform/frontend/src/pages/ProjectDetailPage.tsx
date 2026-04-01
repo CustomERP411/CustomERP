@@ -204,6 +204,7 @@ export default function ProjectDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [standaloneRunning, setStandaloneRunning] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [showRaw, setShowRaw] = useState(false);
   const [showPrefilledJson, setShowPrefilledJson] = useState(false);
@@ -658,6 +659,31 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const downloadStandalone = async (platform: string) => {
+    if (!projectId) return;
+    setStandaloneRunning(platform);
+    setError('');
+    try {
+      const blob = await projectService.generateStandaloneErpZip(projectId, platform);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(sdf as any)?.project_name || project?.name || 'custom-erp'}-${platform}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      try {
+        const text = await (err?.response?.data instanceof Blob ? err.response.data.text() : Promise.resolve(''));
+        const parsed = text ? JSON.parse(text) : null;
+        setError(parsed?.error || err?.message || 'Standalone generation failed');
+      } catch {
+        setError(err?.response?.data?.error || err?.message || 'Standalone generation failed');
+      }
+    } finally {
+      setStandaloneRunning(null);
+    }
+  };
+
   /* ================================================================ */
   /*  RENDER                                                          */
   /* ================================================================ */
@@ -1087,13 +1113,49 @@ export default function ProjectDetailPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={saveDraft} loading={running} disabled={running}>
+              <Button variant="outline" size="sm" onClick={saveDraft} loading={running} disabled={running || !!standaloneRunning}>
                 Save Configuration
               </Button>
-              <Button size="sm" onClick={downloadZip} loading={running} disabled={running}>
-                Generate &amp; Download ZIP
+              <Button size="sm" onClick={downloadZip} loading={running} disabled={running || !!standaloneRunning}>
+                Docker ZIP
               </Button>
             </div>
+          </div>
+
+          {/* ── One-Click Download ───────────────────────────── */}
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
+            <div>
+              <div className="text-sm font-semibold text-indigo-900">One-Click Download</div>
+              <p className="mt-0.5 text-xs text-indigo-700">
+                Download a ready-to-run ERP bundle. No Docker, Node.js, or database installation needed.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: 'macos-arm64', label: 'macOS (Apple Silicon)' },
+                { key: 'macos-x64',   label: 'macOS (Intel)' },
+                { key: 'windows-x64', label: 'Windows' },
+                { key: 'linux-x64',   label: 'Linux' },
+              ].map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => downloadStandalone(p.key)}
+                  disabled={running || !!standaloneRunning}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition
+                    ${standaloneRunning === p.key
+                      ? 'border-indigo-300 bg-indigo-100 text-indigo-700 cursor-wait'
+                      : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 disabled:opacity-50'
+                    }`}
+                >
+                  {standaloneRunning === p.key ? 'Building...' : p.label}
+                </button>
+              ))}
+            </div>
+            {standaloneRunning && (
+              <p className="text-xs text-indigo-600">
+                Building your standalone ERP bundle. This may take a minute...
+              </p>
+            )}
           </div>
 
           {preview.warnings?.length > 0 && (

@@ -14,21 +14,22 @@ class ProjectAssembler {
     this.frontendGenerator = new FrontendGenerator(brickRepo);
   }
 
-  async assemble(projectId, sdf) {
+  async assemble(projectId, sdf, options = {}) {
+    const standalone = !!options.standalone;
     const outputDir = path.join(this.outputPath, projectId);
-    const backendDir = path.join(outputDir, 'backend');
+    const backendDir = standalone ? path.join(outputDir, 'app') : path.join(outputDir, 'backend');
     const frontendDir = path.join(outputDir, 'frontend');
 
-    console.log(`Starting assembly for project ${projectId} at ${outputDir}`);
+    console.log(`Starting assembly for project ${projectId} at ${outputDir} (standalone=${standalone})`);
 
     try {
-      // 0. Validate SDF integrity (Fail Fast)
       this._validateSdf(sdf);
 
-      // ==================== BACKEND ====================
       console.log('Generating backend...');
-      await this.backendGenerator.scaffold(backendDir, projectId);
-      // Pass global module config to generators (e.g., activity log defaults)
+      if (standalone && typeof this.frontendGenerator.setStandalone === 'function') {
+        this.frontendGenerator.setStandalone(true);
+      }
+      await this.backendGenerator.scaffold(backendDir, projectId, { standalone });
       if (typeof this.backendGenerator.setModules === 'function') {
         this.backendGenerator.setModules((sdf && sdf.modules) || {});
       }
@@ -94,7 +95,7 @@ class ProjectAssembler {
       }
 
       // ==================== ROOT FILES ====================
-      await this._generateRootFiles(outputDir, projectId);
+      await this._generateRootFiles(outputDir, projectId, { standalone });
 
       console.log('Assembly complete.');
       return outputDir;
@@ -2100,10 +2101,20 @@ class ProjectAssembler {
     };
   }
 
-  async _generateRootFiles(outputDir, projectId) {
+  async _generateRootFiles(outputDir, projectId, options = {}) {
     const fs = require('fs').promises;
+    const standalone = !!options.standalone;
 
-    // Root docker-compose.yml
+    if (standalone) {
+      try {
+        const readmeTpl = await this.brickRepo.getTemplate('standalone/README.md');
+        await fs.writeFile(path.join(outputDir, 'README.md'), readmeTpl);
+      } catch (e) {
+        console.warn('Warning: Could not generate standalone README', e);
+      }
+      return;
+    }
+
     const dockerCompose = `version: '3.8'
 services:
   postgres:

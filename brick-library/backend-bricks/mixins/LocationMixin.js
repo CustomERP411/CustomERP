@@ -22,33 +22,52 @@ module.exports = {
 
   methods: `
   async moveStock(itemId, targetLocationId, quantity) {
-    const item = await this.repository.findById(this.slug, itemId);
-    if (!item) throw new Error('Item not found');
-    
-    // Check if we are moving from valid location
-    // Note: This logic assumes 'item' REPRESENTS stock at a location.
-    // In a sophisticated system, 'item' is the SKU, and we have a separate 'StockQuant' entity.
-    // For this Increment 1 Flat-File implementation, we treat the Item record as the stock record at a location.
-    
-    if (item.quantity < quantity) throw new Error('Insufficient quantity to move');
-    
-    // Deduct from current
-    await this.update(itemId, { quantity: item.quantity - quantity });
-    
-    // Add to target (Find existing record at target or create new)
-    const targetItems = await this.repository.findAll(this.slug, { 
-      sku: item.sku, 
-      location_id: targetLocationId 
-    });
-    
-    if (targetItems.length > 0) {
-      const targetItem = targetItems[0];
-      await this.update(targetItem.id, { quantity: targetItem.quantity + quantity });
-    } else {
-      // Clone item but at new location
-      const { id, ...itemData } = item;
-      await this.create({ ...itemData, location_id: targetLocationId, quantity: quantity });
+    const locationConfig = this.mixinConfig?.location || {};
+    const displayField = locationConfig.display_field || locationConfig.displayField || 'name';
+
+    const doMove = async (client) => {
+      const findById = client
+        ? (slug, id) => this.repository.findByIdForUpdate(slug, id, client)
+        : (slug, id) => this.repository.findById(slug, id);
+      const update = client
+        ? (slug, id, patch) => this.repository.updateWithClient(slug, id, patch, client)
+        : (slug, id, patch) => this.repository.update(slug, id, patch);
+      const findAll = client
+        ? (slug, filter) => this.repository.findAllWithClient(slug, filter, client)
+        : (slug, filter) => this.repository.findAll(slug, filter);
+      const create = client
+        ? (slug, data) => this.repository.createWithClient(slug, data, client)
+        : (slug, data) => this.repository.create(slug, data);
+
+      const item = await findById(this.slug, itemId);
+      if (!item) throw new Error('Item not found');
+
+      const currentQty = Number(item.quantity) || 0;
+      if (currentQty < quantity) throw new Error('Insufficient quantity to move');
+
+      await update(this.slug, itemId, { quantity: currentQty - quantity });
+
+      const matchField = item[displayField] ? displayField : (item.name ? 'name' : null);
+      const filter = { location_id: targetLocationId };
+      if (matchField) filter[matchField] = item[matchField];
+
+      const targetItems = await findAll(this.slug, filter);
+
+      if (targetItems.length > 0) {
+        const targetItem = targetItems[0];
+        const targetQty = Number(targetItem.quantity) || 0;
+        await update(this.slug, targetItem.id, { quantity: targetQty + quantity });
+        return targetItem;
+      } else {
+        const { id: _discardId, ...itemData } = item;
+        return create(this.slug, { ...itemData, location_id: targetLocationId, quantity: quantity });
+      }
+    };
+
+    if (typeof this.repository.withTransaction === 'function') {
+      return this.repository.withTransaction(doMove);
     }
+    return doMove(null);
   }
   `
 };

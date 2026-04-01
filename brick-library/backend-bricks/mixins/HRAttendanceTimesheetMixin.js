@@ -16,6 +16,8 @@ module.exports = (config = {}) => {
     timesheet_overtime_field: 'overtime_hours',
     timesheet_status_field: 'status',
     timesheet_attendance_field: 'attendance_id',
+    timesheet_approved_at_field: 'approved_at',
+    timesheet_approved_by_field: 'approved_by',
     daily_hours: 8,
   };
   const merged = {
@@ -69,6 +71,8 @@ module.exports = (config = {}) => {
       timesheet_overtime_field: cfg.timesheet_overtime_field || cfg.timesheetOvertimeField || '${merged.timesheet_overtime_field}',
       timesheet_status_field: cfg.timesheet_status_field || cfg.timesheetStatusField || '${merged.timesheet_status_field}',
       timesheet_attendance_field: cfg.timesheet_attendance_field || cfg.timesheetAttendanceField || '${merged.timesheet_attendance_field}',
+      timesheet_approved_at_field: cfg.timesheet_approved_at_field || cfg.timesheetApprovedAtField || '${merged.timesheet_approved_at_field}',
+      timesheet_approved_by_field: cfg.timesheet_approved_by_field || cfg.timesheetApprovedByField || '${merged.timesheet_approved_by_field}',
       daily_hours: Number(cfg.daily_hours || cfg.dailyHours || ${Number(merged.daily_hours) || 8}) || ${Number(merged.daily_hours) || 8},
     };
   }
@@ -324,8 +328,8 @@ module.exports = (config = {}) => {
       if (!row) throw this._hrAttErr('Timesheet entry not found', 404);
       const updated = await this.repository.updateWithClient(cfg.timesheet_entity, timesheetId, {
         [cfg.timesheet_status_field]: 'Approved',
-        approved_at: new Date().toISOString(),
-        approved_by: payload.approved_by || payload.approvedBy || null,
+        [cfg.timesheet_approved_at_field]: new Date().toISOString(),
+        [cfg.timesheet_approved_by_field]: payload.approved_by || payload.approvedBy || payload[cfg.timesheet_approved_by_field] || null,
       }, client);
       return {
         timesheet: updated,

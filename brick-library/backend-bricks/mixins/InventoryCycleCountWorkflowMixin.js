@@ -164,8 +164,8 @@ module.exports = {
       const session = await this.repository.findByIdForUpdate(this.slug, sessionId, client);
       if (!session) throw this._invCycleErr('Cycle session not found', 404);
       const status = String(session[cfg.session_status_field] || 'Draft');
-      if (!['PendingApproval', 'InProgress'].includes(status)) {
-        throw this._invCycleErr('Only PendingApproval/InProgress sessions can be approved', 409, { status });
+      if (status !== 'PendingApproval') {
+        throw this._invCycleErr('Only PendingApproval sessions can be approved (run Recalculate first)', 409, { status });
       }
 
       return this.repository.updateWithClient(
@@ -196,8 +196,8 @@ module.exports = {
       if (!session) throw this._invCycleErr('Cycle session not found', 404);
 
       const status = String(session[cfg.session_status_field] || 'Draft');
-      if (!['Approved', 'PendingApproval'].includes(status)) {
-        throw this._invCycleErr('Only Approved/PendingApproval sessions can be posted', 409, { status });
+      if (status !== 'Approved') {
+        throw this._invCycleErr('Only Approved sessions can be posted (run Approve first)', 409, { status });
       }
 
       const lines = await this.repository.findAllWithClient(

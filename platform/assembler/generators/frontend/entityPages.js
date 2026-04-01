@@ -1907,7 +1907,7 @@ export default function ${entityName}TransferPage() {
       try {
         const [itemsRes, locRes] = await Promise.all([
           api.get('/' + ENTITY_SLUG),
-          api.get('/' + INV.location_entity),
+          api.get('/' + INV.location_entity).catch(() => ({ data: [] })),
         ]);
         if (cancelled) return;
         setItems(Array.isArray(itemsRes.data) ? itemsRes.data : []);

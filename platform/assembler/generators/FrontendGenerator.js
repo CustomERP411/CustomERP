@@ -153,6 +153,8 @@ class FrontendGenerator {
     const stockEntity = this._pickFirstString(
       inventory.stock_entity,
       inventory.stockEntity,
+      transactions.stock_entity,
+      transactions.stockEntity,
       reservations.stock_entity,
       reservations.stockEntity,
       inbound.stock_entity,

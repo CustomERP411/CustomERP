@@ -15,6 +15,9 @@ module.exports = {
       }
       if (data.email !== undefined && data.email !== null) {
         data.email = String(data.email).trim().toLowerCase();
+        if (!data.email) {
+          throw new Error('Email cannot be empty');
+        }
       }
       if (data.hire_date) {
         const parsed = new Date(data.hire_date);

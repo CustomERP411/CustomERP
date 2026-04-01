@@ -25,10 +25,7 @@ module.exports = {
         if (!allowPastExpiry && expiry < new Date()) {
           throw new Error('Expiry date cannot be in the past');
         }
-        if (allowPastExpiry && expiry < new Date()) {
-          console.warn('Warning: Creating item with past expiry date');
         }
-      }
     `,
 
     'BEFORE_CREATE_TRANSFORMATION': `
@@ -45,10 +42,16 @@ module.exports = {
     return this.repository.findAll(this.slug, { batch_number: batchNumber });
   }
 
-  async getExpiredItems() {
+  async getExpiredItems(beforeDate) {
+    const cutoff = beforeDate instanceof Date ? beforeDate : new Date();
+    const cutoffIso = cutoff.toISOString();
+
+    if (typeof this.repository.findAllWhere === 'function') {
+      return this.repository.findAllWhere(this.slug, 'expiry_date', '<', cutoffIso);
+    }
+
     const allItems = await this.repository.findAll(this.slug);
-    const now = new Date();
-    return allItems.filter(item => item.expiry_date && new Date(item.expiry_date) < now);
+    return allItems.filter(item => item.expiry_date && new Date(item.expiry_date) < cutoff);
   }
   `
 };

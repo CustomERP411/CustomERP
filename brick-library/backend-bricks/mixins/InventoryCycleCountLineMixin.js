@@ -55,7 +55,7 @@ module.exports = {
       const __statusField = __cfg.line_status_field || __cfg.lineStatusField || 'status';
 
       const __existing = await this.repository.findById(this.slug, id);
-      if (!__existing) return null;
+      if (!__existing) throw new Error('Cycle count line not found');
 
       const __toNum = (raw, fieldName) => {
         const n = Number(raw);

@@ -213,10 +213,41 @@ module.exports = (config = {}) => {
       if (targetStatus === 'Cancelled') patch[cfg.cancelled_at_field] = nowIso;
 
       const updatedLeave = await this.repository.updateWithClient(cfg.leave_entity, leaveId, patch, client);
+
+      let balanceResult = null;
+      if (targetStatus === 'Approved' && cfg.consume_on_approval) {
+        const leaveCfg = this._hrLeaveCfg();
+        const empId = leave[cfg.employee_field];
+        const leaveType = String(leave[cfg.leave_type_field] || '').trim();
+        const startDate = leave[cfg.start_date_field];
+        const endDate = leave[cfg.end_date_field];
+        const leaveDays = this._hrLeaveRound(
+          leave[cfg.days_field] ?? this._hrLeaveCalcDays(startDate, endDate, leaveCfg)
+        );
+        if (empId && leaveType && Number.isFinite(leaveDays) && leaveDays > 0) {
+          const fiscalYear = this._hrLeaveYearFromDates(startDate, endDate);
+          await this._hrLeaveFindOrCreateBalance(client, leaveCfg, empId, leaveType, fiscalYear, {});
+          const balanceMatches = await this.repository.findAllWithClient(leaveCfg.balance_entity, {
+            [leaveCfg.employee_field]: empId,
+            [leaveCfg.leave_type_field]: leaveType,
+            [leaveCfg.fiscal_year_field]: fiscalYear,
+          }, client);
+          const bal = Array.isArray(balanceMatches) && balanceMatches.length ? balanceMatches[0] : null;
+          if (bal) {
+            const consumed = this._hrLeaveRound((bal[leaveCfg.consumed_field] || 0) + leaveDays);
+            const available = this._hrLeaveRound((bal[leaveCfg.available_field] || 0) - leaveDays);
+            balanceResult = await this.repository.updateWithClient(leaveCfg.balance_entity, bal.id, {
+              [leaveCfg.consumed_field]: consumed,
+              [leaveCfg.available_field]: available,
+            }, client);
+          }
+        }
+      }
+
       return {
         leave: updatedLeave,
         idempotent: false,
-        balance: null,
+        balance: balanceResult,
       };
     });
   }

@@ -123,39 +123,70 @@ Status legend:
 
 | Capability Area | Current Status | Evidence in Current Code | Gap / Missing |
 | --- | --- | --- | --- |
-| Invoice module toggle + config contract (`tax_rate`, `currency`, `payment_terms`, `prefix`) | Implemented | `SDF_REFERENCE.md`, `ProjectAssembler.js`, `InvoiceMixin.js` | Config options are global defaults only |
+| Invoice module toggle + config contract (`tax_rate`, `currency`, `payment_terms`, `prefix`) | Implemented | `SDF_REFERENCE.md`, `ProjectAssembler.js`, `InvoiceMixin.js` | Config options include entity slug references for all sub-packs |
 | Invoice required entity validation (`invoices`, `customers`) | Implemented | `_validateSdf()` in `ProjectAssembler.js` | No deep business validation beyond required fields |
-| Invoice-items schema enforcement when provided | Implemented | `_validateSdf()` checks for `invoice_items` + FK in `ProjectAssembler.js` | `invoice_items` still optional |
-| AI guardrail support for invoice module | Implemented | module whitelist + invoice defaults in `platform/ai-gateway/src/services/sdf_service.py` | Auto-add path ensures `invoices`/`customers`, not complete billing workflow |
-| Invoice service mixin with defaults and validations | Implemented | `brick-library/backend-bricks/mixins/InvoiceMixin.js` | No lifecycle transition policy or approval flow |
-| Auto invoice number generation with prefix and uniqueness checks | Implemented | `InvoiceMixin.js` | No DB-safe sequence/locking strategy |
+| Invoice-items schema enforcement when provided | Implemented | `_validateSdf()` checks for `invoice_items` + FK in `ProjectAssembler.js` | `invoice_items` created by prefilled SDF with full calc engine fields when enabled |
+| AI guardrail support for invoice module | Implemented | module whitelist + invoice defaults in `platform/ai-gateway/src/services/sdf_service.py` | Auto-add path ensures `invoices`/`customers` |
+| Invoice service mixin with defaults and validations | Implemented | `InvoiceMixin.js` | Status fallback includes all statuses including Cancelled; update hook recalcs outstanding balance |
+| Auto invoice number generation with prefix and uniqueness checks | Implemented | `InvoiceMixin.js` | Workflow mode uses DRAFT- prefix; create mode uses sequential numbering |
 | Auto due date from payment terms | Implemented | `InvoiceMixin.js` | No customer-specific terms override logic |
-| Header totals auto-calc from subtotal + tax rate | Implemented | `InvoiceMixin.js` | No line discount/shipping/other charge model |
-| Line item calculation + header recalc on item changes | Implemented | `InvoiceItemsMixin.js` (`_recalculateInvoiceTotals`) | No immutable posting controls once sent/paid |
-| Invoice-focused frontend list/cards | Implemented | `platform/assembler/generators/frontend/invoicePages.js`, `InvoiceCard.tsx` | No advanced filtering/aging collections dashboard |
+| Header totals auto-calc from subtotal + tax rate | Implemented | `InvoiceMixin.js` | Discount/charges fields properly round in both create and update paths |
+| Line item calculation + header recalc on item changes | Implemented | `InvoiceItemsMixin.js` (`_recalculateInvoiceTotals`) | Uses configurable entity slugs; recalcs outstanding_balance alongside totals; rejects negative qty/price |
+| Per-line discount/tax/charge calculation engine | Implemented | `InvoiceCalculationEngineMixin.js` | Full line-level discount, tax, charges with header rollup |
+| Invoice lifecycle with strict transition enforcement | Implemented | `InvoiceLifecycleMixin.js` | Draft->Sent->Paid/Overdue->Cancelled with configurable transitions |
+| Invoice transaction safety (idempotency, posting) | Implemented | `InvoiceTransactionSafetyMixin.js` | Idempotency key, issue/cancel operations, locked status protection |
+| Payment recording and invoice allocation | Implemented | `InvoicePaymentWorkflowMixin.js` | Full/partial payments, posting, cancellation, invoice balance impact |
+| Credit/debit note workflow | Implemented | `InvoiceNoteWorkflowMixin.js` | Credit/debit notes linked to source invoice, posting with balance impact |
+| Prefilled SDF creates all supporting entities | Implemented | `prefilledSdfService.js` `buildInvoiceEntities()` | Creates invoice_payments, invoice_payment_allocations, invoice_notes when enabled |
+| Entity slug references in module config | Implemented | `prefilledSdfService.js` `buildPrefilledSdfDraft()` | Each sub-pack includes explicit entity slugs |
+| Financial fields on invoice header | Implemented | `prefilledSdfService.js` | paid_total, outstanding_balance, idempotency_key, posted_at, cancelled_at |
+| Invoice-focused frontend list/cards | Implemented | `invoicePages.js`, `InvoiceCard.tsx` | No advanced filtering/aging collections dashboard |
 | Invoice form with child line-items management | Implemented | `buildEntityFormPage()` in `entityPages.js` | No payment/credit/debit workflows in UI |
+| Invoice workflow pages (payments, notes, lifecycle) | Implemented | `invoicePriorityPages.js` via `FrontendGenerator.js` | Dedicated workflow pages for payments, notes, and lifecycle |
 | Print action on invoice forms | Partial | invoice print button (`window.print`) in `entityPages.js` | Browser print only; no generated PDF template engine |
 | Currency formatting in invoice UI | Implemented | `invoicePages.js`, `entityPages.js`, `InvoiceCard.tsx` | No FX conversion/rate handling |
-| Status field baseline (`Draft`, `Sent`, `Paid`, `Overdue`) | Implemented | `InvoiceMixin.js`, sample SDF | No cancellable/voided status policies and controls |
+| Status field baseline (`Draft`, `Sent`, `Paid`, `Overdue`, `Cancelled`) | Implemented | `InvoiceMixin.js`, `InvoiceLifecycleMixin.js` | Full five-status set with transition rules |
 | Generic CRUD/import/export support for invoice entities | Implemented | generic generators in `FrontendGenerator.js` + `entityPages.js` | No invoice-specific import validation policies |
-| Payments, allocation, and AR ledger | Missing | No payment entity/mixin/workflow in invoice generation path | Needs payment posting and allocation engine |
-| Credit note/debit note workflow | Missing | No dedicated entities/mixins/pages for notes | Needs reversal/adjustment model and linkage |
+| Audit trail support on invoice entities | Partial | `features.audit_trail` path via `BackendGenerator.js` + `AuditMixin` support | Depends on per-entity config |
 | Multi-rate tax/compliance engine | Missing | Current tax model uses one global tax rate | Needs per-line tax rules and compliance outputs |
 | Recurring billing engine | Missing | Not present in current invoice generator path | Needs schedule model + generation runtime |
 | Dunning/collection workflow | Missing | Not present in current invoice generator path | Needs reminder cadence + escalation statuses |
 | Accounting posting integration for invoices | Missing | No AR/revenue/tax posting integration in generated ERP | Needs posting map and journal emit logic |
-| Idempotency/concurrency protection for invoice posting | Missing | Flat-file backend baseline + no idempotency keys in invoice logic | Needs transactional DB-backed safeguards |
+
+---
+
+## Robustness Fixes Applied
+
+The following issues were identified and fixed during the invoice module robustness overhaul:
+
+| Fix | File(s) | Issue | Resolution |
+|---|---|---|---|
+| Missing financial fields on header | `prefilledSdfService.js` | No `paid_total`, `outstanding_balance`, `idempotency_key`, `posted_at`, `cancelled_at` | All fields added to invoice header entity |
+| Missing discount/charges fields | `prefilledSdfService.js` | No `discount_total`, `additional_charges_total` when calc engine on | Fields added conditionally when calc engine enabled |
+| Missing calc engine line fields | `prefilledSdfService.js` | `invoice_items` only had `line_total`; calc engine expects 7 additional fields | All line-level fields added when calc engine enabled |
+| Missing payment entities | `prefilledSdfService.js` | `invoice_payments` and `invoice_payment_allocations` never created | Both entities created when payments enabled |
+| Missing note entity | `prefilledSdfService.js` | `invoice_notes` never created | Entity created when notes enabled |
+| Customer field name mismatch | `prefilledSdfService.js` | Used `company_name` as required; assembler expects `name` | Changed to `name` (required) + `company_name` (optional) |
+| Missing entity slug refs | `prefilledSdfService.js` | No entity slug references in sub-pack configs | All sub-packs now include explicit entity slugs |
+| Status fallback missing Cancelled | `InvoiceMixin.js` | Update hook fallback `allowedStatuses` was `['Draft','Sent','Paid','Overdue']` | Fixed to include `'Cancelled'` in both hooks |
+| Update hook missing discount/charges | `InvoiceMixin.js` | Update path didn't declare or round discount/charges fields | Added `discountTotalField`/`chargesField` declarations and rounding in calc engine path |
+| Hardcoded entity slugs in items mixin | `InvoiceItemsMixin.js` | `_recalculateInvoiceTotals` used literal `'invoice_items'`, `'invoices'`, `invoice_id` | All entity/field names resolved from configurable defaults |
+| Missing outstanding recalc | `InvoiceItemsMixin.js` | `_recalculateInvoiceTotals` updated subtotal/tax/grand but not `outstanding_balance` | Now reads `paid_total` and computes `outstanding_balance` |
+| No negative validation | `InvoiceItemsMixin.js` | Allowed negative `quantity` and `unit_price` | Added rejection of negative values in create and update validation |
 
 ---
 
 ## Missing Capability Backlog (Prioritized for Invoice Module Maturity)
 
-## Priority A (must-have for production-grade invoicing)
-- Implement DB-backed invoice transaction model with safe invoice number allocation. (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
-- Implement payment recording and invoice allocation flow (full and partial payments). (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
-- Implement strict invoice lifecycle rules (Draft -> Sent -> Paid/Overdue -> Cancelled) with transition validation. (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
-- Implement credit note and debit note workflows linked to source invoices. (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
-- Implement per-line tax/discount/additional-charge calculation engine (not just global tax rate). (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
+## Priority A (must-have for production-grade invoicing) -- COMPLETED
+
+All Priority A items have been implemented:
+
+- ~~Implement DB-backed invoice transaction model with safe invoice number allocation~~ -> `InvoiceTransactionSafetyMixin.js` (idempotency keys, atomic number allocation, draft/issue/cancel operations)
+- ~~Implement payment recording and invoice allocation flow~~ -> `InvoicePaymentWorkflowMixin.js` (full/partial payments, posting, cancellation, invoice balance impact)
+- ~~Implement strict invoice lifecycle rules~~ -> `InvoiceLifecycleMixin.js` (Draft->Sent->Paid/Overdue->Cancelled with configurable transitions)
+- ~~Implement credit note and debit note workflows~~ -> `InvoiceNoteWorkflowMixin.js` (credit/debit notes, posting, balance impact)
+- ~~Implement per-line tax/discount/additional-charge calculation engine~~ -> `InvoiceCalculationEngineMixin.js` (line subtotal, discount types, per-line tax, charges, header rollup)
 
 ## Priority B (important business capability expansion)
 - Implement invoice payment workspace pages (record payment, allocate, adjust, view outstanding). (EA) [Allowed files: `platform/assembler/generators/FrontendGenerator.js`, `platform/assembler/generators/frontend/**`, `brick-library/frontend-bricks/components/modules/invoice/**`, `brick-library/frontend-bricks/components/**`]

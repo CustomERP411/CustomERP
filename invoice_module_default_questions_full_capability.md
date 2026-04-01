@@ -2,224 +2,287 @@
 
 ## Purpose
 
-This questionnaire includes only questions that directly change generated SDF for invoice capabilities we currently support.
-
-If an answer does not affect SDF output, it is intentionally excluded.
-
----
-
-## Scope Covered (Current Capabilities)
-
-- Core invoice setup (currency, tax, numbering prefix)
-- Priority A invoice packs:
-  - transactions
-  - payments
-  - notes (credit/debit adjustments)
-  - lifecycle
-  - calculation_engine (line tax/discount/charges)
-- Optional naming customization for generated entities
+Every question here directly toggles a capability pack or config value in the generated SDF.
+No naming, no technical jargon, no questions about things we haven't built yet.
 
 ---
 
-## Question Flow
-
-1. Ask core invoice questions.
-2. Ask only enabled capability packs.
-3. Ask naming/customization only when user wants custom names.
-4. Build prefilled SDF from these answers before AI generation.
-
----
-
-## Core Questions (Always Ask)
+## Questions
 
 ### Q1
-- ID: `invoice_enable_module`
-- User question: "Do you want Invoice in your ERP?"
-- Input: `yes_no`
-- SDF mapping: `modules.invoice.enabled`
-
-### Q2
 - ID: `invoice_currency`
-- User question: "What is your main invoice currency?"
+- User question: "What currency do you use for invoices?"
 - Input: `choice + custom`
 - Options: `USD`, `EUR`, `GBP`, `TRY`, `AED`, `SAR`, `Other`
-- SDF mapping: `modules.invoice.currency`
+- SDF impact:
+  - `modules.invoice.currency` (string)
+  - Used by `InvoiceMixin` for header formatting
+  - Used by generated frontend for currency display (`Intl.NumberFormat`)
+
+### Q2
+- ID: `invoice_tax_rate`
+- User question: "What is your standard tax rate (%)?"
+- Input: `choice + custom` (0, 1, 5, 8, 10, 18, 20, Custom)
+- SDF impact:
+  - `modules.invoice.tax_rate` (number)
+  - Used by `InvoiceMixin` and `InvoiceItemsMixin` for automatic `tax_total` calculation
 
 ### Q3
-- ID: `invoice_default_tax_rate`
-- User question: "What is your default tax rate (%)?"
-- Input: `number`
-- SDF mapping: `modules.invoice.tax_rate`
+- ID: `invoice_enable_payments`
+- User question: "Do you want to record payments against invoices and track what is still owed?"
+- Input: `yes_no`
+- SDF impact:
+  - `modules.invoice.payments = { enabled: true, invoice_entity: 'invoices', payment_entity: 'invoice_payments', allocation_entity: 'invoice_payment_allocations' }`
+  - Creates `invoice_payments` entity:
+    - `payment_number` (string, unique)
+    - `invoice_id` (reference -> invoices, required)
+    - `amount` (decimal, required)
+    - `payment_date` (date, required)
+    - `payment_method` (string)
+    - `status` (string, options: Draft/Posted/Cancelled)
+    - `reference_number` (string)
+    - `posted_at` (datetime)
+    - `cancelled_at` (datetime)
+    - `cancel_reason` (text)
+    - `note` (text)
+  - Creates `invoice_payment_allocations` entity:
+    - `payment_id` (reference -> invoice_payments, required)
+    - `invoice_id` (reference -> invoices, required)
+    - `amount` (decimal, required)
+  - Wires `InvoicePaymentWorkflowMixin` (record, post, cancel payments; invoice balance updates)
 
 ### Q4
-- ID: `invoice_prefix`
-- User question: "What prefix should invoice numbers start with?"
-- Input: `text`
-- Example: `INV-`
-- SDF mapping: `modules.invoice.prefix`
+- ID: `invoice_enable_notes`
+- User question: "Do you need credit notes or debit notes to adjust invoices after they are sent?"
+- Input: `yes_no`
+- SDF impact:
+  - `modules.invoice.notes = { enabled: true, invoice_entity: 'invoices', note_entity: 'invoice_notes' }`
+  - Creates `invoice_notes` entity:
+    - `note_number` (string, unique)
+    - `source_invoice_id` (reference -> invoices, required)
+    - `note_type` (string, required, options: Credit/Debit)
+    - `amount` (decimal, required)
+    - `tax_total` (decimal)
+    - `grand_total` (decimal)
+    - `status` (string, options: Draft/Posted/Cancelled)
+    - `issue_date` (date)
+    - `reason` (text)
+    - `post_reference` (string)
+    - `posted_at` (datetime)
+    - `cancelled_at` (datetime)
+    - `cancel_reason` (text)
+    - `note` (text)
+  - Wires `InvoiceNoteWorkflowMixin` (create, post, cancel notes; invoice grand_total/outstanding impact)
 
 ### Q5
-- ID: `invoice_enable_transactions_pack`
-- User question: "Enable transaction-safe invoice posting and number allocation?"
+- ID: `invoice_enable_calc_engine`
+- User question: "Do you want per-line discounts and extra charges on invoice lines?"
 - Input: `yes_no`
-- SDF mapping: `modules.invoice.transactions.enabled`
+- SDF impact:
+  - `modules.invoice.calculation_engine = { enabled: true, invoice_entity: 'invoices', item_entity: 'invoice_items' }`
+  - Adds to `invoices` header:
+    - `discount_total` (decimal)
+    - `additional_charges_total` (decimal)
+  - Adds to `invoice_items`:
+    - `line_subtotal` (decimal)
+    - `line_discount_type` (string, options: Percent/Fixed)
+    - `line_discount_value` (decimal)
+    - `line_discount_amount` (decimal)
+    - `line_tax_rate` (decimal)
+    - `line_tax_amount` (decimal)
+    - `line_charges` (decimal)
+  - Wires `InvoiceCalculationEngineMixin` instead of `InvoiceItemsMixin`
 
 ### Q6
-- ID: `invoice_enable_payments_pack`
-- User question: "Do you want payment tracking and allocation?"
+- ID: `invoice_print`
+- User question: "Do you want to print or download invoices as PDF?"
 - Input: `yes_no`
-- SDF mapping: `modules.invoice.payments.enabled`
-
-### Q7
-- ID: `invoice_enable_notes_pack`
-- User question: "Do you want credit/debit note workflows linked to invoices?"
-- Input: `yes_no`
-- SDF mapping: `modules.invoice.notes.enabled`
-
-### Q8
-- ID: `invoice_enable_lifecycle_pack`
-- User question: "Do you want strict invoice status workflow (Draft, Sent, Paid, Overdue, Cancelled)?"
-- Input: `yes_no`
-- SDF mapping: `modules.invoice.lifecycle.enabled`
-
-### Q9
-- ID: `invoice_enable_calc_engine_pack`
-- User question: "Do you want line-level calculations (line discount, tax, additional charges)?"
-- Input: `yes_no`
-- SDF mapping: `modules.invoice.calculation_engine.enabled`
+- SDF impact:
+  - `entities.invoices.features.print_invoice = true`
+  - Enables print/download button on invoice form page in generated frontend
 
 ---
 
-## Lifecycle Detail (Ask Only If Lifecycle Enabled)
+## Auto-Enabled (No Question Needed)
 
-### Q10
-- ID: `invoice_enforce_transitions`
-- User question: "Should status transitions be strictly enforced?"
-- Input: `yes_no`
-- Condition: Q8 = yes
-- SDF mapping: `modules.invoice.lifecycle.enforce_transitions`
+These are always turned on when invoice module is selected:
 
-### Q11
-- ID: `invoice_status_field_name`
-- User question: "Use default status field name 'status'?"
-- Input: `yes_no + custom`
-- Condition: Q8 = yes
-- SDF mapping: `modules.invoice.lifecycle.status_field`
-
----
-
-## Naming Questions (Only If User Wants Custom Names)
-
-### Q12
-- ID: `invoice_use_default_entity_names`
-- User question: "Use default names (invoices, invoice_items, invoice_payments, invoice_payment_allocations, invoice_notes)?"
-- Input: `yes_no`
-- If `yes`: keep defaults.
-- If `no`: ask Q13-Q16.
-
-### Q13
-- ID: `invoice_header_item_customer_names`
-- User question: "What should we call these records?"
-- Input: `group_text`
-- Fields:
-  - `invoice_entity`
-  - `invoice_item_entity`
-  - `customer_entity`
-- Condition: Q12 = no
-- SDF mapping:
-  - `modules.invoice.invoice_entity`
-  - `modules.invoice.invoice_item_entity`
-  - `modules.invoice.customer_entity`
-
-### Q14
-- ID: `invoice_payment_entity_names`
-- User question: "What should we call payment records?"
-- Input: `group_text`
-- Fields:
-  - `payment_entity`
-  - `allocation_entity`
-- Condition: Q6 = yes and Q12 = no
-- SDF mapping:
-  - `modules.invoice.payments.payment_entity`
-  - `modules.invoice.payments.allocation_entity`
-
-### Q15
-- ID: `invoice_note_entity_name`
-- User question: "What should we call invoice adjustment notes?"
-- Input: `text`
-- Condition: Q7 = yes and Q12 = no
-- SDF mapping: `modules.invoice.notes.note_entity`
-
-### Q16
-- ID: `invoice_item_field_names`
-- User question: "Use default invoice line field names (quantity, unit_price, line_tax_total, line_total)?"
-- Input: `yes_no + custom`
-- Condition: Q9 = yes and Q12 = no
-- SDF mapping:
-  - `modules.invoice.calculation_engine.item_quantity_field`
-  - `modules.invoice.calculation_engine.item_unit_price_field`
-  - `modules.invoice.calculation_engine.item_tax_total_field`
-  - `modules.invoice.calculation_engine.item_line_total_field`
+| SDF key | Value | Reason |
+|---|---|---|
+| `modules.invoice.enabled` | `true` | User selected invoice module |
+| `modules.invoice.prefix` | `"INV-"` | Sensible default, AI can customize |
+| `modules.invoice.invoice_entity` | `'invoices'` | Core entity slug reference |
+| `modules.invoice.item_entity` | `'invoice_items'` | Core entity slug reference |
+| `modules.invoice.customer_entity` | `'customers'` | Core entity slug reference |
+| `modules.invoice.transactions.enabled` | `true` | Always recommended for data safety |
+| `modules.invoice.lifecycle.enabled` | `true` | Invoice status workflow always needed |
+| `modules.invoice.lifecycle.enforce_transitions` | `true` | Prevents invalid status jumps |
+| `modules.invoice.lifecycle.statuses` | `['Draft','Sent','Paid','Overdue','Cancelled']` | Complete status set |
 
 ---
 
-## Internal Mapping Checklist (System Side)
+## Supporting Entities Created Per Capability
 
-Map only these keys from answers:
-
-- `modules.invoice.enabled`
-- `modules.invoice.currency`
-- `modules.invoice.tax_rate`
-- `modules.invoice.prefix`
-- `modules.invoice.transactions.*`
-- `modules.invoice.payments.*`
-- `modules.invoice.notes.*`
-- `modules.invoice.lifecycle.*`
-- `modules.invoice.calculation_engine.*`
-- optional `modules.invoice.invoice_entity`, `invoice_item_entity`, `customer_entity`
-
-If a question does not map to one of these, remove it.
+| Capability | Entities Created |
+|---|---|
+| Always (invoice selected) | `customers`, `invoices`, `invoice_items` |
+| Payments (Q3) | `invoice_payments`, `invoice_payment_allocations` |
+| Credit/debit notes (Q4) | `invoice_notes` |
 
 ---
 
-## Validation Gates Before AI Call
-
-- Do not call AI if Q1 is unanswered.
-- Do not call AI if any enabled pack has missing required answers.
-- Do not call AI until prefilled SDF is generated and confirmed.
-
----
-
-## Minimal Example Handoff
+## SDF Output Example (all capabilities enabled)
 
 ```json
 {
-  "module": "invoice",
-  "mandatory_answers": {
-    "invoice_enable_module": "yes",
-    "invoice_currency": "USD",
-    "invoice_default_tax_rate": 12,
-    "invoice_prefix": "INV-",
-    "invoice_enable_transactions_pack": "yes",
-    "invoice_enable_payments_pack": "yes",
-    "invoice_enable_notes_pack": "yes",
-    "invoice_enable_lifecycle_pack": "yes",
-    "invoice_enable_calc_engine_pack": "yes"
-  },
-  "prefilled_sdf": {
-    "modules": {
-      "invoice": {
+  "modules": {
+    "invoice": {
+      "enabled": true,
+      "currency": "USD",
+      "tax_rate": 18,
+      "prefix": "INV-",
+      "invoice_entity": "invoices",
+      "item_entity": "invoice_items",
+      "customer_entity": "customers",
+      "transactions": {
         "enabled": true,
-        "currency": "USD",
-        "tax_rate": 12,
-        "prefix": "INV-",
-        "transactions": { "enabled": true },
-        "payments": { "enabled": true },
-        "notes": { "enabled": true },
-        "lifecycle": { "enabled": true },
-        "calculation_engine": { "enabled": true }
+        "invoice_entity": "invoices"
+      },
+      "payments": {
+        "enabled": true,
+        "invoice_entity": "invoices",
+        "payment_entity": "invoice_payments",
+        "allocation_entity": "invoice_payment_allocations"
+      },
+      "notes": {
+        "enabled": true,
+        "invoice_entity": "invoices",
+        "note_entity": "invoice_notes"
+      },
+      "lifecycle": {
+        "enabled": true,
+        "enforce_transitions": true,
+        "statuses": ["Draft", "Sent", "Paid", "Overdue", "Cancelled"]
+      },
+      "calculation_engine": {
+        "enabled": true,
+        "invoice_entity": "invoices",
+        "item_entity": "invoice_items"
       }
     }
-  }
+  },
+  "entities": [
+    {
+      "slug": "customers",
+      "display_name": "Customers",
+      "module": "shared",
+      "fields": [
+        { "name": "name", "type": "string", "required": true },
+        { "name": "company_name", "type": "string" },
+        { "name": "email", "type": "string", "required": true },
+        { "name": "phone", "type": "string" },
+        { "name": "address", "type": "text" }
+      ]
+    },
+    {
+      "slug": "invoices",
+      "display_name": "Invoices",
+      "module": "invoice",
+      "fields": [
+        { "name": "invoice_number", "type": "string", "required": true, "unique": true },
+        { "name": "customer_id", "type": "reference", "reference_entity": "customers", "required": true },
+        { "name": "issue_date", "type": "date", "required": true },
+        { "name": "due_date", "type": "date", "required": true },
+        { "name": "status", "type": "string", "required": true, "options": ["Draft", "Sent", "Paid", "Overdue", "Cancelled"] },
+        { "name": "subtotal", "type": "decimal" },
+        { "name": "tax_total", "type": "decimal" },
+        { "name": "grand_total", "type": "decimal" },
+        { "name": "paid_total", "type": "decimal" },
+        { "name": "outstanding_balance", "type": "decimal" },
+        { "name": "idempotency_key", "type": "string" },
+        { "name": "posted_at", "type": "datetime" },
+        { "name": "cancelled_at", "type": "datetime" },
+        { "name": "discount_total", "type": "decimal" },
+        { "name": "additional_charges_total", "type": "decimal" }
+      ],
+      "features": { "print_invoice": true }
+    },
+    {
+      "slug": "invoice_items",
+      "display_name": "Invoice Items",
+      "module": "invoice",
+      "fields": [
+        { "name": "invoice_id", "type": "reference", "reference_entity": "invoices", "required": true },
+        { "name": "description", "type": "string", "required": true },
+        { "name": "quantity", "type": "decimal", "required": true },
+        { "name": "unit_price", "type": "decimal", "required": true },
+        { "name": "line_total", "type": "decimal" },
+        { "name": "line_subtotal", "type": "decimal" },
+        { "name": "line_discount_type", "type": "string", "options": ["Percent", "Fixed"] },
+        { "name": "line_discount_value", "type": "decimal" },
+        { "name": "line_discount_amount", "type": "decimal" },
+        { "name": "line_tax_rate", "type": "decimal" },
+        { "name": "line_tax_amount", "type": "decimal" },
+        { "name": "line_charges", "type": "decimal" }
+      ]
+    },
+    {
+      "slug": "invoice_payments",
+      "display_name": "Invoice Payments",
+      "module": "invoice",
+      "fields": [
+        { "name": "payment_number", "type": "string", "unique": true },
+        { "name": "invoice_id", "type": "reference", "reference_entity": "invoices", "required": true },
+        { "name": "amount", "type": "decimal", "required": true },
+        { "name": "payment_date", "type": "date", "required": true },
+        { "name": "payment_method", "type": "string" },
+        { "name": "status", "type": "string", "options": ["Draft", "Posted", "Cancelled"] },
+        { "name": "reference_number", "type": "string" },
+        { "name": "posted_at", "type": "datetime" },
+        { "name": "cancelled_at", "type": "datetime" },
+        { "name": "cancel_reason", "type": "text" },
+        { "name": "note", "type": "text" }
+      ]
+    },
+    {
+      "slug": "invoice_payment_allocations",
+      "display_name": "Invoice Payment Allocations",
+      "module": "invoice",
+      "fields": [
+        { "name": "payment_id", "type": "reference", "reference_entity": "invoice_payments", "required": true },
+        { "name": "invoice_id", "type": "reference", "reference_entity": "invoices", "required": true },
+        { "name": "amount", "type": "decimal", "required": true }
+      ]
+    },
+    {
+      "slug": "invoice_notes",
+      "display_name": "Invoice Notes",
+      "module": "invoice",
+      "fields": [
+        { "name": "note_number", "type": "string", "unique": true },
+        { "name": "source_invoice_id", "type": "reference", "reference_entity": "invoices", "required": true },
+        { "name": "note_type", "type": "string", "required": true, "options": ["Credit", "Debit"] },
+        { "name": "amount", "type": "decimal", "required": true },
+        { "name": "tax_total", "type": "decimal" },
+        { "name": "grand_total", "type": "decimal" },
+        { "name": "status", "type": "string", "options": ["Draft", "Posted", "Cancelled"] },
+        { "name": "issue_date", "type": "date" },
+        { "name": "reason", "type": "text" },
+        { "name": "post_reference", "type": "string" },
+        { "name": "posted_at", "type": "datetime" },
+        { "name": "cancelled_at", "type": "datetime" },
+        { "name": "cancel_reason", "type": "text" },
+        { "name": "note", "type": "text" }
+      ]
+    }
+  ]
 }
 ```
+
+---
+
+## Validation
+
+- All 6 questions must be answered before AI generation.
+- Prefilled SDF is built from answers and shown to user for confirmation.
+- Every "yes" answer creates its full entity set in the prefilled SDF (no missing supporting entities).

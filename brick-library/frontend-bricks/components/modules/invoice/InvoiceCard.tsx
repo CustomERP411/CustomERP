@@ -31,6 +31,7 @@ const statusClass = (status: string) => {
 export default function InvoiceCard({ invoice, to, currency = 'USD' }: InvoiceCardProps) {
   const status = String(invoice?.status || 'Draft');
   const customer =
+    invoice?.customer?.name ||
     invoice?.customer?.company_name ||
     invoice?.customer_name ||
     invoice?.customer_id ||

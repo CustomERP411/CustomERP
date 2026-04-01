@@ -2,854 +2,339 @@
 
 ## Purpose
 
-This questionnaire includes only questions that directly change generated SDF for HR capabilities we currently support.
-
-If an answer does not affect SDF output, it is intentionally excluded.
-
----
-
-## Scope Covered (Current Capabilities)
-
-- Core HR setup (`work_days`, `daily_hours`)
-- Priority A HR packs:
-  - leave_engine
-  - leave_approvals
-  - attendance_time
-  - compensation_ledger
-- Optional naming customization for generated entities
+Every question here directly toggles a capability pack or config value in the generated SDF.
+No naming, no technical jargon, no questions about things we haven't built yet.
 
 ---
 
-## Question Flow
-
-1. Ask core HR questions.
-2. Ask only enabled capability packs.
-3. Ask naming/customization only when user wants custom names.
-4. Build prefilled SDF from these answers before AI generation.
-
----
-
-## Core Questions (Always Ask)
+## Questions
 
 ### Q1
-- ID: `hr_enable_module`
-- User question: "Do you want HR in your ERP?"
-- Input: `yes_no`
-- SDF mapping: `modules.hr.enabled`
-
-### Q2
 - ID: `hr_work_days`
-- User question: "What are your normal working days?"
+- User question: "Which days does your company work?"
 - Input: `multi_choice`
 - Options: `Mon`, `Tue`, `Wed`, `Thu`, `Fri`, `Sat`, `Sun`
-- SDF mapping: `modules.hr.work_days`
-
-### Q3
-- ID: `hr_daily_hours`
-- User question: "How many hours is a normal work day?"
-- Input: `number`
-- SDF mapping: `modules.hr.daily_hours`
-
-### Q4
-- ID: `hr_enable_leave_engine_pack`
-- User question: "Do you want leave balance and accrual tracking?"
-- Input: `yes_no`
-- SDF mapping: `modules.hr.leave_engine.enabled`
-
-### Q5
-- ID: `hr_enable_leave_approvals_pack`
-- User question: "Do leave requests need approval workflow?"
-- Input: `yes_no`
-- SDF mapping: `modules.hr.leave_approvals.enabled`
-
-### Q6
-- ID: `hr_enable_attendance_time_pack`
-- User question: "Do you want attendance + shift + timesheet tracking?"
-- Input: `yes_no`
-- SDF mapping: `modules.hr.attendance_time.enabled`
-
-### Q7
-- ID: `hr_enable_compensation_ledger_pack`
-- User question: "Do you want compensation ledger and payroll snapshots?"
-- Input: `yes_no`
-- SDF mapping: `modules.hr.compensation_ledger.enabled`
-
----
-
-## Leave Workflow Detail (Ask Only If Leave Packs Enabled)
-
-### Q8
-- ID: `hr_leave_status_field_name`
-- User question: "Use default leave status field name 'status'?"
-- Input: `yes_no + custom`
-- Condition: Q4 = yes or Q5 = yes
-- SDF mapping:
-  - `modules.hr.leave_engine.status_field`
-  - `modules.hr.leave_approvals.status_field` (same value unless user sets separately)
-
-### Q9
-- ID: `hr_leave_approval_strict_transitions`
-- User question: "Should leave status transitions be strictly enforced?"
-- Input: `yes_no`
-- Condition: Q5 = yes
-- SDF mapping: `modules.hr.leave_approvals.enforce_transitions`
-
----
-
-## Naming Questions (Only If User Wants Custom Names)
-
-### Q10
-- ID: `hr_use_default_entity_names`
-- User question: "Use default HR record names (employees, departments, leaves, leave_balances, attendance_entries, shift_assignments, timesheet_entries, compensation_ledger, compensation_snapshots)?"
-- Input: `yes_no`
-- If `yes`: keep defaults.
-- If `no`: ask Q11-Q14.
-
-### Q11
-- ID: `hr_core_entity_names`
-- User question: "What should we call core HR records?"
-- Input: `group_text`
-- Fields:
-  - `employee_entity`
-  - `department_entity`
-  - `leave_entity`
-- Condition: Q10 = no
-- SDF mapping:
-  - `modules.hr.employee_entity`
-  - `modules.hr.department_entity`
-  - `modules.hr.leave_entity`
-
-### Q12
-- ID: `hr_leave_engine_entity_name`
-- User question: "What should we call leave balance records?"
-- Input: `text`
-- Condition: Q4 = yes and Q10 = no
-- SDF mapping: `modules.hr.leave_engine.balance_entity`
-
-### Q13
-- ID: `hr_attendance_entity_names`
-- User question: "What should we call attendance records?"
-- Input: `group_text`
-- Fields:
-  - `attendance_entity`
-  - `shift_entity`
-  - `timesheet_entity`
-- Condition: Q6 = yes and Q10 = no
-- SDF mapping:
-  - `modules.hr.attendance_time.attendance_entity`
-  - `modules.hr.attendance_time.shift_entity`
-  - `modules.hr.attendance_time.timesheet_entity`
-
-### Q14
-- ID: `hr_compensation_entity_names`
-- User question: "What should we call compensation records?"
-- Input: `group_text`
-- Fields:
-  - `ledger_entity`
-  - `snapshot_entity`
-- Condition: Q7 = yes and Q10 = no
-- SDF mapping:
-  - `modules.hr.compensation_ledger.ledger_entity`
-  - `modules.hr.compensation_ledger.snapshot_entity`
-
----
-
-## Internal Mapping Checklist (System Side)
-
-Map only these keys from answers:
-
-- `modules.hr.enabled`
-- `modules.hr.work_days`
-- `modules.hr.daily_hours`
-- `modules.hr.employee_entity`
-- `modules.hr.department_entity`
-- `modules.hr.leave_entity`
-- `modules.hr.leave_engine.*`
-- `modules.hr.leave_approvals.*`
-- `modules.hr.attendance_time.*`
-- `modules.hr.compensation_ledger.*`
-
-If a question does not map to one of these, remove it.
-
----
-
-## Validation Gates Before AI Call
-
-- Do not call AI if Q1 is unanswered.
-- Do not call AI if any enabled pack has missing required answers.
-- Do not call AI until prefilled SDF is generated and confirmed.
-
----
-
-## Minimal Example Handoff
-
-```json
-{
-  "module": "hr",
-  "mandatory_answers": {
-    "hr_enable_module": "yes",
-    "hr_work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    "hr_daily_hours": 8,
-    "hr_enable_leave_engine_pack": "yes",
-    "hr_enable_leave_approvals_pack": "yes",
-    "hr_enable_attendance_time_pack": "yes",
-    "hr_enable_compensation_ledger_pack": "yes"
-  },
-  "prefilled_sdf": {
-    "modules": {
-      "hr": {
-        "enabled": true,
-        "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
-        "daily_hours": 8,
-        "leave_engine": { "enabled": true },
-        "leave_approvals": { "enabled": true },
-        "attendance_time": { "enabled": true },
-        "compensation_ledger": { "enabled": true }
-      }
-    }
-  }
-}
-```
-# HR Module Default Questions (SMB-Friendly, Full-Capability Target)
-
-## Purpose
-
-This document defines HR default questions for non-technical SMB users.
-
-It is intentionally broader than current implementation and assumes we want to support most HR capabilities from `hr_module_capability_research_and_gap_analysis.md`.
-
-Users see simple business questions only.
-System converts answers into structured configuration and prefilled SDF before AI generation.
-
----
-
-## Design Rules
-
-- Ask in plain language (no developer terms).
-- Use branching so users only answer relevant sections.
-- Keep core questions short and required.
-- Ask advanced questions only after user enables that capability.
-- Treat these answers as hard constraints during AI generation.
-
----
-
-## User Flow
-
-1. User selects HR module.
-2. System asks Core Questions (always required).
-3. System asks only the enabled Advanced Packs.
-4. System generates prefilled SDF/config from answers.
-5. User reviews and confirms.
-6. System sends `mandatory_answers + prefilled_sdf + business_description` to AI.
-7. Final AI output is validated against mandatory answers.
-
----
-
-## Core Questions (Always Required)
-
-### Q1
-- ID: `hr_company_size`
-- User question: "How many employees do you have?"
-- Input: `choice`
-- Options: `1-10`, `11-50`, `51-200`, `201-500`, `Over 500`
+- SDF impact:
+  - `modules.hr.work_days` (array of selected days)
+  - Forwarded into `leave_engine`, `leave_approvals`, and `attendance_time` sub-pack configs
+  - Used by leave day calculator and overtime split logic
 
 ### Q2
-- ID: `hr_employee_types`
-- User question: "What types of workers do you have? (Select all)"
-- Input: `multi_choice`
-- Options: `Full-time`, `Part-time`, `Contract`, `Intern`, `Freelance`
+- ID: `hr_daily_hours`
+- User question: "How many hours is a normal work day?"
+- Input: `choice` (6, 7, 8, 9, 10, Custom)
+- SDF impact:
+  - `modules.hr.daily_hours` (number)
+  - Forwarded into `leave_engine`, `leave_approvals`, and `attendance_time` sub-pack configs
+  - Used by timesheet mixin to split worked hours into regular vs overtime
 
 ### Q3
-- ID: `hr_use_departments`
-- User question: "Do you organize employees into departments or teams?"
+- ID: `hr_enable_leave_engine`
+- User question: "Do you want to track how many leave days each employee has remaining?"
 - Input: `yes_no`
+- SDF impact:
+  - `modules.hr.leave_engine = { enabled: true, leave_entity: 'leaves', balance_entity: 'leave_balances', work_days, daily_hours, consume_on_approval }`
+  - Creates `leaves` entity:
+    - `employee_id` (reference -> employees, required)
+    - `leave_type` (string, required, options: Sick/Vacation/Unpaid/Maternity/Paternity)
+    - `start_date` (date, required)
+    - `end_date` (date, required)
+    - `leave_days` (integer)
+    - `status` (string, required, options: Pending/Approved/Rejected/Cancelled)
+    - `approver_id` (string)
+    - `approved_at` (datetime)
+    - `rejected_at` (datetime)
+    - `cancelled_at` (datetime)
+    - `rejection_reason` (text)
+    - `decision_key` (string)
+  - Creates `leave_balances` entity:
+    - `employee_id` (reference -> employees, required)
+    - `leave_type` (string, required)
+    - `year` (string, required)
+    - `annual_entitlement` (decimal)
+    - `accrued_days` (decimal)
+    - `consumed_days` (decimal)
+    - `carry_forward_days` (decimal)
+    - `available_days` (decimal)
+    - `last_accrual_at` (datetime)
+    - `note` (text)
 
 ### Q4
-- ID: `hr_track_positions`
-- User question: "Do you want to track job titles and positions?"
+- ID: `hr_enable_leave_approvals`
+- User question: "Do leave requests need to be approved before the employee can take time off?"
 - Input: `yes_no`
+- SDF impact:
+  - `modules.hr.leave_approvals = { enabled: true, enforce_transitions: true, leave_entity: 'leaves', balance_entity: 'leave_balances', work_days, daily_hours }`
+  - Creates `leaves` entity if not already created by Q3 (same fields)
+  - Wires `HRLeaveApprovalMixin` with:
+    - Status transition enforcement (Pending -> Approved/Rejected/Cancelled, Approved -> Cancelled)
+    - Approver audit fields (approver_id, approved_at, rejected_at, cancelled_at, rejection_reason)
+    - Idempotent decision keys
+    - Balance consumption on approval when leave engine is also enabled
 
 ### Q5
-- ID: `hr_track_managers`
-- User question: "Do employees report to managers?"
+- ID: `hr_enable_attendance_time`
+- User question: "Do you need to track when employees arrive, leave, and how many hours they worked?"
 - Input: `yes_no`
+- SDF impact:
+  - `modules.hr.attendance_time = { enabled: true, attendance_entity: 'attendance_entries', shift_entity: 'shift_assignments', timesheet_entity: 'timesheet_entries', work_days, daily_hours }`
+  - Creates `attendance_entries` entity:
+    - `employee_id` (reference -> employees, required)
+    - `work_date` (date, required)
+    - `check_in_at` (datetime)
+    - `check_out_at` (datetime)
+    - `worked_hours` (decimal)
+    - `status` (string, options: Present/Absent/Half Day/On Leave)
+    - `note` (text)
+  - Creates `shift_assignments` entity:
+    - `employee_id` (reference -> employees, required)
+    - `shift_name` (string, required)
+    - `start_time` (string)
+    - `end_time` (string)
+    - `work_date` (date)
+  - Creates `timesheet_entries` entity:
+    - `employee_id` (reference -> employees, required)
+    - `work_date` (date, required)
+    - `attendance_id` (reference -> attendance_entries)
+    - `regular_hours` (decimal)
+    - `overtime_hours` (decimal)
+    - `status` (string, options: Draft/Approved)
 
 ### Q6
-- ID: `hr_track_salaries`
-- User question: "Do you want to track employee salaries and compensation?"
+- ID: `hr_enable_compensation_ledger`
+- User question: "Do you want to record salary, allowances, and deductions for payroll preparation?"
 - Input: `yes_no`
-
-### Q7
-- ID: `hr_track_leaves`
-- User question: "Do employees take time off (vacation, sick leave, etc.)?"
-- Input: `yes_no`
-
-### Q8
-- ID: `hr_track_attendance`
-- User question: "Do you need to track attendance (clock-in/clock-out)?"
-- Input: `yes_no`
-
-### Q9
-- ID: `hr_multiple_locations`
-- User question: "Do employees work in multiple offices or locations?"
-- Input: `yes_no`
-
-### Q10
-- ID: `hr_need_employee_documents`
-- User question: "Do you need to store employee documents (contracts, IDs, certificates)?"
-- Input: `yes_no`
-
-### Q11
-- ID: `hr_need_onboarding`
-- User question: "Do you need onboarding checklists for new employees?"
-- Input: `yes_no`
-
-### Q12
-- ID: `hr_need_offboarding`
-- User question: "Do you need offboarding workflows when employees leave?"
-- Input: `yes_no`
-
-### Q13
-- ID: `hr_need_performance_reviews`
-- User question: "Do you conduct performance reviews?"
-- Input: `yes_no`
-
-### Q14
-- ID: `hr_need_training_tracking`
-- User question: "Do you need to track employee training and certifications?"
-- Input: `yes_no`
-
-### Q15
-- ID: `hr_need_self_service`
-- User question: "Should employees be able to view and update their own information?"
-- Input: `yes_no`
+- SDF impact:
+  - `modules.hr.compensation_ledger = { enabled: true, ledger_entity: 'compensation_ledger', snapshot_entity: 'compensation_snapshots' }`
+  - Adds `salary` (decimal) field to employees entity
+  - Creates `compensation_ledger` entity:
+    - `employee_id` (reference -> employees, required)
+    - `pay_period` (string, required)
+    - `component` (string, required)
+    - `component_type` (string, required, options: Earning/Deduction)
+    - `amount` (decimal, required)
+    - `status` (string, options: Draft/Posted/Cancelled)
+    - `posted_at` (datetime)
+    - `post_reference` (string)
+  - Creates `compensation_snapshots` entity:
+    - `employee_id` (reference -> employees, required)
+    - `pay_period` (string, required)
+    - `gross_amount` (decimal)
+    - `deduction_amount` (decimal)
+    - `net_amount` (decimal)
+    - `status` (string, options: Draft/Posted)
+    - `posted_at` (datetime)
+    - `note` (text)
 
 ---
 
-## Advanced Pack A: Employee Master and Organization
+## Auto-Enabled (No Question Needed)
 
-Ask this pack for all users.
+These are always turned on when HR module is selected:
 
-### Q16
-- ID: `hr_employee_id_format`
-- User question: "How do you identify employees?"
-- Input: `choice`
-- Options: `Auto-generated ID`, `Custom employee code`, `National ID`, `Email only`
-
-### Q17
-- ID: `hr_track_contact_info`
-- User question: "What contact information do you track? (Select all)"
-- Input: `multi_choice`
-- Options: `Phone`, `Email`, `Address`, `Emergency contact`
-
-### Q18
-- ID: `hr_employee_statuses`
-- User question: "What employee statuses do you need?"
-- Input: `multi_choice`
-- Options: `Active`, `On Leave`, `Probation`, `Suspended`, `Terminated`, `Retired`
-
-### Q19
-- ID: `hr_track_hire_date`
-- User question: "Do you need to track hire date and employment history?"
-- Input: `yes_no`
-
-### Q20
-- ID: `hr_track_personal_info`
-- User question: "Do you need to track personal details (date of birth, gender, nationality)?"
-- Input: `yes_no`
+| SDF key | Value | Reason |
+|---|---|---|
+| `modules.hr.enabled` | `true` | User selected HR module |
+| `modules.hr.employee_entity` | `'employees'` | Core entity slug reference |
+| `modules.hr.department_entity` | `'departments'` | Core entity slug reference |
+| `modules.hr.leave_approvals.enforce_transitions` | `true` | Prevents invalid status jumps |
 
 ---
 
-## Advanced Pack B: Department and Hierarchy
+## Supporting Entities Created Per Capability
 
-Ask when Q3 = yes.
-
-### Q21
-- ID: `hr_department_structure`
-- User question: "How is your organization structured?"
-- Input: `choice`
-- Options: `Flat (single level)`, `Hierarchical (departments with sub-departments)`, `Matrix (multiple reporting lines)`
-
-### Q22
-- ID: `hr_department_managers`
-- User question: "Does each department have a manager?"
-- Input: `yes_no`
-
-### Q23
-- ID: `hr_department_locations`
-- User question: "Are departments tied to specific locations?"
-- Input: `yes_no`
-- Condition: ask only when Q9 = yes
-
-### Q24
-- ID: `hr_department_budgets`
-- User question: "Do you track budgets per department?"
-- Input: `yes_no`
-
-### Q25
-- ID: `hr_cost_centers`
-- User question: "Do you use cost centers for departments?"
-- Input: `yes_no`
+| Capability | Entities Created |
+|---|---|
+| Always (HR selected) | `departments`, `employees` |
+| Leave engine (Q3) | `leaves`, `leave_balances` |
+| Leave approvals (Q4) | `leaves` (if not already from Q3) |
+| Attendance & time (Q5) | `attendance_entries`, `shift_assignments`, `timesheet_entries` |
+| Compensation ledger (Q6) | `compensation_ledger`, `compensation_snapshots` |
 
 ---
 
-## Advanced Pack C: Leave and Absence Management
-
-Ask when Q7 = yes.
-
-### Q26
-- ID: `hr_leave_types`
-- User question: "What types of leave do your employees take? (Select all)"
-- Input: `multi_choice`
-- Options: `Vacation/Annual`, `Sick`, `Unpaid`, `Maternity`, `Paternity`, `Bereavement`, `Public holiday`, `Comp time`, `Other`
-
-### Q27
-- ID: `hr_leave_approval`
-- User question: "Do leave requests need manager approval?"
-- Input: `yes_no`
-
-### Q28
-- ID: `hr_leave_balance_tracking`
-- User question: "Do you want to track leave balances (days remaining)?"
-- Input: `yes_no`
-
-### Q29
-- ID: `hr_leave_accrual`
-- User question: "Do employees earn leave days over time (accrual)?"
-- Input: `yes_no`
-- Condition: ask only when Q28 = yes
-
-### Q30
-- ID: `hr_leave_carry_forward`
-- User question: "Can unused leave days carry forward to the next year?"
-- Input: `choice`
-- Options: `Yes, unlimited`, `Yes, with limit`, `No, use it or lose it`
-- Condition: ask only when Q28 = yes
-
-### Q31
-- ID: `hr_leave_entitlement_by_tenure`
-- User question: "Do leave entitlements increase with years of service?"
-- Input: `yes_no`
-
-### Q32
-- ID: `hr_holiday_calendar`
-- User question: "Do you need a company holiday calendar?"
-- Input: `yes_no`
-
-### Q33
-- ID: `hr_leave_conflicts`
-- User question: "Should the system warn about overlapping leave requests in the same team?"
-- Input: `yes_no`
-
----
-
-## Advanced Pack D: Attendance and Time Tracking
-
-Ask when Q8 = yes.
-
-### Q34
-- ID: `hr_work_schedule`
-- User question: "What are your standard working days?"
-- Input: `choice`
-- Options: `Monday-Friday`, `Monday-Saturday`, `Shifts/Rotating`, `Custom`
-
-### Q35
-- ID: `hr_daily_hours`
-- User question: "How many hours is a standard work day?"
-- Input: `choice`
-- Options: `8 hours`, `9 hours`, `10 hours`, `Flexible`, `Custom`
-
-### Q36
-- ID: `hr_attendance_method`
-- User question: "How do employees record attendance?"
-- Input: `multi_choice`
-- Options: `Manual entry`, `Clock in/out button`, `Biometric`, `QR code`, `Mobile app`
-
-### Q37
-- ID: `hr_track_overtime`
-- User question: "Do you need to track overtime hours?"
-- Input: `yes_no`
-
-### Q38
-- ID: `hr_overtime_approval`
-- User question: "Does overtime need manager approval?"
-- Input: `yes_no`
-- Condition: ask only when Q37 = yes
-
-### Q39
-- ID: `hr_track_breaks`
-- User question: "Do you need to track break times?"
-- Input: `yes_no`
-
-### Q40
-- ID: `hr_late_absence_flags`
-- User question: "Should the system flag late arrivals and absences automatically?"
-- Input: `yes_no`
-
-### Q41
-- ID: `hr_timesheet_approval`
-- User question: "Do timesheets need manager approval?"
-- Input: `yes_no`
-
-### Q42
-- ID: `hr_shift_management`
-- User question: "Do you need shift scheduling and assignment?"
-- Input: `yes_no`
-
----
-
-## Advanced Pack E: Compensation and Payroll Readiness
-
-Ask when Q6 = yes.
-
-### Q43
-- ID: `hr_salary_structure`
-- User question: "How is employee compensation structured?"
-- Input: `choice`
-- Options: `Fixed salary only`, `Salary + allowances`, `Salary + allowances + deductions`, `Hourly rate`
-
-### Q44
-- ID: `hr_allowance_types`
-- User question: "What allowances do you offer? (Select all)"
-- Input: `multi_choice`
-- Options: `Housing`, `Transport`, `Meals`, `Phone`, `Health`, `Education`, `Other`
-- Condition: ask only when Q43 includes allowances
-
-### Q45
-- ID: `hr_deduction_types`
-- User question: "What deductions apply? (Select all)"
-- Input: `multi_choice`
-- Options: `Tax`, `Social security`, `Insurance`, `Loan repayment`, `Union dues`, `Other`
-- Condition: ask only when Q43 includes deductions
-
-### Q46
-- ID: `hr_payroll_frequency`
-- User question: "How often do you run payroll?"
-- Input: `choice`
-- Options: `Weekly`, `Bi-weekly`, `Monthly`, `Semi-monthly`
-
-### Q47
-- ID: `hr_payroll_integration`
-- User question: "Do you need to export payroll data to an external payroll system?"
-- Input: `yes_no`
-
-### Q48
-- ID: `hr_payslip_generation`
-- User question: "Do you want to generate payslips?"
-- Input: `yes_no`
-
-### Q49
-- ID: `hr_salary_history`
-- User question: "Do you need to track salary change history?"
-- Input: `yes_no`
-
----
-
-## Advanced Pack F: Employee Lifecycle
-
-Ask when Q11 = yes or Q12 = yes.
-
-### Q50
-- ID: `hr_onboarding_checklist`
-- User question: "Do you want onboarding task checklists?"
-- Input: `yes_no`
-- Condition: ask only when Q11 = yes
-
-### Q51
-- ID: `hr_onboarding_tasks`
-- User question: "What onboarding tasks do you track? (Select all)"
-- Input: `multi_choice`
-- Options: `IT setup`, `Document collection`, `Training`, `Badge/access card`, `Workspace assignment`, `Introduction meetings`
-- Condition: ask only when Q50 = yes
-
-### Q52
-- ID: `hr_probation_tracking`
-- User question: "Do you need to track probation periods?"
-- Input: `yes_no`
-
-### Q53
-- ID: `hr_probation_duration`
-- User question: "What is your standard probation period?"
-- Input: `choice`
-- Options: `30 days`, `60 days`, `90 days`, `6 months`, `Custom`
-- Condition: ask only when Q52 = yes
-
-### Q54
-- ID: `hr_offboarding_checklist`
-- User question: "Do you want offboarding task checklists?"
-- Input: `yes_no`
-- Condition: ask only when Q12 = yes
-
-### Q55
-- ID: `hr_offboarding_tasks`
-- User question: "What offboarding tasks do you track? (Select all)"
-- Input: `multi_choice`
-- Options: `Exit interview`, `Return equipment`, `Revoke access`, `Final settlement`, `Knowledge transfer`, `Reference letter`
-- Condition: ask only when Q54 = yes
-
-### Q56
-- ID: `hr_exit_reason_tracking`
-- User question: "Do you want to track reasons for employee departure?"
-- Input: `yes_no`
-
----
-
-## Advanced Pack G: Performance and Development
-
-Ask when Q13 = yes or Q14 = yes.
-
-### Q57
-- ID: `hr_review_frequency`
-- User question: "How often do you conduct performance reviews?"
-- Input: `choice`
-- Options: `Quarterly`, `Semi-annually`, `Annually`, `Custom`
-- Condition: ask only when Q13 = yes
-
-### Q58
-- ID: `hr_review_type`
-- User question: "What type of reviews do you conduct?"
-- Input: `multi_choice`
-- Options: `Manager review`, `Self-assessment`, `Peer review`, `360-degree`
-- Condition: ask only when Q13 = yes
-
-### Q59
-- ID: `hr_goals_kpis`
-- User question: "Do you set goals or KPIs for employees?"
-- Input: `yes_no`
-
-### Q60
-- ID: `hr_development_plans`
-- User question: "Do you create development plans for employees?"
-- Input: `yes_no`
-
-### Q61
-- ID: `hr_training_records`
-- User question: "Do you need to track completed training?"
-- Input: `yes_no`
-- Condition: ask only when Q14 = yes
-
-### Q62
-- ID: `hr_certification_expiry`
-- User question: "Do certifications have expiry dates that need tracking?"
-- Input: `yes_no`
-- Condition: ask only when Q14 = yes
-
-### Q63
-- ID: `hr_training_reminders`
-- User question: "Do you want reminders for upcoming certification renewals?"
-- Input: `yes_no`
-- Condition: ask only when Q62 = yes
-
----
-
-## Advanced Pack H: HR Documents and Compliance
-
-Ask when Q10 = yes.
-
-### Q64
-- ID: `hr_document_types`
-- User question: "What employee documents do you store? (Select all)"
-- Input: `multi_choice`
-- Options: `Employment contract`, `ID/Passport`, `Resume/CV`, `Certificates`, `Performance reviews`, `Disciplinary records`, `Medical records`, `Other`
-
-### Q65
-- ID: `hr_document_expiry`
-- User question: "Do any documents have expiry dates (for example work permits, certifications)?"
-- Input: `yes_no`
-
-### Q66
-- ID: `hr_document_expiry_alerts`
-- User question: "Do you want alerts before documents expire?"
-- Input: `yes_no`
-- Condition: ask only when Q65 = yes
-
-### Q67
-- ID: `hr_policy_acknowledgement`
-- User question: "Do employees need to acknowledge company policies?"
-- Input: `yes_no`
-
-### Q68
-- ID: `hr_audit_trail`
-- User question: "Do you need an audit trail of HR record changes?"
-- Input: `yes_no`
-
----
-
-## Advanced Pack I: Self-Service and Manager Portal
-
-Ask when Q15 = yes or Q5 = yes.
-
-### Q69
-- ID: `hr_employee_self_service`
-- User question: "What can employees do themselves? (Select all)"
-- Input: `multi_choice`
-- Options: `View profile`, `Update contact info`, `Request leave`, `View leave balance`, `View payslips`, `Submit timesheets`
-- Condition: ask only when Q15 = yes
-
-### Q70
-- ID: `hr_manager_portal`
-- User question: "What can managers do? (Select all)"
-- Input: `multi_choice`
-- Options: `View team`, `Approve leave`, `Approve timesheets`, `Conduct reviews`, `View reports`
-- Condition: ask only when Q5 = yes
-
-### Q71
-- ID: `hr_team_calendar`
-- User question: "Do managers need to see team availability calendar?"
-- Input: `yes_no`
-
-### Q72
-- ID: `hr_delegation`
-- User question: "Can managers delegate approval to someone else when absent?"
-- Input: `yes_no`
-
----
-
-## Advanced Pack J: Reporting and Analytics
-
-Ask for all users, but allow simple selections.
-
-### Q73
-- ID: `hr_report_set`
-- User question: "Which HR reports do you want? (Select all)"
-- Input: `multi_choice`
-- Options:
-  - `Headcount`
-  - `Turnover/retention`
-  - `Leave utilization`
-  - `Attendance summary`
-  - `Overtime report`
-  - `Department breakdown`
-  - `Tenure analysis`
-
-### Q74
-- ID: `hr_dashboard_cards`
-- User question: "Which dashboard cards do you want? (Select all)"
-- Input: `multi_choice`
-- Options: `Headcount`, `Upcoming birthdays`, `New hires`, `Pending approvals`, `Leave calendar`, `Upcoming expirations`
-
-### Q75
-- ID: `hr_scheduled_reports`
-- User question: "Do you want scheduled HR report generation?"
-- Input: `yes_no`
-
----
-
-## Advanced Pack K: Integration and Automation
-
-Ask for all users (simple policy choices).
-
-### Q76
-- ID: `hr_integrations`
-- User question: "Which systems should HR connect to? (Select all)"
-- Input: `multi_choice`
-- Options: `Payroll system`, `Accounting`, `Time clock/biometric`, `Benefits provider`, `Recruitment system`, `Other`
-
-### Q77
-- ID: `hr_data_import`
-- User question: "Do you need to import employee data from spreadsheets?"
-- Input: `yes_no`
-
-### Q78
-- ID: `hr_data_export`
-- User question: "Do you need to export HR data for external use?"
-- Input: `yes_no`
-
-### Q79
-- ID: `hr_automated_reminders`
-- User question: "Do you want automated reminders for HR events (birthdays, anniversaries, expirations)?"
-- Input: `yes_no`
-
----
-
-## Advanced Pack L: Access and Privacy
-
-Ask for all users with simple policy choices.
-
-### Q80
-- ID: `hr_sensitive_data_access`
-- User question: "Who can see salary information?"
-- Input: `choice`
-- Options: `HR only`, `HR and managers`, `HR and department heads`, `Custom`
-
-### Q81
-- ID: `hr_personal_data_privacy`
-- User question: "Do you need to restrict access to personal information (address, ID numbers)?"
-- Input: `yes_no`
-
-### Q82
-- ID: `hr_data_retention`
-- User question: "Do you have data retention requirements for terminated employees?"
-- Input: `yes_no`
-
-### Q83
-- ID: `hr_gdpr_compliance`
-- User question: "Do you need GDPR or data privacy compliance features?"
-- Input: `yes_no`
-
----
-
-## Internal Mapping Model (System Side)
-
-This section is internal and not shown to end users.
-
-Answers map into these configuration blocks:
-
-- `modules.hr.enabled`
-- `modules.hr.work_days` (from Q34)
-- `modules.hr.daily_hours` (from Q35)
-- `entities.employees` (fields based on Q16-Q20)
-- `entities.departments` (when Q3 = yes)
-- `entities.leaves` or `entities.leave_requests` (when Q7 = yes)
-- `hr_leave_policy` (accrual, carry-forward, entitlements)
-- `hr_attendance` (clock, overtime, breaks, shifts)
-- `hr_compensation` (salary, allowances, deductions, payroll)
-- `hr_lifecycle` (onboarding, probation, offboarding)
-- `hr_performance` (reviews, goals, development)
-- `hr_documents` (types, expiry, acknowledgements)
-- `hr_self_service` (employee portal features)
-- `hr_manager_portal` (approvals, team view)
-- `hr_reporting` (dashboard cards, reports, schedule)
-- `hr_integrations` (connectors, import/export)
-- `hr_privacy` (access controls, data retention)
-
----
-
-## Validation Gates Before AI Call
-
-- Do not call AI if any Core Question is unanswered.
-- Do not call AI if leave is enabled but leave policy answers are missing.
-- Do not call AI if attendance is enabled but schedule answers are missing.
-- Do not call AI if compensation is enabled but structure answers are missing.
-- Do not call AI until user approves prefilled draft.
-
----
-
-## AI Handoff Payload (Internal)
+## SDF Output Example (all capabilities enabled)
 
 ```json
 {
-  "module": "hr",
-  "mandatory_answers": {
-    "hr_company_size": "11-50",
-    "hr_employee_types": ["Full-time", "Part-time"],
-    "hr_use_departments": "yes",
-    "hr_track_leaves": "yes",
-    "hr_leave_approval": "yes"
-  },
-  "prefilled_sdf": {
-    "project_name": "Example SMB HR",
-    "modules": {
-      "hr": { 
+  "modules": {
+    "hr": {
+      "enabled": true,
+      "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      "daily_hours": 8,
+      "employee_entity": "employees",
+      "department_entity": "departments",
+      "leave_engine": {
         "enabled": true,
+        "leave_entity": "leaves",
+        "balance_entity": "leave_balances",
+        "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        "daily_hours": 8,
+        "consume_on_approval": true
+      },
+      "leave_approvals": {
+        "enabled": true,
+        "enforce_transitions": true,
+        "leave_entity": "leaves",
+        "balance_entity": "leave_balances",
         "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
         "daily_hours": 8
+      },
+      "attendance_time": {
+        "enabled": true,
+        "attendance_entity": "attendance_entries",
+        "shift_entity": "shift_assignments",
+        "timesheet_entity": "timesheet_entries",
+        "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        "daily_hours": 8
+      },
+      "compensation_ledger": {
+        "enabled": true,
+        "ledger_entity": "compensation_ledger",
+        "snapshot_entity": "compensation_snapshots"
       }
-    },
-    "entities": []
+    }
   },
-  "user_business_description": "..."
+  "entities": [
+    {
+      "slug": "departments",
+      "display_name": "Departments",
+      "module": "hr",
+      "fields": [
+        { "name": "name", "type": "string", "required": true, "unique": true },
+        { "name": "location", "type": "string" }
+      ]
+    },
+    {
+      "slug": "employees",
+      "display_name": "Employees",
+      "module": "hr",
+      "fields": [
+        { "name": "first_name", "type": "string", "required": true },
+        { "name": "last_name", "type": "string", "required": true },
+        { "name": "email", "type": "string", "required": true, "unique": true },
+        { "name": "job_title", "type": "string", "required": true },
+        { "name": "hire_date", "type": "date", "required": true },
+        { "name": "status", "type": "string", "required": true, "options": ["Active", "On Leave", "Terminated"] },
+        { "name": "department_id", "type": "reference", "reference_entity": "departments", "required": true },
+        { "name": "manager_id", "type": "reference", "reference_entity": "employees" },
+        { "name": "salary", "type": "decimal" }
+      ]
+    },
+    {
+      "slug": "leaves",
+      "display_name": "Leaves",
+      "module": "hr",
+      "fields": [
+        { "name": "employee_id", "type": "reference", "reference_entity": "employees", "required": true },
+        { "name": "leave_type", "type": "string", "required": true, "options": ["Sick", "Vacation", "Unpaid", "Maternity", "Paternity"] },
+        { "name": "start_date", "type": "date", "required": true },
+        { "name": "end_date", "type": "date", "required": true },
+        { "name": "leave_days", "type": "integer" },
+        { "name": "status", "type": "string", "required": true, "options": ["Pending", "Approved", "Rejected", "Cancelled"] },
+        { "name": "approver_id", "type": "string" },
+        { "name": "approved_at", "type": "datetime" },
+        { "name": "rejected_at", "type": "datetime" },
+        { "name": "cancelled_at", "type": "datetime" },
+        { "name": "rejection_reason", "type": "text" },
+        { "name": "decision_key", "type": "string" }
+      ]
+    },
+    {
+      "slug": "leave_balances",
+      "display_name": "Leave Balances",
+      "module": "hr",
+      "fields": [
+        { "name": "employee_id", "type": "reference", "reference_entity": "employees", "required": true },
+        { "name": "leave_type", "type": "string", "required": true },
+        { "name": "year", "type": "string", "required": true },
+        { "name": "annual_entitlement", "type": "decimal" },
+        { "name": "accrued_days", "type": "decimal" },
+        { "name": "consumed_days", "type": "decimal" },
+        { "name": "carry_forward_days", "type": "decimal" },
+        { "name": "available_days", "type": "decimal" },
+        { "name": "last_accrual_at", "type": "datetime" },
+        { "name": "note", "type": "text" }
+      ]
+    },
+    {
+      "slug": "attendance_entries",
+      "display_name": "Attendance Entries",
+      "module": "hr",
+      "fields": [
+        { "name": "employee_id", "type": "reference", "reference_entity": "employees", "required": true },
+        { "name": "work_date", "type": "date", "required": true },
+        { "name": "check_in_at", "type": "datetime" },
+        { "name": "check_out_at", "type": "datetime" },
+        { "name": "worked_hours", "type": "decimal" },
+        { "name": "status", "type": "string", "options": ["Present", "Absent", "Half Day", "On Leave"] },
+        { "name": "note", "type": "text" }
+      ]
+    },
+    {
+      "slug": "shift_assignments",
+      "display_name": "Shift Assignments",
+      "module": "hr",
+      "fields": [
+        { "name": "employee_id", "type": "reference", "reference_entity": "employees", "required": true },
+        { "name": "shift_name", "type": "string", "required": true },
+        { "name": "start_time", "type": "string" },
+        { "name": "end_time", "type": "string" },
+        { "name": "work_date", "type": "date" }
+      ]
+    },
+    {
+      "slug": "timesheet_entries",
+      "display_name": "Timesheet Entries",
+      "module": "hr",
+      "fields": [
+        { "name": "employee_id", "type": "reference", "reference_entity": "employees", "required": true },
+        { "name": "work_date", "type": "date", "required": true },
+        { "name": "attendance_id", "type": "reference", "reference_entity": "attendance_entries" },
+        { "name": "regular_hours", "type": "decimal" },
+        { "name": "overtime_hours", "type": "decimal" },
+        { "name": "status", "type": "string", "options": ["Draft", "Approved"] }
+      ]
+    },
+    {
+      "slug": "compensation_ledger",
+      "display_name": "Compensation Ledger",
+      "module": "hr",
+      "fields": [
+        { "name": "employee_id", "type": "reference", "reference_entity": "employees", "required": true },
+        { "name": "pay_period", "type": "string", "required": true },
+        { "name": "component", "type": "string", "required": true },
+        { "name": "component_type", "type": "string", "required": true, "options": ["Earning", "Deduction"] },
+        { "name": "amount", "type": "decimal", "required": true },
+        { "name": "status", "type": "string", "options": ["Draft", "Posted", "Cancelled"] },
+        { "name": "posted_at", "type": "datetime" },
+        { "name": "post_reference", "type": "string" }
+      ]
+    },
+    {
+      "slug": "compensation_snapshots",
+      "display_name": "Compensation Snapshots",
+      "module": "hr",
+      "fields": [
+        { "name": "employee_id", "type": "reference", "reference_entity": "employees", "required": true },
+        { "name": "pay_period", "type": "string", "required": true },
+        { "name": "gross_amount", "type": "decimal" },
+        { "name": "deduction_amount", "type": "decimal" },
+        { "name": "net_amount", "type": "decimal" },
+        { "name": "status", "type": "string", "options": ["Draft", "Posted"] },
+        { "name": "posted_at", "type": "datetime" },
+        { "name": "note", "type": "text" }
+      ]
+    }
+  ]
 }
 ```
 
-`mandatory_answers` and `prefilled_sdf` are hard constraints for AI generation.
+---
+
+## Validation
+
+- Q1 and Q2 must be answered before AI generation.
+- At least one capability pack (Q3-Q6) should be enabled.
+- Prefilled SDF is built from answers and shown to user for confirmation.
+- Every "yes" answer creates its full entity set in the prefilled SDF (no missing supporting entities).

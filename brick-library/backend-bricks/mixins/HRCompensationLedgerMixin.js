@@ -16,6 +16,8 @@ module.exports = (config = {}) => {
     snapshot_net_field: 'net_amount',
     snapshot_status_field: 'status',
     snapshot_posted_at_field: 'posted_at',
+    ledger_posted_at_field: 'posted_at',
+    ledger_post_reference_field: 'post_reference',
   };
   const merged = {
     ...defaults,
@@ -62,6 +64,8 @@ module.exports = (config = {}) => {
       snapshot_net_field: cfg.snapshot_net_field || cfg.snapshotNetField || '${merged.snapshot_net_field}',
       snapshot_status_field: cfg.snapshot_status_field || cfg.snapshotStatusField || '${merged.snapshot_status_field}',
       snapshot_posted_at_field: cfg.snapshot_posted_at_field || cfg.snapshotPostedAtField || '${merged.snapshot_posted_at_field}',
+      ledger_posted_at_field: cfg.ledger_posted_at_field || cfg.ledgerPostedAtField || '${merged.ledger_posted_at_field}',
+      ledger_post_reference_field: cfg.ledger_post_reference_field || cfg.ledgerPostReferenceField || '${merged.ledger_post_reference_field}',
     };
   }
 
@@ -192,8 +196,8 @@ module.exports = (config = {}) => {
       }
       const updated = await this.repository.updateWithClient(cfg.ledger_entity, entryId, {
         [cfg.ledger_status_field]: 'Posted',
-        posted_at: row.posted_at || new Date().toISOString(),
-        post_reference: payload.post_reference || payload.postReference || null,
+        [cfg.ledger_posted_at_field]: row[cfg.ledger_posted_at_field] || new Date().toISOString(),
+        [cfg.ledger_post_reference_field]: payload.post_reference || payload.postReference || payload[cfg.ledger_post_reference_field] || null,
       }, client);
       return {
         ledger_entry: updated,

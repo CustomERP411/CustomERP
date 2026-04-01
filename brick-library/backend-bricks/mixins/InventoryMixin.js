@@ -34,18 +34,26 @@ module.exports = {
   // The CodeWeaver will need to be smart enough to append these
   methods: `
   async adjustStock(id, delta) {
-    const item = await this.repository.findById(this.slug, id);
-    if (!item) throw new Error('Item not found');
-    
-    const currentQty = Number(item.quantity) || 0;
-    const newQty = currentQty + delta;
-    
     const inventoryConfig = this.mixinConfig?.inventory || {};
     const allowNegative = inventoryConfig.allow_negative === true || inventoryConfig.allowNegative === true;
+
+    if (typeof this.repository.atomicAdjustQuantity === 'function') {
+      return this.repository.atomicAdjustQuantity(this.slug, id, delta, {
+        quantityField: 'quantity',
+        allow_negative_stock: allowNegative,
+      });
+    }
+
+    const item = await this.repository.findById(this.slug, id);
+    if (!item) throw new Error('Item not found');
+
+    const currentQty = Number(item.quantity) || 0;
+    const newQty = currentQty + delta;
+
     if (!allowNegative && newQty < 0) {
       throw new Error(\`Insufficient stock. Current: \${currentQty}, Delta: \${delta}\`);
     }
-    
+
     return this.repository.update(this.slug, id, { quantity: newQty });
   }
   `

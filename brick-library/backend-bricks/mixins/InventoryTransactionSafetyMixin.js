@@ -131,25 +131,30 @@ module.exports = {
       );
     }
 
-    const qtyRaw =
-      payload.quantity ??
-      payload.qty ??
-      payload[cfg.fields.qty];
-    const qty = this._invTxnPositiveNumber(qtyRaw, 'quantity');
-
+    let qty = 0;
     let delta = 0;
-    if (operation === 'receive') {
-      delta = qty;
-    } else if (operation === 'issue') {
-      delta = -qty;
-    } else if (operation === 'adjust') {
+
+    if (operation === 'adjust') {
       const deltaRaw = payload.delta ?? payload.quantity ?? payload.qty ?? payload[cfg.fields.qty];
       const parsedDelta = Number(deltaRaw);
       if (!Number.isFinite(parsedDelta) || parsedDelta === 0) {
         throw this._invTxnError('delta must be a non-zero number for adjust operation', 400);
       }
       delta = parsedDelta;
+      qty = Math.abs(parsedDelta);
+    } else if (operation === 'receive' || operation === 'issue') {
+      const qtyRaw =
+        payload.quantity ??
+        payload.qty ??
+        payload[cfg.fields.qty];
+      qty = this._invTxnPositiveNumber(qtyRaw, 'quantity');
+      delta = operation === 'receive' ? qty : -qty;
     } else if (operation === 'transfer') {
+      const qtyRaw =
+        payload.quantity ??
+        payload.qty ??
+        payload[cfg.fields.qty];
+      qty = this._invTxnPositiveNumber(qtyRaw, 'quantity');
       delta = 0;
       const fromLocation = payload.from_location_id || payload.fromLocationId || payload[cfg.fields.from_location];
       const toLocation = payload.to_location_id || payload.toLocationId || payload[cfg.fields.to_location];

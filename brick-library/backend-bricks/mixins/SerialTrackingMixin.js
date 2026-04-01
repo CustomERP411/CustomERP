@@ -3,11 +3,11 @@ module.exports = {
 
   hooks: {
     'BEFORE_CREATE_VALIDATION': `
-      // SerialTrackingMixin: Serial number is mandatory and unique
-      if (!data.serial_number) {
+      if (!data.serial_number || !String(data.serial_number).trim()) {
         throw new Error('Serial number is required');
       }
-      
+      data.serial_number = String(data.serial_number).trim();
+
       const serialConfig = this.mixinConfig?.serial_tracking || {};
       const enforceUnique = serialConfig.enforce_unique !== false && serialConfig.enforceUnique !== false;
       const quantityPolicy = serialConfig.quantity_policy || serialConfig.quantityPolicy || 'fixed_one';
@@ -15,11 +15,12 @@ module.exports = {
       if (enforceUnique) {
         const existing = await this.repository.findAll(this.slug, { serial_number: data.serial_number });
         if (existing.length > 0) {
-          throw new Error(\`Serial number \${data.serial_number} already exists\`);
+          const err = new Error(\`Serial number '\${data.serial_number}' is already in use\`);
+          err.statusCode = 409;
+          throw err;
         }
       }
-      
-      // Serialized items default to quantity 1 unless policy allows overrides
+
       if (quantityPolicy !== 'allow_any') {
         data.quantity = 1;
       }

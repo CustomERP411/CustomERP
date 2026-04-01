@@ -156,46 +156,49 @@ Status legend:
 | Capability Area | Current Status | Evidence in Current Code | Gap / Missing |
 | --- | --- | --- | --- |
 | Basic entity CRUD generation | Implemented | `platform/assembler/generators/BackendGenerator.js`, `brick-library/backend-bricks/core/BaseService.js.hbs` | No approval workflow on CRUD |
-| Quantity field initialization and numeric validation | Implemented | `brick-library/backend-bricks/mixins/InventoryMixin.js` | No transaction-locking/concurrency controls |
+| Quantity field initialization and numeric validation | Implemented | `brick-library/backend-bricks/mixins/InventoryMixin.js` | None (hooks validated) |
 | Negative stock guard | Implemented | `InventoryMixin` + issue wizard logic in `platform/assembler/generators/frontend/entityPages.js` | Policy granularity per warehouse/item missing |
-| Stock adjustment operation | Implemented | `adjustStock()` in `InventoryMixin`, Adjust page builder in `entityPages.js` | No approval workflow for adjustments |
+| Stock adjustment operation | Implemented | `adjustStock()` in `InventoryMixin` now delegates to `atomicAdjustQuantity` for transaction safety | No approval workflow for adjustments |
 | Receive / Issue / Adjust / Transfer wizards | Implemented | `buildReceivePage`, `buildIssuePage`, `buildAdjustPage`, `buildTransferPage` in `entityPages.js` | No advanced warehouse task workflow |
-| Movement entity mapping (`inventory_ops`) | Implemented | `SDF_REFERENCE.md`, `FrontendGenerator.js`, `entityPages.js` | No strong server-side transaction orchestration |
+| Movement entity mapping (`inventory_ops`) | Implemented | `SDF_REFERENCE.md`, `FrontendGenerator.js`, `entityPages.js` | Movement entity now includes reason, reference_number, and location fields |
 | Quick actions on list rows | Implemented | `entityPages.js` quick action routes/buttons | Limited to receive/issue shortcuts |
-| Batch tracking baseline | Implemented | `BatchTrackingMixin.js` | No full lot genealogy/recall workflow |
-| Serial tracking baseline | Implemented | `SerialTrackingMixin.js` | No serial lifecycle states/warranty flow |
-| Multi-location baseline | Partial | `LocationMixin.js`, transfer wizard in `entityPages.js` | No dedicated stock-quant model per location/bin |
+| Batch tracking baseline | Implemented | `BatchTrackingMixin.js` (batch validation, findByBatch, getExpiredItems with DB filter) | No full lot genealogy/recall workflow |
+| Serial tracking baseline | Implemented | `SerialTrackingMixin.js` (serial uniqueness with 409 status, quantity enforcement) | No serial lifecycle states/warranty flow |
+| Multi-location baseline | Implemented | `LocationMixin.js` (transactional moveStock), transfer wizard in `entityPages.js` | No dedicated stock-quant model per location/bin |
 | QR labels + scan helper | Implemented | `buildLabelsPage` in `entityPages.js`, `labels` config in `SDF_REFERENCE.md` | Not full barcode operations stack (GS1, scanners, etc.) |
 | Low stock dashboard card | Implemented | `platform/assembler/generators/frontend/dashboardHome.js` | No procurement auto-replenishment action |
-| Expiry alert dashboard card | Implemented | `dashboardHome.js` | No FEFO enforcement across picks/issues |
+| Expiry alert dashboard card | Implemented | `dashboardHome.js`, `features.expiry_tracking` flag on stock entity | No FEFO enforcement across picks/issues |
 | Audit logging support | Implemented | activity module hooks and `__audit_logs` generation path in `ProjectAssembler.js` / docs | No fine-grained stock approval trails |
 | Schema/reference validation before generation | Implemented | `ProjectAssembler._validateSdf()` | Not a runtime business-approval engine |
 | CSV tooling for entities | Implemented | frontend bricks import/export support + generated entity pages | No controlled ETL jobs/quality gates |
+| Transaction-safe stock operations | Implemented | `InventoryTransactionSafetyMixin.js` with `atomicAdjustQuantity`, `withTransaction`, `findByIdForUpdate` via PostgresProvider | Adjust operation now correctly handles negative deltas |
+| Reservation / allocation / available quantity | Implemented | `InventoryReservationMixin.js` + `InventoryReservationWorkflowMixin.js`; prefilled SDF creates `stock_reservations` entity and reservation quantity fields on stock entity | No ATP (available-to-promise) cross-order netting |
+| PO/GRN receiving workflow | Implemented | `InventoryInboundWorkflowMixin.js`; prefilled SDF creates `purchase_orders`, `purchase_order_items`, `goods_receipts`, `goods_receipt_items` entities; GRN posting page generated | No supplier return flow |
+| Cycle count session workflow | Implemented | `InventoryCycleCountWorkflowMixin.js` + `InventoryCycleCountLineMixin.js`; prefilled SDF creates `cycle_count_sessions` + `cycle_count_lines` entities; workflow page generated with strict status progression (Draft -> InProgress -> PendingApproval -> Approved -> Posted) | No blind count mode |
+| Concurrency-safe stock transactions | Implemented | PostgresProvider with `SELECT FOR UPDATE`, `atomicAdjustQuantity`, `atomicAdjustReservation`, `withTransaction` | FlatFileProvider not suitable for production inventory |
 | Reorder suggestion logic | Partial | low-stock suggestion in `dashboardHome.js` | No reorder execution, PO generation, lead-time logic |
-| Warehouse/bin structure management | Partial | generic entity support can model warehouses | No native bin capacity/putaway/pick strategy engine |
-| PO/GRN receiving workflow | Missing | No dedicated PO/GRN module flow in generator bricks | Needs procurement + receiving process model |
-| Reservation/allocation/ATP | Missing | No reservation/commitment model in generated backend | Needs order allocation and availability engine |
-| Pick-pack-ship workflow | Missing | No warehouse operation workflow pages/mixins | Needs outbound execution features |
+| Warehouse/bin structure management | Partial | generic entity support can model warehouses; `LocationMixin` supports transfer | No native bin capacity/putaway/pick strategy engine |
 | Customer return/RMA inventory flow | Missing | No RMA flow in generator | Needs reverse logistics workflow |
 | Supplier return flow | Missing | No supplier return workflow | Needs return authorization and stock impact rules |
-| Cycle count session workflow | Partial | adjust operation exists | No count sessions, blind counts, variance approvals |
-| Valuation/costing methods (FIFO/LIFO/WA) | Missing | Current model is quantity-focused with flat-file data | Needs costing engine and accounting mapping |
+| Valuation/costing methods (FIFO/LIFO/WA) | Missing | Current model is quantity-focused | Needs costing engine and accounting mapping |
 | Landed cost allocation | Missing | Not present | Needs inbound cost distribution logic |
 | GL/accounting posting integration | Missing | No accounting integration in generated ERP | Needs posting rules and chart mapping |
 | Quarantine/quality hold/release | Missing | Not present | Needs stock status and QC workflow |
-| Concurrency-safe stock transactions | Missing | Flat-file provider (`FlatFileProvider.js`) with no transactional DB semantics | Needs DB-backed transactional model |
 | Idempotency for movement APIs | Missing | Not present in generated service template | Needs request-id/idempotency-key strategy |
+| Pick-pack-ship workflow | Missing | No warehouse operation workflow pages/mixins | Needs outbound execution features |
 
 ---
 
 ## Missing Capability Backlog (Prioritized for Inventory Module Maturity)
 
 ## Priority A (must-have for production-grade inventory)
-- Implement DB-backed stock transaction model (replace flat-file runtime persistence for inventory). (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
-- Implement reservation/commitment/available quantity model. (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
-- Implement concurrency-safe stock updates with transactional guarantees. (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
-- Implement PO receiving + GRN workflow for inbound stock. (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
-- Implement cycle count session workflow (plan, count, variance, approve, post). (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
+
+All Priority A items have been implemented:
+- Transaction-safe stock operations via `InventoryTransactionSafetyMixin` + `PostgresProvider` (atomicAdjustQuantity, withTransaction, SELECT FOR UPDATE)
+- Reservation / commitment / available quantity model via `InventoryReservationMixin` + `InventoryReservationWorkflowMixin` + prefilled SDF creating `stock_reservations` entity
+- PO receiving + GRN workflow via `InventoryInboundWorkflowMixin` + prefilled SDF creating PO/GRN entities
+- Cycle count session workflow (plan, count, variance, approve, post) via `InventoryCycleCountWorkflowMixin` + `InventoryCycleCountLineMixin` + prefilled SDF creating session/line entities
+- Concurrency-safe stock updates via PostgresProvider with row locks
 
 ## Priority B (important business capability expansion)
 - Implement native warehouse/bin model with putaway and picking strategies. (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
@@ -209,10 +212,12 @@ Status legend:
 - Implement accounting posting integration for stock valuation movements. (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
 - Implement quality hold/release and inspection checkpoints. (ODD) [Allowed files: `brick-library/backend-bricks/core/**`, `brick-library/backend-bricks/mixins/**`, `brick-library/backend-bricks/repository/**`, `platform/assembler/generators/BackendGenerator.js`, `platform/assembler/ProjectAssembler.js`, `platform/assembler/MixinRegistry.js`]
 - Implement automation rules (alerts, replenishment suggestions to actionable tasks). (ASA)
+- Implement idempotency keys for movement APIs. (ODD)
+- Implement pick-pack-ship workflow. (ODD)
 
 ---
 
-## Notes for ASA Task: “Research inventory use-cases and define missing capability list”
+## Notes for ASA Task: "Research inventory use-cases and define missing capability list"
 
 Research output should be finalized as:
 1. target customer profile (SMB, mid-market, enterprise),
@@ -222,3 +227,29 @@ Research output should be finalized as:
 5. explicit ownership mapping (ASA/BTB/ODD/EA/TE).
 
 This document can be used as the baseline reference for that task.
+
+---
+
+## Robustness Fixes Applied (Latest Sprint)
+
+The following fixes were applied to make existing capabilities actually work end-to-end:
+
+1. **Prefilled SDF Service** (`prefilledSdfService.js`): Now creates ALL supporting entities when capabilities are toggled on (stock_reservations, PO/GRN entities, cycle count entities). Reservation quantity fields added to stock entity. Transfer flag auto-enabled with multi-location. Movement entity includes location, batch, and serial fields when relevant.
+
+2. **InventoryMixin** (`InventoryMixin.js`): `adjustStock` now uses `atomicAdjustQuantity` (SELECT FOR UPDATE) when available, eliminating the read-modify-write race condition.
+
+3. **LocationMixin** (`LocationMixin.js`): `moveStock` now wrapped in a database transaction. Removed hard dependency on `sku` field; uses configurable display field for target record matching.
+
+4. **BatchTrackingMixin** (`BatchTrackingMixin.js`): `getExpiredItems` attempts DB-level date filtering first. Removed `console.warn` for past expiry dates.
+
+5. **SerialTrackingMixin** (`SerialTrackingMixin.js`): Uniqueness violation now returns proper 409 status code with descriptive message. Input trimming added.
+
+6. **InventoryCycleCountLineMixin** (`InventoryCycleCountLineMixin.js`): Fixed invalid `return null` in update validation hook to properly throw an error.
+
+7. **InventoryCycleCountWorkflowMixin** (`InventoryCycleCountWorkflowMixin.js`): Strict status progression enforced. Approve requires PendingApproval status. Post requires Approved status (no bypassing approval).
+
+8. **InventoryTransactionSafetyMixin** (`InventoryTransactionSafetyMixin.js`): Adjust operation now correctly accepts negative delta values without hitting the positive-only validation gate.
+
+9. **FrontendGenerator** (`FrontendGenerator.js`): `_getInventoryPriorityAConfig` now checks `transactions.stock_entity` in the fallback chain, matching BackendGenerator and ProjectAssembler behavior.
+
+10. **Transfer page** (`entityPages.js`): Location fetch now has `.catch(() => ({ data: [] }))` matching receive and issue pages, preventing page crash when locations route is unavailable.

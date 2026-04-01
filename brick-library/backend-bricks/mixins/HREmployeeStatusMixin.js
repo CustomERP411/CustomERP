@@ -6,13 +6,15 @@ module.exports = {
       const __cfg = this.mixinConfig?.hr_employee_status || this.mixinConfig?.hrEmployeeStatus || {};
       const __statusField = __cfg.status_field || __cfg.statusField || 'status';
       const __defaultStatus = __cfg.default_status || __cfg.defaultStatus;
-      const __statusList = Array.isArray(__cfg.statuses) && __cfg.statuses.length ? __cfg.statuses : null;
+      const __statusList = Array.isArray(__cfg.statuses) && __cfg.statuses.length
+        ? __cfg.statuses
+        : ['Active', 'On Leave', 'Terminated'];
 
       if (data && data[__statusField] === undefined && __defaultStatus) {
         data[__statusField] = __defaultStatus;
       }
 
-      if (__statusList && data && data[__statusField] !== undefined && !__statusList.includes(data[__statusField])) {
+      if (data && data[__statusField] !== undefined && !__statusList.includes(data[__statusField])) {
         throw new Error(\`\${__statusField} must be one of: \${__statusList.join(', ')}\`);
       }
     `,

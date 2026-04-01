@@ -47,7 +47,7 @@ module.exports = (config = {}) => {
     hooks: {
       BEFORE_CREATE_TRANSFORMATION: `
       const INVOICE_CFG = ${JSON.stringify(invoiceConfig)};
-      const allowedStatuses = Array.isArray(INVOICE_CFG.statuses) ? INVOICE_CFG.statuses : ['Draft', 'Sent', 'Paid', 'Overdue'];
+      const allowedStatuses = Array.isArray(INVOICE_CFG.statuses) ? INVOICE_CFG.statuses : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
       const statusField = INVOICE_CFG.status_field || 'status';
       const numberField = INVOICE_CFG.invoice_number_field || 'invoice_number';
       const subtotalField = INVOICE_CFG.subtotal_field || 'subtotal';
@@ -135,12 +135,14 @@ module.exports = (config = {}) => {
     `,
       BEFORE_UPDATE_VALIDATION: `
       const INVOICE_CFG = ${JSON.stringify(invoiceConfig)};
-      const allowedStatuses = Array.isArray(INVOICE_CFG.statuses) ? INVOICE_CFG.statuses : ['Draft', 'Sent', 'Paid', 'Overdue'];
+      const allowedStatuses = Array.isArray(INVOICE_CFG.statuses) ? INVOICE_CFG.statuses : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
       const statusField = INVOICE_CFG.status_field || 'status';
       const numberField = INVOICE_CFG.invoice_number_field || 'invoice_number';
       const subtotalField = INVOICE_CFG.subtotal_field || 'subtotal';
       const taxTotalField = INVOICE_CFG.tax_total_field || 'tax_total';
       const grandTotalField = INVOICE_CFG.grand_total_field || 'grand_total';
+      const discountTotalField = INVOICE_CFG.discount_total_field || 'discount_total';
+      const chargesField = INVOICE_CFG.additional_charges_field || 'additional_charges_total';
       const paidField = INVOICE_CFG.paid_total_field || 'paid_total';
       const outstandingField = INVOICE_CFG.outstanding_field || 'outstanding_balance';
       const useCalcEngine = INVOICE_CFG.use_calculation_engine === true;
@@ -165,18 +167,24 @@ module.exports = (config = {}) => {
       }
 
       if (!useCalcEngine && (data[subtotalField] !== undefined || data[taxTotalField] !== undefined || data[grandTotalField] !== undefined)) {
-        const subtotal = Number(data[subtotalField] ?? 0) || 0;
+        const existingInvoice = await this.repository.findById(this.slug, id);
+        const subtotal = round2(data[subtotalField] !== undefined ? data[subtotalField] : existingInvoice?.[subtotalField]);
         const taxRate = Number(INVOICE_CFG.tax_rate ?? 0) || 0;
-        const taxTotal = Number(((subtotal * taxRate) / 100).toFixed(2));
-        const grandTotal = Number((subtotal + taxTotal).toFixed(2));
+        const taxTotal = round2((subtotal * taxRate) / 100);
+        const grandTotal = round2(subtotal + taxTotal);
 
         data[subtotalField] = subtotal;
         data[taxTotalField] = taxTotal;
         data[grandTotalField] = grandTotal;
       }
 
+      if (useCalcEngine) {
+        if (data[discountTotalField] !== undefined) data[discountTotalField] = round2(data[discountTotalField]);
+        if (data[chargesField] !== undefined) data[chargesField] = round2(data[chargesField]);
+      }
+
       if (data[paidField] !== undefined || data[grandTotalField] !== undefined || data[outstandingField] !== undefined) {
-        const existingInvoice = await this.repository.findById(this.slug, id);
+        const existingInvoice = data.__invExisting || await this.repository.findById(this.slug, id);
         const grand = round2(data[grandTotalField] !== undefined ? data[grandTotalField] : existingInvoice?.[grandTotalField]);
         const paid = round2(data[paidField] !== undefined ? data[paidField] : existingInvoice?.[paidField]);
         if (paid < 0) {
@@ -187,6 +195,7 @@ module.exports = (config = {}) => {
         }
         data[paidField] = paid;
         data[outstandingField] = round2(Math.max(grand - paid, 0));
+        delete data.__invExisting;
       }
     `,
     },

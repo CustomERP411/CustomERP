@@ -1,0 +1,128 @@
+# SDF SCHEMA REFERENCE (Condensed)
+# Use this as the authoritative reference for generating valid SDF JSON.
+
+## Top-Level Structure
+{
+  "project_name": "string (required)",
+  "modules": { ... },
+  "entities": [ ... ]
+}
+
+## Modules Object
+{
+  "modules": {
+    "hr": { "enabled": boolean },
+    "invoice": {
+      "enabled": boolean,
+      "tax_rate": number (default 0),
+      "currency": "string (default USD)",
+      "payment_terms": number (default 30),
+      "prefix": "string (default INV-)",
+      "transactions": { "enabled": boolean },
+      "payments": { "enabled": boolean, "payment_entity": "invoice_payments", "allocation_entity": "invoice_payment_allocations" },
+      "notes": { "enabled": boolean, "note_entity": "invoice_notes" },
+      "lifecycle": { "enabled": boolean, "enforce_transitions": boolean, "statuses": ["Draft","Sent","Paid","Overdue","Cancelled"] },
+      "calculation_engine": { "enabled": boolean }
+    },
+    "inventory": {
+      "enabled": boolean,
+      "locations": { "enabled": boolean },
+      "expiry": { "enabled": boolean },
+      "lot_tracking": { "enabled": boolean },
+      "low_stock_alerts": { "enabled": boolean }
+    },
+    "activity_log": { "enabled": boolean },
+    "inventory_dashboard": {
+      "low_stock": { "enabled": boolean, "entity": "string", "quantity_field": "string", "reorder_point_field": "string" },
+      "expiry": { "enabled": boolean, "entity": "string", "expiry_field": "string", "days_threshold": number }
+    },
+    "scheduled_reports": { "enabled": boolean }
+  }
+}
+
+## Entity Structure
+{
+  "slug": "string (required, snake_case, unique)",
+  "display_name": "string (required)",
+  "display_field": "string (field to show in dropdowns)",
+  "module": "string (hr|invoice|inventory|shared)",
+  "fields": [ ... ],
+  "features": { "audit_trail": boolean, "print_invoice": boolean },
+  "ui": { "search": boolean, "csv_import": boolean, "csv_export": boolean },
+  "inventory_ops": { "enabled": boolean, "quantity_field": "string", "receive": {...}, "adjust": {...} },
+  "children": [{ "entity": "string", "foreign_key": "string", "label": "string" }]
+}
+
+## Field Structure
+{
+  "name": "string (required, snake_case)",
+  "type": "string|text|integer|decimal|date|datetime|boolean|reference|choice",
+  "label": "string",
+  "required": boolean,
+  "unique": boolean,
+  "reference_entity": "string (when type=reference)",
+  "options": ["array of strings (when type=choice or string with options)"],
+  "multiple": boolean
+}
+
+## Common Field Types
+- string: Short text (names, codes)
+- text: Long text (descriptions, notes)
+- integer: Whole numbers
+- decimal: Numbers with decimals (money, quantities)
+- date: Date only
+- datetime: Date and time
+- boolean: true/false
+- reference: Foreign key to another entity
+- choice: Predefined options
+
+## Invoice Module Required Entities
+When invoice.enabled=true:
+1. customers (slug) - customer_id reference target
+2. invoices (slug) - with fields: invoice_number, customer_id, issue_date, due_date, status, subtotal, tax_total, grand_total
+3. invoice_items (slug) - with fields: invoice_id, description, quantity, unit_price, line_total
+
+## Invoice Payments Pack (when payments.enabled=true)
+Add entities:
+- invoice_payments: payment_number, invoice_id, amount, payment_date, payment_method, status
+- invoice_payment_allocations: payment_id, invoice_id, amount
+
+## Invoice Notes Pack (when notes.enabled=true)
+Add entity:
+- invoice_notes: note_number, source_invoice_id, note_type (Credit/Debit), amount, status
+
+## HR Module Required Entities
+When hr.enabled=true:
+1. departments (slug)
+2. employees (slug) - with department_id reference
+3. leaves (optional) - with employee_id reference
+
+## Inventory Module Required Entities
+When inventory.enabled=true:
+1. items or products (slug) - with fields: sku, name, on_hand, reorder_point
+2. locations (optional, when locations.enabled=true)
+3. inventory_movements (optional) - for stock transactions
+
+## Shared Entities
+When entity is used by multiple modules, set module="shared":
+- customers (invoice + inventory sales)
+- products (inventory + invoice line items)
+- employees (hr + inventory handlers)
+
+## System Fields (Auto-Generated - DO NOT INCLUDE)
+- id
+- created_at
+- updated_at
+
+## Clarification Questions Format
+{
+  "clarifications_needed": [
+    {
+      "id": "unique_id",
+      "question": "User-facing question text",
+      "type": "text|choice|yes_no|number",
+      "options": ["array (when type=choice)"],
+      "module": "hr|invoice|inventory"
+    }
+  ]
+}

@@ -108,6 +108,9 @@ If the user's description is vague about certain aspects:
 
 {prefilled_sdf}
 
+# SDF SCHEMA REFERENCE:
+{sdf_schema_reference}
+
 # USER'S BUSINESS DESCRIPTION TO ANALYZE:
 {business_description}
 

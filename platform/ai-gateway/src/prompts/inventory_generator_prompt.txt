@@ -161,4 +161,7 @@ Shared Entities: {shared_entities}
 # ORIGINAL BUSINESS DESCRIPTION:
 {business_description}
 
+# SDF SCHEMA REFERENCE:
+{sdf_schema_reference}
+
 # YOUR JSON OUTPUT:

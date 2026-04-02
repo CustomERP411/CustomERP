@@ -125,4 +125,7 @@ When merging fields from the same entity across modules:
 ## Original Business Description:
 {business_description}
 
+# SDF SCHEMA REFERENCE:
+{sdf_schema_reference}
+
 # YOUR INTEGRATED JSON OUTPUT:

@@ -6,6 +6,22 @@ import pathlib
 
 PROMPT_DIR = pathlib.Path(__file__).parent
 
+# Cache for SDF schema reference
+_SDF_SCHEMA_CACHE: str = ""
+
+
+def _get_sdf_schema_reference() -> str:
+    """Load the condensed SDF schema reference (cached)."""
+    global _SDF_SCHEMA_CACHE
+    if not _SDF_SCHEMA_CACHE:
+        schema_path = PROMPT_DIR / "sdf_schema_reference.txt"
+        if schema_path.exists():
+            _SDF_SCHEMA_CACHE = schema_path.read_text()
+        else:
+            print(f"Warning: SDF schema reference not found at {schema_path}")
+            _SDF_SCHEMA_CACHE = "# SDF Schema Reference not available"
+    return _SDF_SCHEMA_CACHE
+
 
 def _inject_placeholders(template: str, values: dict[str, str]) -> str:
     """
@@ -125,6 +141,7 @@ def get_distributor_prompt(
                 "business_description": business_description,
                 "default_questions": default_questions or "",
                 "prefilled_sdf": prefilled_sdf or "",
+                "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
     except FileNotFoundError:
@@ -149,6 +166,7 @@ def get_hr_generator_prompt(
                 "hr_description": hr_description,
                 "hr_features": hr_features,
                 "shared_entities": shared_entities,
+                "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
     except FileNotFoundError:
@@ -173,6 +191,7 @@ def get_invoice_generator_prompt(
                 "invoice_description": invoice_description,
                 "invoice_features": invoice_features,
                 "shared_entities": shared_entities,
+                "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
     except FileNotFoundError:
@@ -197,6 +216,7 @@ def get_inventory_generator_prompt(
                 "inventory_description": inventory_description,
                 "inventory_features": inventory_features,
                 "shared_entities": shared_entities,
+                "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
     except FileNotFoundError:
@@ -229,6 +249,7 @@ def get_integrator_prompt(
                 "inventory_output": inventory_output or "null",
                 "default_question_answers": default_question_answers or "{}",
                 "prefilled_sdf": prefilled_sdf or "{}",
+                "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
     except FileNotFoundError:

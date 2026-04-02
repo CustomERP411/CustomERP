@@ -1,14 +1,9 @@
 """
 Gemini AI Client
-Handles communication with Google's Gemini API
-
-Supports multi-agent architecture where each agent can have its own
-model configuration while sharing the same underlying API.
+Handles communication with Google's Gemini API (fallback provider).
 """
 
-import os
 import asyncio
-import time
 from typing import Optional, Type
 
 import google.generativeai as genai
@@ -17,38 +12,18 @@ from google.generativeai.types import GenerationConfig
 from pydantic import BaseModel
 
 from src.config import settings, AgentConfig
-from src.services.base_client import BaseAIClient
+from src.services.base_client import BaseAIClient, GenerationResult
 
 
 class GeminiClient(BaseAIClient):
-    """
-    Client for interacting with Google Gemini AI
-    
-    Usage:
-        # Default client (uses global settings)
-        client = GeminiClient()
-        response = await client.generate("What is an ERP?")
-        
-        # Agent-specific client
-        from src.config import settings
-        hr_config = settings.hr_config()
-        hr_client = GeminiClient(agent_config=hr_config)
-    """
+    """Client for interacting with Google Gemini AI."""
     
     _default_instance: Optional["GeminiClient"] = None
     
     def __init__(self, agent_config: Optional[AgentConfig] = None):
-        """Initialize the Gemini client.
-        
-        Args:
-            agent_config: Optional agent-specific configuration. If not provided,
-                         uses global defaults from settings.
-        """
         super().__init__(agent_config)
     
     def _setup_client(self) -> None:
-        """Set up the Gemini client with appropriate credentials and config."""
-        # Get API key (agent-specific or global)
         if self.agent_config:
             api_key = self.agent_config.get_api_key(settings.GOOGLE_AI_API_KEY)
             model_name = self.agent_config.get_model(settings.GEMINI_MODEL)
@@ -72,20 +47,31 @@ class GeminiClient(BaseAIClient):
     
     @property
     def timeout(self) -> int:
-        """Get timeout from base class."""
         return self.get_timeout()
     
     @property
     def max_retries(self) -> int:
-        """Get max retries from base class."""
         return self.get_max_retries()
     
     @classmethod
     def get_instance(cls) -> "GeminiClient":
-        """Get singleton instance of GeminiClient (default config)"""
         if cls._default_instance is None:
             cls._default_instance = cls()
         return cls._default_instance
+    
+    def _extract_usage(self, response) -> dict:
+        """Extract token usage from Gemini response metadata."""
+        try:
+            meta = getattr(response, "usage_metadata", None)
+            if meta:
+                return {
+                    "prompt": getattr(meta, "prompt_token_count", 0) or 0,
+                    "completion": getattr(meta, "candidates_token_count", 0) or 0,
+                    "total": getattr(meta, "total_token_count", 0) or 0,
+                }
+        except Exception:
+            pass
+        return {"prompt": 0, "completion": 0, "total": 0}
     
     async def generate(
         self, 
@@ -94,27 +80,13 @@ class GeminiClient(BaseAIClient):
         json_mode: bool = False, 
         response_schema: Optional[Type[BaseModel]] = None,
         request_options: dict = None
-    ) -> str:
-        """
-        Generates content using the Gemini model.
-
-        Args:
-            prompt: The input prompt.
-            temperature: Creativity level (0.0 = deterministic, 1.0 = creative).
-            json_mode: If True, configure the model for JSON output.
-            response_schema: Optional Pydantic model to enforce strict JSON schema.
-                            When provided, the API will validate output against this schema.
-            request_options: Additional options for the request.
-        """
+    ) -> GenerationResult:
         try:
             config_params = {
                 "temperature": temperature,
                 "max_output_tokens": 8192,
             }
             
-            # Use JSON mode for structured output
-            # NOTE: Gemini's response_schema doesn't fully support Pydantic models yet
-            # (errors on 'default' fields). We use json_mode + prompt-based schema enforcement.
             if response_schema is not None or json_mode:
                 config_params["response_mime_type"] = "application/json"
                 if response_schema is not None:
@@ -129,7 +101,14 @@ class GeminiClient(BaseAIClient):
                 request_options=request_options
             )
             
-            return response.text
+            usage = self._extract_usage(response)
+            return GenerationResult(
+                text=response.text,
+                prompt_tokens=usage["prompt"],
+                completion_tokens=usage["completion"],
+                total_tokens=usage["total"],
+                model=self.model_name,
+            )
             
         except Exception as e:
             print(f"[GeminiClient] Generation error: {e}")
@@ -141,29 +120,20 @@ class GeminiClient(BaseAIClient):
         temperature: float,
         json_mode: bool = False,
         response_schema: Optional[Type[BaseModel]] = None
-    ) -> str:
-        """Generates content with a retry mechanism for transient errors.
-        
-        Args:
-            prompt: The input prompt.
-            temperature: Creativity level.
-            json_mode: If True, configure the model for JSON output (legacy mode).
-            response_schema: Pydantic model for strict schema enforcement.
-                            Takes precedence over json_mode when provided.
-        """
+    ) -> GenerationResult:
         last_exception = None
         for attempt in range(self.max_retries):
             try:
                 print(f"[GeminiClient] Generating content (Attempt {attempt + 1}/{self.max_retries})...")
                 request_options = {"timeout": self.timeout}
-                response = await self.generate(
+                result = await self.generate(
                     prompt,
                     temperature,
                     json_mode,
                     response_schema=response_schema,
                     request_options=request_options
                 )
-                return response
+                return result
             except (
                 google_exceptions.ServiceUnavailable,
                 google_exceptions.DeadlineExceeded,
@@ -179,7 +149,7 @@ class GeminiClient(BaseAIClient):
                 print(f"[GeminiClient] Retrying in {backoff_time} seconds...")
                 await asyncio.sleep(backoff_time)
             except Exception as e:
-                print(f"[GeminiClient] An non-retriable error occurred: {e}")
+                print(f"[GeminiClient] A non-retriable error occurred: {e}")
                 last_exception = e
                 break
         
@@ -187,25 +157,19 @@ class GeminiClient(BaseAIClient):
         raise last_exception
     
     async def test_connection(self) -> bool:
-        """
-        Test the connection to the Gemini API
-        
-        Returns:
-            True if connection is successful, False otherwise
-        """
         try:
-            response = await self.generate(
+            result = await self.generate(
                 "Respond with exactly: CONNECTION_OK",
                 temperature=0.0
             )
-            return "CONNECTION_OK" in response.upper() or "OK" in response.upper()
+            return "CONNECTION_OK" in result.text.upper() or "OK" in result.text.upper()
         except Exception as e:
             print(f"[GeminiClient] Connection test failed: {e}")
             return False
     
     def get_model_info(self) -> dict:
-        """Get information about the current model configuration"""
         return {
+            "provider": "gemini",
             "model": self.model_name,
             "agent": self.agent_config.name if self.agent_config else "default",
             "timeout_seconds": self.timeout,

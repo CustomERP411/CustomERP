@@ -58,7 +58,7 @@ function normalizeAnswer(answer, projectId) {
   };
 }
 
-async function persistQuestions({ projectId, questions }) {
+async function persistQuestions({ projectId, questions, cycle = 1 }) {
   const list = Array.isArray(questions) ? questions : [];
   if (!projectId) throw new Error('projectId is required');
   if (list.length === 0) return [];
@@ -69,7 +69,7 @@ async function persistQuestions({ projectId, questions }) {
   return normalized.map(entry => entry.apiQuestion);
 }
 
-async function persistAnswers({ projectId, answers }) {
+async function persistAnswers({ projectId, answers, cycle = 1 }) {
   const list = Array.isArray(answers) ? answers : [];
   if (!projectId) throw new Error('projectId is required');
   if (list.length === 0) return [];
@@ -83,7 +83,20 @@ async function persistAnswers({ projectId, answers }) {
   return Answer.createMany(normalized);
 }
 
+async function getCycleCount(projectId) {
+  if (!projectId) return 0;
+  try {
+    const questions = await Question.findByProject(projectId);
+    if (!Array.isArray(questions) || questions.length === 0) return 0;
+    const batches = new Set(questions.map(q => q.orderIndex === 0 ? q.questionId : null).filter(Boolean));
+    return batches.size || 1;
+  } catch {
+    return 0;
+  }
+}
+
 module.exports = {
   persistQuestions,
   persistAnswers,
+  getCycleCount,
 };

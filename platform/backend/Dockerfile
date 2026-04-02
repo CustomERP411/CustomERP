@@ -3,6 +3,8 @@
 # ================================
 FROM node:20-alpine AS base
 
+RUN apk add --no-cache curl unzip
+
 WORKDIR /app
 
 # Install dependencies only

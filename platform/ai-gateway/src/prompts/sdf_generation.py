@@ -154,6 +154,8 @@ def get_hr_generator_prompt(
     hr_description: str,
     hr_features: str,
     shared_entities: str,
+    default_answers: str = "",
+    prefilled_module_sdf: str = "",
 ) -> str:
     """Loads the HR module generator prompt."""
     try:
@@ -166,6 +168,8 @@ def get_hr_generator_prompt(
                 "hr_description": hr_description,
                 "hr_features": hr_features,
                 "shared_entities": shared_entities,
+                "default_answers": default_answers or "None provided",
+                "prefilled_module_sdf": prefilled_module_sdf or "None — generate from scratch",
                 "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
@@ -179,6 +183,8 @@ def get_invoice_generator_prompt(
     invoice_description: str,
     invoice_features: str,
     shared_entities: str,
+    default_answers: str = "",
+    prefilled_module_sdf: str = "",
 ) -> str:
     """Loads the Invoice module generator prompt."""
     try:
@@ -191,6 +197,8 @@ def get_invoice_generator_prompt(
                 "invoice_description": invoice_description,
                 "invoice_features": invoice_features,
                 "shared_entities": shared_entities,
+                "default_answers": default_answers or "None provided",
+                "prefilled_module_sdf": prefilled_module_sdf or "None — generate from scratch",
                 "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
@@ -204,6 +212,8 @@ def get_inventory_generator_prompt(
     inventory_description: str,
     inventory_features: str,
     shared_entities: str,
+    default_answers: str = "",
+    prefilled_module_sdf: str = "",
 ) -> str:
     """Loads the Inventory module generator prompt."""
     try:
@@ -216,6 +226,8 @@ def get_inventory_generator_prompt(
                 "inventory_description": inventory_description,
                 "inventory_features": inventory_features,
                 "shared_entities": shared_entities,
+                "default_answers": default_answers or "None provided",
+                "prefilled_module_sdf": prefilled_module_sdf or "None — generate from scratch",
                 "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )

@@ -40,6 +40,7 @@ class ClarificationQuestion(BaseModel):
     type: Literal["yes_no", "choice", "text"] = Field(..., description="The type of answer expected.")
     options: Optional[List[str]] = Field(default=None, description="Options for choice questions.")
     module: Optional[str] = Field(default=None, description="Source module (hr, invoice, inventory).")
+    priority: Optional[Literal["high", "medium", "low"]] = Field(default="medium", description="Question priority.")
 
 
 class EntityField(BaseModel):
@@ -130,7 +131,16 @@ class SystemDefinitionFile(BaseModel):
         description="Questions to ask the user to resolve ambiguities.",
     )
 
-    # AI/Platform extension: non-blocking warnings (unsupported requests, auto-normalizations, etc.)
+    # Pipeline metadata
+    sdf_complete: Optional[bool] = Field(
+        default=None,
+        description="True when all domain models confirm the SDF is complete.",
+    )
+    token_usage: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Per-agent and total token usage for this pipeline run.",
+    )
+
     warnings: Optional[List[str]] = Field(
         default=None,
         description="Non-blocking warnings and limitations to show in the UI.",

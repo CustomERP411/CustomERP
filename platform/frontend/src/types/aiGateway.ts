@@ -1,10 +1,13 @@
 export type ClarificationQuestionType = 'yes_no' | 'choice' | 'text';
+export type ClarificationPriority = 'high' | 'medium' | 'low';
 
 export interface ClarificationQuestion {
   id: string;
   question: string;
   type: ClarificationQuestionType;
   options?: string[];
+  module?: string;
+  priority?: ClarificationPriority;
 }
 
 export interface ClarificationAnswer {
@@ -12,15 +15,19 @@ export interface ClarificationAnswer {
   answer: string;
 }
 
-// This matches the AI Gateway output (generator SDF shape + optional clarifications_needed).
+export interface TokenUsage {
+  [agent: string]: { prompt: number; completion: number; total: number };
+}
+
 export interface AiGatewaySdf {
   project_name: string;
   modules?: Record<string, unknown>;
   entities: unknown[];
-  // Backwards compatibility: older outputs might include relations/schema_name
   relations?: unknown[];
   schema_name?: string;
   clarifications_needed?: ClarificationQuestion[] | null;
+  sdf_complete?: boolean;
+  token_usage?: TokenUsage | null;
   warnings?: string[] | null;
 }
 
@@ -29,6 +36,7 @@ export interface AnalyzeProjectResponse {
   sdf_version: number | null;
   sdf: AiGatewaySdf;
   questions: ClarificationQuestion[];
+  sdf_complete?: boolean;
+  token_usage?: TokenUsage | null;
+  cycle?: number;
 }
-
-

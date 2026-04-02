@@ -7,10 +7,10 @@ const { execSync } = require('child_process');
 const NODE_VERSION = '20.18.1';
 
 const PLATFORMS = {
-  'macos-arm64': { nodeDir: `node-v${NODE_VERSION}-darwin-arm64`, ext: 'tar.gz', binRel: 'bin/node' },
-  'macos-x64':   { nodeDir: `node-v${NODE_VERSION}-darwin-x64`,   ext: 'tar.gz', binRel: 'bin/node' },
-  'linux-x64':   { nodeDir: `node-v${NODE_VERSION}-linux-x64`,    ext: 'tar.xz', binRel: 'bin/node' },
-  'windows-x64': { nodeDir: `node-v${NODE_VERSION}-win-x64`,      ext: 'zip',    binRel: 'node.exe' },
+  'macos-arm64': { nodeDir: `node-v${NODE_VERSION}-darwin-arm64`, ext: 'tar.gz', binRel: 'bin/node', os: 'darwin', arch: 'arm64' },
+  'macos-x64':   { nodeDir: `node-v${NODE_VERSION}-darwin-x64`,   ext: 'tar.gz', binRel: 'bin/node', os: 'darwin', arch: 'x64' },
+  'linux-x64':   { nodeDir: `node-v${NODE_VERSION}-linux-x64`,    ext: 'tar.xz', binRel: 'bin/node', os: 'linux',  arch: 'x64' },
+  'windows-x64': { nodeDir: `node-v${NODE_VERSION}-win-x64`,      ext: 'zip',    binRel: 'node.exe', os: 'win32',  arch: 'x64' },
 };
 
 function getCacheDir() {
@@ -93,6 +93,56 @@ async function downloadNodeBinary(platform) {
   return path.dirname(platform.startsWith('windows') ? cachedBin : path.join(extractDir, 'bin'));
 }
 
+async function replaceBetterSqlitePrebuilt(appDir, targetOs, targetArch) {
+  const pkgDir = path.join(appDir, 'node_modules', 'better-sqlite3');
+  if (!fs.existsSync(pkgDir)) return;
+
+  const pkgJson = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
+  const version = pkgJson.version;
+  console.log(`[STANDALONE] Replacing better-sqlite3 v${version} native binary for ${targetOs}-${targetArch}...`);
+
+  const buildRelease = path.join(pkgDir, 'build', 'Release');
+  const targetFile = path.join(buildRelease, 'better_sqlite3.node');
+
+  // Node.js major version -> ABI version mapping
+  const nodeAbiMap = { '20': '115', '22': '127', '23': '131' };
+  const nodeMajor = NODE_VERSION.split('.')[0];
+  const abiVersion = nodeAbiMap[nodeMajor] || '115';
+
+  // Delete the Linux-compiled binary
+  if (fs.existsSync(targetFile)) {
+    await fsp.unlink(targetFile);
+  }
+  await ensureDir(buildRelease);
+
+  const cacheDir = getCacheDir();
+  await ensureDir(cacheDir);
+
+  // Download the prebuilt binary directly from GitHub releases.
+  // better-sqlite3 uses: better-sqlite3-v{VER}-node-v{ABI}-{OS}-{ARCH}.tar.gz
+  const tarName = `better-sqlite3-v${version}-node-v${abiVersion}-${targetOs}-${targetArch}.tar.gz`;
+  const url = `https://github.com/WiseLibs/better-sqlite3/releases/download/v${version}/${tarName}`;
+  const tmpFile = path.join(cacheDir, tarName);
+
+  try {
+    console.log(`[STANDALONE] Downloading ${tarName}...`);
+    execSync(`curl -fsSL -o "${tmpFile}" "${url}"`, { stdio: 'pipe', timeout: 60000 });
+    execSync(`tar -xzf "${tmpFile}" -C "${pkgDir}"`, { stdio: 'pipe' });
+    await fsp.unlink(tmpFile).catch(() => {});
+
+    if (fs.existsSync(targetFile)) {
+      console.log('[STANDALONE] Native module replaced successfully.');
+      return;
+    }
+    console.warn('[STANDALONE] Downloaded archive did not contain expected binary.');
+  } catch (err) {
+    await fsp.unlink(tmpFile).catch(() => {});
+    console.warn(`[STANDALONE] Download failed: ${err.message.split('\n')[0]}`);
+  }
+
+  console.warn('[STANDALONE] Could not replace native module for target platform. The bundle may not work.');
+}
+
 async function buildStandaloneBundle({ assembledDir, platform, projectName }) {
   const info = PLATFORMS[platform];
   if (!info) throw new Error(`Unsupported platform: ${platform}`);
@@ -112,6 +162,12 @@ async function buildStandaloneBundle({ assembledDir, platform, projectName }) {
     timeout: 180000,
     env: { ...process.env, NODE_ENV: 'production' },
   });
+
+  // 1b. Replace native addons with correct prebuilt binaries for the target platform
+  const isCrossBuild = info.os !== process.platform || info.arch !== process.arch;
+  if (isCrossBuild) {
+    await replaceBetterSqlitePrebuilt(appDir, info.os, info.arch);
+  }
 
   // 2. npm install + build frontend
   if (fs.existsSync(path.join(frontendDir, 'package.json'))) {
@@ -151,7 +207,7 @@ async function buildStandaloneBundle({ assembledDir, platform, projectName }) {
 
   if (platform.startsWith('windows')) {
     await ensureDir(runtimeDir);
-    const nodeExe = path.join(path.dirname(nodeBinDir), info.binRel);
+    const nodeExe = path.join(nodeBinDir, info.binRel);
     await fsp.copyFile(nodeExe, path.join(runtimeDir, 'node.exe'));
   } else {
     const runtimeBinDir = path.join(runtimeDir, 'bin');

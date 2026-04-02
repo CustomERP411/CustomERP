@@ -67,18 +67,25 @@ Whole-project pending tasks not included in the Sprint 3 plan (deferred to Sprin
 Sprint 3 planned tasks:
 
 AI Iterative Clarifying-Question Loop (MapReduce-style orchestration):
-- Update domain model prompts (HR, Inventory, Invoice) to output clarifying_questions array alongside partial SDF. (BTB)
-- Update Integrator AI to deduplicate, group, and prioritize clarifying questions from all domain models. (BTB)
-- Implement iterative orchestration loop: re-dispatch user answers through Distributor until domain models return empty clarifying_questions. (BTB)
-- Add termination condition logic so pipeline stops when all domain models signal SDF completeness. (BTB)
-- Redesign AI flow so SDF generation runs once after final confirmation of the iterative loop. (BTB)
-- Tune AI prompts and guardrails for lower output variance across loop iterations. (BTB)
-- Implement backend state management for iterative loop: persist partial SDFs, questions, and user answers per cycle. (ODD)
-- Store requirement drafts and conversation deltas without triggering repeated SDF generation calls. (ODD)
-- Track token usage per project per loop cycle and show cost-control metrics. (ODD)
-- Build frontend UI for iterative clarifying questions: display grouped questions, collect answers, show loop progress. (EA)
-- Add explicit "Generate SDF now" action after iterative loop confirms SDF is complete. (EA)
-- Improve UI behavior for long generation waits and error states during loop cycles. (EA)
+- [DONE] Update domain model prompts (HR, Inventory, Invoice) to output clarifying_questions array alongside partial SDF — added sdf_complete signal + priority field. (BTB)
+- [DONE] Update Integrator AI to deduplicate, group, and prioritize clarifying questions from all domain models — priority sorting + module grouping in _aggregate_clarifications. (BTB)
+- [DONE] Implement iterative orchestration loop: re-dispatch user answers through Distributor until domain models return empty clarifying_questions — pipeline re-run with termination check. (BTB)
+- [DONE] Add termination condition logic so pipeline stops when all domain models signal SDF completeness — sdf_complete flag in PipelineResult. (BTB)
+- [DONE] Redesign AI flow so SDF generation runs once after final confirmation of the iterative loop — explicit "Generate Final SDF" button in frontend. (BTB)
+- [DONE] Tune AI prompts and guardrails for lower output variance across loop iterations — iteration guardrails in all domain + integrator prompts. (BTB)
+- [DONE] Implement backend state management for iterative loop: persist partial SDFs, questions, and user answers per cycle — cycle tracking in clarificationService + projectController. (ODD)
+- [DONE] Store requirement drafts and conversation deltas without triggering repeated SDF generation calls — cycle number tracking, sdf_complete passthrough. (ODD)
+- [DONE] Track token usage per project per loop cycle and show cost-control metrics — GenerationResult + token_usage in PipelineResult/API responses. (ODD)
+- [DONE] Build frontend UI for iterative clarifying questions: display grouped questions, collect answers, show loop progress — ClarificationQuestions grouped by module with priority badges + round counter. (EA)
+- [DONE] Add explicit "Generate SDF now" action after iterative loop confirms SDF is complete — finalize button + skip link in ClarificationQuestions. (EA)
+- [DONE] Improve UI behavior for long generation waits and error states during loop cycles — split running flags, phased progress text, extended timeouts. (EA)
+
+Multi-Provider AI Architecture (Azure OpenAI primary, Gemini fallback):
+- [DONE] Create AzureOpenAIClient implementing BaseAIClient with token tracking. (BTB)
+- [DONE] Update config.py + .env.example for multi-provider with per-agent provider selection. (BTB)
+- [DONE] Add GenerationResult dataclass to base_client.py, update GeminiClient to return token counts. (BTB)
+- [DONE] Update MultiAgentService._create_client to select provider based on agent config with fallback. (BTB)
+- [DONE] Create step-by-step Azure OpenAI setup guide (azure_openai_setup_guide.md) including fine-tuning roadmap. (DOC)
 
 AI Chat Mode and Build Mode:
 - Design AI chat mode prompts for feature discussion before build mode. (BTB)

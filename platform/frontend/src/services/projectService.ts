@@ -45,7 +45,7 @@ export const projectService = {
       ...(options?.modules?.length ? { modules: options.modules } : {}),
       ...(options?.default_question_answers ? { default_question_answers: options.default_question_answers } : {}),
       ...(options?.prefilled_sdf ? { prefilled_sdf: options.prefilled_sdf } : {}),
-    });
+    }, { timeout: 120000 });
     return response.data;
   },
 
@@ -76,7 +76,7 @@ export const projectService = {
       partial_sdf: partialSdf,
       answers,
       ...(description ? { description } : {}),
-    });
+    }, { timeout: 90000 });
     return response.data;
   },
 

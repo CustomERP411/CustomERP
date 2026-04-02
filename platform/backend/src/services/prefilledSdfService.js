@@ -47,6 +47,8 @@ function buildInventoryEntities(answers) {
   const reservationsEnabled = toBoolYes(answers.inv_enable_reservations);
   const inboundEnabled = toBoolYes(answers.inv_enable_inbound);
   const cycleCountEnabled = toBoolYes(answers.inv_enable_cycle_counting);
+  const costingRaw = String(answers.inv_costing_method || '').trim().toLowerCase();
+  const hasCostingMethod = costingRaw.startsWith('fifo') || costingRaw.startsWith('weighted');
 
   const productFields = [
     { name: 'name', type: 'string', required: true },
@@ -54,6 +56,11 @@ function buildInventoryEntities(answers) {
     { name: 'quantity', type: 'integer', required: true },
     { name: 'reorder_point', type: 'integer' },
   ];
+
+  if (hasCostingMethod) {
+    productFields.push({ name: 'cost_price', type: 'decimal' });
+    productFields.push({ name: 'total_value', type: 'decimal' });
+  }
 
   if (reservationsEnabled) {
     productFields.push({ name: 'reserved_quantity', type: 'integer' });
@@ -431,9 +438,21 @@ function buildHrEntities(answers) {
   });
 
   if (leaveEngineOn || leaveApprovalsOn) {
+    const userLeaveTypes = parseMultiChoice(answers.hr_leave_types);
+    const leaveTypeMap = {
+      'Sick Leave': 'Sick',
+      'Vacation / Annual': 'Vacation',
+      'Unpaid Leave': 'Unpaid',
+      'Maternity / Paternity': 'Maternity',
+      'Personal / Family': 'Personal',
+    };
+    const resolvedLeaveTypes = userLeaveTypes.length
+      ? userLeaveTypes.map((t) => leaveTypeMap[t] || t)
+      : ['Sick', 'Vacation', 'Unpaid'];
+
     const leaveFields = [
       { name: 'employee_id', type: 'reference', reference_entity: 'employees', required: true },
-      { name: 'leave_type', type: 'string', required: true, options: ['Sick', 'Vacation', 'Unpaid', 'Maternity', 'Paternity'] },
+      { name: 'leave_type', type: 'string', required: true, options: resolvedLeaveTypes },
       { name: 'start_date', type: 'date', required: true },
       { name: 'end_date', type: 'date', required: true },
       { name: 'leave_days', type: 'integer' },
@@ -572,9 +591,15 @@ function buildPrefilledSdfDraft({ projectName, modules, mandatoryAnswers, templa
     const inboundOn = toBoolYes(answers.inv_enable_inbound);
     const cycleCountOn = toBoolYes(answers.inv_enable_cycle_counting);
 
+    const costingRaw = String(answers.inv_costing_method || '').trim().toLowerCase();
+    let costingMethod = null;
+    if (costingRaw.startsWith('fifo')) costingMethod = 'fifo';
+    else if (costingRaw.startsWith('weighted')) costingMethod = 'weighted_average';
+
     sdf.modules.inventory = {
       enabled: true,
       stock_entity: 'products',
+      costing_method: costingMethod,
       transactions: { enabled: true, stock_entity: 'products', movement_entity: 'stock_movements' },
       reservations: reservationsOn
         ? { enabled: true, reservation_entity: 'stock_reservations', stock_entity: 'products' }
@@ -613,10 +638,21 @@ function buildPrefilledSdfDraft({ projectName, modules, mandatoryAnswers, templa
     const calcEngineOn = toBoolYes(answers.invoice_enable_calc_engine);
     const invoiceEntities = buildInvoiceEntities(answers);
 
+    const paymentTermsMap = {
+      'Immediately': 'due_on_receipt',
+      'Within 15 days': 'net_15',
+      'Within 30 days': 'net_30',
+      'Within 60 days': 'net_60',
+    };
+    const rawTerms = String(answers.invoice_payment_terms || '').trim();
+    const defaultPaymentTerms = paymentTermsMap[rawTerms] || rawTerms || 'net_30';
+    const recurringOn = toBoolYes(answers.invoice_recurring);
+
     sdf.modules.invoice = {
       enabled: true,
       currency: normalizeCurrency(answers.invoice_currency),
       tax_rate: toNumber(answers.invoice_tax_rate, 0),
+      default_payment_terms: defaultPaymentTerms,
       prefix: 'INV-',
       invoice_entity: 'invoices',
       item_entity: 'invoice_items',
@@ -652,8 +688,26 @@ function buildPrefilledSdfDraft({ projectName, modules, mandatoryAnswers, templa
             item_entity: 'invoice_items',
           }
         : { enabled: false },
+      recurring_billing: recurringOn
+        ? { enabled: true, schedule_entity: 'recurring_invoice_schedules' }
+        : { enabled: false },
     };
     sdf.entities.push(...invoiceEntities);
+    if (recurringOn) {
+      sdf.entities.push({
+        slug: 'recurring_invoice_schedules',
+        display_name: 'Recurring Invoice Schedules',
+        module: 'invoice',
+        fields: [
+          { name: 'customer_id', type: 'reference', reference_entity: 'customers', required: true },
+          { name: 'template_invoice_id', type: 'reference', reference_entity: 'invoices' },
+          { name: 'frequency', type: 'string', required: true, options: ['Weekly', 'Monthly', 'Quarterly', 'Yearly'] },
+          { name: 'next_run_date', type: 'date', required: true },
+          { name: 'status', type: 'string', options: ['Active', 'Paused', 'Cancelled'] },
+          { name: 'note', type: 'text' },
+        ],
+      });
+    }
   }
 
   if (selectedModules.includes('hr')) {

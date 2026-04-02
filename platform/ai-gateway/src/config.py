@@ -1,15 +1,14 @@
 """
 Configuration module for AI Gateway
-Loads environment variables and provides configuration settings
 
-Supports multi-agent architecture with per-agent configuration.
+Supports multi-provider, multi-agent architecture.
 Each agent (distributor, hr, invoice, inventory, integrator) can have its own:
-- API key
-- Model
-- Temperature
-- Timeout
+- Provider (azure_openai or gemini)
+- API key / endpoint
+- Model / deployment name
+- Temperature, timeout, retries
 
-All default to shared values for now, but can be overridden via environment variables.
+Azure OpenAI is the primary provider; Gemini is the emergency fallback.
 """
 
 import os
@@ -17,76 +16,77 @@ from dataclasses import dataclass, field
 from typing import Optional
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
 
 @dataclass
 class AgentConfig:
-    """Configuration for a single AI agent.
-    
-    Each agent can have its own model, API key, temperature, and timeout.
-    If not specified, falls back to global defaults.
-    """
+    """Configuration for a single AI agent."""
     name: str
+    provider: str = "azure_openai"
     api_key: Optional[str] = None
     model: Optional[str] = None
     temperature: float = 0.2
     timeout_seconds: Optional[int] = None
     max_retries: Optional[int] = None
+    # Azure-specific
+    azure_endpoint: Optional[str] = None
+    azure_deployment: Optional[str] = None
+    azure_api_version: Optional[str] = None
     
     def get_api_key(self, default: str) -> str:
-        """Get API key, falling back to default if not set."""
         return self.api_key if self.api_key else default
     
     def get_model(self, default: str) -> str:
-        """Get model name, falling back to default if not set."""
         return self.model if self.model else default
     
     def get_timeout(self, default: int) -> int:
-        """Get timeout, falling back to default if not set."""
         return self.timeout_seconds if self.timeout_seconds is not None else default
     
     def get_max_retries(self, default: int) -> int:
-        """Get max retries, falling back to default if not set."""
         return self.max_retries if self.max_retries is not None else default
+
+    def get_azure_endpoint(self, default: str) -> str:
+        return self.azure_endpoint if self.azure_endpoint else default
+
+    def get_azure_deployment(self, default: str) -> str:
+        return self.azure_deployment if self.azure_deployment else default
+
+    def get_azure_api_version(self, default: str) -> str:
+        return self.azure_api_version if self.azure_api_version else default
 
 
 class Settings:
     """Application settings loaded from environment variables"""
     
-    # API Configuration
     PORT: int = int(os.getenv("PORT", "8000"))
     HOST: str = os.getenv("HOST", "0.0.0.0")
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
-    # Google AI Configuration (Global defaults)
+    # Provider selection (azure_openai | gemini)
+    AI_DEFAULT_PROVIDER: str = os.getenv("AI_DEFAULT_PROVIDER", "azure_openai")
+    
+    # Google AI Configuration (fallback provider)
     GOOGLE_AI_API_KEY: str = os.getenv("GOOGLE_AI_API_KEY", "")
-    # Default to Gemini 1.5 Flash 002 - best free tier limits (15 RPM, 1M TPM, 1500 RPD)
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-002")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    
+    # Azure OpenAI Configuration (primary provider)
+    AZURE_OPENAI_API_KEY: str = os.getenv("AZURE_OPENAI_API_KEY", "")
+    AZURE_OPENAI_ENDPOINT: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+    AZURE_OPENAI_API_VERSION: str = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
+    AZURE_OPENAI_DEPLOYMENT: str = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
     
     # Request Configuration (Global defaults)
-    AI_TIMEOUT_SECONDS: int = int(os.getenv("AI_TIMEOUT_SECONDS", "60"))
+    AI_TIMEOUT_SECONDS: int = int(os.getenv("AI_TIMEOUT_SECONDS", "120"))
     AI_MAX_RETRIES: int = int(os.getenv("AI_MAX_RETRIES", "3"))
     
-    # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    
-    # ─────────────────────────────────────────────────────────────
-    # Multi-Agent Configuration
-    # Each agent can override global settings via environment variables:
-    #   AI_AGENT_{AGENT_NAME}_API_KEY
-    #   AI_AGENT_{AGENT_NAME}_MODEL
-    #   AI_AGENT_{AGENT_NAME}_TEMPERATURE
-    #   AI_AGENT_{AGENT_NAME}_TIMEOUT
-    #   AI_AGENT_{AGENT_NAME}_MAX_RETRIES
-    # ─────────────────────────────────────────────────────────────
     
     @classmethod
     def _load_agent_config(cls, agent_name: str, default_temperature: float = 0.2) -> AgentConfig:
-        """Load configuration for a specific agent from environment variables."""
         prefix = f"AI_AGENT_{agent_name.upper()}_"
         
+        provider = os.getenv(f"{prefix}PROVIDER") or None
         api_key = os.getenv(f"{prefix}API_KEY") or None
         model = os.getenv(f"{prefix}MODEL") or None
         
@@ -99,37 +99,35 @@ class Settings:
         retries_str = os.getenv(f"{prefix}MAX_RETRIES")
         max_retries = int(retries_str) if retries_str else None
         
+        azure_endpoint = os.getenv(f"{prefix}AZURE_ENDPOINT") or None
+        azure_deployment = os.getenv(f"{prefix}AZURE_DEPLOYMENT") or None
+        azure_api_version = os.getenv(f"{prefix}AZURE_API_VERSION") or None
+        
         return AgentConfig(
             name=agent_name,
+            provider=provider or cls.AI_DEFAULT_PROVIDER,
             api_key=api_key,
             model=model,
             temperature=temperature,
             timeout_seconds=timeout,
             max_retries=max_retries,
+            azure_endpoint=azure_endpoint,
+            azure_deployment=azure_deployment,
+            azure_api_version=azure_api_version,
         )
     
-    # Agent configurations (lazy-loaded)
     _agent_configs: dict[str, AgentConfig] = {}
     
     @classmethod
     def get_agent_config(cls, agent_name: str) -> AgentConfig:
-        """Get configuration for a specific agent.
-        
-        Supported agents:
-        - distributor: Routes user input to appropriate modules
-        - hr: Generates HR-related SDF
-        - invoice: Generates Invoice-related SDF
-        - inventory: Generates Inventory-related SDF
-        - integrator: Combines module outputs into final SDF
-        """
+        """Get configuration for a specific agent."""
         if agent_name not in cls._agent_configs:
-            # Default temperatures per agent type
             default_temps = {
-                "distributor": 0.1,  # More deterministic for routing
+                "distributor": 0.1,
                 "hr": 0.2,
                 "invoice": 0.2,
                 "inventory": 0.2,
-                "integrator": 0.1,  # More deterministic for merging
+                "integrator": 0.1,
             }
             cls._agent_configs[agent_name] = cls._load_agent_config(
                 agent_name, 
@@ -137,7 +135,6 @@ class Settings:
             )
         return cls._agent_configs[agent_name]
     
-    # Convenience properties for each agent
     @classmethod
     def distributor_config(cls) -> AgentConfig:
         return cls.get_agent_config("distributor")
@@ -160,20 +157,29 @@ class Settings:
     
     @classmethod
     def validate(cls) -> list[str]:
-        """Validate required configuration. Returns list of errors."""
+        """Validate that at least one provider is configured."""
         errors = []
+        has_azure = bool(cls.AZURE_OPENAI_API_KEY and cls.AZURE_OPENAI_ENDPOINT)
+        has_gemini = bool(cls.GOOGLE_AI_API_KEY)
         
-        if not cls.GOOGLE_AI_API_KEY:
-            errors.append("GOOGLE_AI_API_KEY is not set")
+        if not has_azure and not has_gemini:
+            errors.append(
+                "No AI provider configured. Set AZURE_OPENAI_API_KEY + "
+                "AZURE_OPENAI_ENDPOINT, or GOOGLE_AI_API_KEY."
+            )
+        
+        if cls.AI_DEFAULT_PROVIDER == "azure_openai" and not has_azure:
+            if has_gemini:
+                print("[Config] WARNING: Azure OpenAI is default provider but not configured. Gemini available as fallback.")
+            else:
+                errors.append("AI_DEFAULT_PROVIDER is azure_openai but Azure credentials are missing.")
         
         return errors
     
     @classmethod
     def is_configured(cls) -> bool:
-        """Check if all required settings are configured"""
         return len(cls.validate()) == 0
 
 
-# Singleton instance
 settings = Settings()
 

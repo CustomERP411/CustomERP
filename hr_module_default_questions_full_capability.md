@@ -126,6 +126,16 @@ No naming, no technical jargon, no questions about things we haven't built yet.
     - `posted_at` (datetime)
     - `note` (text)
 
+### Q7
+- ID: `hr_leave_types`
+- User question: "What types of leave do your employees use?"
+- Input: `multi_choice + custom`
+- Options: `Sick Leave`, `Vacation / Annual`, `Unpaid Leave`, `Maternity / Paternity`, `Personal / Family`, `Custom`
+- SDF impact:
+  - `entities.leaves.fields.leave_type.options` (array of selected types, mapped to short names)
+  - Also populates `leave_balances` leave_type options for per-type balance tracking
+  - Default if unanswered: `["Sick", "Vacation", "Unpaid"]`
+
 ---
 
 ## Auto-Enabled (No Question Needed)
@@ -150,6 +160,7 @@ These are always turned on when HR module is selected:
 | Leave approvals (Q4) | `leaves` (if not already from Q3) |
 | Attendance & time (Q5) | `attendance_entries`, `shift_assignments`, `timesheet_entries` |
 | Compensation ledger (Q6) | `compensation_ledger`, `compensation_snapshots` |
+| Leave types (Q7) | _(configures options on `leaves.leave_type` field)_ |
 
 ---
 
@@ -334,7 +345,7 @@ These are always turned on when HR module is selected:
 
 ## Validation
 
-- Q1 and Q2 must be answered before AI generation.
+- All 7 questions must be answered before AI generation.
 - At least one capability pack (Q3-Q6) should be enabled.
 - Prefilled SDF is built from answers and shown to user for confirmation.
 - Every "yes" answer creates its full entity set in the prefilled SDF (no missing supporting entities).

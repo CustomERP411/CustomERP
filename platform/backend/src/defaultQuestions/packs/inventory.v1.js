@@ -132,17 +132,32 @@ const INVENTORY_V2_QUESTIONS = [
     order_index: 8,
   },
   {
+    key: 'inv_costing_method',
+    prompt: 'How do you want to calculate the cost of your stock?',
+    type: 'choice',
+    options: ['FIFO (first items in are first out)', 'Weighted Average (average cost of all items)', 'No costing needed'],
+    required: true,
+    section: 'Inventory Setup',
+    question_number: 10,
+    sdf_mapping: { target: 'modules.inventory.costing_method' },
+    sdf_impact_notes:
+      'Sets modules.inventory.costing_method ("fifo" | "weighted_average" | null). ' +
+      'Adds cost_price and total_value fields to stock entity when enabled. ' +
+      'Triggers InventoryCostingMixin on backend for cost recalculation on receive/issue.',
+    order_index: 9,
+  },
+  {
     key: 'inv_qr_labels',
     prompt: 'Do you want to print QR code labels for your products?',
     type: 'yes_no',
     required: true,
     section: 'Inventory Extras',
-    question_number: 10,
+    question_number: 11,
     sdf_mapping: { target: 'entities.products.labels.enabled' },
     sdf_impact_notes:
       'Sets labels = { enabled: true, type: "qrcode" } on stock entity. ' +
       'Generates QR label page with print capability in generated ERP.',
-    order_index: 9,
+    order_index: 10,
   },
 ];
 

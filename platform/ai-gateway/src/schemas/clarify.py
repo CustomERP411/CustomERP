@@ -24,6 +24,7 @@ class ClarifyRequest(BaseModel):
     Implements the stateless feedback loop:
     - business_description: Original user input (for context continuity)
     - prefilled_sdf: The SDF state from the previous cycle (Cycle 1 output)
+    - default_question_answers: Original wizard answers (hr_work_days, etc.)
     - prior_context: User's answers to clarifying questions (maps question_id -> answer)
     - answers: Legacy format for backwards compatibility
     """
@@ -37,6 +38,10 @@ class ClarifyRequest(BaseModel):
         description="The SDF state from the previous cycle (JSON object).",
         validation_alias=AliasChoices("prefilled_sdf", "partial_sdf"),
     )
+    default_question_answers: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Original mandatory wizard answers (hr_work_days, invoice_currency, etc.)."
+    )
     prior_context: Dict[str, Any] = Field(
         default_factory=dict,
         description="User's answers to clarifying questions, keyed by question_id."
@@ -48,8 +53,12 @@ class ClarifyRequest(BaseModel):
     )
     
     def get_merged_context(self) -> Dict[str, Any]:
-        """Merge prior_context with legacy answers into a single dict."""
-        merged = dict(self.prior_context)
+        """Merge original wizard answers + clarification answers into one dict.
+        
+        Wizard answers go first so clarification answers can override them.
+        """
+        merged = dict(self.default_question_answers)
+        merged.update(self.prior_context)
         if self.answers:
             for ans in self.answers:
                 merged[ans.question_id] = ans.answer

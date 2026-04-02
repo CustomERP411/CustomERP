@@ -94,6 +94,29 @@ No naming, no technical jargon, no questions about things we haven't built yet.
   - Wires `InvoiceCalculationEngineMixin` instead of `InvoiceItemsMixin`
 
 ### Q6
+- ID: `invoice_payment_terms`
+- User question: "When do your customers usually pay?"
+- Input: `choice + custom`
+- Options: `Immediately`, `Within 15 days`, `Within 30 days`, `Within 60 days`, `Custom`
+- SDF impact:
+  - `modules.invoice.default_payment_terms` (string, e.g. `"net_30"`)
+  - Pre-fills `due_date` on new invoices relative to `issue_date`
+
+### Q7
+- ID: `invoice_recurring`
+- User question: "Do you send the same invoice to any customer every month (e.g. subscriptions, rent, retainers)?"
+- Input: `yes_no`
+- SDF impact:
+  - `modules.invoice.recurring_billing = { enabled: true, schedule_entity: 'recurring_invoice_schedules' }`
+  - Creates `recurring_invoice_schedules` entity:
+    - `customer_id` (reference -> customers, required)
+    - `template_invoice_id` (reference -> invoices)
+    - `frequency` (string, required, options: Weekly/Monthly/Quarterly/Yearly)
+    - `next_run_date` (date, required)
+    - `status` (string, options: Active/Paused/Cancelled)
+    - `note` (text)
+
+### Q8
 - ID: `invoice_print`
 - User question: "Do you want to print or download invoices as PDF?"
 - Input: `yes_no`
@@ -128,6 +151,8 @@ These are always turned on when invoice module is selected:
 | Always (invoice selected) | `customers`, `invoices`, `invoice_items` |
 | Payments (Q3) | `invoice_payments`, `invoice_payment_allocations` |
 | Credit/debit notes (Q4) | `invoice_notes` |
+| Payment terms (Q6) | _(configures `modules.invoice.default_payment_terms`)_ |
+| Recurring billing (Q7) | `recurring_invoice_schedules` |
 
 ---
 
@@ -140,6 +165,7 @@ These are always turned on when invoice module is selected:
       "enabled": true,
       "currency": "USD",
       "tax_rate": 18,
+      "default_payment_terms": "net_30",
       "prefix": "INV-",
       "invoice_entity": "invoices",
       "item_entity": "invoice_items",
@@ -168,6 +194,10 @@ These are always turned on when invoice module is selected:
         "enabled": true,
         "invoice_entity": "invoices",
         "item_entity": "invoice_items"
+      },
+      "recurring_billing": {
+        "enabled": true,
+        "schedule_entity": "recurring_invoice_schedules"
       }
     }
   },
@@ -274,6 +304,19 @@ These are always turned on when invoice module is selected:
         { "name": "cancel_reason", "type": "text" },
         { "name": "note", "type": "text" }
       ]
+    },
+    {
+      "slug": "recurring_invoice_schedules",
+      "display_name": "Recurring Invoice Schedules",
+      "module": "invoice",
+      "fields": [
+        { "name": "customer_id", "type": "reference", "reference_entity": "customers", "required": true },
+        { "name": "template_invoice_id", "type": "reference", "reference_entity": "invoices" },
+        { "name": "frequency", "type": "string", "required": true, "options": ["Weekly", "Monthly", "Quarterly", "Yearly"] },
+        { "name": "next_run_date", "type": "date", "required": true },
+        { "name": "status", "type": "string", "options": ["Active", "Paused", "Cancelled"] },
+        { "name": "note", "type": "text" }
+      ]
     }
   ]
 }
@@ -283,6 +326,6 @@ These are always turned on when invoice module is selected:
 
 ## Validation
 
-- All 6 questions must be answered before AI generation.
+- All 8 questions must be answered before AI generation.
 - Prefilled SDF is built from answers and shown to user for confirmation.
 - Every "yes" answer creates its full entity set in the prefilled SDF (no missing supporting entities).

@@ -68,6 +68,19 @@ const HR_V2_QUESTIONS = [
     sdf_impact_notes: 'Enables modules.hr.compensation_ledger with entity refs (ledger_entity, snapshot_entity). Adds salary field to employees entity. Creates compensation_ledger entity (employee_id, pay_period, component, component_type [Earning/Deduction], amount, status [Draft/Posted/Cancelled], posted_at, post_reference). Creates compensation_snapshots entity (employee_id, pay_period, gross_amount, deduction_amount, net_amount, status [Draft/Posted], posted_at, note).',
     order_index: 5,
   },
+  {
+    key: 'hr_leave_types',
+    prompt: 'What types of leave do your employees use?',
+    type: 'multi_choice',
+    options: ['Sick Leave', 'Vacation / Annual', 'Unpaid Leave', 'Maternity / Paternity', 'Personal / Family', 'Custom'],
+    allow_custom: true,
+    required: true,
+    section: 'HR Setup',
+    question_number: 7,
+    sdf_mapping: { target: 'entities.leaves.fields.leave_type.options' },
+    sdf_impact_notes: 'Sets the options array on the leave_type field of the leaves entity. Also populates leave_type options on the leave_balances entity for per-type balance tracking.',
+    order_index: 6,
+  },
 ];
 
 module.exports = {

@@ -273,6 +273,7 @@ exports.analyzeProject = async (req, res) => {
     const persistedQuestions = await clarificationService.persistQuestions({
       projectId: project.id,
       questions: rawQuestions,
+      cycle: 1,
     });
     if (persistedQuestions.length) {
       sdf = { ...sdf, clarifications_needed: persistedQuestions };
@@ -287,6 +288,9 @@ exports.analyzeProject = async (req, res) => {
       sdf_version: saved?.version,
       sdf,
       questions: persistedQuestions,
+      sdf_complete: sdf?.sdf_complete || false,
+      token_usage: sdf?.token_usage || null,
+      cycle: 1,
       default_question_answers: mandatoryAnswers,
       prefilled_sdf: prefilledSdf,
     });
@@ -321,20 +325,33 @@ exports.clarifyProject = async (req, res) => {
       await projectService.updateProject(projectId, userId, { status: 'Clarifying' });
     }
 
+    const priorCycleCount = await clarificationService.getCycleCount(project.id);
+    const currentCycle = priorCycleCount + 1;
+
     await clarificationService.persistAnswers({
       projectId: project.id,
       answers,
+      cycle: currentCycle,
     });
+
+    const requestedModules = parseModulesInput(Object.keys(partialSdf?.modules || {}));
+    const questionnaireState = await moduleQuestionnaireService.getQuestionnaireState({
+      projectId: project.id,
+      modules: requestedModules,
+    });
+    const mandatoryAnswers = questionnaireState.mandatory_answers || {};
 
     let sdf = await aiGatewayClient.clarifySdf({
       businessDescription: (typeof description === 'string' && description.trim()) ? description.trim() : (project.description || ''),
       partialSdf,
       answers,
+      defaultQuestionAnswers: mandatoryAnswers,
     });
     const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
     const persistedQuestions = await clarificationService.persistQuestions({
       projectId: project.id,
       questions: rawQuestions,
+      cycle: currentCycle,
     });
     if (persistedQuestions.length) {
       sdf = { ...sdf, clarifications_needed: persistedQuestions };
@@ -349,6 +366,9 @@ exports.clarifyProject = async (req, res) => {
       sdf_version: saved?.version,
       sdf,
       questions: persistedQuestions,
+      sdf_complete: sdf?.sdf_complete || false,
+      token_usage: sdf?.token_usage || null,
+      cycle: currentCycle,
     });
   } catch (err) {
     logger.error('Clarify project error:', err);

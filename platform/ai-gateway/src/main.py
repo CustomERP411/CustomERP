@@ -287,18 +287,26 @@ async def startup_event():
     """Application startup tasks"""
     print("=" * 60)
     print("  CustomERP AI Gateway Starting...")
+    print(f"  Default provider: {settings.AI_DEFAULT_PROVIDER}")
     print("=" * 60)
-    # Attempt to initialize the client on startup to check config
+
+    has_azure = bool(settings.AZURE_OPENAI_API_KEY and settings.AZURE_OPENAI_ENDPOINT)
+    has_gemini = bool(settings.GOOGLE_AI_API_KEY)
+    print(f"  Azure OpenAI configured: {has_azure}")
+    print(f"  Google Gemini configured: {has_gemini}")
+
     get_gemini_client()
     client = get_gemini_client()
     if client:
         info = client.get_model_info()
-        print(f"  Model: {info.get('model')}")
-        print(f"  API Key configured: {info.get('api_configured')}")
-        print(f"  Timeout: {info.get('timeout_seconds')}s")
-        print(f"  Max retries: {info.get('max_retries')}")
+        print(f"  Gemini model: {info.get('model')}")
+
+    validation_errors = settings.validate()
+    if validation_errors:
+        for err in validation_errors:
+            print(f"  WARNING: {err}")
     else:
-        print("  ⚠️  AI Client could not be initialized. Check GOOGLE_AI_API_KEY.")
+        print("  Configuration OK")
     print("=" * 60)
 
 

@@ -44,11 +44,14 @@ async function analyzeDescription(description, priorContext = null, options = {}
   });
 }
 
-async function clarifySdf({ businessDescription, partialSdf, answers }) {
+async function clarifySdf({ businessDescription, partialSdf, answers, defaultQuestionAnswers }) {
   return await postJson('/ai/clarify', {
     business_description: businessDescription,
     partial_sdf: partialSdf,
     answers: Array.isArray(answers) ? answers : [],
+    ...(defaultQuestionAnswers && typeof defaultQuestionAnswers === 'object'
+      ? { default_question_answers: defaultQuestionAnswers }
+      : {}),
   });
 }
 

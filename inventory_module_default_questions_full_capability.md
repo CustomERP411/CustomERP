@@ -132,6 +132,16 @@ No naming, no technical jargon, no questions about things we haven't built yet.
   - Uses `reorder_point` field on products entity as threshold
 
 ### Q10
+- ID: `inv_costing_method`
+- User question: "How do you want to calculate the cost of your stock?"
+- Input: `choice`
+- Options: `FIFO (first items in are first out)`, `Weighted Average (average cost of all items)`, `No costing needed`
+- SDF impact:
+  - `modules.inventory.costing_method` (string: `"fifo"` | `"weighted_average"` | `null`)
+  - When enabled, adds `cost_price` (decimal) and `total_value` (decimal) fields to products entity
+  - Triggers `InventoryCostingMixin` for automatic cost recalculation on receive/issue
+
+### Q11
 - ID: `inv_qr_labels`
 - User question: "Do you want to print QR code labels for your products?"
 - Input: `yes_no`
@@ -173,6 +183,7 @@ Auto-enabled when `inv_multi_location = yes`:
 | Reservations (Q3) | `stock_reservations` |
 | Inbound/PO (Q4) | `purchase_orders`, `purchase_order_items`, `goods_receipts`, `goods_receipt_items` |
 | Cycle counting (Q5) | `cycle_count_sessions`, `cycle_count_lines` |
+| Costing method (Q10) | _(configures `modules.inventory.costing_method`, adds `cost_price`/`total_value` fields)_ |
 
 ---
 
@@ -184,6 +195,7 @@ Auto-enabled when `inv_multi_location = yes`:
     "inventory": {
       "enabled": true,
       "stock_entity": "products",
+      "costing_method": "fifo",
       "transactions": {
         "enabled": true,
         "stock_entity": "products",
@@ -224,6 +236,8 @@ Auto-enabled when `inv_multi_location = yes`:
         { "name": "sku", "type": "string", "unique": true },
         { "name": "quantity", "type": "integer", "required": true },
         { "name": "reorder_point", "type": "integer" },
+        { "name": "cost_price", "type": "decimal" },
+        { "name": "total_value", "type": "decimal" },
         { "name": "reserved_quantity", "type": "integer" },
         { "name": "committed_quantity", "type": "integer" },
         { "name": "available_quantity", "type": "integer" },
@@ -300,6 +314,6 @@ Auto-enabled when `inv_multi_location = yes`:
 
 ## Validation
 
-- All 10 questions must be answered before AI generation.
+- All 11 questions must be answered before AI generation.
 - Prefilled SDF is built from answers and shown to user for confirmation.
 - Every "yes" answer creates its full entity set in the prefilled SDF (no missing supporting entities).

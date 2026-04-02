@@ -99,6 +99,16 @@ When merging fields from the same entity across modules:
 - Preserve prefilled entities or fields when they are present in module outputs.
 - Add warnings for unresolved conflicts instead of silently dropping constraints.
 
+# ITERATION GUARDRAILS (critical for clarification loop cycles):
+# This pipeline may run multiple times as users answer clarification questions.
+# - When merging partial SDFs from a clarification cycle, prefer preserving entity
+#   structures from the prefilled SDF. Only override fields where user answers
+#   provide new information.
+# - Do not re-introduce clarification questions that appear in the mandatory answers
+#   or that have already been answered in the prefilled SDF context.
+# - Keep the merged SDF stable across iterations: same field names, same entity
+#   slugs, same module assignments unless a user answer explicitly changes them.
+
 # INPUT DATA:
 
 ## Project Name:

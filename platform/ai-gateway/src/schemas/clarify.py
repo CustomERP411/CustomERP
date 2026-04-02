@@ -6,7 +6,7 @@ Supports the stateless feedback loop where:
 2. Cycle 2+: POST /ai/clarify -> user answers + prior SDF -> refined SDF
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices
 from typing import Any, Dict, List, Optional
 
 from .sdf import SystemDefinitionFile
@@ -34,7 +34,8 @@ class ClarifyRequest(BaseModel):
     )
     prefilled_sdf: Dict[str, Any] = Field(
         ...,
-        description="The SDF state from the previous cycle (JSON object)."
+        description="The SDF state from the previous cycle (JSON object).",
+        validation_alias=AliasChoices("prefilled_sdf", "partial_sdf"),
     )
     prior_context: Dict[str, Any] = Field(
         default_factory=dict,

@@ -253,7 +253,7 @@ class MultiAgentService:
             response_schema=DistributorOutput,
         )
         
-        data = self._parse_json(response)
+        data = await self._parse_json_with_repair(response, "distributor")
         
         # Parse into DistributorOutput
         parsed_default_answers = data.get("default_question_answers", {})
@@ -298,7 +298,7 @@ class MultiAgentService:
             response_schema=ModuleGeneratorOutput,
         )
         
-        data = self._parse_json(response)
+        data = await self._parse_json_with_repair(response, "hr")
         
         # Parse clarifications with module tagging
         raw_clarifications = data.get("clarifications_needed", [])
@@ -334,7 +334,7 @@ class MultiAgentService:
             response_schema=ModuleGeneratorOutput,
         )
         
-        data = self._parse_json(response)
+        data = await self._parse_json_with_repair(response, "invoice")
         
         # Parse clarifications with module tagging
         raw_clarifications = data.get("clarifications_needed", [])
@@ -370,7 +370,7 @@ class MultiAgentService:
             response_schema=ModuleGeneratorOutput,
         )
         
-        data = self._parse_json(response)
+        data = await self._parse_json_with_repair(response, "inventory")
         
         # Parse clarifications with module tagging
         raw_clarifications = data.get("clarifications_needed", [])
@@ -421,14 +421,8 @@ class MultiAgentService:
             response_schema=IntegratorOutput,
         )
         
-        # With strict schema enforcement, parsing should be reliable
-        # but we keep fallback for edge cases
-        try:
-            return self._parse_json(response)
-        except json.JSONDecodeError as e:
-            print(f"[MultiAgentService] Integrator JSON malformed, attempting AI repair...")
-            repaired = await self._repair_json(response)
-            return self._parse_json(repaired)
+        # Use unified JSON parsing with auto-repair
+        return await self._parse_json_with_repair(response, "integrator")
     
     async def _repair_json(self, malformed_json: str) -> str:
         """Use AI to repair malformed JSON."""
@@ -439,6 +433,19 @@ class MultiAgentService:
             json_mode=True,
         )
         return repaired
+    
+    async def _parse_json_with_repair(self, response: str, agent_name: str) -> Dict[str, Any]:
+        """Parse JSON with automatic AI repair on failure."""
+        try:
+            return self._parse_json(response)
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"[MultiAgentService] {agent_name} JSON malformed, attempting AI repair...")
+            try:
+                repaired = await self._repair_json(response)
+                return self._parse_json(repaired)
+            except Exception as repair_error:
+                print(f"[MultiAgentService] AI repair also failed: {repair_error}")
+                raise e  # Re-raise original error
     
     def _parse_json(self, response: str) -> Dict[str, Any]:
         """Parse JSON from AI response, handling markdown code blocks and common issues."""

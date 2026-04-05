@@ -4,7 +4,7 @@ import type { DefaultModuleQuestion, DefaultQuestionCompletion } from '../../typ
 import { MODULE_META, MODULE_KEYS, MOD_STYLES } from './projectConstants';
 
 interface Props {
-  questions: DefaultModuleQuestion[];
+
   answersById: Record<string, string | string[]>;
   completion: DefaultQuestionCompletion | null;
   questionsByModule: Record<string, DefaultModuleQuestion[]>;
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export default function DefaultQuestions({
-  questions, answersById, completion, questionsByModule, moduleCompletionCounts,
+  answersById, completion, questionsByModule, moduleCompletionCounts,
   loading, saving, canSave,
   onUpdateAnswer, onToggleMultiChoice, onSave,
 }: Props) {

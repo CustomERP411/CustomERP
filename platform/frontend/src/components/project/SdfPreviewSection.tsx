@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Button from '../ui/Button';
 import type { AiGatewaySdf } from '../../types/aiGateway';
 import { MODULE_META, MOD_STYLES, AI_EDIT_CHIPS, PLATFORM_INFO } from './projectConstants';
@@ -183,6 +183,105 @@ function DownloadWizard({ detectedPlatform, running, standaloneRunning, download
 }) {
   const rec = PLATFORM_INFO[detectedPlatform] || PLATFORM_INFO['windows-x64'];
   const otherPlatforms = Object.entries(PLATFORM_INFO).filter(([k]) => k !== detectedPlatform);
+  const [healthUrl, setHealthUrl] = useState('http://localhost:3000/health');
+  const [autoTrack, setAutoTrack] = useState(false);
+  const [checkState, setCheckState] = useState<'idle' | 'checking' | 'healthy' | 'unreachable' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState('Start your ERP app, then click "Check health".');
+  const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
+
+  const checkHealth = useCallback(async () => {
+    const trimmed = healthUrl.trim();
+    if (!trimmed) {
+      setCheckState('error');
+      setStatusMessage('Health URL is required.');
+      return;
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      setCheckState('error');
+      setStatusMessage('Health URL must be a valid absolute URL (example: http://localhost:3000/health).');
+      return;
+    }
+
+    setCheckState('checking');
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 5000);
+
+    try {
+      parsed.searchParams.set('_t', Date.now().toString());
+      const response = await fetch(parsed.toString(), {
+        method: 'GET',
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const payload = contentType.includes('application/json')
+        ? await response.json().catch(() => null)
+        : null;
+
+      if (!response.ok) {
+        setCheckState('error');
+        setStatusMessage(`Health endpoint responded with HTTP ${response.status}.`);
+      } else if (payload && typeof payload === 'object' && payload.status === 'ok') {
+        const serviceName = typeof payload.service === 'string' ? payload.service : 'generated-erp';
+        setCheckState('healthy');
+        setStatusMessage(`Service is healthy (${serviceName}).`);
+      } else {
+        setCheckState('error');
+        setStatusMessage('Health endpoint responded, but payload is not recognized.');
+      }
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        setCheckState('unreachable');
+        setStatusMessage('Health check timed out after 5 seconds.');
+      } else {
+        setCheckState('unreachable');
+        setStatusMessage(
+          'Browser could not reach the health URL. If platform and ERP run on different hosts, localhost checks may be blocked.'
+        );
+      }
+    } finally {
+      window.clearTimeout(timeout);
+      setLastCheckedAt(new Date().toLocaleTimeString());
+    }
+  }, [healthUrl]);
+
+  useEffect(() => {
+    if (!downloadStarted) return;
+    setAutoTrack(true);
+    void checkHealth();
+  }, [downloadStarted, checkHealth]);
+
+  useEffect(() => {
+    if (!autoTrack) return;
+    const id = window.setInterval(() => {
+      void checkHealth();
+    }, 7000);
+    return () => window.clearInterval(id);
+  }, [autoTrack, checkHealth]);
+
+  const runtimeBadge = useMemo(() => {
+    if (checkState === 'healthy') {
+      return { text: 'Running', cls: 'bg-emerald-100 text-emerald-700' };
+    }
+    if (checkState === 'checking') {
+      return { text: 'Checking', cls: 'bg-indigo-100 text-indigo-700' };
+    }
+    if (checkState === 'error') {
+      return { text: 'Unhealthy', cls: 'bg-rose-100 text-rose-700' };
+    }
+    if (checkState === 'unreachable') {
+      return { text: 'Unreachable', cls: 'bg-amber-100 text-amber-700' };
+    }
+    if (downloadStarted) {
+      return { text: 'Starting', cls: 'bg-slate-100 text-slate-700' };
+    }
+    return { text: 'Not Started', cls: 'bg-slate-100 text-slate-700' };
+  }, [checkState, downloadStarted]);
 
   return (
     <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 space-y-5">
@@ -234,6 +333,60 @@ function DownloadWizard({ detectedPlatform, running, standaloneRunning, download
       </div>
 
       {downloadStarted && <PostDownloadInstructions platform={downloadStarted} />}
+
+      <div className="rounded-xl border border-emerald-200 bg-white p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">ERP Runtime Status</div>
+            <div className="mt-0.5 text-xs text-slate-500">Tracks startup and health for your generated ERP app.</div>
+          </div>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${runtimeBadge.cls}`}>
+            {runtimeBadge.text}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+          <input
+            value={healthUrl}
+            onChange={(e) => setHealthUrl(e.target.value)}
+            placeholder="http://localhost:3000/health"
+            className="rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          <button
+            type="button"
+            onClick={() => { void checkHealth(); }}
+            disabled={checkState === 'checking'}
+            className="rounded-lg border border-emerald-600 bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60"
+          >
+            {checkState === 'checking' ? 'Checking...' : 'Check Health'}
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="inline-flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={autoTrack}
+              onChange={(e) => setAutoTrack(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            Auto-check every 7 seconds
+          </label>
+          {lastCheckedAt && <span className="text-xs text-slate-400">Last checked: {lastCheckedAt}</span>}
+        </div>
+
+        <div className={`rounded-lg px-3 py-2 text-xs ${
+          checkState === 'healthy'
+            ? 'bg-emerald-50 text-emerald-700'
+            : checkState === 'checking'
+              ? 'bg-indigo-50 text-indigo-700'
+              : checkState === 'idle'
+                ? 'bg-slate-50 text-slate-600'
+                : 'bg-amber-50 text-amber-700'
+        }`}>
+          {statusMessage}
+        </div>
+      </div>
 
       <details className="group rounded-xl border border-slate-200 bg-white overflow-hidden">
         <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-left hover:bg-slate-50 select-none">

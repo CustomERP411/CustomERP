@@ -1,26 +1,66 @@
 import Button from '../ui/Button';
 import { BUSINESS_QUESTIONS } from './projectConstants';
 
+type ProjectMode = 'chat' | 'build';
+
 interface Props {
   answers: Record<string, string>;
   step: number;
   canAnalyze: boolean;
   running: boolean;
+  mode: ProjectMode;
   onSetAnswers: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   onSetStep: React.Dispatch<React.SetStateAction<number>>;
   onAnalyze: () => void;
+  onRequestBuildModeSwitch: () => void;
+  onSwitchToChatMode: () => void;
 }
 
-export default function BusinessQuestions({ answers, step, canAnalyze, running, onSetAnswers, onSetStep, onAnalyze }: Props) {
+export default function BusinessQuestions({
+  answers, step, canAnalyze, running, mode,
+  onSetAnswers, onSetStep, onAnalyze, onRequestBuildModeSwitch, onSwitchToChatMode,
+}: Props) {
   const q = BUSINESS_QUESTIONS[step];
+  const inBuildMode = mode === 'build';
+  const finalAction = inBuildMode ? onAnalyze : onRequestBuildModeSwitch;
+  const finalActionLabel = inBuildMode ? 'Generate My ERP Setup' : 'Switch to Build Mode';
+  const modeBadgeClass = inBuildMode ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700';
+  const modeDescription = inBuildMode
+    ? 'Build mode is active. You can now generate the SDF from your current answers.'
+    : 'Chat mode is active. Review and refine answers, then switch to build mode before generation.';
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">3. Tell Us About Your Business</h2>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Answer a few simple questions so we can build the right system for you.
-        </p>
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">3. Tell Us About Your Business</h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            Answer a few simple questions so we can build the right system for you.
+          </p>
+        </div>
+        <div className="rounded-xl border bg-white px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Current Mode</div>
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${modeBadgeClass}`}>
+                  {inBuildMode ? 'Build Mode' : 'Chat Mode'}
+                </span>
+                <span className="text-xs text-slate-500">{modeDescription}</span>
+              </div>
+            </div>
+            {inBuildMode && (
+              <button
+                type="button"
+                onClick={onSwitchToChatMode}
+                disabled={running}
+                className="text-xs font-medium text-slate-600 underline hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Back to Chat Mode
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Progress dots */}
@@ -74,8 +114,8 @@ export default function BusinessQuestions({ answers, step, canAnalyze, running, 
                 Next &rarr;
               </button>
             ) : (
-              <Button onClick={onAnalyze} loading={running} disabled={!canAnalyze || running}>
-                Generate My ERP Setup
+              <Button onClick={finalAction} loading={running} disabled={!canAnalyze || running}>
+                {finalActionLabel}
               </Button>
             )}
           </div>
@@ -106,7 +146,9 @@ export default function BusinessQuestions({ answers, step, canAnalyze, running, 
 
       {step === BUSINESS_QUESTIONS.length - 1 && canAnalyze && (
         <div className="flex justify-end pt-2">
-          <Button onClick={onAnalyze} loading={running} disabled={running}>Generate My ERP Setup</Button>
+          <Button onClick={finalAction} loading={running} disabled={running}>
+            {finalActionLabel}
+          </Button>
         </div>
       )}
     </section>

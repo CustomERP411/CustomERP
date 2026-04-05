@@ -83,6 +83,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   /**
+   * Confirm account deletion intent in frontend and clear local session.
+   * Backend deletion endpoint is owned by backend team and integrated separately.
+   */
+  const deleteAccount = async (): Promise<void> => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Ignore logout API failures; clear client session regardless.
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+  };
+
+  /**
    * Update user profile
    */
   const updateUser = (updates: Partial<User>) => {
@@ -99,6 +114,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     register,
     logout,
+    deleteAccount,
     updateUser,
   };
 

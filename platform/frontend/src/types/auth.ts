@@ -18,6 +18,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<AuthResponse>;
   register: (name: string, email: string, password: string) => Promise<AuthResponse>;
   logout: () => void;
+  deleteAccount: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
 }
 

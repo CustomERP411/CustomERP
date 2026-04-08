@@ -1254,6 +1254,7 @@ class BackendGenerator {
   async scaffold(outputDir, projectId, options = {}) {
     this._moduleDirs = new Set();
     this._standalone = !!options.standalone;
+    this._accessControlEnabled = !!options.accessControlEnabled;
 
     const dirs = [
       'src/controllers',
@@ -1262,6 +1263,10 @@ class BackendGenerator {
       'src/repository',
       'modules'
     ];
+
+    if (this._accessControlEnabled) {
+      dirs.push('src/rbac');
+    }
 
     for (const dir of dirs) {
       await fs.mkdir(path.join(outputDir, dir), { recursive: true });
@@ -1294,6 +1299,21 @@ class BackendGenerator {
       await this.brickRepo.copyFile(
         'backend-bricks/repository/runMigrations.js',
         path.join(outputDir, 'src/repository/runMigrations.js')
+      );
+    }
+
+    if (this._accessControlEnabled) {
+      await this.brickRepo.copyFile(
+        'backend-bricks/rbac/rbacMiddleware.js',
+        path.join(outputDir, 'src/rbac/rbacMiddleware.js')
+      );
+      await this.brickRepo.copyFile(
+        'backend-bricks/rbac/rbacSeed.js',
+        path.join(outputDir, 'src/rbac/rbacSeed.js')
+      );
+      await this.brickRepo.copyFile(
+        'backend-bricks/rbac/rbacRoutes.js',
+        path.join(outputDir, 'src/rbac/rbacRoutes.js')
       );
     }
   }
@@ -2470,21 +2490,32 @@ module.exports = router;
   async generateRoutesIndex(outputDir, entities) {
     let imports = '';
     let mappings = '';
+    let rbacImport = '';
+    let rbacSetup = '';
+
+    if (this._accessControlEnabled) {
+      rbacImport = `const { rbacLoader, requirePermission } = require('../rbac/rbacMiddleware');\nconst rbacRoutes = require('../rbac/rbacRoutes');\n`;
+      rbacSetup = `router.use(rbacLoader);\nrouter.use('/auth', rbacRoutes);\n`;
+    }
 
     entities.forEach(entity => {
       const slug = entity.slug;
       const moduleKey = this._getModuleKey(entity);
       imports += `const ${slug}Router = require('../../modules/${moduleKey}/src/routes/${slug}Routes');\n`;
-      mappings += `router.use('/${slug}', ${slug}Router);\n`;
+      if (this._accessControlEnabled) {
+        mappings += `router.use('/${slug}', requirePermission('${slug}'), ${slug}Router);\n`;
+      } else {
+        mappings += `router.use('/${slug}', ${slug}Router);\n`;
+      }
     });
 
     const template = `
 const express = require('express');
 const router = express.Router();
 
-${imports}
+${rbacImport}${imports}
 
-${mappings}
+${rbacSetup}${mappings}
 
 module.exports = router;
 `;

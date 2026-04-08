@@ -153,11 +153,27 @@ const openBrowser = (url) => {
   }
 };
 
-const start = () => {
+const runRbacSeed = async () => {
+  try {
+    const rbacSeed = require('./rbac/rbacSeed');
+    const rbacMiddleware = require('./rbac/rbacMiddleware');
+    const repo = new SQLiteProvider();
+    rbacMiddleware.setProvider(repo);
+    const slugs = (systemConfig?.rbac?.entitySlugs) || [];
+    await rbacSeed.seed(repo, slugs);
+  } catch (e) {
+    if (e.code !== 'MODULE_NOT_FOUND') {
+      console.warn('[RBAC-SEED] Warning:', e.message || e);
+    }
+  }
+};
+
+const start = async () => {
   try {
     testConnection();
     console.log('[BOOT] SQLite database ready.');
     runMigrations();
+    await runRbacSeed();
 
     app.listen(PORT, () => {
       const url = `http://localhost:${PORT}`;

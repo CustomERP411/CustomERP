@@ -41,6 +41,14 @@ const {
   buildLeaveBalancesPage,
   buildAttendanceEntriesPage,
 } = require('./frontend/hrPriorityPages');
+const {
+  buildAuthContext,
+  buildLoginPage,
+  buildRequireAuth,
+  buildUsersAdminPageConnected,
+  buildGroupsAdminPageConnected,
+  buildPermissionsAdminPageConnected,
+} = require('./frontend/rbacPages');
 
 class FrontendGenerator {
   constructor(brickRepo) {
@@ -49,6 +57,7 @@ class FrontendGenerator {
     this.moduleMap = {};
     this._moduleDirs = new Set();
     this._standalone = false;
+    this._accessControlEnabled = false;
   }
 
   setStandalone(flag) {
@@ -651,6 +660,9 @@ class FrontendGenerator {
     // Reset per-project module cache for repeated assemblies in one process.
     this._moduleDirs = new Set();
 
+    const acConfig = (sdf && sdf.modules && sdf.modules.access_control) || {};
+    this._accessControlEnabled = acConfig.enabled !== false;
+
     const dirs = [
       'src/components',
       'src/components/layout',
@@ -664,6 +676,10 @@ class FrontendGenerator {
       'modules'
     ];
 
+    if (this._accessControlEnabled) {
+      dirs.push('src/contexts', 'src/pages/admin');
+    }
+
     for (const dir of dirs) {
       await fs.mkdir(path.join(outputDir, dir), { recursive: true });
     }
@@ -671,6 +687,19 @@ class FrontendGenerator {
     await this._generateBaseFiles(outputDir, sdf);
     await this._generateSharedComponents(outputDir);
     await this._generateModuleComponents(outputDir);
+
+    if (this._accessControlEnabled) {
+      await this._generateRbacFrontend(outputDir);
+    }
+  }
+
+  async _generateRbacFrontend(outputDir) {
+    await fs.writeFile(path.join(outputDir, 'src/contexts/AuthContext.tsx'), buildAuthContext());
+    await fs.writeFile(path.join(outputDir, 'src/pages/LoginPage.tsx'), buildLoginPage());
+    await fs.writeFile(path.join(outputDir, 'src/components/RequireAuth.tsx'), buildRequireAuth());
+    await fs.writeFile(path.join(outputDir, 'src/pages/admin/UsersAdminPage.tsx'), buildUsersAdminPageConnected());
+    await fs.writeFile(path.join(outputDir, 'src/pages/admin/GroupsAdminPage.tsx'), buildGroupsAdminPageConnected());
+    await fs.writeFile(path.join(outputDir, 'src/pages/admin/PermissionsAdminPage.tsx'), buildPermissionsAdminPageConnected());
   }
 
   async _generateBaseFiles(outputDir, sdf) {
@@ -728,20 +757,25 @@ class FrontendGenerator {
     await fs.writeFile(path.join(outputDir, 'index.html'), indexHtml);
 
     // main.tsx
+    const authImport = this._accessControlEnabled
+      ? `import { AuthProvider } from './contexts/AuthContext';\n`
+      : '';
+    const authOpen = this._accessControlEnabled ? `      <AuthProvider>\n` : '';
+    const authClose = this._accessControlEnabled ? `      </AuthProvider>\n` : '';
     const mainTsx = `import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { ToastProvider } from './components/ui/toast';
-import './index.css';
+${authImport}import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ToastProvider>
-      <BrowserRouter>
+${authOpen}      <BrowserRouter>
         <App />
       </BrowserRouter>
-    </ToastProvider>
+${authClose}    </ToastProvider>
   </React.StrictMode>
 );`;
     await fs.writeFile(path.join(outputDir, 'src/main.tsx'), mainTsx);
@@ -1170,7 +1204,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
       })
       .join('\n');
 
-    const appContent = buildApp({ toolImports, imports, toolRoutes, routes });
+    const appContent = buildApp({ toolImports, imports, toolRoutes, routes, rbac: this._accessControlEnabled });
 
     await fs.writeFile(path.join(outputDir, 'src/App.tsx'), appContent);
   }
@@ -1304,9 +1338,10 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 
     const fullToolsBlock = [toolsBlock, workflowBlock, invoiceWorkflowBlock, hrWorkflowBlock].filter(Boolean).join('\n');
 
-    const sidebarContent = buildSidebar({ 
+    const sidebarContent = buildSidebar({
       toolsBlock: fullToolsBlock,
-      moduleMap: this.moduleMap 
+      moduleMap: this.moduleMap,
+      rbac: this._accessControlEnabled,
     });
 
     await fs.writeFile(path.join(outputDir, 'src/components/Sidebar.tsx'), sidebarContent);

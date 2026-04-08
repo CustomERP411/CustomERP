@@ -29,7 +29,9 @@ class ProjectAssembler {
       if (standalone && typeof this.frontendGenerator.setStandalone === 'function') {
         this.frontendGenerator.setStandalone(true);
       }
-      await this.backendGenerator.scaffold(backendDir, projectId, { standalone });
+      const acConfig = (sdf && sdf.modules && sdf.modules.access_control) || {};
+      const accessControlEnabled = acConfig.enabled !== false;
+      await this.backendGenerator.scaffold(backendDir, projectId, { standalone, accessControlEnabled });
       if (typeof this.backendGenerator.setModules === 'function') {
         this.backendGenerator.setModules((sdf && sdf.modules) || {});
       }
@@ -297,7 +299,7 @@ class ProjectAssembler {
         
         // Resolve reference target
         // Logic mirrors BackendGenerator._resolveReferenceEntitySlug but simpler for validation
-        const explicit = field.reference_entity || field.referenceEntity;
+        const explicit = field.reference_entity || field.referenceEntity || (field.reference && field.reference.entity);
         const name = String(field.name || '');
         const isRefName = name.endsWith('_id') || name.endsWith('_ids');
         
@@ -2298,8 +2300,111 @@ PGPASSWORD=erppassword
     this._withInventoryPriorityAEntities(entities, sdf);
     this._withInvoicePriorityAEntities(entities, sdf);
     this._withHRPriorityAEntities(entities, sdf);
+    this._withAccessControlEntities(entities, sdf);
 
     return entities;
+  }
+
+  _withAccessControlEntities(entities, sdf) {
+    const modules = (sdf && sdf.modules) ? sdf.modules : {};
+    const acConfig = modules.access_control || {};
+    const enabled = acConfig.enabled !== false;
+    if (!enabled) return;
+
+    const bySlug = new Map();
+    for (const e of entities) {
+      if (e && e.slug) bySlug.set(e.slug, e);
+    }
+
+    if (!bySlug.has('__erp_users')) {
+      entities.push({
+        slug: '__erp_users',
+        display_name: 'Users',
+        display_field: 'username',
+        module: 'shared',
+        system: { hidden: false },
+        ui: { search: true, csv_import: false, csv_export: false, print: false },
+        list: { columns: ['username', 'email', 'display_name', 'is_active'] },
+        fields: [
+          { name: 'username', type: 'string', label: 'Username', required: true, unique: true },
+          { name: 'email', type: 'string', label: 'Email', required: false },
+          { name: 'display_name', type: 'string', label: 'Display Name', required: false },
+          { name: 'password_hash', type: 'string', label: 'Password Hash', required: false },
+          { name: 'is_active', type: 'boolean', label: 'Active', required: false },
+        ],
+        features: {},
+      });
+    }
+
+    if (!bySlug.has('__erp_groups')) {
+      entities.push({
+        slug: '__erp_groups',
+        display_name: 'Groups',
+        display_field: 'name',
+        module: 'shared',
+        system: { hidden: false },
+        ui: { search: true, csv_import: false, csv_export: false, print: false },
+        list: { columns: ['name', 'description'] },
+        fields: [
+          { name: 'name', type: 'string', label: 'Name', required: true, unique: true },
+          { name: 'description', type: 'string', label: 'Description', required: false },
+        ],
+        features: {},
+      });
+    }
+
+    if (!bySlug.has('__erp_permissions')) {
+      entities.push({
+        slug: '__erp_permissions',
+        display_name: 'Permissions',
+        display_field: 'key',
+        module: 'shared',
+        system: { hidden: false },
+        ui: { search: true, csv_import: false, csv_export: false, print: false },
+        list: { columns: ['key', 'label', 'scope'] },
+        fields: [
+          { name: 'key', type: 'string', label: 'Key', required: true, unique: true },
+          { name: 'label', type: 'string', label: 'Label', required: false },
+          { name: 'scope', type: 'string', label: 'Scope', required: false },
+          { name: 'description', type: 'string', label: 'Description', required: false },
+        ],
+        features: {},
+      });
+    }
+
+    if (!bySlug.has('__erp_user_groups')) {
+      entities.push({
+        slug: '__erp_user_groups',
+        display_name: 'User Groups',
+        display_field: 'user_id',
+        module: 'shared',
+        system: { hidden: true },
+        ui: { search: false, csv_import: false, csv_export: false, print: false },
+        list: { columns: ['user_id', 'group_id'] },
+        fields: [
+          { name: 'user_id', type: 'reference', label: 'User', required: true, reference: { entity: '__erp_users', display_field: 'username' } },
+          { name: 'group_id', type: 'reference', label: 'Group', required: true, reference: { entity: '__erp_groups', display_field: 'name' } },
+        ],
+        features: {},
+      });
+    }
+
+    if (!bySlug.has('__erp_group_permissions')) {
+      entities.push({
+        slug: '__erp_group_permissions',
+        display_name: 'Group Permissions',
+        display_field: 'group_id',
+        module: 'shared',
+        system: { hidden: true },
+        ui: { search: false, csv_import: false, csv_export: false, print: false },
+        list: { columns: ['group_id', 'permission_id'] },
+        fields: [
+          { name: 'group_id', type: 'reference', label: 'Group', required: true, reference: { entity: '__erp_groups', display_field: 'name' } },
+          { name: 'permission_id', type: 'reference', label: 'Permission', required: true, reference: { entity: '__erp_permissions', display_field: 'key' } },
+        ],
+        features: {},
+      });
+    }
   }
 
   _withInventoryPriorityAEntities(entities, sdf) {
@@ -3890,7 +3995,15 @@ PGPASSWORD=erppassword
       },
     };
 
+    const acModConfig = (sdf && sdf.modules && sdf.modules.access_control) || {};
+    const acEnabled = acModConfig.enabled !== false;
+    if (acEnabled) {
+      const entitySlugs = (backendEntities || []).map((e) => e && e.slug).filter(Boolean);
+      systemConfig.rbac = { entitySlugs };
+    }
+
     const shouldWriteConfig =
+      acEnabled ||
       systemConfig.modules.scheduled_reports.enabled === true ||
       systemConfig.modules.inventory_priority_a.reservations.enabled === true ||
       systemConfig.modules.inventory_priority_a.transactions.enabled === true ||
@@ -3913,7 +4026,6 @@ PGPASSWORD=erppassword
       );
 
       if (systemConfig.modules.scheduled_reports.enabled === true) {
-        // Ensure dependency exists only when scheduler is enabled.
         const pkgPath = path.join(backendDir, 'package.json');
         const pkgRaw = await fs.readFile(pkgPath, 'utf8');
         const pkg = JSON.parse(pkgRaw);
@@ -3925,8 +4037,19 @@ PGPASSWORD=erppassword
       }
     }
 
-    // Silence unused param lint in this file (kept for future modules)
-    void backendEntities;
+    if (acEnabled) {
+      const pkgPath = path.join(backendDir, 'package.json');
+      const pkgRaw = await fs.readFile(pkgPath, 'utf8');
+      const pkg = JSON.parse(pkgRaw);
+      pkg.dependencies = pkg.dependencies || {};
+      if (!pkg.dependencies['jsonwebtoken']) {
+        pkg.dependencies['jsonwebtoken'] = '^9.0.2';
+      }
+      if (!pkg.dependencies['bcryptjs']) {
+        pkg.dependencies['bcryptjs'] = '^2.4.3';
+      }
+      await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2));
+    }
   }
 }
 

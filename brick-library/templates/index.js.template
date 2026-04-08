@@ -372,9 +372,25 @@ const scheduleReports = () => {
   job();
 };
 
+const runRbacSeed = async () => {
+  try {
+    const rbacSeed = require('./rbac/rbacSeed');
+    const rbacMiddleware = require('./rbac/rbacMiddleware');
+    const repo = new PostgresProvider();
+    rbacMiddleware.setProvider(repo);
+    const slugs = (systemConfig?.rbac?.entitySlugs) || [];
+    await rbacSeed.seed(repo, slugs);
+  } catch (e) {
+    if (e.code !== 'MODULE_NOT_FOUND') {
+      console.warn('[RBAC-SEED] Warning:', e.message || e);
+    }
+  }
+};
+
 const start = async () => {
   try {
     await testConnection();
+    await runRbacSeed();
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       scheduleReports();

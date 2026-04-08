@@ -83,15 +83,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   /**
-   * Confirm account deletion intent in frontend and clear local session.
-   * Backend deletion endpoint is owned by backend team and integrated separately.
+   * Soft-delete account on backend, then clear local session.
    */
   const deleteAccount = async (): Promise<void> => {
-    try {
-      await api.post('/auth/logout');
-    } catch {
-      // Ignore logout API failures; clear client session regardless.
-    }
+    await api.delete('/auth/account');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);

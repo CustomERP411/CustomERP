@@ -25,6 +25,8 @@ function IconCheck({ className = 'h-4 w-4' }: { className?: string }) {
 import DefaultQuestions from '../components/project/DefaultQuestions';
 import BusinessQuestions from '../components/project/BusinessQuestions';
 import ClarificationQuestionsPanel from '../components/project/ClarificationQuestions';
+import AccessRequirements, { createDefaultAccessRequirement, type AccessRequirementItem } from '../components/project/AccessRequirements';
+import ReviewApprovalPanel, { type ReviewHistoryItem } from '../components/project/ReviewApprovalPanel';
 import SdfPreviewSection from '../components/project/SdfPreviewSection';
 
 type ProjectMode = 'chat' | 'build';
@@ -194,12 +196,32 @@ export default function ProjectDetailPage() {
   const [analyzePhase, setAnalyzePhase] = useState('');
   const [projectMode, setProjectMode] = useState<ProjectMode>('chat');
   const [showBuildModeConfirm, setShowBuildModeConfirm] = useState(false);
+  const [sdfVersion, setSdfVersion] = useState<number | null>(null);
+  const [reviewHistory, setReviewHistory] = useState<ReviewHistoryItem[]>([]);
+  const [reviewActionRunning, setReviewActionRunning] = useState(false);
+  const [accessRequirements, setAccessRequirements] = useState<AccessRequirementItem[]>([
+    {
+      ...createDefaultAccessRequirement(),
+      groupName: 'Administrators',
+      userCount: '1',
+      responsibilities: 'Manage ERP users, groups, and system-wide access rules.',
+      permissions: ['manage_users', 'manage_groups', 'manage_permissions', 'view_records'],
+    },
+  ]);
 
   const detectedPlatform = useMemo(() => detectUserPlatform(), []);
-  const running = analyzing || clarifying || saving;
+  const running = analyzing || clarifying || saving || reviewActionRunning;
   const projectModeStorageKey = useMemo(
     () => (projectId ? `project_mode:${projectId}` : ''),
     [projectId]
+  );
+  const accessRequirementsStorageKey = useMemo(
+    () => (projectId ? `project_access_requirements:${projectId}` : ''),
+    [projectId],
+  );
+  const reviewHistoryStorageKey = useMemo(
+    () => (projectId ? `project_review_history:${projectId}` : ''),
+    [projectId],
   );
 
   /* ── Helpers ────────────────────────────────────────────── */
@@ -240,6 +262,20 @@ export default function ProjectDetailPage() {
     return condition.op === 'any' ? checks.some(Boolean) : checks.every(Boolean);
   };
 
+  const appendReviewHistory = (
+    entry: Omit<ReviewHistoryItem, 'id' | 'createdAt'> & { createdAt?: string },
+  ) => {
+    const next: ReviewHistoryItem = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: entry.createdAt || new Date().toISOString(),
+      action: entry.action,
+      version: entry.version ?? null,
+      status: entry.status ?? null,
+      note: entry.note || '',
+    };
+    setReviewHistory((prev) => [next, ...prev]);
+  };
+
   /* ── Effects ────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -257,7 +293,19 @@ export default function ProjectDetailPage() {
         }
         if (latest?.sdf) {
           setSdf(latest.sdf);
+          setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
           setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
+          setReviewHistory((prev) => {
+            if (prev.length > 0) return prev;
+            return [{
+              id: `baseline-${latest.sdf_version || 0}`,
+              action: 'generated',
+              version: typeof latest.sdf_version === 'number' ? latest.sdf_version : null,
+              status: p.status || null,
+              note: 'Loaded latest saved SDF from project history.',
+              createdAt: p.updated_at || new Date().toISOString(),
+            }];
+          });
         }
       } catch (err: any) {
         if (!cancelled) setError(err?.response?.data?.error || err?.message || 'Failed to load project');
@@ -305,31 +353,141 @@ export default function ProjectDetailPage() {
     }
   }, [projectMode, projectModeStorageKey]);
 
+  useEffect(() => {
+    if (!accessRequirementsStorageKey) return;
+    try {
+      const raw = window.localStorage.getItem(accessRequirementsStorageKey);
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+      const normalized = parsed
+        .map((item, idx) => {
+          const candidate = typeof item === 'object' && item !== null ? item as Partial<AccessRequirementItem> : {};
+          return {
+            id: typeof candidate.id === 'string' ? candidate.id : `group-${idx + 1}`,
+            groupName: typeof candidate.groupName === 'string' ? candidate.groupName : '',
+            userCount: typeof candidate.userCount === 'string' ? candidate.userCount : '',
+            responsibilities: typeof candidate.responsibilities === 'string' ? candidate.responsibilities : '',
+            permissions: Array.isArray(candidate.permissions) ? candidate.permissions.map(String) : [],
+            customPermissions: typeof candidate.customPermissions === 'string' ? candidate.customPermissions : '',
+          };
+        })
+        .filter((item) => item.groupName || item.userCount || item.responsibilities || item.permissions.length || item.customPermissions);
+
+      if (normalized.length > 0) {
+        setAccessRequirements(normalized);
+      }
+    } catch {
+      // ignore localStorage parse failures
+    }
+  }, [accessRequirementsStorageKey]);
+
+  useEffect(() => {
+    if (!accessRequirementsStorageKey) return;
+    try {
+      window.localStorage.setItem(accessRequirementsStorageKey, JSON.stringify(accessRequirements));
+    } catch {
+      // ignore localStorage write failures
+    }
+  }, [accessRequirements, accessRequirementsStorageKey]);
+
+  useEffect(() => {
+    if (!reviewHistoryStorageKey) return;
+    try {
+      const raw = window.localStorage.getItem(reviewHistoryStorageKey);
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      const normalized = parsed
+        .map((item) => (typeof item === 'object' && item !== null ? item as Partial<ReviewHistoryItem> : null))
+        .filter((item): item is Partial<ReviewHistoryItem> => item !== null)
+        .map((item, idx) => ({
+          id: typeof item.id === 'string' ? item.id : `history-${idx + 1}`,
+          action: item.action === 'generated' || item.action === 'clarified' || item.action === 'manual_save' || item.action === 'ai_revision' || item.action === 'approved' || item.action === 'rejected' || item.action === 'revision_requested'
+            ? item.action
+            : 'generated',
+          version: typeof item.version === 'number' ? item.version : null,
+          status: typeof item.status === 'string' ? item.status : null,
+          note: typeof item.note === 'string' ? item.note : '',
+          createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+        }));
+      if (normalized.length > 0) {
+        setReviewHistory(normalized);
+      }
+    } catch {
+      // ignore localStorage parse failures
+    }
+  }, [reviewHistoryStorageKey]);
+
+  useEffect(() => {
+    if (!reviewHistoryStorageKey) return;
+    try {
+      window.localStorage.setItem(reviewHistoryStorageKey, JSON.stringify(reviewHistory));
+    } catch {
+      // ignore localStorage write failures
+    }
+  }, [reviewHistory, reviewHistoryStorageKey]);
+
   /* ── Derived state ──────────────────────────────────────── */
 
-  const description = useMemo(() =>
-    BUSINESS_QUESTIONS.map((q) => { const a = (businessAnswers[q.id] || '').trim(); return a ? `${q.question}\n${a}` : ''; }).filter(Boolean).join('\n\n'),
-    [businessAnswers]
-  );
+  const accessRequirementsSummary = useMemo(() => {
+    const lines: string[] = [];
+    accessRequirements.forEach((item, idx) => {
+      const hasContent =
+        item.groupName.trim() ||
+        item.userCount.trim() ||
+        item.responsibilities.trim() ||
+        item.permissions.length > 0 ||
+        item.customPermissions.trim();
+      if (!hasContent) return;
+      lines.push(`Group ${idx + 1}: ${item.groupName.trim() || 'Unnamed group'}`);
+      if (item.userCount.trim()) lines.push(`- User count: ${item.userCount.trim()}`);
+      if (item.responsibilities.trim()) lines.push(`- Responsibilities: ${item.responsibilities.trim()}`);
+      if (item.permissions.length > 0) lines.push(`- Required permissions: ${item.permissions.join(', ')}`);
+      if (item.customPermissions.trim()) lines.push(`- Custom permissions: ${item.customPermissions.trim()}`);
+    });
+    return lines.join('\n');
+  }, [accessRequirements]);
+
+  const description = useMemo(() => {
+    const businessText = BUSINESS_QUESTIONS
+      .map((q) => {
+        const answer = (businessAnswers[q.id] || '').trim();
+        return answer ? `${q.question}\n${answer}` : '';
+      })
+      .filter(Boolean)
+      .join('\n\n');
+
+    if (!accessRequirementsSummary.trim()) return businessText;
+    return `${businessText}\n\nERP Access Requirements\n${accessRequirementsSummary}`.trim();
+  }, [businessAnswers, accessRequirementsSummary]);
 
   const businessComplete = useMemo(() =>
     BUSINESS_QUESTIONS.filter((q) => !q.optional).every((q) => (businessAnswers[q.id] || '').trim().length > 0),
     [businessAnswers]
   );
 
+  const accessRequirementsComplete = useMemo(
+    () => accessRequirements.some((item) => item.groupName.trim().length > 0),
+    [accessRequirements],
+  );
+
   const visibleDefaultQuestions = useMemo(() => defaultQuestions.filter(evaluateQuestionVisibility), [defaultQuestions, defaultAnswersById]);
 
-  const canAnalyze = useMemo(() => businessComplete && defaultCompletion?.is_complete === true && selectedModules.length > 0, [businessComplete, defaultCompletion, selectedModules.length]);
+  const canAnalyze = useMemo(
+    () => businessComplete && accessRequirementsComplete && defaultCompletion?.is_complete === true && selectedModules.length > 0,
+    [businessComplete, accessRequirementsComplete, defaultCompletion, selectedModules.length],
+  );
   const canSaveDefaultAnswers = useMemo(() => selectedModules.length > 0 && defaultQuestions.length > 0, [selectedModules.length, defaultQuestions.length]);
   const canSubmitAnswers = useMemo(() => !!sdf && questions.length > 0 && questions.every((q) => (answersById[q.id] || '').trim().length > 0), [sdf, questions, answersById]);
 
   const currentStep = useMemo(() => {
     if (!selectedModules.length) return 0;
     if (!defaultCompletion?.is_complete) return 1;
-    if (!businessComplete) return 2;
+    if (!businessComplete || !accessRequirementsComplete) return 2;
     if (sdf) return 4;
     return 3;
-  }, [selectedModules, defaultCompletion, businessComplete, sdf]);
+  }, [selectedModules, defaultCompletion, businessComplete, accessRequirementsComplete, sdf]);
 
   const questionsByModule = useMemo(() => {
     const groups: Record<string, DefaultModuleQuestion[]> = {};
@@ -409,11 +567,36 @@ export default function ProjectDetailPage() {
       });
       applyDefaultQuestionState(latestDefaults);
       if (!(latestDefaults.prefill_validation || latestDefaults.completion)?.is_complete) { setError('Please answer all required questions before generating.'); return; }
+      const prefilledWithAccess = latestDefaults.prefilled_sdf
+        ? ({
+            ...latestDefaults.prefilled_sdf,
+            access_control_requirements: {
+              groups: accessRequirements
+                .map((item) => ({
+                  name: item.groupName.trim(),
+                  user_count: item.userCount.trim(),
+                  responsibilities: item.responsibilities.trim(),
+                  permissions: item.permissions,
+                  custom_permissions: item.customPermissions.trim(),
+                }))
+                .filter((item) => item.name || item.user_count || item.responsibilities || item.permissions.length || item.custom_permissions),
+            },
+          } as AiGatewaySdf)
+        : undefined;
       const res = await projectService.analyzeProject(projectId, description.trim(), {
-        modules: selectedModules, default_question_answers: latestDefaults.mandatory_answers, prefilled_sdf: latestDefaults.prefilled_sdf || undefined,
+        modules: selectedModules,
+        default_question_answers: latestDefaults.mandatory_answers,
+        prefilled_sdf: prefilledWithAccess,
       });
       setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
       setClarifyRound(res.cycle || 1); setSdfComplete(res.sdf_complete || false);
+      setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
+      appendReviewHistory({
+        action: 'generated',
+        version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
+        status: res.project.status || null,
+        note: 'Generated a new SDF from build mode inputs.',
+      });
     } catch (err: any) {
       const msg = err?.code === 'ECONNABORTED' ? 'Generation timed out. Your inputs are saved -- try again.' : (err?.response?.data?.error || err?.message || 'Generation failed');
       setError(msg);
@@ -428,6 +611,13 @@ export default function ProjectDetailPage() {
       const res = await projectService.clarifyProject(projectId, sdf, answers, description.trim());
       setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
       setClarifyRound(res.cycle || clarifyRound + 1); setSdfComplete(res.sdf_complete || false);
+      setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
+      appendReviewHistory({
+        action: 'clarified',
+        version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
+        status: res.project.status || null,
+        note: 'Applied clarification answers to the current SDF.',
+      });
     } catch (err: any) {
       const msg = err?.code === 'ECONNABORTED' ? 'Clarification timed out. Your answers are saved -- try again.' : (err?.response?.data?.error || err?.message || 'Clarify failed');
       setError(msg);
@@ -447,6 +637,13 @@ export default function ProjectDetailPage() {
       try { parsed = JSON.parse(draftJson); } catch (e: any) { setDraftError('Invalid JSON: ' + (e?.message || 'Parse error')); return; }
       const res = await projectService.saveSdf(projectId, parsed);
       setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setDraftJson(JSON.stringify(res.sdf, null, 2));
+      setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
+      appendReviewHistory({
+        action: 'manual_save',
+        version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
+        status: res.project.status || null,
+        note: 'Saved manual JSON edits to the SDF.',
+      });
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'Save failed'); }
     finally { setSaving(false); }
   };
@@ -457,8 +654,80 @@ export default function ProjectDetailPage() {
     try {
       const res = await projectService.aiEditSdf(projectId, aiEditText.trim(), sdf || undefined);
       setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setAiEditText('');
+      setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
+      appendReviewHistory({
+        action: 'ai_revision',
+        version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
+        status: res.project.status || null,
+        note: 'Applied AI edit instructions from SDF preview.',
+      });
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'AI edit failed'); }
     finally { setSaving(false); }
+  };
+
+  const approveReview = async () => {
+    if (!projectId) return;
+    setReviewActionRunning(true); setError('');
+    try {
+      const updated = await projectService.updateProject(projectId, { status: 'Approved' });
+      setProject(updated);
+      appendReviewHistory({
+        action: 'approved',
+        version: sdfVersion,
+        status: updated.status || null,
+        note: 'Approved current SDF for ERP generation.',
+      });
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Approve action failed');
+    } finally {
+      setReviewActionRunning(false);
+    }
+  };
+
+  const rejectReview = async () => {
+    if (!projectId) return;
+    setReviewActionRunning(true); setError('');
+    try {
+      const updated = await projectService.updateProject(projectId, { status: 'Draft' });
+      setProject(updated);
+      appendReviewHistory({
+        action: 'rejected',
+        version: sdfVersion,
+        status: updated.status || null,
+        note: 'Rejected current SDF and moved project back to Draft.',
+      });
+      switchToChatMode();
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Reject action failed');
+    } finally {
+      setReviewActionRunning(false);
+    }
+  };
+
+  const requestRevisionFromReview = async (instructions: string) => {
+    if (!projectId || !instructions.trim()) return;
+    setReviewActionRunning(true); setError('');
+    try {
+      appendReviewHistory({
+        action: 'revision_requested',
+        version: sdfVersion,
+        status: project?.status || null,
+        note: instructions.trim(),
+      });
+      const res = await projectService.aiEditSdf(projectId, instructions.trim(), sdf || undefined);
+      setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
+      setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
+      appendReviewHistory({
+        action: 'ai_revision',
+        version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
+        status: res.project.status || null,
+        note: 'Applied AI revision requested from review panel.',
+      });
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Revision request failed');
+    } finally {
+      setReviewActionRunning(false);
+    }
   };
 
   const downloadZip = async () => {
@@ -619,6 +888,14 @@ export default function ProjectDetailPage() {
         />
       </SlideIn>
 
+      <SlideIn show={!!defaultCompletion?.is_complete}>
+        <AccessRequirements
+          items={accessRequirements}
+          disabled={running}
+          onChange={setAccessRequirements}
+        />
+      </SlideIn>
+
       {/* ── Post-generation (Steps 4 & 5) ──────────────────── */}
       <SlideIn show={!!sdf} className="space-y-8">
         {(questions.length > 0 || sdfComplete) && (
@@ -634,6 +911,19 @@ export default function ProjectDetailPage() {
             <div className="text-sm font-semibold text-emerald-800">No follow-up questions needed</div>
             <div className="mt-0.5 text-xs text-emerald-600">The AI generated a complete ERP setup from your inputs.</div>
           </div>
+        )}
+
+        {preview && sdf && (
+          <ReviewApprovalPanel
+            preview={preview}
+            projectStatus={project.status}
+            currentVersion={sdfVersion}
+            history={reviewHistory}
+            running={running}
+            onApprove={() => { void approveReview(); }}
+            onReject={() => { void rejectReview(); }}
+            onRequestRevision={(instructions) => { void requestRevisionFromReview(instructions); }}
+          />
         )}
 
         {preview && sdf && (

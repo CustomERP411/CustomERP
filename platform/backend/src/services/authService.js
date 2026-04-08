@@ -70,7 +70,6 @@ class AuthService {
    * @returns {Promise<{token: string, user: Object}>}
    */
   async login({ email, password }) {
-    // Find user by email
     const user = await this.findByEmail(email);
     if (!user) {
       const error = new Error('The email address or password you entered is incorrect. Please try again.');
@@ -78,7 +77,12 @@ class AuthService {
       throw error;
     }
 
-    // Verify password
+    if (user.deleted_at) {
+      const error = new Error('Account has been deactivated. Please contact support.');
+      error.statusCode = 401;
+      throw error;
+    }
+
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       logger.warn(`Failed login attempt for: ${email}`);
@@ -114,13 +118,12 @@ class AuthService {
    */
   async findById(userId) {
     const result = await query(
-      'SELECT user_id, name, email, created_at, updated_at FROM users WHERE user_id = $1',
+      'SELECT user_id, name, email, created_at, updated_at FROM users WHERE user_id = $1 AND deleted_at IS NULL',
       [userId]
     );
     
     if (!result.rows[0]) return null;
     
-    // Map user_id to id for consistency
     const user = result.rows[0];
     return {
       id: user.user_id,
@@ -138,17 +141,12 @@ class AuthService {
    */
   async findByEmail(email) {
     const result = await query(
-      'SELECT user_id, name, email, password_hash, created_at, updated_at FROM users WHERE email = $1',
+      'SELECT user_id, name, email, password_hash, deleted_at, created_at, updated_at FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
     );
     return result.rows[0] || null;
   }
 
-  /**
-   * Verify and get current user from token payload
-   * @param {Object} tokenPayload - Decoded JWT payload
-   * @returns {Promise<Object>}
-   */
   async getCurrentUser(tokenPayload) {
     const user = await this.findById(tokenPayload.userId);
     if (!user) {
@@ -157,6 +155,20 @@ class AuthService {
       throw error;
     }
     return user;
+  }
+
+  async deleteAccount(userId) {
+    const result = await query(
+      'UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND deleted_at IS NULL RETURNING user_id',
+      [userId]
+    );
+    if (!result.rowCount) {
+      const error = new Error('Account not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    logger.info(`Account soft-deleted: ${userId}`);
+    return true;
   }
 }
 

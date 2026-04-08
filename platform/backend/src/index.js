@@ -49,9 +49,11 @@ app.use((req, res) => {
 });
 
 // Error handler
-app.use((err, req, res, next) => {
-  logger.error(err.stack);
-  res.status(500).json({ error: 'Internal server error' });
+app.use((err, req, res, _next) => {
+  logger.error(err.stack || err.message || err);
+  if (res.headersSent) return;
+  const status = (err.statusCode && Number.isFinite(err.statusCode)) ? err.statusCode : 500;
+  res.status(status).json({ error: status === 500 ? 'Internal server error' : (err.message || 'Internal server error') });
 });
 
 // Start server

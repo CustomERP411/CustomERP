@@ -2,6 +2,22 @@ const fsp = require('fs').promises;
 const path = require('path');
 const os = require('os');
 
+const MAX_CONCURRENT_GENERATIONS = Number(process.env.MAX_CONCURRENT_GENERATIONS) || 2;
+let _activeGenerations = 0;
+
+async function acquireGenerationSlot() {
+  if (_activeGenerations >= MAX_CONCURRENT_GENERATIONS) {
+    const err = new Error('Server is busy generating other projects. Please try again shortly.');
+    err.statusCode = 503;
+    throw err;
+  }
+  _activeGenerations++;
+}
+
+function releaseGenerationSlot() {
+  _activeGenerations = Math.max(0, _activeGenerations - 1);
+}
+
 function getPaths() {
   // Prefer explicit paths (Docker mounts)
   const assemblerPath =
@@ -41,19 +57,24 @@ async function rmDirRecursive(dir) {
 }
 
 async function generateProjectDir({ projectId, sdf, standalone = false }) {
-  const { assemblerPath, brickLibraryPath, outputRoot } = getPaths();
+  await acquireGenerationSlot();
+  try {
+    const { assemblerPath, brickLibraryPath, outputRoot } = getPaths();
 
-  await ensureDir(outputRoot);
+    await ensureDir(outputRoot);
 
-  const BrickRepository = require(path.join(assemblerPath, 'BrickRepository'));
-  const ProjectAssembler = require(path.join(assemblerPath, 'ProjectAssembler'));
+    const BrickRepository = require(path.join(assemblerPath, 'BrickRepository'));
+    const ProjectAssembler = require(path.join(assemblerPath, 'ProjectAssembler'));
 
-  const brickRepo = new BrickRepository(brickLibraryPath);
-  const assembler = new ProjectAssembler(brickRepo, outputRoot);
+    const brickRepo = new BrickRepository(brickLibraryPath);
+    const assembler = new ProjectAssembler(brickRepo, outputRoot);
 
-  const genId = `${safeFileName(projectId)}-${Date.now()}`;
-  const outputDir = await assembler.assemble(genId, sdf, { standalone });
-  return { outputDir, genId };
+    const genId = `${safeFileName(projectId)}-${Date.now()}`;
+    const outputDir = await assembler.assemble(genId, sdf, { standalone });
+    return { outputDir, genId };
+  } finally {
+    releaseGenerationSlot();
+  }
 }
 
 async function generateStandaloneDir({ projectId, sdf, platform }) {
@@ -101,7 +122,7 @@ function streamZipFromDir(res, { outputDir, zipName }) {
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${safeFileName(zipName)}.zip"`);
 
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const archive = archiver('zip', { zlib: { level: 6 } });
     archive.on('error', (err) => reject(err));
     res.on('close', () => resolve());
     res.on('finish', () => resolve());

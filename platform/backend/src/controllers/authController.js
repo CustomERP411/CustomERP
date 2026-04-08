@@ -118,10 +118,28 @@ async function logout(req, res) {
   res.json({ message: 'Logged out successfully' });
 }
 
+/**
+ * DELETE /api/auth/account
+ * Soft-delete the authenticated user's account
+ */
+async function deleteAccount(req, res, next) {
+  try {
+    await authService.deleteAccount(req.user.userId);
+    res.status(204).send();
+  } catch (error) {
+    logger.error('Delete account error:', error.message);
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+    next(error);
+  }
+}
+
 module.exports = {
   register,
   login,
   me,
   logout,
+  deleteAccount,
 };
 

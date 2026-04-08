@@ -19,7 +19,7 @@ class Project {
 
   static async findByUser(userId) {
     const result = await db.query(
-      `SELECT * FROM projects WHERE owner_user_id = $1 ORDER BY updated_at DESC`,
+      `SELECT * FROM projects WHERE owner_user_id = $1 AND deleted_at IS NULL ORDER BY updated_at DESC`,
       [userId]
     );
     return result.rows.map(this._transform);
@@ -27,27 +27,48 @@ class Project {
 
   static async findById(id, userId) {
     const result = await db.query(
-      `SELECT * FROM projects WHERE project_id = $1 AND owner_user_id = $2`,
+      `SELECT * FROM projects WHERE project_id = $1 AND owner_user_id = $2 AND deleted_at IS NULL`,
       [id, userId]
     );
     return result.rows[0] ? this._transform(result.rows[0]) : null;
   }
 
   static async update(id, userId, updates) {
-    const { name, description, status } = updates;
+    const { name, description, status, mode } = updates;
     const result = await db.query(
       `UPDATE projects
        SET name = COALESCE($1, name),
            description = COALESCE($2, description),
-           status = COALESCE($3, status)
-       WHERE project_id = $4 AND owner_user_id = $5
-       RETURNING *`, // Trigger updates updated_at automatically via DB trigger
-      [name, description, status, id, userId]
+           status = COALESCE($3, status),
+           mode = COALESCE($4, mode)
+       WHERE project_id = $5 AND owner_user_id = $6 AND deleted_at IS NULL
+       RETURNING *`,
+      [name, description, status, mode, id, userId]
     );
     return result.rows[0] ? this._transform(result.rows[0]) : null;
   }
 
   static async delete(id, userId) {
+    const result = await db.query(
+      `UPDATE projects SET deleted_at = CURRENT_TIMESTAMP
+       WHERE project_id = $1 AND owner_user_id = $2 AND deleted_at IS NULL
+       RETURNING project_id`,
+      [id, userId]
+    );
+    return result.rowCount > 0;
+  }
+
+  static async restore(id, userId) {
+    const result = await db.query(
+      `UPDATE projects SET deleted_at = NULL
+       WHERE project_id = $1 AND owner_user_id = $2 AND deleted_at IS NOT NULL
+       RETURNING *`,
+      [id, userId]
+    );
+    return result.rows[0] ? this._transform(result.rows[0]) : null;
+  }
+
+  static async hardDelete(id, userId) {
     const result = await db.query(
       `DELETE FROM projects WHERE project_id = $1 AND owner_user_id = $2 RETURNING project_id`,
       [id, userId]
@@ -64,9 +85,9 @@ class Project {
       name: row.name,
       status: row.status,
       description: row.description,
+      mode: row.mode || 'chat',
       created_at: row.created_at,
       updated_at: row.updated_at,
-      // owner_user_id: row.owner_user_id // internal
     };
   }
 }

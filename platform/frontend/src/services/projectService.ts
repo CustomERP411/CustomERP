@@ -2,6 +2,37 @@ import api from './api';
 import type { Project, CreateProjectRequest } from '../types/project';
 import type { AnalyzeProjectResponse, ClarificationAnswer, AiGatewaySdf } from '../types/aiGateway';
 import type { DefaultQuestionStateResponse, SaveDefaultAnswersRequest } from '../types/defaultQuestions';
+import type { ReviewHistoryItem } from '../components/project/ReviewApprovalPanel';
+
+export interface ReviewSummaryResponse {
+  entityCount: number;
+  fieldCount: number;
+  relationCount: number;
+  moduleSummaries: { name: string; entityCount: number }[];
+  entities: { slug: string; fieldCount: number; relationFields: unknown[] }[];
+  warnings: string[];
+  sdfVersion: number;
+  projectStatus: string;
+}
+
+export interface ReviewActionResponse {
+  project: Project;
+  approval: {
+    id: string;
+    decision: string;
+    sdf_version: number | null;
+    resulting_sdf_version: number | null;
+    comments: string | null;
+    revision_instructions: string | null;
+    decided_at: string;
+  };
+}
+
+export interface RevisionResponse extends ReviewActionResponse {
+  sdf: AiGatewaySdf;
+  sdf_version: number;
+  questions: unknown[];
+}
 
 export const projectService = {
   getProjects: async (): Promise<Project[]> => {
@@ -21,7 +52,7 @@ export const projectService = {
 
   updateProject: async (
     id: string,
-    data: Partial<CreateProjectRequest> & { description?: string | null; status?: Project['status'] }
+    data: Partial<CreateProjectRequest> & { description?: string | null; status?: Project['status']; mode?: Project['mode'] }
   ): Promise<Project> => {
     const response = await api.put<Project>(`/projects/${id}`, data);
     return response.data;
@@ -38,6 +69,11 @@ export const projectService = {
       modules?: string[];
       default_question_answers?: Record<string, unknown>;
       prefilled_sdf?: AiGatewaySdf;
+      mode?: 'chat' | 'build';
+      conversation_context?: {
+        business_answers?: Record<string, { question: string; answer: string }>;
+        access_requirements?: { name: string; user_count: string; responsibilities: string; permissions: string[]; custom_permissions: string }[];
+      };
     }
   ): Promise<AnalyzeProjectResponse> => {
     const response = await api.post<AnalyzeProjectResponse>(`/projects/${id}/analyze`, {
@@ -45,6 +81,8 @@ export const projectService = {
       ...(options?.modules?.length ? { modules: options.modules } : {}),
       ...(options?.default_question_answers ? { default_question_answers: options.default_question_answers } : {}),
       ...(options?.prefilled_sdf ? { prefilled_sdf: options.prefilled_sdf } : {}),
+      ...(options?.mode ? { mode: options.mode } : {}),
+      ...(options?.conversation_context ? { conversation_context: options.conversation_context } : {}),
     }, { timeout: 120000 });
     return response.data;
   },
@@ -110,6 +148,38 @@ export const projectService = {
       { responseType: 'blob', timeout: 300000 },
     );
     return response.data as Blob;
+  },
+
+  getReviewSummary: async (id: string): Promise<ReviewSummaryResponse> => {
+    const response = await api.get<ReviewSummaryResponse>(`/projects/${id}/review/summary`);
+    return response.data;
+  },
+
+  approveReview: async (id: string, comments?: string): Promise<ReviewActionResponse> => {
+    const response = await api.post<ReviewActionResponse>(`/projects/${id}/review/approve`, {
+      ...(comments ? { comments } : {}),
+    });
+    return response.data;
+  },
+
+  rejectReview: async (id: string, comments?: string): Promise<ReviewActionResponse> => {
+    const response = await api.post<ReviewActionResponse>(`/projects/${id}/review/reject`, {
+      ...(comments ? { comments } : {}),
+    });
+    return response.data;
+  },
+
+  requestRevision: async (id: string, instructions: string, comments?: string): Promise<RevisionResponse> => {
+    const response = await api.post<RevisionResponse>(`/projects/${id}/review/revise`, {
+      instructions,
+      ...(comments ? { comments } : {}),
+    });
+    return response.data;
+  },
+
+  getReviewHistory: async (id: string): Promise<{ history: ReviewHistoryItem[] }> => {
+    const response = await api.get<{ history: ReviewHistoryItem[] }>(`/projects/${id}/review/history`);
+    return response.data;
   },
 };
 

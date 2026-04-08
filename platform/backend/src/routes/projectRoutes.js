@@ -24,6 +24,16 @@ router.get('/:id/sdf/latest', projectController.getLatestSdf);
 router.post('/:id/sdf/save', projectController.saveSdf);
 router.post('/:id/sdf/ai-edit', projectController.aiEditSdf);
 
+// Review & Approval workflow
+router.get('/:id/review/summary', projectController.getReviewSummary);
+router.post('/:id/review/approve', projectController.approveReview);
+router.post('/:id/review/reject', projectController.rejectReview);
+router.post('/:id/review/revise', projectController.requestRevision);
+router.get('/:id/review/history', projectController.getReviewHistory);
+
+// Pre-build conversation history
+router.get('/:id/conversations', projectController.getConversations);
+
 // Generator: produce downloadable zip
 router.post('/:id/generate', projectController.generateErpZip);
 router.post('/:id/generate/standalone', projectController.generateStandaloneErpZip);

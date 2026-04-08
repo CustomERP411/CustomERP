@@ -288,6 +288,7 @@ export default function ProjectDetailPage() {
         const latest = await projectService.getLatestSdf(projectId).catch(() => ({ sdf: null, sdf_version: null }));
         if (cancelled) return;
         setProject(p);
+        if (p.mode === 'chat' || p.mode === 'build') setProjectMode(p.mode);
         if (p.description) {
           setBusinessAnswers((prev) => Object.values(prev).some((v) => v.trim()) ? prev : { anything_else: String(p.description) });
         }
@@ -295,17 +296,19 @@ export default function ProjectDetailPage() {
           setSdf(latest.sdf);
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
           setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
-          setReviewHistory((prev) => {
-            if (prev.length > 0) return prev;
-            return [{
-              id: `baseline-${latest.sdf_version || 0}`,
-              action: 'generated',
-              version: typeof latest.sdf_version === 'number' ? latest.sdf_version : null,
-              status: p.status || null,
-              note: 'Loaded latest saved SDF from project history.',
-              createdAt: p.updated_at || new Date().toISOString(),
-            }];
-          });
+        }
+        const serverHistory = await projectService.getReviewHistory(projectId).catch(() => ({ history: [] }));
+        if (!cancelled && serverHistory.history.length > 0) {
+          setReviewHistory(serverHistory.history);
+        } else if (!cancelled && latest?.sdf) {
+          setReviewHistory([{
+            id: `baseline-${latest.sdf_version || 0}`,
+            action: 'generated',
+            version: typeof latest.sdf_version === 'number' ? latest.sdf_version : null,
+            status: p.status || null,
+            note: 'Loaded latest saved SDF from project history.',
+            createdAt: p.updated_at || new Date().toISOString(),
+          }]);
         }
       } catch (err: any) {
         if (!cancelled) setError(err?.response?.data?.error || err?.message || 'Failed to load project');
@@ -393,30 +396,31 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     if (!reviewHistoryStorageKey) return;
-    try {
-      const raw = window.localStorage.getItem(reviewHistoryStorageKey);
-      if (!raw) return;
-      const parsed: unknown = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
-      const normalized = parsed
-        .map((item) => (typeof item === 'object' && item !== null ? item as Partial<ReviewHistoryItem> : null))
-        .filter((item): item is Partial<ReviewHistoryItem> => item !== null)
-        .map((item, idx) => ({
-          id: typeof item.id === 'string' ? item.id : `history-${idx + 1}`,
-          action: item.action === 'generated' || item.action === 'clarified' || item.action === 'manual_save' || item.action === 'ai_revision' || item.action === 'approved' || item.action === 'rejected' || item.action === 'revision_requested'
-            ? item.action
-            : 'generated',
-          version: typeof item.version === 'number' ? item.version : null,
-          status: typeof item.status === 'string' ? item.status : null,
-          note: typeof item.note === 'string' ? item.note : '',
-          createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
-        }));
-      if (normalized.length > 0) {
-        setReviewHistory(normalized);
+    setReviewHistory((prev) => {
+      if (prev.length > 0) return prev;
+      try {
+        const raw = window.localStorage.getItem(reviewHistoryStorageKey);
+        if (!raw) return prev;
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return prev;
+        const normalized = parsed
+          .map((item) => (typeof item === 'object' && item !== null ? item as Partial<ReviewHistoryItem> : null))
+          .filter((item): item is Partial<ReviewHistoryItem> => item !== null)
+          .map((item, idx) => ({
+            id: typeof item.id === 'string' ? item.id : `history-${idx + 1}`,
+            action: item.action === 'generated' || item.action === 'clarified' || item.action === 'manual_save' || item.action === 'ai_revision' || item.action === 'approved' || item.action === 'rejected' || item.action === 'revision_requested'
+              ? item.action
+              : 'generated',
+            version: typeof item.version === 'number' ? item.version : null,
+            status: typeof item.status === 'string' ? item.status : null,
+            note: typeof item.note === 'string' ? item.note : '',
+            createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+          }));
+        return normalized.length > 0 ? normalized : prev;
+      } catch {
+        return prev;
       }
-    } catch {
-      // ignore localStorage parse failures
-    }
+    });
   }, [reviewHistoryStorageKey]);
 
   useEffect(() => {
@@ -546,11 +550,13 @@ export default function ProjectDetailPage() {
   const confirmBuildModeSwitch = () => {
     setProjectMode('build');
     setShowBuildModeConfirm(false);
+    if (projectId) void projectService.updateProject(projectId, { mode: 'build' });
   };
 
   const switchToChatMode = () => {
     setProjectMode('chat');
     setShowBuildModeConfirm(false);
+    if (projectId) void projectService.updateProject(projectId, { mode: 'chat' });
   };
 
   const analyze = async () => {
@@ -587,6 +593,15 @@ export default function ProjectDetailPage() {
         modules: selectedModules,
         default_question_answers: latestDefaults.mandatory_answers,
         prefilled_sdf: prefilledWithAccess,
+        mode: projectMode,
+        conversation_context: {
+          business_answers: Object.fromEntries(
+            BUSINESS_QUESTIONS.map((q) => [q.id, { question: q.question, answer: (businessAnswers[q.id] || '').trim() }])
+          ),
+          access_requirements: accessRequirements
+            .filter((item) => item.groupName.trim())
+            .map((item) => ({ name: item.groupName.trim(), user_count: item.userCount.trim(), responsibilities: item.responsibilities.trim(), permissions: item.permissions, custom_permissions: item.customPermissions.trim() })),
+        },
       });
       setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
       setClarifyRound(res.cycle || 1); setSdfComplete(res.sdf_complete || false);
@@ -669,12 +684,12 @@ export default function ProjectDetailPage() {
     if (!projectId) return;
     setReviewActionRunning(true); setError('');
     try {
-      const updated = await projectService.updateProject(projectId, { status: 'Approved' });
-      setProject(updated);
+      const res = await projectService.approveReview(projectId);
+      setProject(res.project);
       appendReviewHistory({
         action: 'approved',
-        version: sdfVersion,
-        status: updated.status || null,
+        version: res.approval.sdf_version,
+        status: res.project.status || null,
         note: 'Approved current SDF for ERP generation.',
       });
     } catch (err: any) {
@@ -688,12 +703,12 @@ export default function ProjectDetailPage() {
     if (!projectId) return;
     setReviewActionRunning(true); setError('');
     try {
-      const updated = await projectService.updateProject(projectId, { status: 'Draft' });
-      setProject(updated);
+      const res = await projectService.rejectReview(projectId);
+      setProject(res.project);
       appendReviewHistory({
         action: 'rejected',
-        version: sdfVersion,
-        status: updated.status || null,
+        version: res.approval.sdf_version,
+        status: res.project.status || null,
         note: 'Rejected current SDF and moved project back to Draft.',
       });
       switchToChatMode();
@@ -708,15 +723,15 @@ export default function ProjectDetailPage() {
     if (!projectId || !instructions.trim()) return;
     setReviewActionRunning(true); setError('');
     try {
-      appendReviewHistory({
-        action: 'revision_requested',
-        version: sdfVersion,
-        status: project?.status || null,
-        note: instructions.trim(),
-      });
-      const res = await projectService.aiEditSdf(projectId, instructions.trim(), sdf || undefined);
+      const res = await projectService.requestRevision(projectId, instructions.trim());
       setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
+      appendReviewHistory({
+        action: 'revision_requested',
+        version: res.approval.sdf_version,
+        status: null,
+        note: instructions.trim(),
+      });
       appendReviewHistory({
         action: 'ai_revision',
         version: typeof res.sdf_version === 'number' ? res.sdf_version : null,

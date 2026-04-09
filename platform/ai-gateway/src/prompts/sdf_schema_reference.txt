@@ -36,7 +36,17 @@
       "low_stock": { "enabled": boolean, "entity": "string", "quantity_field": "string", "reorder_point_field": "string" },
       "expiry": { "enabled": boolean, "entity": "string", "expiry_field": "string", "days_threshold": number }
     },
-    "scheduled_reports": { "enabled": boolean }
+    "scheduled_reports": { "enabled": boolean },
+    "access_control": {
+      "enabled": boolean (default true — access control is ON unless explicitly disabled),
+      "groups": [
+        {
+          "name": "string (group name, e.g. 'Warehouse Team')",
+          "permissions": ["view_records", "create_records", "edit_records", "delete_records", "approve_transactions", "manage_users", "manage_groups", "manage_permissions"],
+          "custom_permissions": "string (comma-separated custom permission keys, optional)"
+        }
+      ]
+    }
   }
 }
 
@@ -113,6 +123,11 @@ When entity is used by multiple modules, set module="shared":
 - id
 - created_at
 - updated_at
+
+## Access Control System Entities (Auto-Generated - DO NOT INCLUDE)
+The assembler automatically creates these entities when access_control is enabled:
+- __erp_users, __erp_groups, __erp_permissions, __erp_user_groups, __erp_group_permissions
+Do NOT add these to the entities array. They are managed internally.
 
 ## Clarification Questions Format
 {

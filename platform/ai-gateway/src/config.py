@@ -2,7 +2,7 @@
 Configuration module for AI Gateway
 
 Supports multi-provider, multi-agent architecture.
-Each agent (distributor, hr, invoice, inventory, integrator) can have its own:
+Each agent (distributor, hr, invoice, inventory, integrator, chatbot) can have its own:
 - Provider (azure_openai or gemini)
 - API key / endpoint
 - Model / deployment name
@@ -128,6 +128,7 @@ class Settings:
                 "invoice": 0.2,
                 "inventory": 0.2,
                 "integrator": 0.1,
+                "chatbot": 0.7,
             }
             cls._agent_configs[agent_name] = cls._load_agent_config(
                 agent_name, 
@@ -154,6 +155,10 @@ class Settings:
     @classmethod
     def integrator_config(cls) -> AgentConfig:
         return cls.get_agent_config("integrator")
+    
+    @classmethod
+    def chatbot_config(cls) -> AgentConfig:
+        return cls.get_agent_config("chatbot")
     
     @classmethod
     def validate(cls) -> list[str]:

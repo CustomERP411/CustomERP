@@ -4,10 +4,12 @@ const router = express.Router();
 // Import route modules
 const authRoutes = require('./authRoutes');
 const projectRoutes = require('./projectRoutes'); // Task B3
+const previewRoutes = require('./previewRoutes');
 
 // Route mounting
 router.use('/auth', authRoutes);
 router.use('/projects', projectRoutes); // Task B3
+router.use('/projects', previewRoutes);
 
 // API info endpoint
 router.get('/', (req, res) => {

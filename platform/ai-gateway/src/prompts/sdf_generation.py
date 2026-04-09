@@ -236,6 +236,32 @@ def get_inventory_generator_prompt(
         return "Error: Could not load prompt."
 
 
+def get_chat_prompt(
+    business_description: str,
+    user_message: str,
+    selected_modules: str = "",
+    business_answers: str = "",
+    conversation_history: str = "",
+) -> str:
+    """Loads the chat mode prompt for conversational feature discussion."""
+    try:
+        prompt_template_path = PROMPT_DIR / "chat_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+        return _inject_placeholders(
+            prompt_template,
+            {
+                "business_description": business_description or "",
+                "user_message": user_message,
+                "selected_modules": selected_modules or "None selected yet",
+                "business_answers": business_answers or "None provided yet",
+                "conversation_history": conversation_history or "No prior messages",
+            },
+        )
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found at {PROMPT_DIR / 'chat_prompt.txt'}")
+        return "Error: Could not load prompt."
+
+
 def get_integrator_prompt(
     project_name: str,
     business_description: str,

@@ -75,7 +75,7 @@ export default function RegisterPage() {
 
     try {
       await register(formData.name, formData.email, formData.password);
-      navigate('/dashboard', { replace: true });
+      navigate('/projects', { replace: true });
     } catch (error) {
       console.error('Registration error:', error);
       const axiosError = error as AxiosError<{ error: string }>;
@@ -215,20 +215,6 @@ export default function RegisterPage() {
                 error={errors.confirmPassword}
                 autoComplete="new-password"
               />
-
-              <div className="flex items-start pt-1">
-                <input 
-                  type="checkbox" 
-                  id="terms"
-                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 mt-1" 
-                />
-                <label htmlFor="terms" className="ml-2 text-sm text-gray-600">
-                  I agree to the{' '}
-                  <a href="#" className="text-emerald-600 hover:text-emerald-500">Terms of Service</a>
-                  {' '}and{' '}
-                  <a href="#" className="text-emerald-600 hover:text-emerald-500">Privacy Policy</a>
-                </label>
-              </div>
 
               <Button
                 type="submit"

@@ -10,6 +10,7 @@ node_modules/
 .env.local
 .env.*.local
 !.env.example
+!.env.production.example
 
 # Python
 __pycache__/
@@ -52,6 +53,12 @@ htmlcov/
 # Local data files
 *.json.backup
 platform/backend/data/
+
+# Database backups
+backups/
+
+# TLS certificates (generated locally by deploy script)
+certbot/
 
 env.example
 .env.dev

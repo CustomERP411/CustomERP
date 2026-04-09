@@ -69,11 +69,23 @@ async function editSdf({ businessDescription, currentSdf, instructions }) {
   });
 }
 
+async function chat({ businessDescription, message, conversationHistory, selectedModules, businessAnswers }) {
+  if (!message || typeof message !== 'string') throw new Error('message must be a string');
+  return await postJson('/ai/chat', {
+    business_description: businessDescription || '',
+    message,
+    conversation_history: Array.isArray(conversationHistory) ? conversationHistory : [],
+    selected_modules: Array.isArray(selectedModules) ? selectedModules : [],
+    business_answers: businessAnswers && typeof businessAnswers === 'object' ? businessAnswers : null,
+  });
+}
+
 module.exports = {
   analyzeDescription,
   clarifySdf,
   finalizeSdf,
   editSdf,
+  chat,
   BASE_URL,
 };
 

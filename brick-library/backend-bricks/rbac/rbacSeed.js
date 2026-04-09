@@ -10,7 +10,42 @@ function hashPassword(plain) {
   }
 }
 
-async function seed(repository, entitySlugs = []) {
+const CRUD_ACTIONS = ['create', 'read', 'update', 'delete'];
+
+const ABSTRACT_PERM_SLUGS = {
+  manage_users: ['__erp_users', '__erp_user_groups'],
+  manage_groups: ['__erp_groups', '__erp_group_permissions'],
+  manage_permissions: ['__erp_permissions'],
+};
+
+function resolveAbstractPermissions(abstractPerms, customPermsStr, entitySlugs) {
+  const keys = new Set();
+  const businessSlugs = entitySlugs.filter((s) => !s.startsWith('__erp_'));
+
+  for (const ap of abstractPerms) {
+    if (ap === 'view_records') {
+      businessSlugs.forEach((s) => keys.add(`${s}.read`));
+    } else if (ap === 'create_records') {
+      businessSlugs.forEach((s) => keys.add(`${s}.create`));
+    } else if (ap === 'edit_records' || ap === 'approve_transactions') {
+      businessSlugs.forEach((s) => keys.add(`${s}.update`));
+    } else if (ap === 'delete_records') {
+      businessSlugs.forEach((s) => keys.add(`${s}.delete`));
+    } else if (ABSTRACT_PERM_SLUGS[ap]) {
+      ABSTRACT_PERM_SLUGS[ap].forEach((slug) => {
+        CRUD_ACTIONS.forEach((a) => keys.add(`${slug}.${a}`));
+      });
+    }
+  }
+
+  if (customPermsStr) {
+    customPermsStr.split(',').map((s) => s.trim()).filter(Boolean).forEach((k) => keys.add(k));
+  }
+
+  return keys;
+}
+
+async function seed(repository, entitySlugs = [], groups = []) {
   console.log('[RBAC-SEED] Running access-control seed...');
 
   const existingUsers = await repository.findAll('__erp_users');
@@ -48,12 +83,12 @@ async function seed(repository, entitySlugs = []) {
     console.log('[RBAC-SEED] Assigned admin to superadmin group');
   }
 
-  const actions = ['create', 'read', 'update', 'delete'];
   const slugsToSeed = entitySlugs.length ? entitySlugs : [];
 
+  const permByKey = new Map();
   if (slugsToSeed.length) {
     const existingPerms = await repository.findAll('__erp_permissions');
-    const existingKeys = new Set(existingPerms.map((p) => p.key));
+    existingPerms.forEach((p) => permByKey.set(p.key, p));
 
     const allGP = await repository.findAll('__erp_group_permissions');
     const superadminPermIds = new Set(
@@ -61,9 +96,9 @@ async function seed(repository, entitySlugs = []) {
     );
 
     for (const slug of slugsToSeed) {
-      for (const action of actions) {
+      for (const action of CRUD_ACTIONS) {
         const key = `${slug}.${action}`;
-        if (existingKeys.has(key)) continue;
+        if (permByKey.has(key)) continue;
 
         const scope = slug.startsWith('__erp_') ? 'global' : 'module';
         const perm = await repository.create('__erp_permissions', {
@@ -72,6 +107,7 @@ async function seed(repository, entitySlugs = []) {
           scope,
           description: `Allow ${action} on ${slug}`,
         });
+        permByKey.set(key, perm);
 
         if (!superadminPermIds.has(perm.id)) {
           await repository.create('__erp_group_permissions', {
@@ -81,7 +117,57 @@ async function seed(repository, entitySlugs = []) {
         }
       }
     }
-    console.log(`[RBAC-SEED] Ensured ${slugsToSeed.length * actions.length} permissions exist`);
+    console.log(`[RBAC-SEED] Ensured ${slugsToSeed.length * CRUD_ACTIONS.length} permissions exist`);
+  }
+
+  const userGroups = Array.isArray(groups) ? groups : [];
+  if (userGroups.length) {
+    const allGP = await repository.findAll('__erp_group_permissions');
+    const refreshedGroups = await repository.findAll('__erp_groups');
+    const groupNameMap = new Map(refreshedGroups.map((g) => [String(g.name).toLowerCase(), g]));
+
+    for (const gDef of userGroups) {
+      const gName = String(gDef.name || '').trim();
+      if (!gName || gName.toLowerCase() === 'superadmin') continue;
+
+      let group = groupNameMap.get(gName.toLowerCase());
+      if (!group) {
+        group = await repository.create('__erp_groups', {
+          name: gName,
+          description: gDef.responsibilities || '',
+        });
+        groupNameMap.set(gName.toLowerCase(), group);
+        console.log(`[RBAC-SEED] Created group "${gName}"`);
+      }
+
+      const abstractPerms = Array.isArray(gDef.permissions) ? gDef.permissions : [];
+      const customPerms = String(gDef.custom_permissions || '');
+      const neededKeys = resolveAbstractPermissions(abstractPerms, customPerms, slugsToSeed);
+
+      const groupPermIds = new Set(
+        allGP.filter((gp) => gp.group_id === group.id).map((gp) => gp.permission_id)
+      );
+
+      for (const key of neededKeys) {
+        let perm = permByKey.get(key);
+        if (!perm) {
+          perm = await repository.create('__erp_permissions', {
+            key,
+            label: key,
+            scope: key.startsWith('__erp_') ? 'global' : 'module',
+            description: `Custom permission: ${key}`,
+          });
+          permByKey.set(key, perm);
+        }
+        if (!groupPermIds.has(perm.id)) {
+          await repository.create('__erp_group_permissions', {
+            group_id: group.id,
+            permission_id: perm.id,
+          });
+        }
+      }
+      console.log(`[RBAC-SEED] Group "${gName}" assigned ${neededKeys.size} permissions`);
+    }
   }
 
   console.log('[RBAC-SEED] Seed complete.');

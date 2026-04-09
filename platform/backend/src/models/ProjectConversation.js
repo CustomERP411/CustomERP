@@ -41,6 +41,17 @@ class ProjectConversation {
     return result.rows.map(this._transform);
   }
 
+  static async updateSdfVersion(conversationId, sdfVersion) {
+    const result = await db.query(
+      `UPDATE project_conversations
+       SET sdf_version = $1
+       WHERE conversation_id = $2
+       RETURNING *`,
+      [sdfVersion, conversationId]
+    );
+    return result.rows[0] ? this._transform(result.rows[0]) : null;
+  }
+
   static async findLatestByProject(projectId) {
     const result = await db.query(
       `SELECT * FROM project_conversations

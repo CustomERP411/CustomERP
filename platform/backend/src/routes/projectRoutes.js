@@ -17,6 +17,9 @@ router.get('/:id/default-questions', projectController.getDefaultModuleQuestions
 router.post('/:id/default-questions/answers', projectController.saveDefaultModuleAnswers);
 router.get('/:id/default-questions/prefill', projectController.getDefaultModulePrefill);
 
+// Chat mode (feature discussion before build)
+router.post('/:id/chat', projectController.chatWithProject);
+
 // AI workflow (Task B4 integration - used to test ai-gateway)
 router.post('/:id/analyze', projectController.analyzeProject);
 router.post('/:id/clarify', projectController.clarifyProject);

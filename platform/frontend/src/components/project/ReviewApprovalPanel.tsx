@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 export interface ReviewHistoryItem {
   id: string;
@@ -29,6 +29,7 @@ interface ReviewApprovalPanelProps {
   onApprove: () => void;
   onReject: () => void;
   onRequestRevision: (instructions: string) => void;
+  historyOnly?: boolean;
 }
 
 const ACTION_LABELS: Record<ReviewHistoryItem['action'], string> = {
@@ -50,10 +51,42 @@ export default function ReviewApprovalPanel({
   onApprove,
   onReject,
   onRequestRevision,
+  historyOnly = false,
 }: ReviewApprovalPanelProps) {
   const [revisionInstructions, setRevisionInstructions] = useState('');
 
-  const checklist = useMemo(() => {
+  // In historyOnly mode, just render the revision history
+  if (historyOnly) {
+    return (
+      <section className="space-y-4">
+        <div className="rounded-xl border bg-white p-4">
+          <div className="text-sm font-semibold text-slate-900">Revision History</div>
+          {history.length === 0 ? (
+            <div className="mt-2 text-xs text-slate-500">No revisions tracked yet.</div>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {history.map((entry) => (
+                <div key={entry.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs font-semibold text-slate-800">{ACTION_LABELS[entry.action]}</div>
+                    <div className="text-[11px] text-slate-500">
+                      {new Date(entry.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="mt-1 text-[11px] text-slate-600">
+                    SDF v{entry.version ?? '-'} | status: {entry.status || '-'}
+                  </div>
+                  {entry.note && <div className="mt-1 text-xs text-slate-700">{entry.note}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  const checklist = (() => {
     const relationCount = Array.isArray(preview.entities)
       ? preview.entities.reduce((acc, entity) => acc + (Array.isArray(entity.relationFields) ? entity.relationFields.length : 0), 0)
       : 0;
@@ -61,7 +94,7 @@ export default function ReviewApprovalPanel({
     const modules = Array.isArray(preview.moduleSummaries) ? preview.moduleSummaries.length : 0;
     const entities = Number(preview.entityCount || 0);
     return { relationCount, warnings, modules, entities };
-  }, [preview]);
+  })();
 
   return (
     <section className="space-y-4">
@@ -82,32 +115,6 @@ export default function ReviewApprovalPanel({
             <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
               SDF v{currentVersion ?? '-'}
             </span>
-          </div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <div className="text-xs font-medium text-slate-500">Schema Check</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">{checklist.entities} entities</div>
-            <div className="mt-1 text-xs text-slate-600">
-              {checklist.entities > 0 ? 'Entity schema exists and is reviewable.' : 'No entities found in SDF.'}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <div className="text-xs font-medium text-slate-500">Module Check</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">{checklist.modules} modules</div>
-            <div className="mt-1 text-xs text-slate-600">
-              {checklist.modules > 0 ? 'Module capabilities detected.' : 'No active module summary found.'}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <div className="text-xs font-medium text-slate-500">Relation Check</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">{checklist.relationCount} links</div>
-            <div className="mt-1 text-xs text-slate-600">
-              {checklist.relationCount > 0 ? 'Cross-entity links are present.' : 'No explicit relations detected.'}
-            </div>
           </div>
         </div>
 

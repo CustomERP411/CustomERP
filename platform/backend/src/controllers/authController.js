@@ -135,11 +135,66 @@ async function deleteAccount(req, res, next) {
   }
 }
 
+async function updateProfile(req, res, next) {
+  try {
+    const { name, email } = req.body;
+
+    if (name !== undefined) {
+      const nameValidation = validateName(name);
+      if (!nameValidation.valid) {
+        return res.status(400).json({ error: nameValidation.message });
+      }
+    }
+    if (email !== undefined && !isValidEmail(email)) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+
+    const user = await authService.updateProfile(req.user.userId, {
+      name: name !== undefined ? sanitize(name) : undefined,
+      email: email !== undefined ? email.toLowerCase().trim() : undefined,
+    });
+
+    res.json({ user });
+  } catch (error) {
+    logger.error('Update profile error:', error.message);
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+    next(error);
+  }
+}
+
+async function changePassword(req, res, next) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({ error: 'Current password is required' });
+    }
+
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.valid) {
+      return res.status(400).json({ error: passwordValidation.message });
+    }
+
+    await authService.changePassword(req.user.userId, currentPassword, newPassword);
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    logger.error('Change password error:', error.message);
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+    next(error);
+  }
+}
+
 module.exports = {
   register,
   login,
   me,
   logout,
   deleteAccount,
+  updateProfile,
+  changePassword,
 };
 

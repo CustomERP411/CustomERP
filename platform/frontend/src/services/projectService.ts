@@ -34,6 +34,13 @@ export interface RevisionResponse extends ReviewActionResponse {
   questions: unknown[];
 }
 
+export interface ChatWithProjectResponse {
+  reply: string;
+  suggested_modules: string[];
+  discussion_points: string[];
+  confidence: 'low' | 'medium' | 'high';
+}
+
 export const projectService = {
   getProjects: async (): Promise<Project[]> => {
     const response = await api.get<{ projects: Project[] }>('/projects');
@@ -179,6 +186,43 @@ export const projectService = {
 
   getReviewHistory: async (id: string): Promise<{ history: ReviewHistoryItem[] }> => {
     const response = await api.get<{ history: ReviewHistoryItem[] }>(`/projects/${id}/review/history`);
+    return response.data;
+  },
+
+  startPreview: async (id: string): Promise<{ previewId: string; status: string }> => {
+    const response = await api.post<{ previewId: string; status: string }>(
+      `/projects/${id}/preview/start`,
+      {},
+      { timeout: 300000 },
+    );
+    return response.data;
+  },
+
+  getPreviewStatus: async (id: string): Promise<{ previewId?: string; status: string }> => {
+    const response = await api.get<{ previewId?: string; status: string }>(`/projects/${id}/preview/status`);
+    return response.data;
+  },
+
+  stopPreview: async (id: string): Promise<{ status: string }> => {
+    const response = await api.delete<{ status: string }>(`/projects/${id}/preview/stop`);
+    return response.data;
+  },
+
+  chatWithProject: async (
+    id: string,
+    message: string,
+    options?: {
+      conversation_history?: { role: string; content: string }[];
+      selected_modules?: string[];
+      business_answers?: Record<string, unknown>;
+    }
+  ): Promise<ChatWithProjectResponse> => {
+    const response = await api.post<ChatWithProjectResponse>(`/projects/${id}/chat`, {
+      message,
+      conversation_history: options?.conversation_history ?? [],
+      selected_modules: options?.selected_modules ?? [],
+      business_answers: options?.business_answers ?? null,
+    }, { timeout: 60000 });
     return response.data;
   },
 };

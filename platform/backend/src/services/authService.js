@@ -157,6 +157,73 @@ class AuthService {
     return user;
   }
 
+  async updateProfile(userId, { name, email }) {
+    const updates = [];
+    const values = [];
+    let paramIdx = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIdx++}`);
+      values.push(name.trim());
+    }
+    if (email !== undefined) {
+      const normalizedEmail = email.toLowerCase().trim();
+      const existing = await this.findByEmail(normalizedEmail);
+      if (existing && existing.user_id !== userId) {
+        const error = new Error('This email is already in use by another account.');
+        error.statusCode = 409;
+        throw error;
+      }
+      updates.push(`email = $${paramIdx++}`);
+      values.push(normalizedEmail);
+    }
+
+    if (!updates.length) {
+      return this.findById(userId);
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(userId);
+
+    const sql = `UPDATE users SET ${updates.join(', ')} WHERE user_id = $${paramIdx} AND deleted_at IS NULL RETURNING user_id, name, email, created_at, updated_at`;
+    const result = await query(sql, values);
+    if (!result.rows[0]) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    const row = result.rows[0];
+    logger.info(`Profile updated: ${userId}`);
+    return { id: row.user_id, name: row.name, email: row.email, created_at: row.created_at, updated_at: row.updated_at };
+  }
+
+  async changePassword(userId, currentPassword, newPassword) {
+    const result = await query(
+      'SELECT user_id, password_hash FROM users WHERE user_id = $1 AND deleted_at IS NULL',
+      [userId]
+    );
+    if (!result.rows[0]) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const valid = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+    if (!valid) {
+      const error = new Error('Current password is incorrect.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await query(
+      'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+      [hash, userId]
+    );
+    logger.info(`Password changed: ${userId}`);
+    return true;
+  }
+
   async deleteAccount(userId) {
     const result = await query(
       'UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND deleted_at IS NULL RETURNING user_id',

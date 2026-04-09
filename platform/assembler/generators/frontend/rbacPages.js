@@ -208,7 +208,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
 
 function buildUsersAdminPageConnected() {
   return `import { useEffect, useState, useCallback } from 'react';
-import { API } from '../contexts/AuthContext';
+import { API } from '../../contexts/AuthContext';
 
 interface UserRow {
   id: string;
@@ -410,7 +410,7 @@ export default function UsersAdminPageConnected() {
 
 function buildGroupsAdminPageConnected() {
   return `import { useEffect, useState, useCallback } from 'react';
-import { API } from '../contexts/AuthContext';
+import { API } from '../../contexts/AuthContext';
 
 interface GroupRow { id: string; name: string; description: string; }
 interface MembershipRow { id: string; user_id: string; group_id: string; }
@@ -578,7 +578,7 @@ export default function GroupsAdminPageConnected() {
 
 function buildPermissionsAdminPageConnected() {
   return `import { useEffect, useState, useCallback } from 'react';
-import { API } from '../contexts/AuthContext';
+import { API } from '../../contexts/AuthContext';
 
 interface PermissionRow { id: string; key: string; label: string; scope: string; description: string; }
 interface GPRow { id: string; group_id: string; permission_id: string; }

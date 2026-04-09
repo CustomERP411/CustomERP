@@ -35,8 +35,8 @@ function buildSidebar({ toolsBlock, moduleMap, rbac }) {
   if (hasMultipleModules) {
     // Module-aware navigation with grouping
     return `import { Link, useLocation } from 'react-router-dom';
-import { ENTITIES } from '../config/entities';
-${rbac ? `import { useAuth } from '../contexts/AuthContext';\n` : ''}
+import { ENTITIES } from '../../config/entities';
+${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
 const MODULE_DISPLAY_NAMES: Record<string, string> = {
   inventory: 'Inventory',
   invoice: 'Invoice',
@@ -116,8 +116,8 @@ ${rbac ? `      <div className="border-t px-4 py-3">
   } else {
     // Single module / backward compatible flat navigation
     return `import { Link, useLocation } from 'react-router-dom';
-import { ENTITIES } from '../config/entities';
-${rbac ? `import { useAuth } from '../contexts/AuthContext';\n` : ''}
+import { ENTITIES } from '../../config/entities';
+${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
 export default function Sidebar() {
   const location = useLocation();
 ${rbac ? `  const { user, logout } = useAuth();\n` : ''}

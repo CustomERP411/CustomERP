@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const http = require('http');
 const routes = require('./routes');
 const { pool, testConnection } = require('./config/database');
 const logger = require('./utils/logger');
@@ -13,6 +13,39 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
+
+// Preview proxy -- MUST be before body parsers so the raw stream can be piped
+app.use('/preview/:previewId', (req, res) => {
+  const preview = previewManager.getPreview(req.params.previewId);
+  if (!preview || preview.status !== 'running') {
+    return res.status(404).json({ error: 'Preview not found or not ready' });
+  }
+
+  const proxyReq = http.request(
+    {
+      hostname: '127.0.0.1',
+      port: preview.port,
+      path: req.url,
+      method: req.method,
+      headers: { ...req.headers, host: `127.0.0.1:${preview.port}` },
+    },
+    (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res, { end: true });
+    },
+  );
+
+  proxyReq.on('error', (err) => {
+    logger.error(`[PreviewProxy] ${err.message}`);
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Preview proxy error: ' + err.message });
+    }
+  });
+
+  req.pipe(proxyReq, { end: true });
+});
+
+// Body parsers (after preview proxy so they don't consume the piped stream)
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
@@ -40,21 +73,6 @@ app.get('/health', async (req, res) => {
       error: error.message 
     });
   }
-});
-
-// Preview proxy -- must be registered BEFORE API routes
-app.use('/preview/:previewId', (req, res, next) => {
-  const preview = previewManager.getPreview(req.params.previewId);
-  if (!preview || preview.status !== 'running') {
-    return res.status(404).json({ error: 'Preview not found or not ready' });
-  }
-  const prefix = `/preview/${req.params.previewId}`;
-  return createProxyMiddleware({
-    target: `http://127.0.0.1:${preview.port}`,
-    pathRewrite: { [`^${prefix}`]: '' },
-    changeOrigin: true,
-    ws: false,
-  })(req, res, next);
 });
 
 // API routes

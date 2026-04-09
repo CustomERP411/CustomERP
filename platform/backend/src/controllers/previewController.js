@@ -6,12 +6,12 @@ async function startPreview(req, res) {
   try {
     const projectId = req.params.id;
 
-    const sdfRow = await SDF.getLatest(projectId);
+    const sdfRow = await SDF.findLatestByProject(projectId);
     if (!sdfRow) {
       return res.status(400).json({ error: 'No SDF found for this project. Generate one first.' });
     }
 
-    const sdf = typeof sdfRow.sdf_data === 'string' ? JSON.parse(sdfRow.sdf_data) : sdfRow.sdf_data;
+    const sdf = typeof sdfRow.sdf_json === 'string' ? JSON.parse(sdfRow.sdf_json) : sdfRow.sdf_json;
 
     const result = await previewManager.startPreview(projectId, sdf);
     res.json({ previewId: result.previewId, status: result.status });

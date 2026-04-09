@@ -21,6 +21,12 @@ export default defineConfig({
     watch: {
       usePolling: true,
     },
+    proxy: {
+      '/preview': {
+        target: 'http://backend:3000',
+        changeOrigin: true,
+      },
+    },
   },
 })
 

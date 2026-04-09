@@ -212,11 +212,31 @@ ${authClose}    </ToastProvider>
     await fs.writeFile(path.join(outputDir, 'tsconfig.json'), JSON.stringify(tsConfig, null, 2));
 
     const defaultApiUrl = this._standalone ? '/api' : 'http://localhost:3000/api';
-    const apiService = `import axios from 'axios';\n\nconst api = axios.create({\n  baseURL: import.meta.env.VITE_API_URL || '${defaultApiUrl}',\n});\n\nexport default api;`;
-    await fs.writeFile(path.join(outputDir, 'src/services/api.ts'), apiService);
+    const apiServiceLines = [
+      `import axios from 'axios';`,
+      ``,
+      `const api = axios.create({`,
+      `  baseURL: import.meta.env.VITE_API_URL || '${defaultApiUrl}',`,
+      `});`,
+    ];
+    if (this._accessControlEnabled) {
+      apiServiceLines.push(
+        ``,
+        `api.interceptors.request.use((config) => {`,
+        `  const token = localStorage.getItem('erp_token');`,
+        `  if (token) config.headers.Authorization = 'Bearer ' + token;`,
+        `  return config;`,
+        `});`,
+      );
+    }
+    apiServiceLines.push(``, `export default api;`);
+    await fs.writeFile(path.join(outputDir, 'src/services/api.ts'), apiServiceLines.join('\n'));
 
     const postcssConfig = `module.exports = {\n  plugins: {\n    tailwindcss: {},\n    autoprefixer: {},\n  },\n};\n`;
     await fs.writeFile(path.join(outputDir, 'postcss.config.js'), postcssConfig);
+
+    const viteEnvDts = `/// <reference types="vite/client" />\n`;
+    await fs.writeFile(path.join(outputDir, 'src/vite-env.d.ts'), viteEnvDts);
 
     if (!this._standalone) {
       await fs.writeFile(path.join(outputDir, '.dockerignore'), `node_modules\ndist\n.git\n`);

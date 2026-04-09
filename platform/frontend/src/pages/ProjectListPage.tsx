@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { projectService } from '../services/projectService';
 import ProjectCard from '../components/projects/ProjectCard';
 import NewProjectModal from '../components/projects/NewProjectModal';
@@ -139,8 +140,8 @@ export default function ProjectListPage() {
         onProjectCreated={handleProjectCreated}
       />
 
-      {projectToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+      {projectToDelete && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 px-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
             <h3 className="text-base font-semibold text-slate-900">Delete Project</h3>
             <p className="mt-2 text-sm text-slate-600">
@@ -180,7 +181,8 @@ export default function ProjectListPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

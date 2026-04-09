@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- ============================================
 -- 2. ROLES - Role definitions
@@ -58,8 +58,8 @@ CREATE TABLE IF NOT EXISTS projects (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_projects_owner ON projects(owner_user_id);
-CREATE INDEX idx_projects_status ON projects(status);
+CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_user_id);
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 
 -- Status values: Draft, Analyzing, Clarifying, Ready, Generated, Approved
 
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS sdfs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_sdfs_project ON sdfs(project_id);
+CREATE INDEX IF NOT EXISTS idx_sdfs_project ON sdfs(project_id);
 
 -- ============================================
 -- 6. SDF_ENTITIES - Extracted entities from SDF
@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS sdf_entities (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_sdf_entities_sdf ON sdf_entities(sdf_id);
+CREATE INDEX IF NOT EXISTS idx_sdf_entities_sdf ON sdf_entities(sdf_id);
 
 -- ============================================
 -- 7. SDF_ATTRIBUTES - Entity attributes/fields
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS sdf_attributes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_sdf_attributes_entity ON sdf_attributes(entity_id);
+CREATE INDEX IF NOT EXISTS idx_sdf_attributes_entity ON sdf_attributes(entity_id);
 
 -- ============================================
 -- 8. SDF_RELATIONS - Entity relationships
@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS sdf_relations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_sdf_relations_sdf ON sdf_relations(sdf_id);
+CREATE INDEX IF NOT EXISTS idx_sdf_relations_sdf ON sdf_relations(sdf_id);
 
 -- ============================================
 -- 9. QUESTIONS - AI clarification questions
@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS questions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_questions_project ON questions(project_id);
+CREATE INDEX IF NOT EXISTS idx_questions_project ON questions(project_id);
 
 -- ============================================
 -- 10. ANSWERS - User answers to questions
@@ -150,8 +150,8 @@ CREATE TABLE IF NOT EXISTS answers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_answers_question ON answers(question_id);
-CREATE INDEX idx_answers_project ON answers(project_id);
+CREATE INDEX IF NOT EXISTS idx_answers_question ON answers(question_id);
+CREATE INDEX IF NOT EXISTS idx_answers_project ON answers(project_id);
 
 -- ============================================
 -- 11. MODULES - Generated ERP modules
@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS modules (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_modules_project ON modules(project_id);
+CREATE INDEX IF NOT EXISTS idx_modules_project ON modules(project_id);
 
 -- ============================================
 -- 12. SCHEMA_ARTIFACTS - Generated files
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS schema_artifacts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_artifacts_module ON schema_artifacts(module_id);
+CREATE INDEX IF NOT EXISTS idx_artifacts_module ON schema_artifacts(module_id);
 
 -- ============================================
 -- 13. GENERATION_JOBS - Async job tracking
@@ -198,8 +198,8 @@ CREATE TABLE IF NOT EXISTS generation_jobs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_jobs_project ON generation_jobs(project_id);
-CREATE INDEX idx_jobs_status ON generation_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_jobs_project ON generation_jobs(project_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON generation_jobs(status);
 
 -- ============================================
 -- 14. APPROVALS - Module approval decisions
@@ -214,7 +214,7 @@ CREATE TABLE IF NOT EXISTS approvals (
     decided_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_approvals_project ON approvals(project_id);
+CREATE INDEX IF NOT EXISTS idx_approvals_project ON approvals(project_id);
 
 -- ============================================
 -- 15. LOG_ENTRIES - Audit trail
@@ -230,9 +230,9 @@ CREATE TABLE IF NOT EXISTS log_entries (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_logs_project ON log_entries(project_id);
-CREATE INDEX idx_logs_level ON log_entries(level);
-CREATE INDEX idx_logs_created ON log_entries(created_at);
+CREATE INDEX IF NOT EXISTS idx_logs_project ON log_entries(project_id);
+CREATE INDEX IF NOT EXISTS idx_logs_level ON log_entries(level);
+CREATE INDEX IF NOT EXISTS idx_logs_created ON log_entries(created_at);
 
 -- ============================================
 -- Trigger for updated_at timestamps
@@ -245,16 +245,19 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_projects_updated_at ON projects;
 CREATE TRIGGER update_projects_updated_at
     BEFORE UPDATE ON projects
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_modules_updated_at ON modules;
 CREATE TRIGGER update_modules_updated_at
     BEFORE UPDATE ON modules
     FOR EACH ROW

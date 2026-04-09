@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
@@ -211,28 +212,34 @@ export default function SettingsPage() {
           Permanently delete your account. Your projects will no longer be accessible but data is retained internally.
         </p>
 
-        {!showDelete ? (
-          <button
-            onClick={() => setShowDelete(true)}
-            className="mt-4 rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
-          >
-            Delete My Account
-          </button>
-        ) : (
-          <div className="mt-4 space-y-3 rounded-lg border border-red-200 bg-red-50 p-4">
-            <p className="text-sm text-red-800">
-              Type your email to confirm: <span className="font-semibold">{user?.email}</span>
+        <button
+          onClick={() => setShowDelete(true)}
+          className="mt-4 rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+        >
+          Delete My Account
+        </button>
+      </section>
+
+      {showDelete && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-red-700">Delete Account</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              This action cannot be undone. Type your email to confirm:
             </p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{user?.email}</p>
+
             <input
               value={deleteConfirm}
               onChange={(e) => { setDeleteConfirm(e.target.value); setDeleteErr(''); }}
               placeholder={user?.email || ''}
-              className="w-full rounded-lg border border-red-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-red-500"
+              className="mt-3 w-full rounded-lg border border-red-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-red-500"
             />
             {deleteErr && (
-              <p className="text-xs text-red-700">{deleteErr}</p>
+              <p className="mt-1 text-xs text-red-700">{deleteErr}</p>
             )}
-            <div className="flex gap-3">
+
+            <div className="mt-4 flex justify-end gap-3">
               <button
                 onClick={() => { setShowDelete(false); setDeleteConfirm(''); setDeleteErr(''); }}
                 disabled={deleting}
@@ -249,8 +256,9 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
-        )}
-      </section>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

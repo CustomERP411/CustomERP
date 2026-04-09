@@ -94,15 +94,19 @@ export default function PostGenerationPanel({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {(preview.enabledModules || []).map((mod: string) => {
-              const label = mod.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+            {(preview.enabledModules || []).map((mod: any, idx: number) => {
+              const key = typeof mod === 'string' ? mod : (mod?.title || `mod-${idx}`);
+              const label = typeof mod === 'string'
+                ? mod.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                : (mod?.title || 'Module');
+              const colorKey = key.toLowerCase().replace(/\s+/g, '_');
               const colors: Record<string, string> = {
                 inventory: 'bg-blue-100 text-blue-800 border-blue-200',
                 invoice: 'bg-emerald-100 text-emerald-800 border-emerald-200',
                 hr: 'bg-violet-100 text-violet-800 border-violet-200',
               };
               return (
-                <span key={mod} className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${colors[mod] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                <span key={key} className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${colors[colorKey] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
                   {label}
                 </span>
               );

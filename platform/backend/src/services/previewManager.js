@@ -103,33 +103,52 @@ async function startPreview(projectId, sdf) {
 
     // 2. npm install backend
     logger.info(`[PreviewManager] Installing backend dependencies...`);
-    execSync('npm install --production --no-optional 2>&1', {
-      cwd: appDir,
-      stdio: 'pipe',
-      timeout: 180_000,
-      env: { ...process.env, NODE_ENV: 'production' },
-    });
+    try {
+      execSync('npm install --production --no-optional 2>&1', {
+        cwd: appDir,
+        stdio: 'pipe',
+        timeout: 180_000,
+        env: { ...process.env, NODE_ENV: 'production' },
+      });
+    } catch (installErr) {
+      const output = installErr.stdout ? installErr.stdout.toString().slice(-2000) : '';
+      logger.error(`[PreviewManager] Backend npm install failed: ${output}`);
+      throw installErr;
+    }
 
     // 3. npm install + vite build frontend with preview base path
     if (fs.existsSync(path.join(frontendDir, 'package.json'))) {
       logger.info(`[PreviewManager] Installing frontend dependencies...`);
-      execSync('npm install 2>&1', {
-        cwd: frontendDir,
-        stdio: 'pipe',
-        timeout: 180_000,
-      });
+      try {
+        execSync('npm install 2>&1', {
+          cwd: frontendDir,
+          stdio: 'pipe',
+          timeout: 180_000,
+        });
+      } catch (installErr) {
+        const output = installErr.stdout ? installErr.stdout.toString().slice(-2000) : '';
+        logger.error(`[PreviewManager] Frontend npm install failed: ${output}`);
+        throw installErr;
+      }
 
       logger.info(`[PreviewManager] Building frontend with base path ${basePath}/...`);
-      execSync(`npx vite build --base ${basePath}/ 2>&1`, {
-        cwd: frontendDir,
-        stdio: 'pipe',
-        timeout: 120_000,
-        env: {
-          ...process.env,
-          VITE_API_URL: `${basePath}/api`,
-          VITE_BASE_PATH: basePath,
-        },
-      });
+      try {
+        execSync(`npx vite build --base ${basePath}/ 2>&1`, {
+          cwd: frontendDir,
+          stdio: 'pipe',
+          timeout: 120_000,
+          env: {
+            ...process.env,
+            VITE_API_URL: `${basePath}/api`,
+            VITE_BASE_PATH: basePath,
+          },
+        });
+      } catch (buildErr) {
+        const output = buildErr.stdout ? buildErr.stdout.toString().slice(-2000) : '';
+        const errOutput = buildErr.stderr ? buildErr.stderr.toString().slice(-2000) : '';
+        logger.error(`[PreviewManager] Vite build failed.\nSTDOUT: ${output}\nSTDERR: ${errOutput}`);
+        throw buildErr;
+      }
 
       // Copy dist -> app/public
       const distDir = path.join(frontendDir, 'dist');

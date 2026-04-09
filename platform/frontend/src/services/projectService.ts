@@ -90,7 +90,7 @@ export const projectService = {
       ...(options?.prefilled_sdf ? { prefilled_sdf: options.prefilled_sdf } : {}),
       ...(options?.mode ? { mode: options.mode } : {}),
       ...(options?.conversation_context ? { conversation_context: options.conversation_context } : {}),
-    }, { timeout: 120000 });
+    }, { timeout: 300000 });
     return response.data;
   },
 
@@ -121,7 +121,7 @@ export const projectService = {
       partial_sdf: partialSdf,
       answers,
       ...(description ? { description } : {}),
-    }, { timeout: 90000 });
+    }, { timeout: 300000 });
     return response.data;
   },
 

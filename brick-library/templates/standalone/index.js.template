@@ -176,9 +176,11 @@ const start = async () => {
     runMigrations();
     await runRbacSeed();
 
-    app.listen(PORT, () => {
-      const url = `http://localhost:${PORT}`;
+    const server = app.listen(PORT, () => {
+      const actualPort = server.address().port;
+      const url = `http://localhost:${actualPort}`;
       console.log(`\n  Your ERP is running at ${url}\n`);
+      console.log(`Server running on port ${actualPort}`);
       openBrowser(url);
       scheduleReports();
     });

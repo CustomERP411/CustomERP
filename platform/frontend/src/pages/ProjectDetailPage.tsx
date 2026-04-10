@@ -38,7 +38,7 @@ export default function ProjectDetailPage() {
   const [businessStep, setBusinessStep] = useState(0);
   const [sdf, setSdf] = useState<AiGatewaySdf | null>(null);
   const [prefilledSdf, setPrefilledSdf] = useState<AiGatewaySdf | null>(null);
-  const [selectedModules, setSelectedModules] = useState<string[]>(MODULE_KEYS);
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [defaultQuestions, setDefaultQuestions] = useState<DefaultModuleQuestion[]>([]);
   const [defaultAnswersById, setDefaultAnswersById] = useState<Record<string, string | string[]>>({});
   const [defaultCompletion, setDefaultCompletion] = useState<DefaultQuestionCompletion | null>(null);
@@ -87,6 +87,14 @@ export default function ProjectDetailPage() {
     () => (projectId ? `project_mode:${projectId}` : ''),
     [projectId]
   );
+  const selectedModulesStorageKey = useMemo(
+    () => (projectId ? `project_selected_modules:${projectId}` : ''),
+    [projectId],
+  );
+  const businessAnswersStorageKey = useMemo(
+    () => (projectId ? `project_business_answers:${projectId}` : ''),
+    [projectId],
+  );
   const accessRequirementsStorageKey = useMemo(
     () => (projectId ? `project_access_requirements:${projectId}` : ''),
     [projectId],
@@ -105,6 +113,50 @@ export default function ProjectDetailPage() {
       const text = String(q?.question || '');
       return !/chat\s*bot|chatbot|sohbet\s*botu|sohbetbot/i.test(id + ' ' + text);
     }) as ClarificationQuestion[];
+  };
+
+  const normalizeModuleList = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return [];
+    const unique: string[] = [];
+    const seen = new Set<string>();
+    for (const item of value) {
+      const key = String(item || '').trim().toLowerCase();
+      if (!MODULE_KEYS.includes(key) || seen.has(key)) continue;
+      seen.add(key);
+      unique.push(key);
+    }
+    return unique;
+  };
+
+  const normalizeBusinessAnswerMap = (value: unknown): Record<string, string> => {
+    if (!value || typeof value !== 'object') return {};
+    const source = value as Record<string, unknown>;
+    const out: Record<string, string> = {};
+    for (const question of BUSINESS_QUESTIONS) {
+      const raw = source[question.id];
+      if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if (trimmed) out[question.id] = raw;
+        continue;
+      }
+      if (raw && typeof raw === 'object') {
+        const nested = raw as Record<string, unknown>;
+        if (typeof nested.answer === 'string' && nested.answer.trim()) {
+          out[question.id] = nested.answer;
+        }
+      }
+    }
+    return out;
+  };
+
+  const readStorageJson = (storageKey: string): unknown => {
+    if (!storageKey) return null;
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   };
 
   const applyDefaultQuestionState = (payload: DefaultQuestionStateResponse) => {
@@ -155,15 +207,51 @@ export default function ProjectDetailPage() {
     (async () => {
       if (!projectId) return;
       setLoading(true); setError('');
+      setSelectedModules([]);
+      setBusinessAnswers({});
       try {
-        const p = await projectService.getProject(projectId);
-        const latest = await projectService.getLatestSdf(projectId).catch(() => ({ sdf: null, sdf_version: null }));
+        const [p, latest, conversationsResponse] = await Promise.all([
+          projectService.getProject(projectId),
+          projectService.getLatestSdf(projectId).catch(() => ({ sdf: null, sdf_version: null })),
+          projectService.getConversations(projectId).catch(() => ({ conversations: [] })),
+        ]);
         if (cancelled) return;
         setProject(p);
         if (p.mode === 'chat' || p.mode === 'build') setProjectMode(p.mode);
-        if (p.description) {
-          setBusinessAnswers((prev) => Object.values(prev).some((v) => v.trim()) ? prev : { what_business: String(p.description) });
-        }
+        const storedModules = normalizeModuleList(readStorageJson(selectedModulesStorageKey));
+        const storedBusinessAnswers = normalizeBusinessAnswerMap(readStorageJson(businessAnswersStorageKey));
+        const conversations = Array.isArray(conversationsResponse?.conversations)
+          ? conversationsResponse.conversations
+          : [];
+        const conversationWithModules = conversations.find(
+          (entry) => normalizeModuleList(entry?.selected_modules).length > 0,
+        );
+        const conversationWithBusinessAnswers = conversations.find(
+          (entry) => Object.keys(normalizeBusinessAnswerMap(entry?.business_answers)).length > 0,
+        );
+        const modulesFromConversation = normalizeModuleList(conversationWithModules?.selected_modules);
+        const businessAnswersFromConversation = normalizeBusinessAnswerMap(conversationWithBusinessAnswers?.business_answers);
+        const modulesFromLatestSdf = (() => {
+          const moduleConfig = (latest?.sdf as any)?.modules;
+          if (!moduleConfig || typeof moduleConfig !== 'object') return [];
+          return MODULE_KEYS.filter((key) => {
+            if (!Object.prototype.hasOwnProperty.call(moduleConfig, key)) return false;
+            const cfg = moduleConfig[key];
+            if (cfg === false) return false;
+            if (cfg && typeof cfg === 'object' && cfg.enabled === false) return false;
+            return true;
+          });
+        })();
+        const initialModules = storedModules.length
+          ? storedModules
+          : modulesFromConversation.length
+            ? modulesFromConversation
+            : modulesFromLatestSdf;
+        const initialBusinessAnswers = Object.keys(storedBusinessAnswers).length
+          ? storedBusinessAnswers
+          : businessAnswersFromConversation;
+        setSelectedModules(initialModules);
+        setBusinessAnswers(initialBusinessAnswers);
         if (latest?.sdf) {
           setSdf(latest.sdf);
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
@@ -187,7 +275,7 @@ export default function ProjectDetailPage() {
       } finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [projectId]);
+  }, [projectId, selectedModulesStorageKey, businessAnswersStorageKey]);
 
   const selectedModulesKey = useMemo(() => selectedModules.slice().sort().join(','), [selectedModules]);
 
@@ -221,6 +309,16 @@ export default function ProjectDetailPage() {
     if (!projectModeStorageKey) return;
     try { window.localStorage.setItem(projectModeStorageKey, projectMode); } catch { /* ignore */ }
   }, [projectMode, projectModeStorageKey]);
+
+  useEffect(() => {
+    if (!selectedModulesStorageKey) return;
+    try { window.localStorage.setItem(selectedModulesStorageKey, JSON.stringify(selectedModules)); } catch { /* ignore */ }
+  }, [selectedModules, selectedModulesStorageKey]);
+
+  useEffect(() => {
+    if (!businessAnswersStorageKey) return;
+    try { window.localStorage.setItem(businessAnswersStorageKey, JSON.stringify(businessAnswers)); } catch { /* ignore */ }
+  }, [businessAnswers, businessAnswersStorageKey]);
 
   useEffect(() => {
     if (!accessRequirementsStorageKey) return;

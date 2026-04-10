@@ -41,6 +41,19 @@ export interface ChatWithProjectResponse {
   confidence: 'low' | 'medium' | 'high';
 }
 
+export interface ProjectConversationRecord {
+  id: string;
+  project_id: string;
+  sdf_version: number | null;
+  mode: 'chat' | 'build';
+  business_answers: Record<string, unknown> | null;
+  selected_modules: string[] | null;
+  access_requirements: unknown[] | null;
+  description_snapshot: string | null;
+  default_question_answers: Record<string, unknown> | null;
+  created_at: string;
+}
+
 export const projectService = {
   getProjects: async (): Promise<Project[]> => {
     const response = await api.get<{ projects: Project[] }>('/projects');
@@ -186,6 +199,11 @@ export const projectService = {
 
   getReviewHistory: async (id: string): Promise<{ history: ReviewHistoryItem[] }> => {
     const response = await api.get<{ history: ReviewHistoryItem[] }>(`/projects/${id}/review/history`);
+    return response.data;
+  },
+
+  getConversations: async (id: string): Promise<{ conversations: ProjectConversationRecord[] }> => {
+    const response = await api.get<{ conversations: ProjectConversationRecord[] }>(`/projects/${id}/conversations`);
     return response.data;
   },
 

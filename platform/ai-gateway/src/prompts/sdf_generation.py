@@ -141,7 +141,6 @@ def get_distributor_prompt(
                 "business_description": business_description,
                 "default_questions": default_questions or "",
                 "prefilled_sdf": prefilled_sdf or "",
-                "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
     except FileNotFoundError:

@@ -48,7 +48,7 @@ async function downloadNodeBinary(platform) {
 
   if (fs.existsSync(cachedBin)) {
     console.log(`[STANDALONE] Using cached Node.js binary for ${platform}`);
-    return path.dirname(platform.startsWith('windows') ? cachedBin : path.join(cacheDir, `node-${platform}`, 'bin'));
+    return platform.startsWith('windows') ? path.dirname(cachedBin) : path.join(cacheDir, `node-${platform}`, 'bin');
   }
 
   const archiveName = `${info.nodeDir}.${info.ext}`;
@@ -90,7 +90,7 @@ async function downloadNodeBinary(platform) {
   if (!fs.existsSync(cachedBin)) {
     throw new Error(`Node.js binary not found after extraction at ${cachedBin}`);
   }
-  return path.dirname(platform.startsWith('windows') ? cachedBin : path.join(extractDir, 'bin'));
+  return platform.startsWith('windows') ? path.dirname(cachedBin) : path.join(extractDir, 'bin');
 }
 
 async function replaceBetterSqlitePrebuilt(appDir, targetOs, targetArch) {

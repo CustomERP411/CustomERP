@@ -164,7 +164,7 @@ export default function ProjectDetailPage() {
         setProject(p);
         if (p.mode === 'chat' || p.mode === 'build') setProjectMode(p.mode);
         if (p.description) {
-          setBusinessAnswers((prev) => Object.values(prev).some((v) => v.trim()) ? prev : { anything_else: String(p.description) });
+          setBusinessAnswers((prev) => Object.values(prev).some((v) => v.trim()) ? prev : { what_business: String(p.description) });
         }
         if (latest?.sdf) {
           setSdf(latest.sdf);

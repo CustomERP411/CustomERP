@@ -438,16 +438,65 @@ class MultiAgentService:
         except json.JSONDecodeError:
             pass
 
+        # Pass 1: strip trailing commas + control chars
         fixed_json = json_str
         fixed_json = re.sub(r',\s*([}\]])', r'\1', fixed_json)
         fixed_json = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', fixed_json)
 
         try:
             return json.loads(fixed_json)
+        except json.JSONDecodeError:
+            pass
+
+        # Pass 2: bracket-balance truncated JSON
+        balanced = self._balance_json(fixed_json)
+        try:
+            return json.loads(balanced)
         except json.JSONDecodeError as e:
             print(f"[MultiAgentService] JSON parse error at position {e.pos}: {e.msg}")
             print(f"[MultiAgentService] Context: ...{json_str[max(0, e.pos-50):e.pos+50]}...")
             raise
+
+    @staticmethod
+    def _balance_json(json_str: str) -> str:
+        """Close unclosed brackets/braces to salvage truncated JSON."""
+        stack: list[str] = []
+        in_string = False
+        escape = False
+        for ch in json_str:
+            if escape:
+                escape = False
+                continue
+            if ch == '\\' and in_string:
+                escape = True
+                continue
+            if ch == '"' and not escape:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch in ('{', '['):
+                stack.append(ch)
+            elif ch == '}' and stack and stack[-1] == '{':
+                stack.pop()
+            elif ch == ']' and stack and stack[-1] == '[':
+                stack.pop()
+
+        # Strip any trailing partial key/value (after last comma or opening bracket)
+        trimmed = json_str.rstrip()
+        if trimmed and trimmed[-1] not in ('}', ']', '"', 't', 'e', 'l', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
+            # Truncated mid-value — find last complete value
+            last_comma = trimmed.rfind(',')
+            last_open = max(trimmed.rfind('{'), trimmed.rfind('['))
+            cut = max(last_comma, last_open)
+            if cut > 0:
+                trimmed = trimmed[:cut] if trimmed[cut] == ',' else trimmed[:cut + 1]
+
+        # Close unclosed brackets
+        closing = ''
+        for opener in reversed(stack):
+            closing += ']' if opener == '[' else '}'
+        return trimmed + closing
 
     # ── clarification helpers ───────────────────────────────────
 

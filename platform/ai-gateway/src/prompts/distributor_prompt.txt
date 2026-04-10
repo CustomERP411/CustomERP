@@ -104,6 +104,14 @@ If the user's description is vague about certain aspects:
 - If business description conflicts with constraints, prefer constraints and add a warning.
 - Always include the same constraint objects in output (`default_question_answers`, `prefilled_sdf`).
 
+# CRITICAL — KEEP OUTPUT SMALL:
+- Do NOT generate full entity definitions, field lists, or SDF structures.
+- Your output must be a lightweight routing object (typically under 2KB).
+- The "entities_hint" arrays should contain only short entity NAME strings like ["employees", "departments"].
+- The "features" arrays should contain only short feature NAME strings like ["leave approval", "payroll"].
+- Do NOT include field definitions, types, validation rules, or nested entity schemas.
+- Full entity generation is the job of the module generators, NOT you.
+
 # INCOMING MANDATORY ANSWERS (JSON):
 
 {default_questions}
@@ -111,9 +119,6 @@ If the user's description is vague about certain aspects:
 # INCOMING PREFILLED SDF DRAFT (JSON):
 
 {prefilled_sdf}
-
-# SDF SCHEMA REFERENCE:
-{sdf_schema_reference}
 
 # USER'S BUSINESS DESCRIPTION TO ANALYZE:
 {business_description}

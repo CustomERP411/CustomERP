@@ -1,0 +1,44 @@
+{
+  "started_at": "2026-04-10T09:51:29.161Z",
+  "base_url": "http://localhost:3000",
+  "objectives_requested": [
+    "..."
+  ],
+  "params": {
+    "single_modules": [
+      "invoice"
+    ],
+    "multi_modules": [
+      "inventory",
+      "invoice",
+      "hr"
+    ],
+    "max_rounds": 3,
+    "platforms": [
+      "windows-x64",
+      "macos-x64",
+      "linux-x64"
+    ],
+    "save_zips": false,
+    "include_api_surface_in_pack": false,
+    "retest_of": null
+  },
+  "objectives": [
+    {
+      "id": "...",
+      "title": "Unknown objective",
+      "status": "skipped",
+      "details": {
+        "message": "Objective ... is not recognized by this runner."
+      },
+      "completed_at": "2026-04-10T09:51:29.175Z"
+    }
+  ],
+  "summary": {
+    "pass": 0,
+    "fail": 0,
+    "blocked": 0,
+    "skipped": 1
+  },
+  "finished_at": "2026-04-10T09:51:29.175Z"
+}

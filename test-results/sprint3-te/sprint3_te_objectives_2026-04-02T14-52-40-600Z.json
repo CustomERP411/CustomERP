@@ -1,0 +1,2516 @@
+{
+  "started_at": "2026-04-02T14:52:40.599Z",
+  "base_url": "http://localhost:3000",
+  "objectives_requested": [
+    "131",
+    "132",
+    "133",
+    "134",
+    "135",
+    "138"
+  ],
+  "params": {
+    "single_modules": [
+      "invoice"
+    ],
+    "multi_modules": [
+      "inventory",
+      "invoice",
+      "hr"
+    ],
+    "max_rounds": 3,
+    "platforms": [
+      "windows-x64",
+      "macos-x64",
+      "linux-x64"
+    ],
+    "save_zips": true,
+    "include_api_surface_in_pack": false,
+    "retest_of": null
+  },
+  "objectives": [
+    {
+      "id": "131",
+      "title": "Iterative clarifying-question loop E2E (single + multi-module)",
+      "status": "pass",
+      "details": {
+        "single": {
+          "projectId": "b7bea250-de41-4080-8aeb-edc0e71b823a",
+          "modules": [
+            "invoice"
+          ],
+          "roundsExecuted": 1,
+          "unresolvedQuestionCount": 0,
+          "sdfComplete": true,
+          "latestSdf": {
+            "project_name": "Sprint 3 TE single-module validation",
+            "modules": {
+              "invoice": {
+                "enabled": true,
+                "currency": "USD",
+                "tax_rate": 0,
+                "default_payment_terms": "due_on_receipt",
+                "prefix": "INV-",
+                "invoice_entity": "invoices",
+                "item_entity": "invoice_items",
+                "customer_entity": "customers",
+                "transactions": {
+                  "enabled": true,
+                  "invoice_entity": "invoices"
+                },
+                "payments": {
+                  "enabled": true,
+                  "invoice_entity": "invoices",
+                  "payment_entity": "invoice_payments",
+                  "allocation_entity": "invoice_payment_allocations"
+                },
+                "notes": {
+                  "enabled": true,
+                  "invoice_entity": "invoices",
+                  "note_entity": "invoice_notes"
+                },
+                "lifecycle": {
+                  "enabled": true,
+                  "enforce_transitions": true,
+                  "statuses": [
+                    "Draft",
+                    "Sent",
+                    "Paid",
+                    "Overdue",
+                    "Cancelled"
+                  ]
+                },
+                "calculation_engine": {
+                  "enabled": true,
+                  "invoice_entity": "invoices",
+                  "item_entity": "invoice_items"
+                },
+                "recurring_billing": {
+                  "enabled": true,
+                  "schedule_entity": "recurring_invoice_schedules"
+                }
+              },
+              "hr": {
+                "enabled": false
+              },
+              "inventory": {
+                "enabled": false
+              },
+              "activity_log": {
+                "enabled": false
+              },
+              "inventory_dashboard": {
+                "low_stock": {
+                  "enabled": false
+                },
+                "expiry": {
+                  "enabled": false
+                }
+              },
+              "scheduled_reports": {
+                "enabled": false
+              }
+            },
+            "entities": [
+              {
+                "slug": "customers",
+                "display_name": "Customers",
+                "module": "shared",
+                "fields": [
+                  {
+                    "name": "name",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "company_name",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "email",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "phone",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "address",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "invoices",
+                "display_name": "Invoices",
+                "module": "invoice",
+                "features": {
+                  "print_invoice": true
+                },
+                "fields": [
+                  {
+                    "name": "invoice_number",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "customer_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "customers",
+                    "multiple": false
+                  },
+                  {
+                    "name": "issue_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "due_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "Sent",
+                      "Paid",
+                      "Overdue",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "subtotal",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "tax_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "grand_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "paid_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "outstanding_balance",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "idempotency_key",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "posted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancelled_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "discount_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "additional_charges_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "invoice_items",
+                "display_name": "Invoice Items",
+                "module": "invoice",
+                "fields": [
+                  {
+                    "name": "invoice_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "invoices",
+                    "multiple": false
+                  },
+                  {
+                    "name": "description",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "quantity",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "unit_price",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_subtotal",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_discount_type",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Percent",
+                      "Fixed"
+                    ]
+                  },
+                  {
+                    "name": "line_discount_value",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_discount_amount",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_tax_rate",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_tax_amount",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_charges",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "invoice_payments",
+                "display_name": "Invoice Payments",
+                "module": "invoice",
+                "fields": [
+                  {
+                    "name": "payment_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "invoice_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "invoices",
+                    "multiple": false
+                  },
+                  {
+                    "name": "amount",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "payment_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "payment_method",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "Posted",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "reference_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "posted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancelled_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancel_reason",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "invoice_payment_allocations",
+                "display_name": "Invoice Payment Allocations",
+                "module": "invoice",
+                "fields": [
+                  {
+                    "name": "payment_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "invoice_payments",
+                    "multiple": false
+                  },
+                  {
+                    "name": "invoice_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "invoices",
+                    "multiple": false
+                  },
+                  {
+                    "name": "amount",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "invoice_notes",
+                "display_name": "Invoice Notes",
+                "module": "invoice",
+                "fields": [
+                  {
+                    "name": "note_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "source_invoice_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "invoices",
+                    "multiple": false
+                  },
+                  {
+                    "name": "note_type",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Credit",
+                      "Debit"
+                    ]
+                  },
+                  {
+                    "name": "amount",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "tax_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "grand_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "Posted",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "issue_date",
+                    "type": "date",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "reason",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "post_reference",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "posted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancelled_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancel_reason",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "recurring_invoice_schedules",
+                "display_name": "Recurring Invoice Schedules",
+                "module": "invoice",
+                "fields": [
+                  {
+                    "name": "customer_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "customers",
+                    "multiple": false
+                  },
+                  {
+                    "name": "template_invoice_id",
+                    "type": "reference",
+                    "required": false,
+                    "reference_entity": "invoices",
+                    "multiple": false
+                  },
+                  {
+                    "name": "frequency",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Weekly",
+                      "Monthly",
+                      "Quarterly",
+                      "Yearly"
+                    ]
+                  },
+                  {
+                    "name": "next_run_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Active",
+                      "Paused",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              }
+            ],
+            "clarifications_needed": [],
+            "sdf_complete": true,
+            "token_usage": {
+              "distributor": {
+                "prompt": 4575,
+                "completion": 2636,
+                "total": 7211
+              },
+              "hr": {
+                "prompt": 0,
+                "completion": 0,
+                "total": 0
+              },
+              "invoice": {
+                "prompt": 4597,
+                "completion": 2206,
+                "total": 6803
+              },
+              "inventory": {
+                "prompt": 0,
+                "completion": 0,
+                "total": 0
+              },
+              "integrator": {
+                "prompt": 6967,
+                "completion": 2297,
+                "total": 9264
+              },
+              "json_repair": {
+                "prompt": 0,
+                "completion": 0,
+                "total": 0
+              },
+              "total": {
+                "prompt": 16139,
+                "completion": 7139,
+                "total": 23278
+              }
+            },
+            "warnings": []
+          }
+        },
+        "multi": {
+          "projectId": "1bdf837a-52d6-42e7-8ea5-4895fb206a5e",
+          "modules": [
+            "inventory",
+            "invoice",
+            "hr"
+          ],
+          "roundsExecuted": 1,
+          "unresolvedQuestionCount": 0,
+          "sdfComplete": true,
+          "latestSdf": {
+            "project_name": "Sprint 3 TE multi-module validation",
+            "modules": {
+              "inventory": {
+                "enabled": true,
+                "stock_entity": "products",
+                "costing_method": "fifo",
+                "transactions": {
+                  "enabled": true,
+                  "stock_entity": "products",
+                  "movement_entity": "stock_movements"
+                },
+                "reservations": {
+                  "enabled": true,
+                  "reservation_entity": "stock_reservations",
+                  "stock_entity": "products"
+                },
+                "inbound": {
+                  "enabled": true,
+                  "stock_entity": "products",
+                  "purchase_order_entity": "purchase_orders",
+                  "purchase_order_item_entity": "purchase_order_items",
+                  "grn_entity": "goods_receipts",
+                  "grn_item_entity": "goods_receipt_items"
+                },
+                "cycle_counting": {
+                  "enabled": true,
+                  "stock_entity": "products",
+                  "session_entity": "cycle_count_sessions",
+                  "line_entity": "cycle_count_lines"
+                }
+              },
+              "inventory_dashboard": {
+                "low_stock": {
+                  "enabled": true,
+                  "entity": "products",
+                  "quantity_field": "quantity",
+                  "reorder_point_field": "reorder_point"
+                },
+                "expiry": {
+                  "enabled": true,
+                  "entity": "products",
+                  "expiry_field": "expiry_date",
+                  "days_threshold": 30
+                }
+              },
+              "invoice": {
+                "enabled": true,
+                "currency": "USD",
+                "tax_rate": 0,
+                "default_payment_terms": "due_on_receipt",
+                "prefix": "INV-",
+                "invoice_entity": "invoices",
+                "item_entity": "invoice_items",
+                "customer_entity": "customers",
+                "transactions": {
+                  "enabled": true,
+                  "invoice_entity": "invoices"
+                },
+                "payments": {
+                  "enabled": true,
+                  "invoice_entity": "invoices",
+                  "payment_entity": "invoice_payments",
+                  "allocation_entity": "invoice_payment_allocations"
+                },
+                "notes": {
+                  "enabled": true,
+                  "invoice_entity": "invoices",
+                  "note_entity": "invoice_notes"
+                },
+                "lifecycle": {
+                  "enabled": true,
+                  "enforce_transitions": true,
+                  "statuses": [
+                    "Draft",
+                    "Sent",
+                    "Paid",
+                    "Overdue",
+                    "Cancelled"
+                  ]
+                },
+                "calculation_engine": {
+                  "enabled": true,
+                  "invoice_entity": "invoices",
+                  "item_entity": "invoice_items"
+                },
+                "recurring_billing": {
+                  "enabled": true,
+                  "schedule_entity": "recurring_invoice_schedules"
+                }
+              },
+              "hr": {
+                "enabled": true,
+                "work_days": [
+                  "Mon"
+                ],
+                "daily_hours": 6,
+                "employee_entity": "employees",
+                "department_entity": "departments",
+                "leave_engine": {
+                  "enabled": true,
+                  "leave_entity": "leaves",
+                  "balance_entity": "leave_balances",
+                  "work_days": [
+                    "Mon"
+                  ],
+                  "daily_hours": 6,
+                  "consume_on_approval": true
+                },
+                "leave_approvals": {
+                  "enabled": true,
+                  "enforce_transitions": true,
+                  "leave_entity": "leaves",
+                  "balance_entity": "leave_balances",
+                  "work_days": [
+                    "Mon"
+                  ],
+                  "daily_hours": 6
+                },
+                "attendance_time": {
+                  "enabled": true,
+                  "attendance_entity": "attendance_entries",
+                  "shift_entity": "shift_assignments",
+                  "timesheet_entity": "timesheet_entries",
+                  "work_days": [
+                    "Mon"
+                  ],
+                  "daily_hours": 6
+                },
+                "compensation_ledger": {
+                  "enabled": true,
+                  "ledger_entity": "compensation_ledger",
+                  "snapshot_entity": "compensation_snapshots"
+                }
+              },
+              "activity_log": {
+                "enabled": false
+              },
+              "scheduled_reports": {
+                "enabled": false
+              }
+            },
+            "entities": [
+              {
+                "slug": "products",
+                "display_name": "Products",
+                "display_field": "name",
+                "module": "inventory",
+                "features": {
+                  "multi_location": true,
+                  "batch_tracking": true,
+                  "serial_tracking": true,
+                  "expiry_tracking": true
+                },
+                "inventory_ops": {
+                  "enabled": true,
+                  "receive": {
+                    "enabled": true
+                  },
+                  "issue": {
+                    "enabled": true,
+                    "allow_negative_stock": true
+                  },
+                  "adjust": {
+                    "enabled": true
+                  },
+                  "transfer": {
+                    "enabled": true
+                  }
+                },
+                "labels": {
+                  "enabled": true,
+                  "type": "qrcode"
+                },
+                "fields": [
+                  {
+                    "name": "name",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "sku",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "quantity",
+                    "type": "integer",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "reorder_point",
+                    "type": "integer",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cost_price",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "total_value",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "reserved_quantity",
+                    "type": "integer",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "committed_quantity",
+                    "type": "integer",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "available_quantity",
+                    "type": "integer",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "batch_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "serial_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "expiry_date",
+                    "type": "date",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "location_id",
+                    "type": "reference",
+                    "required": false,
+                    "reference_entity": "locations",
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "locations",
+                "display_name": "Locations",
+                "display_field": "name",
+                "module": "inventory",
+                "fields": [
+                  {
+                    "name": "name",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "code",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "unique": true
+                  }
+                ]
+              },
+              {
+                "slug": "stock_movements",
+                "display_name": "Stock Movements",
+                "display_field": "item_id",
+                "module": "inventory",
+                "fields": [
+                  {
+                    "name": "item_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "products",
+                    "multiple": false
+                  },
+                  {
+                    "name": "movement_type",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Receive",
+                      "Issue",
+                      "Adjust",
+                      "Transfer"
+                    ]
+                  },
+                  {
+                    "name": "quantity",
+                    "type": "integer",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "movement_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "reason",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "reference_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "location_id",
+                    "type": "reference",
+                    "required": false,
+                    "reference_entity": "locations",
+                    "multiple": false
+                  },
+                  {
+                    "name": "from_location_id",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "to_location_id",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "batch_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "serial_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "stock_reservations",
+                "display_name": "Stock Reservations",
+                "display_field": "reservation_number",
+                "module": "inventory",
+                "fields": [
+                  {
+                    "name": "reservation_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "item_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "products",
+                    "multiple": false
+                  },
+                  {
+                    "name": "quantity",
+                    "type": "integer",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Pending",
+                      "Released",
+                      "Committed"
+                    ]
+                  },
+                  {
+                    "name": "source_reference",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "reserved_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "purchase_orders",
+                "display_name": "Purchase Orders",
+                "display_field": "po_number",
+                "module": "inventory",
+                "fields": [
+                  {
+                    "name": "po_number",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "supplier_name",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Open",
+                      "Partial",
+                      "Received",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "order_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "notes",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "purchase_order_items",
+                "display_name": "Purchase Order Items",
+                "display_field": "purchase_order_id",
+                "module": "inventory",
+                "fields": [
+                  {
+                    "name": "purchase_order_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "purchase_orders",
+                    "multiple": false
+                  },
+                  {
+                    "name": "item_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "products",
+                    "multiple": false
+                  },
+                  {
+                    "name": "ordered_quantity",
+                    "type": "integer",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "received_quantity",
+                    "type": "integer",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Open",
+                      "Partial",
+                      "Received"
+                    ]
+                  }
+                ]
+              },
+              {
+                "slug": "goods_receipts",
+                "display_name": "Goods Receipts",
+                "display_field": "grn_number",
+                "module": "inventory",
+                "fields": [
+                  {
+                    "name": "grn_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "purchase_order_id",
+                    "type": "reference",
+                    "required": false,
+                    "reference_entity": "purchase_orders",
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "Posted",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "received_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "posted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancelled_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "goods_receipt_items",
+                "display_name": "Goods Receipt Items",
+                "display_field": "goods_receipt_id",
+                "module": "inventory",
+                "fields": [
+                  {
+                    "name": "goods_receipt_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "goods_receipts",
+                    "multiple": false
+                  },
+                  {
+                    "name": "purchase_order_item_id",
+                    "type": "reference",
+                    "required": false,
+                    "reference_entity": "purchase_order_items",
+                    "multiple": false
+                  },
+                  {
+                    "name": "item_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "products",
+                    "multiple": false
+                  },
+                  {
+                    "name": "received_quantity",
+                    "type": "integer",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "accepted_quantity",
+                    "type": "integer",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "cycle_count_sessions",
+                "display_name": "Cycle Count Sessions",
+                "display_field": "session_number",
+                "module": "inventory",
+                "fields": [
+                  {
+                    "name": "session_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "InProgress",
+                      "PendingApproval",
+                      "Approved",
+                      "Posted"
+                    ]
+                  },
+                  {
+                    "name": "started_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "approved_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "approved_by",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "posted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "cycle_count_lines",
+                "display_name": "Cycle Count Lines",
+                "display_field": "cycle_count_session_id",
+                "module": "inventory",
+                "fields": [
+                  {
+                    "name": "cycle_count_session_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "cycle_count_sessions",
+                    "multiple": false
+                  },
+                  {
+                    "name": "item_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "products",
+                    "multiple": false
+                  },
+                  {
+                    "name": "expected_quantity",
+                    "type": "integer",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "counted_quantity",
+                    "type": "integer",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "variance_quantity",
+                    "type": "integer",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Pending",
+                      "Counted",
+                      "Posted"
+                    ]
+                  }
+                ]
+              },
+              {
+                "slug": "customers",
+                "display_name": "Customers",
+                "display_field": "name",
+                "module": "shared",
+                "fields": [
+                  {
+                    "name": "name",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "company_name",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "email",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "phone",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "address",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "invoices",
+                "display_name": "Invoices",
+                "display_field": "invoice_number",
+                "module": "invoice",
+                "features": {
+                  "print_invoice": true
+                },
+                "fields": [
+                  {
+                    "name": "invoice_number",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "customer_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "customers",
+                    "multiple": false
+                  },
+                  {
+                    "name": "issue_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "due_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "Sent",
+                      "Paid",
+                      "Overdue",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "subtotal",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "tax_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "grand_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "paid_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "outstanding_balance",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "idempotency_key",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "posted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancelled_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "discount_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "additional_charges_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "invoice_items",
+                "display_name": "Invoice Items",
+                "display_field": "description",
+                "module": "invoice",
+                "fields": [
+                  {
+                    "name": "invoice_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "invoices",
+                    "multiple": false
+                  },
+                  {
+                    "name": "description",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "quantity",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "unit_price",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_subtotal",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_discount_type",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Percent",
+                      "Fixed"
+                    ]
+                  },
+                  {
+                    "name": "line_discount_value",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_discount_amount",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_tax_rate",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_tax_amount",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "line_charges",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "invoice_payments",
+                "display_name": "Invoice Payments",
+                "display_field": "payment_number",
+                "module": "invoice",
+                "fields": [
+                  {
+                    "name": "payment_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "invoice_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "invoices",
+                    "multiple": false
+                  },
+                  {
+                    "name": "amount",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "payment_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "payment_method",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "Posted",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "reference_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "posted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancelled_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancel_reason",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "invoice_payment_allocations",
+                "display_name": "Invoice Payment Allocations",
+                "display_field": "payment_id",
+                "module": "invoice",
+                "fields": [
+                  {
+                    "name": "payment_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "invoice_payments",
+                    "multiple": false
+                  },
+                  {
+                    "name": "invoice_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "invoices",
+                    "multiple": false
+                  },
+                  {
+                    "name": "amount",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "invoice_notes",
+                "display_name": "Invoice Notes",
+                "display_field": "note_number",
+                "module": "invoice",
+                "fields": [
+                  {
+                    "name": "note_number",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "source_invoice_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "invoices",
+                    "multiple": false
+                  },
+                  {
+                    "name": "note_type",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Credit",
+                      "Debit"
+                    ]
+                  },
+                  {
+                    "name": "amount",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "tax_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "grand_total",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "Posted",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "issue_date",
+                    "type": "date",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "reason",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "post_reference",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "posted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancelled_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancel_reason",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "recurring_invoice_schedules",
+                "display_name": "Recurring Invoice Schedules",
+                "display_field": "customer_id",
+                "module": "invoice",
+                "fields": [
+                  {
+                    "name": "customer_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "customers",
+                    "multiple": false
+                  },
+                  {
+                    "name": "template_invoice_id",
+                    "type": "reference",
+                    "required": false,
+                    "reference_entity": "invoices",
+                    "multiple": false
+                  },
+                  {
+                    "name": "frequency",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Weekly",
+                      "Monthly",
+                      "Quarterly",
+                      "Yearly"
+                    ]
+                  },
+                  {
+                    "name": "next_run_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Active",
+                      "Paused",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "departments",
+                "display_name": "Departments",
+                "display_field": "name",
+                "module": "hr",
+                "fields": [
+                  {
+                    "name": "name",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "location",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "employees",
+                "display_name": "Employees",
+                "display_field": "first_name",
+                "module": "hr",
+                "fields": [
+                  {
+                    "name": "first_name",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "last_name",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "email",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "unique": true
+                  },
+                  {
+                    "name": "job_title",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "hire_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Active",
+                      "On Leave",
+                      "Terminated"
+                    ]
+                  },
+                  {
+                    "name": "department_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "departments",
+                    "multiple": false
+                  },
+                  {
+                    "name": "manager_id",
+                    "type": "reference",
+                    "required": false,
+                    "reference_entity": "employees",
+                    "multiple": false
+                  },
+                  {
+                    "name": "salary",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "leaves",
+                "display_name": "Leaves",
+                "display_field": "leave_type",
+                "module": "hr",
+                "fields": [
+                  {
+                    "name": "employee_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "employees",
+                    "multiple": false
+                  },
+                  {
+                    "name": "leave_type",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Sick"
+                    ]
+                  },
+                  {
+                    "name": "start_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "end_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "leave_days",
+                    "type": "integer",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Pending",
+                      "Approved",
+                      "Rejected",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "approver_id",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "approved_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "rejected_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "cancelled_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "rejection_reason",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "decision_key",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "leave_balances",
+                "display_name": "Leave Balances",
+                "display_field": "leave_type",
+                "module": "hr",
+                "fields": [
+                  {
+                    "name": "employee_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "employees",
+                    "multiple": false
+                  },
+                  {
+                    "name": "leave_type",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "year",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "annual_entitlement",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "accrued_days",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "consumed_days",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "carry_forward_days",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "available_days",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "last_accrual_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "attendance_entries",
+                "display_name": "Attendance Entries",
+                "display_field": "employee_id",
+                "module": "hr",
+                "fields": [
+                  {
+                    "name": "employee_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "employees",
+                    "multiple": false
+                  },
+                  {
+                    "name": "work_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "check_in_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "check_out_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "worked_hours",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Present",
+                      "Absent",
+                      "Half Day",
+                      "On Leave"
+                    ]
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "shift_assignments",
+                "display_name": "Shift Assignments",
+                "display_field": "shift_name",
+                "module": "hr",
+                "fields": [
+                  {
+                    "name": "employee_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "employees",
+                    "multiple": false
+                  },
+                  {
+                    "name": "shift_name",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "start_time",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "end_time",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "work_date",
+                    "type": "date",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "timesheet_entries",
+                "display_name": "Timesheet Entries",
+                "display_field": "employee_id",
+                "module": "hr",
+                "fields": [
+                  {
+                    "name": "employee_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "employees",
+                    "multiple": false
+                  },
+                  {
+                    "name": "work_date",
+                    "type": "date",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "attendance_id",
+                    "type": "reference",
+                    "required": false,
+                    "reference_entity": "attendance_entries",
+                    "multiple": false
+                  },
+                  {
+                    "name": "regular_hours",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "overtime_hours",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "Approved"
+                    ]
+                  }
+                ]
+              },
+              {
+                "slug": "compensation_ledger",
+                "display_name": "Compensation Ledger",
+                "display_field": "employee_id",
+                "module": "hr",
+                "fields": [
+                  {
+                    "name": "employee_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "employees",
+                    "multiple": false
+                  },
+                  {
+                    "name": "pay_period",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "component",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "component_type",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false,
+                    "options": [
+                      "Earning",
+                      "Deduction"
+                    ]
+                  },
+                  {
+                    "name": "amount",
+                    "type": "decimal",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "Posted",
+                      "Cancelled"
+                    ]
+                  },
+                  {
+                    "name": "posted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "post_reference",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              },
+              {
+                "slug": "compensation_snapshots",
+                "display_name": "Compensation Snapshots",
+                "display_field": "employee_id",
+                "module": "hr",
+                "fields": [
+                  {
+                    "name": "employee_id",
+                    "type": "reference",
+                    "required": true,
+                    "reference_entity": "employees",
+                    "multiple": false
+                  },
+                  {
+                    "name": "pay_period",
+                    "type": "string",
+                    "required": true,
+                    "multiple": false
+                  },
+                  {
+                    "name": "gross_amount",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "deduction_amount",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "net_amount",
+                    "type": "decimal",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "status",
+                    "type": "string",
+                    "required": false,
+                    "multiple": false,
+                    "options": [
+                      "Draft",
+                      "Posted"
+                    ]
+                  },
+                  {
+                    "name": "posted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "multiple": false
+                  },
+                  {
+                    "name": "note",
+                    "type": "text",
+                    "required": false,
+                    "multiple": false
+                  }
+                ]
+              }
+            ],
+            "clarifications_needed": [],
+            "sdf_complete": true,
+            "token_usage": {
+              "distributor": {
+                "prompt": 9816,
+                "completion": 2735,
+                "total": 12551
+              },
+              "hr": {
+                "prompt": 4782,
+                "completion": 2464,
+                "total": 7246
+              },
+              "invoice": {
+                "prompt": 4597,
+                "completion": 2206,
+                "total": 6803
+              },
+              "inventory": {
+                "prompt": 5101,
+                "completion": 2601,
+                "total": 7702
+              },
+              "integrator": {
+                "prompt": 17271,
+                "completion": 7277,
+                "total": 24548
+              },
+              "json_repair": {
+                "prompt": 0,
+                "completion": 0,
+                "total": 0
+              },
+              "total": {
+                "prompt": 41567,
+                "completion": 17283,
+                "total": 58850
+              }
+            },
+            "warnings": [
+              "Unsupported feature `expiry_tracking` on entity `products`. It will be ignored. Supported features: audit_trail, batch_tracking, multi_location, print_invoice, serial_tracking."
+            ]
+          }
+        }
+      },
+      "completed_at": "2026-04-02T14:55:48.459Z"
+    },
+    {
+      "id": "132",
+      "title": "AI chat mode -> build mode transition flow",
+      "status": "blocked",
+      "details": {
+        "message": "Dedicated chat mode -> build mode workflow is not explicitly implemented yet.",
+        "fallback_checked": [
+          "mandatory default-question gating",
+          "explicit finalize action in clarification UI"
+        ]
+      },
+      "completed_at": "2026-04-02T14:55:48.462Z"
+    },
+    {
+      "id": "133",
+      "title": "One-click executable packaging (Windows/macOS/Linux)",
+      "status": "fail",
+      "details": {
+        "error": "Generate standalone zip (macos-x64) failed (500): {\"type\":\"Buffer\",\"data\":[123,34,101,114,114,111,114,34,58,34,69,78,79,69,78,84,58,32,110,111,32,115,117,99,104,32,102,105,108,101,32,111,114,32,100,105,114,101,99,116,111,114,121,44,32,99,111,112,121,102,105,108,101,32,39,47,116,109,112,47,99,117,115,116,111,109,101,114,112,45,115,116,97,110,100,97,108,111,110,101,45,99,97,99,104,101,47,110,111,100,101,45,109,97,99,111,115,45,120,54,52,47,110,111,100,101,39,32,45,62,32,39,47,116,109,112,47,99,117,115,116,111,109,101,114,112,45,103,101,110,101,114,97,116,101,100,47,84,69,45,109,117,108,116,105,45,109,111,100,117,108,101,45,49,55,55,53,49,52,49,54,50,49,56,52,56,45,49,55,55,53,49,52,49,55,57,51,57,56,51,47,114,117,110,116,105,109,101,47,98,105,110,47,110,111,100,101,39,34,125]}"
+      },
+      "completed_at": "2026-04-02T14:57:01.402Z"
+    },
+    {
+      "id": "134",
+      "title": "SDF review/approve/reject/revise workflow E2E",
+      "status": "fail",
+      "details": {
+        "error": "AI edit failed (500): An unexpected error occurred: 'GenerationResult' object has no attribute 'find'"
+      },
+      "completed_at": "2026-04-02T14:57:32.740Z"
+    },
+    {
+      "id": "135",
+      "title": "Project/account soft-delete behavior and list filtering",
+      "status": "blocked",
+      "details": {
+        "runtime_delete_and_filter_check": "pass",
+        "blockers": [
+          "Project soft-delete is not implemented (hard DELETE SQL is used).",
+          "Account soft-delete endpoint is not implemented in auth routes."
+        ]
+      },
+      "completed_at": "2026-04-02T14:57:32.796Z"
+    },
+    {
+      "id": "138",
+      "title": "Defect logging and retest tracking loop",
+      "status": "pass",
+      "details": {
+        "message": "Run report generated. Log defects and retest evidence in the template file.",
+        "defect_log_template": "docs\\sprint3_te_defect_log.md",
+        "report_directory": "test-results\\sprint3-te",
+        "retest_hint": "Re-run failed objectives only, e.g. --objectives=133,134 and attach new report to the same defect IDs.",
+        "retest_of": null
+      },
+      "completed_at": "2026-04-02T14:57:32.796Z"
+    }
+  ],
+  "summary": {
+    "pass": 2,
+    "fail": 2,
+    "blocked": 2,
+    "skipped": 0
+  },
+  "finished_at": "2026-04-02T14:57:32.796Z"
+}

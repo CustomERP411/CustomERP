@@ -9,7 +9,7 @@ const PACKS_BY_MODULE = {
 };
 
 const ACTIVE_VERSION_BY_MODULE = {
-  inventory: 'inventory.v2',
+  inventory: 'inventory.v3',
   invoice: 'invoice.v2',
   hr: 'hr.v2',
 };

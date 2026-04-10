@@ -76,14 +76,15 @@ const INVENTORY_V2_QUESTIONS = [
   },
   {
     key: 'inv_batch_tracking',
-    prompt: 'Do you track items by batch or lot number? (common for food, medicine, chemicals)',
-    type: 'yes_no',
+    prompt: 'How do you track traceability for items? (common for food, medicine, chemicals)',
+    type: 'choice',
+    options: ['No traceability tracking', 'Batch number', 'Lot number', 'Both batch and lot'],
     required: true,
     section: 'Inventory Tracking',
     question_number: 6,
     sdf_mapping: { target: 'entities.products.features.batch_tracking' },
     sdf_impact_notes:
-      'Sets features.batch_tracking on stock entity. ' +
+      'Enables features.batch_tracking on stock entity when batch/lot tracking is selected. ' +
       'Adds batch_number field to stock entity. ' +
       'Adds batch_number field to stock_movements entity. ' +
       'Triggers BatchTrackingMixin on backend (batch validation, findByBatch, getExpiredItems).',
@@ -163,7 +164,7 @@ const INVENTORY_V2_QUESTIONS = [
 
 module.exports = {
   module: 'inventory',
-  version: 'inventory.v2',
+  version: 'inventory.v3',
   template_type: 'sdf_impact_only',
   source_path: null,
   getQuestions() {

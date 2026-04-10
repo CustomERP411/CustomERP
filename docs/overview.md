@@ -330,3 +330,7 @@ See `UNFINISHED_TASKS.md` for the full list. Key themes:
 - `docs/coding_guidelines.md` — repo-wide coding rules
 - `UNFINISHED_TASKS.md` — current backlog
 - `NEXT_SPRINT_TASKS.md` — upcoming sprint plan
+ - `docs/uc4_test_plan.md` — UC-4 test strategy for invoice/HR/multi-module builds
+ - `docs/uc4_qa_checklist.md` — QA checklist for validating generated modules
+ - `docs/local_testing_guide.md` — how to run local tests and integration scripts
+ - `docs/how_to_generate_three_modules.md` — step-by-step guide to generate inventory+invoice+HR

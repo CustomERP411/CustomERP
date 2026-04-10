@@ -1,0 +1,413 @@
+{
+  "project_name": "Solar Panel Manufacturing ERP (Types A/B/S)",
+  "modules": {
+    "activity_log": {
+      "enabled": true,
+      "limit": 25
+    },
+    "inventory": {
+      "enabled": true,
+      "stock_entity": "solar_panel_products",
+      "transactions": {
+        "enabled": true,
+        "quantity_field": "on_hand_units"
+      },
+      "reservations": {
+        "enabled": true
+      },
+      "inbound": {
+        "enabled": true
+      },
+      "cycle_counting": {
+        "enabled": true
+      }
+    },
+    "inventory_dashboard": {
+      "low_stock": {
+        "enabled": true,
+        "entity": "solar_panel_products",
+        "quantity_field": "on_hand_units",
+        "reorder_point_field": "reorder_level",
+        "limit": 10,
+        "suggestion_multiplier": 1.5
+      },
+      "expiry": {
+        "enabled": false
+      }
+    }
+  },
+  "entities": [
+    {
+      "slug": "warehouses",
+      "display_name": "Warehouses",
+      "display_field": "code",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "code",
+          "name",
+          "city",
+          "is_active"
+        ]
+      },
+      "fields": [
+        {
+          "name": "code",
+          "type": "string",
+          "label": "Warehouse Code",
+          "required": true,
+          "min_length": 2,
+          "max_length": 20,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "label": "Warehouse Name",
+          "required": true,
+          "min_length": 2,
+          "max_length": 100
+        },
+        {
+          "name": "city",
+          "type": "string",
+          "label": "City",
+          "required": false,
+          "max_length": 60
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "label": "Active?",
+          "required": false
+        }
+      ],
+      "features": {}
+    },
+    {
+      "slug": "solar_panel_products",
+      "display_name": "Solar Panel Products",
+      "display_field": "sku_code",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "sku_code",
+          "panel_type",
+          "panel_name",
+          "rated_power_watts",
+          "efficiency_percent",
+          "on_hand_units",
+          "reorder_level"
+        ]
+      },
+      "inventory_ops": {
+        "enabled": true,
+        "quantity_mode": "change",
+        "movement_entity": "solar_panel_stock_movements",
+        "location_entity": "warehouses",
+        "location_ids_field": "warehouse_ids",
+        "quantity_field": "on_hand_units",
+        "fields": {
+          "item_ref": "solar_panel_product_id",
+          "qty": "qty_delta",
+          "type": "movement_type",
+          "location": "warehouse_id",
+          "from_location": "from_warehouse_id",
+          "to_location": "to_warehouse_id",
+          "reason": "note",
+          "reference_number": "reference_number",
+          "date": "moved_at"
+        },
+        "movement_types": {
+          "receive": "IN",
+          "issue": "OUT",
+          "adjust": "ADJUSTMENT",
+          "transfer_out": "TRANSFER_OUT",
+          "transfer_in": "TRANSFER_IN"
+        },
+        "issue": {
+          "enabled": true,
+          "label": "Dispatch",
+          "allow_negative_stock": false
+        },
+        "adjust": {
+          "enabled": true,
+          "reason_codes": [
+            "COUNT",
+            "DAMAGED",
+            "SCRAP",
+            "REWORK",
+            "OTHER"
+          ]
+        },
+        "transfer": {
+          "enabled": true
+        },
+        "quick_actions": true
+      },
+      "fields": [
+        {
+          "name": "sku_code",
+          "type": "string",
+          "label": "SKU Code",
+          "required": true,
+          "min_length": 4,
+          "max_length": 20,
+          "unique": true,
+          "pattern": "^SP-[ABS]-[0-9]{3,}$"
+        },
+        {
+          "name": "panel_type",
+          "type": "string",
+          "label": "Panel Type",
+          "required": true,
+          "options": [
+            "A",
+            "B",
+            "S"
+          ]
+        },
+        {
+          "name": "panel_name",
+          "type": "string",
+          "label": "Panel Name",
+          "required": true,
+          "min_length": 3,
+          "max_length": 120
+        },
+        {
+          "name": "rated_power_watts",
+          "type": "integer",
+          "label": "Rated Power (W)",
+          "required": true,
+          "min": 1
+        },
+        {
+          "name": "efficiency_percent",
+          "type": "decimal",
+          "label": "Efficiency (%)",
+          "required": true,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "unit_cost",
+          "type": "decimal",
+          "label": "Unit Cost",
+          "required": true,
+          "min": 0
+        },
+        {
+          "name": "unit_price",
+          "type": "decimal",
+          "label": "Unit Price",
+          "required": true,
+          "min": 0
+        },
+        {
+          "name": "on_hand_units",
+          "type": "integer",
+          "label": "On Hand Units",
+          "required": true,
+          "min": 0
+        },
+        {
+          "name": "reorder_level",
+          "type": "integer",
+          "label": "Reorder Level",
+          "required": false,
+          "min": 0
+        },
+        {
+          "name": "warehouse_ids",
+          "type": "reference",
+          "label": "Warehouses",
+          "required": false,
+          "reference_entity": "warehouses",
+          "multiple": true
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "label": "Active?",
+          "required": false
+        }
+      ],
+      "features": {
+        "audit_trail": true,
+        "multi_location": true
+      }
+    },
+    {
+      "slug": "production_batches",
+      "display_name": "Production Batches",
+      "display_field": "batch_code",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "batch_code",
+          "panel_product_id",
+          "planned_qty",
+          "produced_qty",
+          "production_date",
+          "qa_result",
+          "status"
+        ]
+      },
+      "fields": [
+        {
+          "name": "batch_code",
+          "type": "string",
+          "label": "Batch Code",
+          "required": true,
+          "min_length": 4,
+          "max_length": 40,
+          "unique": true
+        },
+        {
+          "name": "panel_product_id",
+          "type": "reference",
+          "label": "Panel Product",
+          "required": true,
+          "reference_entity": "solar_panel_products"
+        },
+        {
+          "name": "planned_qty",
+          "type": "integer",
+          "label": "Planned Quantity",
+          "required": true,
+          "min": 1
+        },
+        {
+          "name": "produced_qty",
+          "type": "integer",
+          "label": "Produced Quantity",
+          "required": false,
+          "min": 0
+        },
+        {
+          "name": "production_date",
+          "type": "date",
+          "label": "Production Date",
+          "required": true
+        },
+        {
+          "name": "qa_result",
+          "type": "string",
+          "label": "QA Result",
+          "required": true,
+          "options": [
+            "Pending",
+            "Passed",
+            "Failed"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "label": "Status",
+          "required": true,
+          "options": [
+            "Planned",
+            "InProgress",
+            "Completed",
+            "Cancelled"
+          ]
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "label": "Notes",
+          "required": false
+        }
+      ],
+      "features": {
+        "audit_trail": true
+      }
+    },
+    {
+      "slug": "solar_panel_stock_movements",
+      "display_name": "Solar Panel Stock Movements",
+      "display_field": "reference_number",
+      "module": "inventory",
+      "list": {
+        "columns": [
+          "movement_type",
+          "qty_delta",
+          "solar_panel_product_id",
+          "warehouse_id",
+          "moved_at",
+          "reference_number"
+        ]
+      },
+      "fields": [
+        {
+          "name": "solar_panel_product_id",
+          "type": "reference",
+          "label": "Solar Panel Product",
+          "required": true,
+          "reference_entity": "solar_panel_products"
+        },
+        {
+          "name": "movement_type",
+          "type": "string",
+          "label": "Movement Type",
+          "required": true,
+          "pattern": "^(IN|OUT|ADJUSTMENT|TRANSFER_OUT|TRANSFER_IN)$"
+        },
+        {
+          "name": "qty_delta",
+          "type": "integer",
+          "label": "Quantity Change",
+          "required": true,
+          "min": -1000000000,
+          "max": 1000000000
+        },
+        {
+          "name": "warehouse_id",
+          "type": "reference",
+          "label": "Warehouse",
+          "required": false,
+          "reference_entity": "warehouses"
+        },
+        {
+          "name": "from_warehouse_id",
+          "type": "reference",
+          "label": "From Warehouse",
+          "required": false,
+          "reference_entity": "warehouses"
+        },
+        {
+          "name": "to_warehouse_id",
+          "type": "reference",
+          "label": "To Warehouse",
+          "required": false,
+          "reference_entity": "warehouses"
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "label": "Note",
+          "required": false,
+          "max_length": 200
+        },
+        {
+          "name": "reference_number",
+          "type": "string",
+          "label": "Reference #",
+          "required": false,
+          "max_length": 64
+        },
+        {
+          "name": "moved_at",
+          "type": "date",
+          "label": "Movement Date",
+          "required": false
+        }
+      ],
+      "features": {
+        "audit_trail": true
+      }
+    }
+  ]
+}

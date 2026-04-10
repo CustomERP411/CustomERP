@@ -5,6 +5,25 @@ function toBoolYes(value) {
   return String(value || '').trim().toLowerCase() === 'yes';
 }
 
+function toBatchTrackingEnabled(value) {
+  const normalized = String(Array.isArray(value) ? value.join(',') : (value || ''))
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) return false;
+  if (normalized === 'yes') return true;
+
+  if (
+    normalized.includes('no traceability') ||
+    normalized === 'no' ||
+    normalized.includes('none')
+  ) {
+    return false;
+  }
+
+  return normalized.includes('batch') || normalized.includes('lot');
+}
+
 function toNumber(value, fallback = 0) {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
@@ -41,7 +60,7 @@ function buildInventoryEntities(answers) {
   const stockDisplay = 'Products';
 
   const multiLocation = toBoolYes(answers.inv_multi_location);
-  const batchTracking = toBoolYes(answers.inv_batch_tracking);
+  const batchTracking = toBatchTrackingEnabled(answers.inv_batch_tracking);
   const serialTracking = toBoolYes(answers.inv_serial_tracking);
   const expiryTracking = toBoolYes(answers.inv_expiry_tracking);
   const reservationsEnabled = toBoolYes(answers.inv_enable_reservations);

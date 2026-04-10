@@ -54,6 +54,7 @@ class ProjectAssembler {
       }
 
       const backendEntities = this._withSystemEntities(normalizedEntities, sdf);
+      this._relaxCircularRequiredReferences(backendEntities);
 
       if (backendEntities.length) {
         for (const entity of backendEntities) {
@@ -212,6 +213,119 @@ class ProjectAssembler {
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (l) => l.toUpperCase())
       .trim();
+  }
+
+  _resolveReferenceTargetSlug(field, slugSet) {
+    if (!field || typeof field !== 'object') return null;
+    const explicit =
+      field.reference_entity ||
+      field.referenceEntity ||
+      (field.reference && field.reference.entity);
+    if (explicit) {
+      const normalized = String(explicit).trim();
+      return normalized || null;
+    }
+
+    const name = String(field.name || '').trim();
+    if (!name || (!name.endsWith('_id') && !name.endsWith('_ids'))) return null;
+
+    const baseName = name.replace(/_ids?$/, '');
+    const candidates = [
+      baseName,
+      `${baseName}s`,
+      `${baseName}es`,
+    ];
+
+    for (const candidate of candidates) {
+      if (slugSet.has(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  _shouldPreferOptionalInCycle(fieldName) {
+    const lowered = String(fieldName || '').toLowerCase();
+    return (
+      lowered.includes('manager') ||
+      lowered.includes('approver') ||
+      lowered.includes('supervisor') ||
+      lowered.includes('lead') ||
+      lowered.includes('owner') ||
+      lowered.includes('reviewer')
+    );
+  }
+
+  _pickFieldToRelax(first, second) {
+    const firstPreferred = this._shouldPreferOptionalInCycle(first && first.name);
+    const secondPreferred = this._shouldPreferOptionalInCycle(second && second.name);
+
+    if (firstPreferred && !secondPreferred) return first;
+    if (!firstPreferred && secondPreferred) return second;
+
+    const firstKey = `${first?.sourceSlug || ''}.${first?.name || ''}`;
+    const secondKey = `${second?.sourceSlug || ''}.${second?.name || ''}`;
+    return firstKey.localeCompare(secondKey) >= 0 ? first : second;
+  }
+
+  _relaxCircularRequiredReferences(entities) {
+    if (!Array.isArray(entities) || entities.length === 0) return;
+
+    const bySlug = new Map();
+    const slugSet = new Set();
+    for (const entity of entities) {
+      if (!entity || !entity.slug) continue;
+      bySlug.set(entity.slug, entity);
+      slugSet.add(entity.slug);
+    }
+    if (slugSet.size === 0) return;
+
+    const refs = [];
+    for (const entity of entities) {
+      if (!entity || !entity.slug || !Array.isArray(entity.fields)) continue;
+      for (const field of entity.fields) {
+        if (!field || field.required !== true) continue;
+        const targetSlug = this._resolveReferenceTargetSlug(field, slugSet);
+        if (!targetSlug || !bySlug.has(targetSlug)) continue;
+        refs.push({
+          sourceSlug: entity.slug,
+          targetSlug,
+          field,
+          name: String(field.name || ''),
+        });
+      }
+    }
+
+    if (refs.length === 0) return;
+
+    // Self-required references create bootstrap deadlocks (first record cannot be created).
+    for (const ref of refs) {
+      if (ref.sourceSlug !== ref.targetSlug) continue;
+      if (ref.field.required === true) {
+        ref.field.required = false;
+        console.warn(
+          `[Assembler] Relaxed required self-reference '${ref.sourceSlug}.${ref.name}' to avoid bootstrap deadlock.`
+        );
+      }
+    }
+
+    // Mutual required references between two entities can deadlock create flows.
+    for (const ref of refs) {
+      if (ref.sourceSlug === ref.targetSlug || ref.field.required !== true) continue;
+
+      const reverse = refs.find((candidate) =>
+        candidate.sourceSlug === ref.targetSlug &&
+        candidate.targetSlug === ref.sourceSlug &&
+        candidate.field.required === true
+      );
+      if (!reverse) continue;
+
+      const chosen = this._pickFieldToRelax(ref, reverse);
+      if (chosen && chosen.field && chosen.field.required === true) {
+        chosen.field.required = false;
+        console.warn(
+          `[Assembler] Relaxed required reference '${chosen.sourceSlug}.${chosen.name}' to break circular dependency with '${chosen.targetSlug}'.`
+        );
+      }
+    }
   }
 }
 

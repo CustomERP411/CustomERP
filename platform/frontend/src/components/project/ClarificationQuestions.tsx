@@ -53,11 +53,11 @@ export default function ClarificationQuestions({
         <div>
           <h2 className="text-lg font-semibold text-emerald-900">Your ERP Configuration is Complete</h2>
           <p className="mt-1 text-sm text-emerald-700">
-            All modules have the information they need. You can review the setup below or generate the final SDF.
+            All modules have the information they need. You can review the setup below or finalize the current configuration.
           </p>
         </div>
         <div className="flex gap-3">
-          <Button onClick={onFinalize} loading={running}>Generate Final SDF</Button>
+          <Button onClick={onFinalize} loading={running}>Finalize Setup</Button>
           <button type="button" onClick={onSubmit}
             className="text-sm font-medium text-slate-600 underline hover:text-slate-800">
             I want to refine further

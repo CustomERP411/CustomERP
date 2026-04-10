@@ -118,6 +118,12 @@ Any change that affects generation or SDF must include:
 - integration tests using sample SDFs
 - updated test documentation (what to run, expected output)
 
+For UC‑4 (Inventory, Invoice, HR, multi‑module builds), favor:
+- unit checks for backend bricks (invoice/HR mixins),
+- assembler integration tests that generate invoice‑only, HR‑only, and combined ERPs,
+- API‑surface checks that verify new entity routes are exposed,
+- and a small, repeatable UI flow checklist for core invoice/HR screens.
+
 If tests cannot be added, explicitly explain why and document the gap.
 
 ---

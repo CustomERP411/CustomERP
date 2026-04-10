@@ -24,7 +24,6 @@ import ModuleSelector from '../components/project/ModuleSelector';
 import PrefilledConfigSummary from '../components/project/PrefilledConfigSummary';
 import ChatPanel from '../components/project/ChatPanel';
 import PostGenerationPanel from '../components/project/PostGenerationPanel';
-import BuildModeConfirmDialog from '../components/project/BuildModeConfirmDialog';
 
 type ProjectMode = 'chat' | 'build';
 
@@ -62,7 +61,6 @@ export default function ProjectDetailPage() {
   const [sdfComplete, setSdfComplete] = useState(false);
   const [analyzePhase, setAnalyzePhase] = useState('');
   const [projectMode, setProjectMode] = useState<ProjectMode>('chat');
-  const [showBuildModeConfirm, setShowBuildModeConfirm] = useState(false);
   const [chatHistory, setChatHistory] = useState<{ role: string; content: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -391,20 +389,8 @@ export default function ProjectDetailPage() {
     finally { setSavingDefaultAnswers(false); }
   };
 
-  const requestBuildModeSwitch = () => {
-    if (!canAnalyze || running) return;
-    setShowBuildModeConfirm(true);
-  };
-
-  const confirmBuildModeSwitch = () => {
-    setProjectMode('build');
-    setShowBuildModeConfirm(false);
-    if (projectId) void projectService.updateProject(projectId, { mode: 'build' });
-  };
-
   const switchToChatMode = () => {
     setProjectMode('chat');
-    setShowBuildModeConfirm(false);
     if (projectId) void projectService.updateProject(projectId, { mode: 'chat' });
   };
 
@@ -446,6 +432,14 @@ export default function ProjectDetailPage() {
       });
       applyDefaultQuestionState(latestDefaults);
       if (!(latestDefaults.prefill_validation || latestDefaults.completion)?.is_complete) { setError('Please answer all required questions before generating.'); return; }
+
+      // Always force build mode before analyze so "Generate ERP" works reliably in one click.
+      if (projectMode !== 'build' || project?.mode !== 'build') {
+        const updated = await projectService.updateProject(projectId, { mode: 'build' });
+        setProject(updated);
+        setProjectMode('build');
+      }
+
       const acGroups = accessRequirements
         .filter((item) => item.groupName.trim())
         .map((item) => ({
@@ -468,7 +462,7 @@ export default function ProjectDetailPage() {
         modules: selectedModules,
         default_question_answers: latestDefaults.mandatory_answers,
         prefilled_sdf: prefilledWithAccess,
-        mode: projectMode,
+        mode: 'build',
         conversation_context: {
           business_answers: Object.fromEntries(
             BUSINESS_QUESTIONS.map((q) => [q.id, { question: q.question, answer: (businessAnswers[q.id] || '').trim() }])
@@ -514,7 +508,41 @@ export default function ProjectDetailPage() {
     } finally { setClarifying(false); }
   };
 
-  const finalizeSdf = () => { setSdfComplete(true); setQuestions([]); };
+  const finalizeSdf = async () => {
+    if (!projectId || !sdf) {
+      setSdfComplete(true);
+      setQuestions([]);
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+    try {
+      // "Skip remaining and finalize" should persist a final SDF snapshot without open clarifications.
+      const finalSdf = {
+        ...sdf,
+        clarifications_needed: [],
+      } as AiGatewaySdf;
+
+      const res = await projectService.saveSdf(projectId, finalSdf);
+      setProject(res.project);
+      setSdf(res.sdf);
+      setQuestions([]);
+      setAnswersById({});
+      setSdfComplete(true);
+      setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
+      appendReviewHistory({
+        action: 'manual_save',
+        version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
+        status: res.project.status || null,
+        note: 'Finalized SDF by clearing remaining clarifications.',
+      });
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Finalize failed');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const saveDraft = async () => {
     if (!projectId || !draftJson) return;
@@ -684,11 +712,8 @@ export default function ProjectDetailPage() {
       <SlideIn show={!!defaultCompletion?.is_complete}>
         <BusinessQuestions
           answers={businessAnswers} step={businessStep} canAnalyze={canAnalyze} running={running}
-          mode={projectMode}
           onSetAnswers={setBusinessAnswers} onSetStep={setBusinessStep}
           onAnalyze={() => { void analyze(); }}
-          onRequestBuildModeSwitch={requestBuildModeSwitch}
-          onSwitchToChatMode={switchToChatMode}
         />
       </SlideIn>
 
@@ -717,7 +742,7 @@ export default function ProjectDetailPage() {
             sdf={sdf} preview={preview}
             questions={questions} answersById={answersById} canSubmitAnswers={canSubmitAnswers}
             clarifying={clarifying} clarifyRound={clarifyRound} sdfComplete={sdfComplete}
-            onSetAnswers={setAnswersById} onSubmitAnswers={submitAnswers} onFinalize={finalizeSdf}
+            onSetAnswers={setAnswersById} onSubmitAnswers={submitAnswers} onFinalize={() => { void finalizeSdf(); }}
             projectStatus={project.status} sdfVersion={sdfVersion} reviewHistory={reviewHistory} running={running}
             onApproveReview={() => { void approveReview(); }}
             onRejectReview={() => { void rejectReview(); }}
@@ -733,14 +758,6 @@ export default function ProjectDetailPage() {
           />
         )}
       </SlideIn>
-
-      <BuildModeConfirmDialog
-        open={showBuildModeConfirm}
-        canAnalyze={canAnalyze}
-        running={running}
-        onClose={() => setShowBuildModeConfirm(false)}
-        onConfirm={confirmBuildModeSwitch}
-      />
     </div>
   );
 }

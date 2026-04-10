@@ -1,0 +1,44 @@
+{
+  "started_at": "2026-04-02T15:43:11.226Z",
+  "base_url": "http://localhost:3000",
+  "objectives_requested": [
+    "137"
+  ],
+  "params": {
+    "single_modules": [
+      "invoice"
+    ],
+    "multi_modules": [
+      "inventory",
+      "invoice",
+      "hr"
+    ],
+    "max_rounds": 3,
+    "platforms": [
+      "windows-x64",
+      "macos-x64",
+      "linux-x64"
+    ],
+    "save_zips": false,
+    "include_api_surface_in_pack": false,
+    "retest_of": null
+  },
+  "objectives": [
+    {
+      "id": "137",
+      "title": "Continuous regression pack for review+approval flows",
+      "status": "fail",
+      "details": {
+        "error": "test/sprint3_te_regression.test.js exited with code 1"
+      },
+      "completed_at": "2026-04-02T15:43:11.904Z"
+    }
+  ],
+  "summary": {
+    "pass": 0,
+    "fail": 1,
+    "blocked": 0,
+    "skipped": 0
+  },
+  "finished_at": "2026-04-02T15:43:11.905Z"
+}

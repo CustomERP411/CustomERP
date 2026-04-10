@@ -1,0 +1,48 @@
+{
+  "started_at": "2026-04-02T15:20:18.303Z",
+  "base_url": "http://localhost:3000",
+  "objectives_requested": [
+    "132"
+  ],
+  "params": {
+    "single_modules": [
+      "invoice"
+    ],
+    "multi_modules": [
+      "inventory",
+      "invoice",
+      "hr"
+    ],
+    "max_rounds": 3,
+    "platforms": [
+      "windows-x64",
+      "macos-x64",
+      "linux-x64"
+    ],
+    "save_zips": false,
+    "include_api_surface_in_pack": false,
+    "retest_of": null
+  },
+  "objectives": [
+    {
+      "id": "132",
+      "title": "AI chat mode -> build mode transition flow",
+      "status": "blocked",
+      "details": {
+        "message": "Dedicated chat mode -> build mode workflow is not explicitly implemented yet.",
+        "fallback_checked": [
+          "mandatory default-question gating",
+          "explicit finalize action in clarification UI"
+        ]
+      },
+      "completed_at": "2026-04-02T15:20:18.309Z"
+    }
+  ],
+  "summary": {
+    "pass": 0,
+    "fail": 0,
+    "blocked": 1,
+    "skipped": 0
+  },
+  "finished_at": "2026-04-02T15:20:18.309Z"
+}

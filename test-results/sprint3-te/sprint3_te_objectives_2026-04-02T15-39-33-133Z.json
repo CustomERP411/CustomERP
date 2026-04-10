@@ -1,0 +1,48 @@
+{
+  "started_at": "2026-04-02T15:39:33.132Z",
+  "base_url": "http://localhost:3000",
+  "objectives_requested": [
+    "135"
+  ],
+  "params": {
+    "single_modules": [
+      "invoice"
+    ],
+    "multi_modules": [
+      "inventory",
+      "invoice",
+      "hr"
+    ],
+    "max_rounds": 3,
+    "platforms": [
+      "windows-x64",
+      "macos-x64",
+      "linux-x64"
+    ],
+    "save_zips": false,
+    "include_api_surface_in_pack": false,
+    "retest_of": null
+  },
+  "objectives": [
+    {
+      "id": "135",
+      "title": "Project/account soft-delete behavior and list filtering",
+      "status": "blocked",
+      "details": {
+        "runtime_delete_and_filter_check": "pass",
+        "blockers": [
+          "Project soft-delete is not implemented (hard DELETE SQL is used).",
+          "Account soft-delete endpoint is not implemented in auth routes."
+        ]
+      },
+      "completed_at": "2026-04-02T15:39:33.356Z"
+    }
+  ],
+  "summary": {
+    "pass": 0,
+    "fail": 0,
+    "blocked": 1,
+    "skipped": 0
+  },
+  "finished_at": "2026-04-02T15:39:33.356Z"
+}

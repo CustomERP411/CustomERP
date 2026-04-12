@@ -193,7 +193,7 @@ export default function DefaultQuestions({
 
       <div className="flex justify-end">
         <Button size="sm" variant="outline" onClick={onSave} loading={saving} disabled={!canSave || saving}>
-          Save Answers
+          Continue
         </Button>
       </div>
     </section>

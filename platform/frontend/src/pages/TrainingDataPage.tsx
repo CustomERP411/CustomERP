@@ -61,6 +61,7 @@ export default function TrainingDataPage() {
   // Review form
   const [reviewQuality, setReviewQuality] = useState<'good' | 'bad' | 'needs_edit' | ''>('');
   const [reviewNotes, setReviewNotes] = useState('');
+  const [reviewCorrective, setReviewCorrective] = useState('');
   const [reviewEdited, setReviewEdited] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
 
@@ -101,6 +102,7 @@ export default function TrainingDataPage() {
       setDetail(d);
       setReviewQuality(d.review?.quality || '');
       setReviewNotes(d.review?.reviewer_notes || '');
+      setReviewCorrective(d.review?.corrective_instruction || '');
       setReviewEdited(d.review?.edited_output ? JSON.stringify(d.review.edited_output, null, 2) : '');
       setExpandedSteps(new Set());
       setDetailTab('overview');
@@ -118,6 +120,7 @@ export default function TrainingDataPage() {
       await trainingService.saveReview(selectedId, {
         quality: reviewQuality as 'good' | 'bad' | 'needs_edit',
         notes: reviewNotes || undefined,
+        corrective_instruction: reviewCorrective || undefined,
         edited_output: editedOutput,
       });
       fetchSessions();
@@ -378,13 +381,27 @@ export default function TrainingDataPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Reviewer Notes</label>
                       <textarea
                         value={reviewNotes}
                         onChange={(e) => setReviewNotes(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="Internal notes for yourself (not used in training)..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Correction Notes
+                        <span className="ml-1.5 text-xs font-normal text-slate-400">(personal reference — not included in exported training data)</span>
+                      </label>
+                      <textarea
+                        value={reviewCorrective}
+                        onChange={(e) => setReviewCorrective(e.target.value)}
                         rows={3}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Optional reviewer notes..."
+                        placeholder="e.g. Chatbot hallucinated about shift-based payroll. Edited output fixes this by stating HR only tracks shift assignments..."
                       />
                     </div>
 

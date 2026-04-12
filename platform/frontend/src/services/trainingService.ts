@@ -27,6 +27,7 @@ export interface StepLog {
 export interface SessionReview {
   quality: 'good' | 'bad' | 'needs_edit' | null;
   reviewer_notes: string | null;
+  corrective_instruction: string | null;
   edited_output: Record<string, any> | null;
   is_exported: boolean;
   reviewed_at: string | null;
@@ -96,6 +97,7 @@ export const trainingService = {
   saveReview: async (sessionId: string, data: {
     quality: 'good' | 'bad' | 'needs_edit';
     notes?: string;
+    corrective_instruction?: string;
     edited_output?: Record<string, any>;
   }): Promise<any> => {
     const res = await api.put(`/admin/training/${sessionId}/review`, data);

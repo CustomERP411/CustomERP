@@ -73,6 +73,10 @@ export default function ProjectDetailPage() {
     () => (projectId ? `project_business_answers:${projectId}` : ''),
     [projectId],
   );
+  const defaultAnswersStorageKey = useMemo(
+    () => (projectId ? `project_default_answers:${projectId}` : ''),
+    [projectId],
+  );
   const reviewHistoryStorageKey = useMemo(
     () => (projectId ? `project_review_history:${projectId}` : ''),
     [projectId],
@@ -140,6 +144,20 @@ export default function ProjectDetailPage() {
       if (Array.isArray(question.answer)) answers[question.id] = question.answer;
       else if (typeof question.answer === 'string') answers[question.id] = question.answer;
       else answers[question.id] = question.type === 'multi_choice' ? [] : '';
+    }
+    // Restore any locally cached answers that the server didn't have yet
+    const cached = readStorageJson(defaultAnswersStorageKey);
+    if (cached && typeof cached === 'object' && !Array.isArray(cached)) {
+      const cachedMap = cached as Record<string, unknown>;
+      for (const question of questionList) {
+        const serverVal = answers[question.id];
+        const cachedVal = cachedMap[question.id];
+        const serverEmpty = Array.isArray(serverVal) ? serverVal.length === 0 : !serverVal;
+        if (serverEmpty && cachedVal !== undefined && cachedVal !== null && cachedVal !== '') {
+          if (Array.isArray(cachedVal)) answers[question.id] = cachedVal.map(String);
+          else if (typeof cachedVal === 'string' && cachedVal.trim()) answers[question.id] = cachedVal;
+        }
+      }
     }
     setDefaultQuestions(questionList);
     setDefaultAnswersById(answers);
@@ -269,14 +287,19 @@ export default function ProjectDetailPage() {
   useEffect(() => { if (sdf) { setDraftJson(JSON.stringify(sdf, null, 2)); setDraftError(''); } }, [sdf]);
 
   useEffect(() => {
-    if (!selectedModulesStorageKey) return;
+    if (!selectedModulesStorageKey || loading) return;
     try { window.localStorage.setItem(selectedModulesStorageKey, JSON.stringify(selectedModules)); } catch { /* ignore */ }
-  }, [selectedModules, selectedModulesStorageKey]);
+  }, [selectedModules, selectedModulesStorageKey, loading]);
 
   useEffect(() => {
-    if (!businessAnswersStorageKey) return;
+    if (!businessAnswersStorageKey || loading) return;
     try { window.localStorage.setItem(businessAnswersStorageKey, JSON.stringify(businessAnswers)); } catch { /* ignore */ }
-  }, [businessAnswers, businessAnswersStorageKey]);
+  }, [businessAnswers, businessAnswersStorageKey, loading]);
+
+  useEffect(() => {
+    if (!defaultAnswersStorageKey || loading || !Object.keys(defaultAnswersById).length) return;
+    try { window.localStorage.setItem(defaultAnswersStorageKey, JSON.stringify(defaultAnswersById)); } catch { /* ignore */ }
+  }, [defaultAnswersById, defaultAnswersStorageKey, loading]);
 
   useEffect(() => {
     if (!reviewHistoryStorageKey) return;

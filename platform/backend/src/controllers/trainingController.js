@@ -44,7 +44,7 @@ exports.getSession = async (req, res) => {
 
 exports.saveReview = async (req, res) => {
   try {
-    const { quality, notes, edited_output } = req.body;
+    const { quality, notes, edited_output, corrective_instruction } = req.body;
     if (!quality || !['good', 'bad', 'needs_edit'].includes(quality)) {
       return res.status(400).json({ error: 'quality must be one of: good, bad, needs_edit' });
     }
@@ -52,6 +52,7 @@ exports.saveReview = async (req, res) => {
       quality,
       notes: notes || null,
       editedOutput: edited_output || null,
+      correctiveInstruction: corrective_instruction || null,
     });
     res.json({ review });
   } catch (err) {

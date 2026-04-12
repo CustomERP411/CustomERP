@@ -25,7 +25,7 @@ async function listSessions({ limit = 50, offset = 0, endpoint, quality, reviewe
   );
   let sessions = gwData.sessions || [];
 
-  const reviewResult = await query('SELECT session_id, quality, reviewer_notes, is_exported, reviewed_at FROM training_reviews');
+  const reviewResult = await query('SELECT session_id, quality, reviewer_notes, corrective_instruction, is_exported, reviewed_at FROM training_reviews');
   const reviewMap = {};
   for (const row of reviewResult.rows) {
     reviewMap[row.session_id] = row;
@@ -50,25 +50,26 @@ async function listSessions({ limit = 50, offset = 0, endpoint, quality, reviewe
 async function getSession(sessionId) {
   const gwData = await gatewayGet(`/ai/training/sessions/${encodeURIComponent(sessionId)}`);
   const reviewResult = await query(
-    'SELECT quality, reviewer_notes, edited_output, is_exported, reviewed_at FROM training_reviews WHERE session_id = $1',
+    'SELECT quality, reviewer_notes, corrective_instruction, edited_output, is_exported, reviewed_at FROM training_reviews WHERE session_id = $1',
     [sessionId]
   );
   const review = reviewResult.rows[0] || null;
   return { ...gwData, review };
 }
 
-async function saveReview(sessionId, { quality, notes, editedOutput }) {
+async function saveReview(sessionId, { quality, notes, editedOutput, correctiveInstruction }) {
   const result = await query(
-    `INSERT INTO training_reviews (session_id, quality, reviewer_notes, edited_output, reviewed_at)
-     VALUES ($1, $2, $3, $4, NOW())
+    `INSERT INTO training_reviews (session_id, quality, reviewer_notes, corrective_instruction, edited_output, reviewed_at)
+     VALUES ($1, $2, $3, $4, $5, NOW())
      ON CONFLICT (session_id) DO UPDATE SET
        quality = EXCLUDED.quality,
        reviewer_notes = EXCLUDED.reviewer_notes,
+       corrective_instruction = EXCLUDED.corrective_instruction,
        edited_output = EXCLUDED.edited_output,
        reviewed_at = NOW(),
        updated_at = NOW()
      RETURNING *`,
-    [sessionId, quality, notes || null, editedOutput ? JSON.stringify(editedOutput) : null]
+    [sessionId, quality, notes || null, correctiveInstruction || null, editedOutput ? JSON.stringify(editedOutput) : null]
   );
   logger.info(`Training review saved for session ${sessionId}: ${quality}`);
   return result.rows[0];

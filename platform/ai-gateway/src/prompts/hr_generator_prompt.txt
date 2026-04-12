@@ -29,14 +29,16 @@
 # What counts as a valid enhancement (add these):
 # - A new custom field on an existing entity mentioned in the business description
 #   Example: business says "we track employee certifications" -> add a certifications field
+# - Additional fields on existing entities that the business clearly needs
+#   Example: business says "we need emergency contacts" -> add emergency_contact_name, emergency_contact_phone
 # - A new entity not already in the prefilled SDF that the business clearly needs
 #   Example: business says "we have a probation review process" -> add a probation_reviews entity
-# - A display_name tweak to match the business domain (only if clearly better)
+# - A display_name or slug tweak to match the business domain language
+#   Example: business calls departments "branches" -> rename slug to branches, display_name to "Branch"
 #
 # What is not an enhancement (avoid these):
-# - Re-creating departments, employees, leaves, or leave_balances that already exist
+# - Re-creating departments, employees, leaves, or leave_balances that already exist under a different name
 # - Changing field types, options, or required flags that are already set
-# - Adding fields that duplicate what is already there under a different name
 # - Removing features like leave_engine, salary tracking, audit_trail, etc.
 
 # HR capability scope (reference only, do not blindly generate all of these):

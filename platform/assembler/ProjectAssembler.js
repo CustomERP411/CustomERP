@@ -95,6 +95,9 @@ class ProjectAssembler {
 
         // Generate Sidebar with links
         await this.frontendGenerator.generateSidebar(frontendDir, frontendEntities, sdf);
+
+        // Generate Topbar with project name and user display
+        await this.frontendGenerator.generateTopbar(frontendDir, sdf);
       }
 
       // ==================== ROOT FILES ====================

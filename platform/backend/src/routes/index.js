@@ -1,15 +1,17 @@
 const express = require('express');
 const router = express.Router();
 
-// Import route modules
 const authRoutes = require('./authRoutes');
-const projectRoutes = require('./projectRoutes'); // Task B3
+const projectRoutes = require('./projectRoutes');
 const previewRoutes = require('./previewRoutes');
+const adminRoutes = require('./adminRoutes');
+const trainingRoutes = require('./trainingRoutes');
 
-// Route mounting
 router.use('/auth', authRoutes);
-router.use('/projects', projectRoutes); // Task B3
+router.use('/projects', projectRoutes);
 router.use('/projects', previewRoutes);
+router.use('/admin/training', trainingRoutes);
+router.use('/admin', adminRoutes);
 
 // API info endpoint
 router.get('/', (req, res) => {

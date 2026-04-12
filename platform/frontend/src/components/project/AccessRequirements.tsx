@@ -69,7 +69,7 @@ export default function AccessRequirements({ items, disabled = false, onChange }
           Define who will use this ERP and what each group should be allowed to do.
         </p>
         <p className="mt-1 text-xs text-slate-500">
-          Build mode requires at least one group with a group name.
+          At least one group with a group name is required to generate your ERP.
         </p>
       </div>
 

@@ -13,6 +13,7 @@ enabling per-domain fine-tuning in the future.
 import json
 import asyncio
 import re
+import time
 from typing import Optional, Dict, Any, List
 
 from src.config import settings
@@ -20,6 +21,7 @@ from src.services.base_client import BaseAIClient, GenerationResult
 from src.services.gemini_client import GeminiClient
 from src.services.azure_client import AzureOpenAIClient
 from src.schemas.multi_agent import (
+    AgentStepLog,
     ClarificationQuestion,
     DistributorOutput,
     IntegratorOutput,
@@ -99,6 +101,30 @@ class MultiAgentService:
         total["completion"] += result.completion_tokens
         total["total"] += result.total_tokens
 
+    # ── step-log helper ────────────────────────────────────────
+
+    def _build_step_log(
+        self,
+        agent_name: str,
+        client: BaseAIClient,
+        input_summary: Dict[str, Any],
+        output_parsed: Dict[str, Any],
+        result: GenerationResult,
+        duration_ms: int,
+    ) -> AgentStepLog:
+        config = settings.get_agent_config(agent_name)
+        return AgentStepLog(
+            agent=agent_name,
+            model=config.model,
+            temperature=config.temperature,
+            input_summary=input_summary,
+            output_parsed=output_parsed,
+            raw_response=result.text[:5000],
+            tokens_in=result.prompt_tokens,
+            tokens_out=result.completion_tokens,
+            duration_ms=duration_ms,
+        )
+
     # ── main pipeline ───────────────────────────────────────────
 
     async def generate_sdf(
@@ -110,23 +136,33 @@ class MultiAgentService:
         errors: List[str] = []
         warnings: List[str] = []
         token_usage = self._empty_token_usage()
+        step_logs: List[AgentStepLog] = []
 
         # Step 1: Distributor
         print("[MultiAgentService] Step 1: Running distributor...")
+        t0 = time.monotonic()
         try:
             distributor_output, dist_tokens = await self._run_distributor(
                 business_description,
                 default_question_answers or {},
                 prefilled_sdf or {},
             )
+            dist_ms = int((time.monotonic() - t0) * 1000)
             self._add_tokens(token_usage, "distributor", dist_tokens)
             warnings.extend(distributor_output.warnings)
+            step_logs.append(self._build_step_log(
+                "distributor", self.distributor_client,
+                {"business_description": business_description[:500]},
+                distributor_output.model_dump(exclude_none=True),
+                dist_tokens, dist_ms,
+            ))
         except Exception as e:
             print(f"[MultiAgentService] Distributor failed: {e}")
             return PipelineResult(
                 success=False,
                 errors=[f"Distributor agent failed: {str(e)}"],
                 token_usage=token_usage,
+                step_logs=step_logs,
             )
 
         print(f"[MultiAgentService] Modules needed: {distributor_output.modules_needed}")
@@ -154,7 +190,9 @@ class MultiAgentService:
         if generator_tasks:
             coros = [t[1] for t in generator_tasks]
             names = [t[0] for t in generator_tasks]
+            gen_start = time.monotonic()
             results = await asyncio.gather(*coros, return_exceptions=True)
+            gen_elapsed_ms = int((time.monotonic() - gen_start) * 1000)
 
             for name, result in zip(names, results):
                 if isinstance(result, Exception):
@@ -164,6 +202,13 @@ class MultiAgentService:
                     module_outputs[output.module] = output
                     warnings.extend(output.warnings)
                     self._add_tokens(token_usage, name, gen_tokens)
+                    client_map = {"hr": self.hr_client, "invoice": self.invoice_client, "inventory": self.inventory_client}
+                    step_logs.append(self._build_step_log(
+                        f"{name}_generator", client_map.get(name, self.hr_client),
+                        {"business_description": business_description[:300], "module": name},
+                        output.model_dump(exclude_none=True),
+                        gen_tokens, gen_elapsed_ms,
+                    ))
 
         if not module_outputs:
             return PipelineResult(
@@ -172,10 +217,12 @@ class MultiAgentService:
                 errors=errors or ["No module outputs generated"],
                 warnings=warnings,
                 token_usage=token_usage,
+                step_logs=step_logs,
             )
 
         # Step 3: Integrator
         print("[MultiAgentService] Step 3: Running integrator...")
+        t_integ = time.monotonic()
         try:
             final_sdf, integ_tokens = await self._run_integrator(
                 project_name=distributor_output.project_name,
@@ -187,7 +234,15 @@ class MultiAgentService:
                 default_question_answers=default_question_answers or {},
                 prefilled_sdf=prefilled_sdf or {},
             )
+            integ_ms = int((time.monotonic() - t_integ) * 1000)
             self._add_tokens(token_usage, "integrator", integ_tokens)
+
+            step_logs.append(self._build_step_log(
+                "integrator", self.integrator_client,
+                {"modules": list(module_outputs.keys())},
+                {"project_name": final_sdf.get("project_name", ""), "entity_count": len(final_sdf.get("entities", []))},
+                integ_tokens, integ_ms,
+            ))
 
             if isinstance(final_sdf.get("warnings"), list):
                 warnings.extend(final_sdf["warnings"])
@@ -212,6 +267,7 @@ class MultiAgentService:
                 module_outputs=module_outputs,
                 clarifications_needed=aggregated_clarifications,
                 token_usage=token_usage,
+                step_logs=step_logs,
                 errors=errors,
                 warnings=warnings,
             )
@@ -224,6 +280,7 @@ class MultiAgentService:
                 module_outputs=module_outputs,
                 clarifications_needed=partial_clarifications,
                 token_usage=token_usage,
+                step_logs=step_logs,
                 errors=errors + [f"Integrator agent failed: {str(e)}"],
                 warnings=warnings,
             )

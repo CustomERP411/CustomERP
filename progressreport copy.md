@@ -1,53 +1,49 @@
 **Sprint Progress Report**
 
-| **Sprint Start** | 13/03/2026 |  |  | **Report No** | 3 |
+| **Sprint Start** | 03/04/2026 |  |  | **Report No** | 4 |
 | --- | --- | --- | --- | --- | --- |
-| **Sprint End** | 02/04/2026 |  |  |  |  |
+| **Sprint End** | 10/04/2026 |  |  |  |  |
 | **Project Name** | CustomERP |  |  | **Team No** | 10 |
 | **Team Members** | Ahmet Selim Alpkirisci (ASA) | Burak Tan Bilgi (BTB) | Orhan Demir Demiroz (ODD) | Tunc Erdoganlar (TE) | Elkhan Abbasov (EA) |
 | **Prepared by** | Ahmet Selim Alpkirisci, Burak Tan Bilgi |  |  |  |  |
 
 **Last Sprint** List what you have accomplished last sprint
 
-- Separate AI by function into five agents (distributor, inventory, invoice, hr, integrator). (BTB)
-- Build routing logic (Distributor AI) that chooses the correct model(s) from user input. (ASA)
-- Implement backend API usage logic to call the AI gateway and normalize responses. (ODD)
-- Implement module-combiner (Integrator AI) call flow for multi-module final SDF assembly. (BTB)
-- Define mandatory module question set for inventory. (ASA)
-- Define mandatory module question set for invoice. (ASA)
-- Define mandatory module question set for hr. (ASA)
-- Define fixed answer-to-SDF field mapping for mandatory inventory questions. (ASA)
-- Define fixed answer-to-SDF field mapping for mandatory invoice questions. (ASA)
-- Define fixed answer-to-SDF field mapping for mandatory hr questions. (ASA)
-- Build pre-SDF UI flow to ask mandatory module questions and collect answers. (EA)
-- Add prefilled SDF draft screen where user can review and edit mandatory fields before AI generation. (EA)
-- Save mandatory-question templates, template version, and user answers in database. (ODD)
-- Build backend step that manually fills SDF draft from mandatory-question answers before AI call. (ODD)
-- Send mandatory answers and prefilled SDF draft to selected SDF generator AI in one structured input. (BTB)
-- Validate final AI SDF output against mandatory-question answers so required fields are always generated. (BTB)
-- Research real ERP use-cases for inventory module and define missing capability list. (ASA)
-- Research real ERP use-cases for invoice module and define missing capability list. (ASA)
-- Research real ERP use-cases for hr module and define missing capability list. (ASA)
-- Implement new inventory mixins based on research findings. (ODD)
-- Implement new invoice mixins based on research findings. (ODD)
-- Implement new hr mixins based on research findings. (ODD)
-- Update frontend pages to support new inventory capabilities from mixins. (EA)
-- Update frontend pages to support new invoice capabilities from mixins. (EA)
-- Update frontend pages to support new hr capabilities from mixins. (EA)
-- Replace generated ERP flat-file storage with database storage design. (ODD)
-- Update generated backend templates to use database repositories instead of flat files. (ODD)
-- Update assembler output so generated ERP includes database setup/config. (ASA)
-- Robustness overhaul: fix prefilledSdfService entity generation for all modules. (ASA)
-- Robustness overhaul: fix race conditions and transactional safety in mixins. (ODD)
-- Robustness overhaul: add configurable field names and remove hardcoded values in mixins. (ODD)
-- Robustness overhaul: update question packs with sdf_impact_notes and capability docs. (ASA)
-- Run default-question-to-prefilled-SDF flow tests and regression checks. (TE)
-- Run module-capability regression scenarios for new mixins/pages. (TE)
-- Run generated ERP database-mode verification across inventory, invoice, and hr outputs. (TE)
+- Update domain model prompts (HR, Inventory, Invoice) to output clarifying_questions array alongside partial SDF. (BTB)
+- Update Integrator AI to deduplicate, group, and prioritize clarifying questions from all domain models. (BTB)
+- Implement iterative orchestration loop: re-dispatch user answers through Distributor until domain models return empty clarifying_questions. (BTB)
+- Add termination condition logic so pipeline stops when all domain models signal SDF completeness. (BTB)
+- Redesign AI flow so SDF generation runs once after final confirmation of the iterative loop. (BTB)
+- Tune AI prompts and guardrails for lower output variance across loop iterations. (BTB)
+- Implement backend state management for iterative loop: persist partial SDFs, questions, and user answers per cycle. (ODD)
+- Store requirement drafts and conversation deltas without triggering repeated SDF generation calls. (ODD)
+- Track token usage per project per loop cycle and show cost-control metrics. (ODD)
+- Build frontend UI for iterative clarifying questions: display grouped questions, collect answers, show loop progress. (EA)
+- Add explicit "Generate SDF now" action after iterative loop confirms SDF is complete. (EA)
+- Improve UI behavior for long generation waits and error states during loop cycles. (EA)
+- Create AzureOpenAIClient implementing BaseAIClient with token tracking. (BTB)
+- Update config.py + .env.example for multi-provider with per-agent provider selection. (BTB)
+- Add GenerationResult dataclass to base_client.py, update GeminiClient to return token counts. (BTB)
+- Update MultiAgentService._create_client to select provider based on agent config with fallback. (BTB)
+- Create step-by-step Azure OpenAI setup guide (azure_openai_setup_guide.md). (DOC)
+- Design cross-platform packaging strategy (Node.js + SQLite standalone bundle). (ASA)
+- Bundle Node.js runtime and SQLite into the generated ERP package (StandalonePackager). (ODD)
+- Generate platform-specific startup scripts (start.bat, start.sh, start.command) with friendly banners and error handling. (ODD)
+- Build backend orchestration to package, zip, and stream the generated ERP as a download (erpGenerationService). (ODD)
+- Update assembler output to produce a self-contained standalone package with SQLite backend. (ASA)
+- Add guided download wizard UI with OS auto-detection, post-download instructions, and SMB-friendly explanations. (EA)
 
 ---
 
 **Unfinished Tasks (Backlog)** List things you were supposed to have finished but did not (and why not), partially completed, and tasks you have not started. All unfinished tasks.
+
+Sprint 4 is the final sprint before demo day. All remaining tasks are scheduled in the Next Sprint plan below; no further deferrals are possible.
+
+---
+
+**Next Sprint** List what you plan to do next Sprint. All tasks for the next sprint.
+
+Sprint 4 planned tasks:
 
 **AI Chat Mode and Build Mode:**
 - Design AI chat mode prompts for feature discussion before build mode. (BTB)
@@ -56,6 +52,9 @@
 - Implement mode state management for chat mode and build mode per project session. (ODD)
 - Persist pre-build conversation and decision summary before SDF generation. (ODD)
 - Add UI flow for chat mode with explicit "switch to build" confirmation step. (EA)
+
+**One-Click Executable ERP (remaining):**
+- Add generated ERP start status and health tracking in platform UI. (EA)
 
 **SDF Review and Approval Workflow:**
 - Define review checklist and approval criteria for generated SDF. (ASA)
@@ -104,7 +103,7 @@
 - Test one-click executable packaging on Windows, Mac, and Linux environments. (TE)
 - Test SDF review/approve/reject/revise workflow end-to-end. (TE)
 - Test project and account soft-delete behavior and list filtering. (TE)
-- Run module-capability regression scenarios to verify Sprint 2 fixes hold. (TE)
+- Run module-capability regression scenarios to verify Sprint 2 and Sprint 3 fixes hold. (TE)
 - Prepare continuous regression pack for review+approval flows. (TE)
 - Test deployment pipeline and production environment readiness. (TE)
 - Test user/group/permission generation and runtime management in generated ERP. (TE)
@@ -113,60 +112,16 @@
 
 ---
 
-**Next Sprint** List what you plan to do next Sprint. All tasks for the next sprint.
-
-Sprint 3 planned tasks:
-
-**Iterative AI Clarification Loop:**
-- Update domain model prompts (HR, Inventory, Invoice) to output clarifying_questions array alongside partial SDF. (BTB)
-- Update Integrator AI to deduplicate, group, and prioritize clarifying questions from all domain models. (BTB)
-- Implement iterative orchestration loop: re-dispatch user answers through Distributor until domain models return empty clarifying_questions. (BTB)
-- Add termination condition logic so pipeline stops when all domain models signal SDF completeness. (BTB)
-- Redesign AI flow so SDF generation runs once after final confirmation of the iterative loop. (BTB)
-- Tune AI prompts and guardrails for lower output variance across loop iterations. (BTB)
-- Implement backend state management for iterative loop: persist partial SDFs, questions, and user answers per cycle. (ODD)
-- Store requirement drafts and conversation deltas without triggering repeated SDF generation calls. (ODD)
-- Track token usage per project per loop cycle and show cost-control metrics. (ODD)
-- Build frontend UI for iterative clarifying questions: display grouped questions, collect answers, show loop progress. (EA)
-- Add explicit "Generate SDF now" action after iterative loop confirms SDF is complete. (EA)
-- Improve UI behavior for long generation waits and error states during loop cycles. (EA)
-
-**Azure OpenAI Multi-Provider Support:**
-- Create AzureOpenAIClient implementing BaseAIClient with token tracking. (BTB)
-- Update config.py + .env.example for multi-provider with per-agent provider selection. (BTB)
-- Add GenerationResult dataclass to base_client.py, update GeminiClient to return token counts. (BTB)
-- Update MultiAgentService._create_client to select provider based on agent config with fallback. (BTB)
-- Create step-by-step Azure OpenAI setup guide (azure_openai_setup_guide.md). (DOC)
-
-**One-Click Executable ERP (Standalone Packaging):**
-- Design cross-platform packaging strategy (Node.js + SQLite standalone bundle). (ASA)
-- Bundle Node.js runtime and SQLite into the generated ERP package (StandalonePackager). (ODD)
-- Generate platform-specific startup scripts (start.bat, start.sh, start.command) with friendly banners and error handling. (ODD)
-- Build backend orchestration to package, zip, and stream the generated ERP as a download (erpGenerationService). (ODD)
-- Update assembler output to produce a self-contained standalone package with SQLite backend. (ASA)
-- Add guided download wizard UI with OS auto-detection, post-download instructions, and SMB-friendly explanations. (EA)
-- Add generated ERP start status and health tracking in platform UI. (EA)
-
-**Sprint Coordination and Testing:**
-- Coordinate sprint task order and blocker removal. (ASA)
-- Keep merge and review discipline across the sprint. (ASA)
-- Test iterative clarifying-question loop end-to-end across single and multi-module projects. (TE)
-- Test Azure OpenAI client integration and multi-provider switching. (TE)
-- Test one-click executable packaging on Windows, Mac, and Linux environments. (TE)
-- Run module-capability regression scenarios to verify Sprint 2 fixes hold. (TE)
-- Log defects and retest after fixes continuously. (TE)
-
----
-
 **Risks & Issues** List any problems, dependencies, or risks that may affect you from accomplishing your task
 
-- Iterative AI loop adds complexity to the multi-agent pipeline; risk of increased token usage and latency per project. Owner: BTB.
-- Azure OpenAI integration depends on API access provisioning and quota allocation from Azure portal. Owner: BTB.
-- Cross-platform standalone packaging must work on Windows, Mac, and Linux without requiring per-user toolchain installation. Owner: ASA.
-- Token cost tracking accuracy depends on correct API response parsing from both Gemini and Azure providers. Owner: ODD.
-- Iterative loop UX must remain intuitive; risk of users feeling stuck in repeated question cycles. Owner: EA.
-- Sprint schedule consolidation from 5 to 4 sprints increases Sprint 4 scope pressure; any Sprint 3 deferrals will compound. Owner: ASA.
+- Sprint 4 is the final sprint with all remaining tasks consolidated; time pressure is critical. Owner: ASA.
+- AI chat mode and build mode add UX complexity that must not block the core generation flow. Owner: EA.
+- LoRA fine-tuning quality depends on training data volume and diversity. Owner: BTB.
+- Droplet deployment and production infrastructure must be stable before demo day. Owner: ASA.
 - Testing cross-platform executables requires access to all three OS environments. Owner: TE.
+- Review/approval workflow must integrate cleanly with existing iterative loop and SDF generation. Owner: ASA.
+- User/group/permission generation adds schema and backend complexity across all modules. Owner: ODD.
+- Iterative AI loop token cost must be monitored in production. Owner: BTB.
 
 ---
 
@@ -179,13 +134,36 @@ Sprint 3 planned tasks:
 - 24/02/2026 - Sprint 1 completion target
 - 12/03/2026 - Sprint 2 completion target
 - 02/04/2026 - Sprint 3 completion target
-- 10/04/2026 - Sprint 4 completion target
+- 21/04/2026 - Sprint 4 completion target
 - 29/04/2026 - Demo day
 
 ---
 
 **ALL COMPLETED TASKS** List all completed tasks
 
+- Sprint 3 - Update domain model prompts (HR, Inventory, Invoice) to output clarifying_questions array alongside partial SDF completed. (BTB)
+- Sprint 3 - Update Integrator AI to deduplicate, group, and prioritize clarifying questions from all domain models completed. (BTB)
+- Sprint 3 - Implement iterative orchestration loop: re-dispatch user answers through Distributor until domain models return empty clarifying_questions completed. (BTB)
+- Sprint 3 - Add termination condition logic so pipeline stops when all domain models signal SDF completeness completed. (BTB)
+- Sprint 3 - Redesign AI flow so SDF generation runs once after final confirmation of the iterative loop completed. (BTB)
+- Sprint 3 - Tune AI prompts and guardrails for lower output variance across loop iterations completed. (BTB)
+- Sprint 3 - Implement backend state management for iterative loop: persist partial SDFs, questions, and user answers per cycle completed. (ODD)
+- Sprint 3 - Store requirement drafts and conversation deltas without triggering repeated SDF generation calls completed. (ODD)
+- Sprint 3 - Track token usage per project per loop cycle and show cost-control metrics completed. (ODD)
+- Sprint 3 - Build frontend UI for iterative clarifying questions: display grouped questions, collect answers, show loop progress completed. (EA)
+- Sprint 3 - Add explicit "Generate SDF now" action after iterative loop confirms SDF is complete completed. (EA)
+- Sprint 3 - Improve UI behavior for long generation waits and error states during loop cycles completed. (EA)
+- Sprint 3 - Create AzureOpenAIClient implementing BaseAIClient with token tracking completed. (BTB)
+- Sprint 3 - Update config.py + .env.example for multi-provider with per-agent provider selection completed. (BTB)
+- Sprint 3 - Add GenerationResult dataclass to base_client.py, update GeminiClient to return token counts completed. (BTB)
+- Sprint 3 - Update MultiAgentService._create_client to select provider based on agent config with fallback completed. (BTB)
+- Sprint 3 - Create step-by-step Azure OpenAI setup guide (azure_openai_setup_guide.md) completed. (DOC)
+- Sprint 3 - Design cross-platform packaging strategy (Node.js + SQLite standalone bundle) completed. (ASA)
+- Sprint 3 - Bundle Node.js runtime and SQLite into the generated ERP package (StandalonePackager) completed. (ODD)
+- Sprint 3 - Generate platform-specific startup scripts (start.bat, start.sh, start.command) with friendly banners and error handling completed. (ODD)
+- Sprint 3 - Build backend orchestration to package, zip, and stream the generated ERP as a download (erpGenerationService) completed. (ODD)
+- Sprint 3 - Update assembler output to produce a self-contained standalone package with SQLite backend completed. (ASA)
+- Sprint 3 - Add guided download wizard UI with OS auto-detection, post-download instructions, and SMB-friendly explanations completed. (EA)
 - Sprint 2 - Separate AI by function into five agents (distributor, inventory, invoice, hr, integrator) completed. (BTB)
 - Sprint 2 - Build routing logic (Distributor AI) that chooses the correct model(s) from user input completed. (ASA)
 - Sprint 2 - Implement backend API usage logic to call the AI gateway and normalize responses completed. (ODD)
@@ -249,4 +227,4 @@ Sprint 3 planned tasks:
 - Sprint 0 - Initial inventory assembler structure completed. (ASA)
 - Sprint 0 - Local Docker setup stabilization completed. (ASA)
 
-Next Sprint Meeting: 03/04/2026 17:30
+Next Sprint Meeting: 10/04/2026 17:30

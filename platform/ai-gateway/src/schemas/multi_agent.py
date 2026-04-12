@@ -69,6 +69,19 @@ class IntegratorOutput(BaseModel):
     warnings: List[str] = Field(default_factory=list)
 
 
+class AgentStepLog(BaseModel):
+    """Captured input/output for a single agent call in the pipeline."""
+    agent: str
+    model: str = ""
+    temperature: float = 0.0
+    input_summary: Dict[str, Any] = Field(default_factory=dict)
+    output_parsed: Dict[str, Any] = Field(default_factory=dict)
+    raw_response: str = Field(default="", description="Truncated raw AI response text")
+    tokens_in: int = 0
+    tokens_out: int = 0
+    duration_ms: int = 0
+
+
 class PipelineResult(BaseModel):
     """Result of the complete multi-agent pipeline."""
     success: bool
@@ -83,6 +96,10 @@ class PipelineResult(BaseModel):
     token_usage: Dict[str, Any] = Field(
         default_factory=dict,
         description="Per-agent and total token usage for this pipeline run"
+    )
+    step_logs: List[AgentStepLog] = Field(
+        default_factory=list,
+        description="Per-agent step logs for training data collection"
     )
     errors: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)

@@ -33,7 +33,7 @@ class AuthService {
     const insertQuery = `
       INSERT INTO users (user_id, name, email, password_hash, created_at, updated_at)
       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING user_id, name, email, created_at
+      RETURNING user_id, name, email, is_admin, created_at
     `;
     
     const result = await query(insertQuery, [
@@ -46,11 +46,11 @@ class AuthService {
     const user = result.rows[0];
     logger.info(`User registered: ${user.email}`);
 
-    // Generate JWT token
     const token = generateToken({
       userId: user.user_id,
       email: user.email,
       name: user.name,
+      isAdmin: !!user.is_admin,
     });
 
     return {
@@ -59,16 +59,12 @@ class AuthService {
         id: user.user_id,
         name: user.name,
         email: user.email,
+        is_admin: !!user.is_admin,
         created_at: user.created_at,
       },
     };
   }
 
-  /**
-   * Login a user
-   * @param {Object} credentials - { email, password }
-   * @returns {Promise<{token: string, user: Object}>}
-   */
   async login({ email, password }) {
     const user = await this.findByEmail(email);
     if (!user) {
@@ -93,11 +89,11 @@ class AuthService {
 
     logger.info(`User logged in: ${email}`);
 
-    // Generate JWT token
     const token = generateToken({
       userId: user.user_id,
       email: user.email,
       name: user.name,
+      isAdmin: !!user.is_admin,
     });
 
     return {
@@ -106,6 +102,7 @@ class AuthService {
         id: user.user_id,
         name: user.name,
         email: user.email,
+        is_admin: !!user.is_admin,
         created_at: user.created_at,
       },
     };
@@ -118,7 +115,7 @@ class AuthService {
    */
   async findById(userId) {
     const result = await query(
-      'SELECT user_id, name, email, created_at, updated_at FROM users WHERE user_id = $1 AND deleted_at IS NULL',
+      'SELECT user_id, name, email, is_admin, created_at, updated_at FROM users WHERE user_id = $1 AND deleted_at IS NULL',
       [userId]
     );
     
@@ -129,6 +126,7 @@ class AuthService {
       id: user.user_id,
       name: user.name,
       email: user.email,
+      is_admin: !!user.is_admin,
       created_at: user.created_at,
       updated_at: user.updated_at,
     };
@@ -141,7 +139,7 @@ class AuthService {
    */
   async findByEmail(email) {
     const result = await query(
-      'SELECT user_id, name, email, password_hash, deleted_at, created_at, updated_at FROM users WHERE email = $1',
+      'SELECT user_id, name, email, password_hash, is_admin, deleted_at, created_at, updated_at FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
     );
     return result.rows[0] || null;

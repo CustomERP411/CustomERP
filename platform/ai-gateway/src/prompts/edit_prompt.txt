@@ -42,19 +42,25 @@
 #   - Row quick actions (next to Edit/Delete): `inventory_ops.quick_actions` (true or {receive:true, sell:true})
 # - Quantity wording: prefer `quantity_mode: "change"` (alias "delta") for signed quantity change UX.
 #
-# HR PATTERN (AUTO-INCLUDE ALL STANDARD ENTITIES):
-When HR is enabled, ALWAYS include ALL THREE standard entities with their standard fields:
-- `departments` (module: hr): name, location, manager_id
-- `employees` (module: hr): first_name, last_name, email, phone, job_title, hire_date, department_id, salary, status. Set `features.audit_trail: true`.
-- `leaves` (module: hr): employee_id, leave_type, start_date, end_date, reason, status
-DO NOT invent other fields. Use ONLY these standard fields for HR entities.
+# DOMAIN-SPECIFIC NAMING:
+# If the user asks to rename an entity, update the slug, display_name, and all reference fields pointing to it.
+# Use the user's own terminology (e.g. "branches" instead of "departments", "tires" instead of "products").
 
-# INVOICE PATTERN (AUTO-INCLUDE ALL STANDARD ENTITIES):
-When Invoice is enabled, ALWAYS include ALL THREE standard entities with their standard fields:
-- `customers` (module: shared): company_name, email, phone, address, vat_number
-- `invoices` (module: invoice): invoice_number, customer_id, issue_date, due_date, status, subtotal, tax_total, grand_total. Set `features.print_invoice: true`.
-- `invoice_items` (module: invoice): invoice_id, description, quantity, unit_price, line_total
-DO NOT invent other fields like `monitor_id`, `product_id`. Use ONLY these standard fields for Invoice entities.
+# HR PATTERN (MINIMUM REQUIRED FIELDS):
+When HR is enabled, ALWAYS include ALL THREE standard entities with at minimum these fields:
+- departments entity (module: hr): name, location, manager_id
+- employees entity (module: hr): first_name, last_name, email, phone, job_title, hire_date, department reference, salary, status. Set `features.audit_trail: true`.
+- leaves entity (module: hr): employee reference, leave_type, start_date, end_date, reason, status
+You MAY add extra fields the user requests or that fit the business description. You MAY use domain-specific
+entity slugs if the user's terminology differs from these defaults.
+
+# INVOICE PATTERN (MINIMUM REQUIRED FIELDS):
+When Invoice is enabled, ALWAYS include ALL THREE standard entities with at minimum these fields:
+- customers entity (module: shared): company_name, email, phone, address, vat_number
+- invoices entity (module: invoice): invoice_number, customer reference, issue_date, due_date, status, subtotal, tax_total, grand_total. Set `features.print_invoice: true`.
+- invoice_items entity (module: invoice): invoice reference, description, quantity, unit_price, line_total
+You MAY add extra fields the user requests or that fit the business description. You MAY use domain-specific
+entity slugs if the user's terminology differs from these defaults.
 
 # COMPLETENESS RULE (CRITICAL):
 # Your output must be a COMPLETE SDF. Every entity MUST include a `fields` array.

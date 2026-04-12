@@ -182,8 +182,8 @@ module.exports = router;
     let rbacSetup = '';
 
     if (this._accessControlEnabled) {
-      rbacImport = `const { rbacLoader, requirePermission } = require('../rbac/rbacMiddleware');\nconst rbacRoutes = require('../rbac/rbacRoutes');\n`;
-      rbacSetup = `router.use(rbacLoader);\nrouter.use('/auth', rbacRoutes);\n`;
+      rbacImport = `const { rbacLoader, requirePermission } = require('../rbac/rbacMiddleware');\nconst rbacRoutes = require('../rbac/rbacRoutes');\nconst { userEntityGuard } = rbacRoutes;\n`;
+      rbacSetup = `router.use(rbacLoader);\nrouter.use('/auth', rbacRoutes);\nrouter.use('/__erp_users', userEntityGuard());\n`;
     }
 
     entities.forEach(entity => {

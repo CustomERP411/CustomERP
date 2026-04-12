@@ -11,21 +11,18 @@ import type {
 
 import {
   MODULE_KEYS, STEPS, BUSINESS_QUESTIONS,
-  SlideIn, IconCheck, summarizeModulesForPreview,
+  SlideIn, IconCheck,
   detectUserPlatform,
 } from '../components/project/projectConstants';
 
 import DefaultQuestions from '../components/project/DefaultQuestions';
 import BusinessQuestions from '../components/project/BusinessQuestions';
-import AccessRequirements, { createDefaultAccessRequirement, type AccessRequirementItem } from '../components/project/AccessRequirements';
 import type { ReviewHistoryItem } from '../components/project/ReviewApprovalPanel';
 import { buildPreview } from '../components/project/buildPreview';
 import ModuleSelector from '../components/project/ModuleSelector';
-import PrefilledConfigSummary from '../components/project/PrefilledConfigSummary';
-import ChatPanel from '../components/project/ChatPanel';
 import PostGenerationPanel from '../components/project/PostGenerationPanel';
-
-type ProjectMode = 'chat' | 'build';
+import GenerationModal from '../components/project/GenerationModal';
+import { useChatContext } from '../context/ChatContext';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -37,7 +34,6 @@ export default function ProjectDetailPage() {
   const [businessAnswers, setBusinessAnswers] = useState<Record<string, string>>({});
   const [businessStep, setBusinessStep] = useState(0);
   const [sdf, setSdf] = useState<AiGatewaySdf | null>(null);
-  const [prefilledSdf, setPrefilledSdf] = useState<AiGatewaySdf | null>(null);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [defaultQuestions, setDefaultQuestions] = useState<DefaultModuleQuestion[]>([]);
   const [defaultAnswersById, setDefaultAnswersById] = useState<Record<string, string | string[]>>({});
@@ -52,7 +48,6 @@ export default function ProjectDetailPage() {
   const [saving, setSaving] = useState(false);
   const [standaloneRunning, setStandaloneRunning] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [showPrefilledJson, setShowPrefilledJson] = useState(false);
   const [draftJson, setDraftJson] = useState('');
   const [draftError, setDraftError] = useState('');
   const [aiEditText, setAiEditText] = useState('');
@@ -60,43 +55,22 @@ export default function ProjectDetailPage() {
   const [clarifyRound, setClarifyRound] = useState(0);
   const [sdfComplete, setSdfComplete] = useState(false);
   const [analyzePhase, setAnalyzePhase] = useState('');
-  const [projectMode, setProjectMode] = useState<ProjectMode>('chat');
-  const [chatHistory, setChatHistory] = useState<{ role: string; content: string }[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatSuggestedModules, setChatSuggestedModules] = useState<string[]>([]);
-  const [chatDiscussionPoints, setChatDiscussionPoints] = useState<string[]>([]);
-  const [chatConfidence, setChatConfidence] = useState<string>('');
   const [sdfVersion, setSdfVersion] = useState<number | null>(null);
   const [reviewHistory, setReviewHistory] = useState<ReviewHistoryItem[]>([]);
   const [reviewActionRunning, setReviewActionRunning] = useState(false);
   const [showAdvancedView, setShowAdvancedView] = useState(false);
-  const [accessRequirements, setAccessRequirements] = useState<AccessRequirementItem[]>([
-    {
-      ...createDefaultAccessRequirement(),
-      groupName: 'Administrators',
-      userCount: '1',
-      responsibilities: 'Manage ERP users, groups, and system-wide access rules.',
-      permissions: ['manage_users', 'manage_groups', 'manage_permissions', 'view_records'],
-    },
-  ]);
+  const [genResult, setGenResult] = useState<'success' | 'error' | null>(null);
+  const [genErrorMsg, setGenErrorMsg] = useState('');
 
+  const { setProjectContext } = useChatContext();
   const detectedPlatform = useMemo(() => detectUserPlatform(), []);
   const running = analyzing || clarifying || saving || reviewActionRunning;
-  const projectModeStorageKey = useMemo(
-    () => (projectId ? `project_mode:${projectId}` : ''),
-    [projectId]
-  );
   const selectedModulesStorageKey = useMemo(
     () => (projectId ? `project_selected_modules:${projectId}` : ''),
     [projectId],
   );
   const businessAnswersStorageKey = useMemo(
     () => (projectId ? `project_business_answers:${projectId}` : ''),
-    [projectId],
-  );
-  const accessRequirementsStorageKey = useMemo(
-    () => (projectId ? `project_access_requirements:${projectId}` : ''),
     [projectId],
   );
   const reviewHistoryStorageKey = useMemo(
@@ -169,7 +143,6 @@ export default function ProjectDetailPage() {
     }
     setDefaultQuestions(questionList);
     setDefaultAnswersById(answers);
-    setPrefilledSdf(payload?.prefilled_sdf || null);
     setDefaultCompletion(payload?.prefill_validation || payload?.completion || null);
   };
 
@@ -217,7 +190,6 @@ export default function ProjectDetailPage() {
         ]);
         if (cancelled) return;
         setProject(p);
-        if (p.mode === 'chat' || p.mode === 'build') setProjectMode(p.mode);
         const storedModules = normalizeModuleList(readStorageJson(selectedModulesStorageKey));
         const storedBusinessAnswers = normalizeBusinessAnswerMap(readStorageJson(businessAnswersStorageKey));
         const conversations = Array.isArray(conversationsResponse?.conversations)
@@ -297,20 +269,6 @@ export default function ProjectDetailPage() {
   useEffect(() => { if (sdf) { setDraftJson(JSON.stringify(sdf, null, 2)); setDraftError(''); } }, [sdf]);
 
   useEffect(() => {
-    if (!projectModeStorageKey) return;
-    try {
-      const savedMode = window.localStorage.getItem(projectModeStorageKey);
-      if (savedMode === 'chat' || savedMode === 'build') setProjectMode(savedMode);
-      else setProjectMode('chat');
-    } catch { setProjectMode('chat'); }
-  }, [projectModeStorageKey]);
-
-  useEffect(() => {
-    if (!projectModeStorageKey) return;
-    try { window.localStorage.setItem(projectModeStorageKey, projectMode); } catch { /* ignore */ }
-  }, [projectMode, projectModeStorageKey]);
-
-  useEffect(() => {
     if (!selectedModulesStorageKey) return;
     try { window.localStorage.setItem(selectedModulesStorageKey, JSON.stringify(selectedModules)); } catch { /* ignore */ }
   }, [selectedModules, selectedModulesStorageKey]);
@@ -319,35 +277,6 @@ export default function ProjectDetailPage() {
     if (!businessAnswersStorageKey) return;
     try { window.localStorage.setItem(businessAnswersStorageKey, JSON.stringify(businessAnswers)); } catch { /* ignore */ }
   }, [businessAnswers, businessAnswersStorageKey]);
-
-  useEffect(() => {
-    if (!accessRequirementsStorageKey) return;
-    try {
-      const raw = window.localStorage.getItem(accessRequirementsStorageKey);
-      if (!raw) return;
-      const parsed: unknown = JSON.parse(raw);
-      if (!Array.isArray(parsed) || parsed.length === 0) return;
-      const normalized = parsed
-        .map((item, idx) => {
-          const candidate = typeof item === 'object' && item !== null ? item as Partial<AccessRequirementItem> : {};
-          return {
-            id: typeof candidate.id === 'string' ? candidate.id : `group-${idx + 1}`,
-            groupName: typeof candidate.groupName === 'string' ? candidate.groupName : '',
-            userCount: typeof candidate.userCount === 'string' ? candidate.userCount : '',
-            responsibilities: typeof candidate.responsibilities === 'string' ? candidate.responsibilities : '',
-            permissions: Array.isArray(candidate.permissions) ? candidate.permissions.map(String) : [],
-            customPermissions: typeof candidate.customPermissions === 'string' ? candidate.customPermissions : '',
-          };
-        })
-        .filter((item) => item.groupName || item.userCount || item.responsibilities || item.permissions.length || item.customPermissions);
-      if (normalized.length > 0) setAccessRequirements(normalized);
-    } catch { /* ignore */ }
-  }, [accessRequirementsStorageKey]);
-
-  useEffect(() => {
-    if (!accessRequirementsStorageKey) return;
-    try { window.localStorage.setItem(accessRequirementsStorageKey, JSON.stringify(accessRequirements)); } catch { /* ignore */ }
-  }, [accessRequirements, accessRequirementsStorageKey]);
 
   useEffect(() => {
     if (!reviewHistoryStorageKey) return;
@@ -381,51 +310,52 @@ export default function ProjectDetailPage() {
     try { window.localStorage.setItem(reviewHistoryStorageKey, JSON.stringify(reviewHistory)); } catch { /* ignore */ }
   }, [reviewHistory, reviewHistoryStorageKey]);
 
+  // Feed project context to the global chat widget
+  useEffect(() => {
+    if (!project || !projectId) {
+      setProjectContext(null);
+      return;
+    }
+    const sdfStatus: 'none' | 'generated' | 'reviewed' | 'approved' =
+      project.status === 'Approved' ? 'approved'
+        : sdf ? (project.status === 'Ready' ? 'reviewed' : 'generated')
+        : 'none';
+    setProjectContext({
+      projectId,
+      projectName: project.name,
+      description: project.description || '',
+      selectedModules,
+      businessAnswers: Object.fromEntries(
+        BUSINESS_QUESTIONS.map((q) => [q.id, { question: q.question, answer: (businessAnswers[q.id] || '').trim() }])
+      ),
+      currentStep: STEPS[currentStep] ?? 'Choose Modules',
+      sdfStatus: sdfStatus,
+    });
+    return () => setProjectContext(null);
+  }, [projectId, project, selectedModules, businessAnswers, sdf, currentStep, setProjectContext]);
+
   /* ── Derived state ──────────────────────────────────────── */
 
-  const accessRequirementsSummary = useMemo(() => {
-    const lines: string[] = [];
-    accessRequirements.forEach((item, idx) => {
-      const hasContent =
-        item.groupName.trim() || item.userCount.trim() || item.responsibilities.trim() ||
-        item.permissions.length > 0 || item.customPermissions.trim();
-      if (!hasContent) return;
-      lines.push(`Group ${idx + 1}: ${item.groupName.trim() || 'Unnamed group'}`);
-      if (item.userCount.trim()) lines.push(`- User count: ${item.userCount.trim()}`);
-      if (item.responsibilities.trim()) lines.push(`- Responsibilities: ${item.responsibilities.trim()}`);
-      if (item.permissions.length > 0) lines.push(`- Required permissions: ${item.permissions.join(', ')}`);
-      if (item.customPermissions.trim()) lines.push(`- Custom permissions: ${item.customPermissions.trim()}`);
-    });
-    return lines.join('\n');
-  }, [accessRequirements]);
-
   const description = useMemo(() => {
-    const businessText = BUSINESS_QUESTIONS
+    return BUSINESS_QUESTIONS
       .map((q) => {
         const answer = (businessAnswers[q.id] || '').trim();
         return answer ? `${q.question}\n${answer}` : '';
       })
       .filter(Boolean)
       .join('\n\n');
-    if (!accessRequirementsSummary.trim()) return businessText;
-    return `${businessText}\n\nERP Access Requirements\n${accessRequirementsSummary}`.trim();
-  }, [businessAnswers, accessRequirementsSummary]);
+  }, [businessAnswers]);
 
   const businessComplete = useMemo(() =>
     BUSINESS_QUESTIONS.filter((q) => !q.optional).every((q) => (businessAnswers[q.id] || '').trim().length > 0),
     [businessAnswers]
   );
 
-  const accessRequirementsComplete = useMemo(
-    () => accessRequirements.some((item) => item.groupName.trim().length > 0),
-    [accessRequirements],
-  );
-
   const visibleDefaultQuestions = useMemo(() => defaultQuestions.filter(evaluateQuestionVisibility), [defaultQuestions, defaultAnswersById]);
 
   const canAnalyze = useMemo(
-    () => businessComplete && accessRequirementsComplete && defaultCompletion?.is_complete === true && selectedModules.length > 0,
-    [businessComplete, accessRequirementsComplete, defaultCompletion, selectedModules.length],
+    () => businessComplete && defaultCompletion?.is_complete === true && selectedModules.length > 0,
+    [businessComplete, defaultCompletion, selectedModules.length],
   );
   const canSaveDefaultAnswers = useMemo(() => selectedModules.length > 0 && defaultQuestions.length > 0, [selectedModules.length, defaultQuestions.length]);
   const canSubmitAnswers = useMemo(() => !!sdf && questions.length > 0 && questions.every((q) => (answersById[q.id] || '').trim().length > 0), [sdf, questions, answersById]);
@@ -433,10 +363,10 @@ export default function ProjectDetailPage() {
   const currentStep = useMemo(() => {
     if (!selectedModules.length) return 0;
     if (!defaultCompletion?.is_complete) return 1;
-    if (!businessComplete || !accessRequirementsComplete) return 2;
+    if (!businessComplete) return 2;
     if (sdf) return 4;
     return 3;
-  }, [selectedModules, defaultCompletion, businessComplete, accessRequirementsComplete, sdf]);
+  }, [selectedModules, defaultCompletion, businessComplete, sdf]);
 
   const questionsByModule = useMemo(() => {
     const groups: Record<string, DefaultModuleQuestion[]> = {};
@@ -455,11 +385,6 @@ export default function ProjectDetailPage() {
     }
     return counts;
   }, [visibleDefaultQuestions, defaultAnswersById]);
-
-  const prefilledModuleSummary = useMemo(
-    () => prefilledSdf ? summarizeModulesForPreview((prefilledSdf as any).modules || {}, (prefilledSdf as any).entities) : [],
-    [prefilledSdf]
-  );
 
   const preview = useMemo(() => sdf ? buildPreview(sdf) : null, [sdf]);
 
@@ -487,38 +412,23 @@ export default function ProjectDetailPage() {
     finally { setSavingDefaultAnswers(false); }
   };
 
-  const switchToChatMode = () => {
-    setProjectMode('chat');
-    if (projectId) void projectService.updateProject(projectId, { mode: 'chat' });
+  const mapGenerationError = (err: any): string => {
+    const raw = err?.response?.data?.error || err?.message || '';
+    console.error('ERP generation error:', raw, err);
+    if (err?.code === 'ECONNABORTED') return 'Generation is taking longer than expected. Your inputs are saved — please try again in a few minutes.';
+    if (!err?.response && err?.message?.toLowerCase().includes('network')) return 'Our AI service is temporarily unreachable. We\'re working on it — please try again in a few minutes.';
+    if (err?.response?.status >= 500) return 'Our AI service encountered an issue. We\'re working on it — please try again in a few minutes.';
+    return 'Something went wrong during generation. Please try again.';
   };
 
-  const sendChatMessage = async (messageOverride?: string) => {
-    const msg = (messageOverride ?? chatInput).trim();
-    if (!msg || !projectId || chatLoading) return;
-    setChatLoading(true);
-    setChatInput('');
-    const updatedHistory = [...chatHistory, { role: 'user', content: msg }];
-    setChatHistory(updatedHistory);
-    try {
-      const res = await projectService.chatWithProject(projectId, msg, {
-        conversation_history: updatedHistory,
-        selected_modules: selectedModules,
-        business_answers: Object.fromEntries(
-          BUSINESS_QUESTIONS.map((q) => [q.id, { question: q.question, answer: (businessAnswers[q.id] || '').trim() }])
-        ),
-      });
-      setChatHistory((prev) => [...prev, { role: 'assistant', content: res.reply }]);
-      if (res.suggested_modules?.length) setChatSuggestedModules(res.suggested_modules);
-      if (res.discussion_points?.length) setChatDiscussionPoints(res.discussion_points);
-      if (res.confidence) setChatConfidence(res.confidence);
-    } catch {
-      setChatHistory((prev) => [...prev, { role: 'assistant', content: 'Sorry, I could not process your message. Please try again.' }]);
-    } finally { setChatLoading(false); }
+  const closeGenerationModal = () => {
+    setAnalyzePhase(''); setGenResult(null); setGenErrorMsg('');
   };
 
   const analyze = async () => {
     if (!projectId) return;
-    setAnalyzing(true); setError(''); setAnalyzePhase('Saving your answers...');
+    setAnalyzing(true); setError(''); setGenResult(null); setGenErrorMsg('');
+    setAnalyzePhase('Saving your answers...');
     const phaseTimer1 = setTimeout(() => setAnalyzePhase('Routing to AI specialists...'), 3000);
     const phaseTimer2 = setTimeout(() => setAnalyzePhase('Generating module configurations...'), 10000);
     const phaseTimer3 = setTimeout(() => setAnalyzePhase('Combining results...'), 25000);
@@ -529,30 +439,25 @@ export default function ProjectDetailPage() {
         answers: defaultQuestions.map((q) => ({ question_id: q.id, answer: defaultAnswersById[q.id] ?? (q.type === 'multi_choice' ? [] : '') })),
       });
       applyDefaultQuestionState(latestDefaults);
-      if (!(latestDefaults.prefill_validation || latestDefaults.completion)?.is_complete) { setError('Please answer all required questions before generating.'); return; }
-
-      // Always force build mode before analyze so "Generate ERP" works reliably in one click.
-      if (projectMode !== 'build' || project?.mode !== 'build') {
-        const updated = await projectService.updateProject(projectId, { mode: 'build' });
-        setProject(updated);
-        setProjectMode('build');
+      if (!(latestDefaults.prefill_validation || latestDefaults.completion)?.is_complete) {
+        setError('Please answer all required questions before generating.');
+        setAnalyzePhase('');
+        return;
       }
 
-      const acGroups = accessRequirements
-        .filter((item) => item.groupName.trim())
-        .map((item) => ({
-          name: item.groupName.trim(),
-          user_count: item.userCount.trim(),
-          responsibilities: item.responsibilities.trim(),
-          permissions: item.permissions,
-          custom_permissions: item.customPermissions.trim(),
-        }));
+      const defaultAdminGroup = {
+        name: 'Administrators',
+        user_count: '1',
+        responsibilities: 'Manage ERP users, groups, and system-wide access rules.',
+        permissions: ['manage_users', 'manage_groups', 'manage_permissions', 'view_records'],
+        custom_permissions: '',
+      };
       const prefilledWithAccess = latestDefaults.prefilled_sdf
         ? ({
             ...latestDefaults.prefilled_sdf,
             modules: {
               ...(latestDefaults.prefilled_sdf?.modules || {}),
-              access_control: { enabled: true, groups: acGroups },
+              access_control: { enabled: true, groups: [defaultAdminGroup] },
             },
           } as AiGatewaySdf)
         : undefined;
@@ -560,14 +465,11 @@ export default function ProjectDetailPage() {
         modules: selectedModules,
         default_question_answers: latestDefaults.mandatory_answers,
         prefilled_sdf: prefilledWithAccess,
-        mode: 'build',
         conversation_context: {
           business_answers: Object.fromEntries(
             BUSINESS_QUESTIONS.map((q) => [q.id, { question: q.question, answer: (businessAnswers[q.id] || '').trim() }])
           ),
-          access_requirements: accessRequirements
-            .filter((item) => item.groupName.trim())
-            .map((item) => ({ name: item.groupName.trim(), user_count: item.userCount.trim(), responsibilities: item.responsibilities.trim(), permissions: item.permissions, custom_permissions: item.customPermissions.trim() })),
+          access_requirements: [defaultAdminGroup],
         },
       });
       setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
@@ -579,10 +481,12 @@ export default function ProjectDetailPage() {
         status: res.project.status || null,
         note: 'Generated a new SDF from build mode inputs.',
       });
+      setGenResult('success');
+      setTimeout(() => { setAnalyzePhase(''); setGenResult(null); }, 2500);
     } catch (err: any) {
-      const msg = err?.code === 'ECONNABORTED' ? 'Generation timed out. Your inputs are saved -- try again.' : (err?.response?.data?.error || err?.message || 'Generation failed');
-      setError(msg);
-    } finally { setAnalyzing(false); setAnalyzePhase(''); clearTimeout(phaseTimer1); clearTimeout(phaseTimer2); clearTimeout(phaseTimer3); clearTimeout(phaseTimer4); }
+      setGenResult('error');
+      setGenErrorMsg(mapGenerationError(err));
+    } finally { setAnalyzing(false); clearTimeout(phaseTimer1); clearTimeout(phaseTimer2); clearTimeout(phaseTimer3); clearTimeout(phaseTimer4); }
   };
 
   const submitAnswers = async () => {
@@ -686,7 +590,6 @@ export default function ProjectDetailPage() {
       const res = await projectService.rejectReview(projectId);
       setProject(res.project);
       appendReviewHistory({ action: 'rejected', version: res.approval.sdf_version, status: res.project.status || null, note: 'Rejected current SDF and moved project back to Draft.' });
-      switchToChatMode();
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'Reject action failed'); }
     finally { setReviewActionRunning(false); }
   };
@@ -779,7 +682,13 @@ export default function ProjectDetailPage() {
       </nav>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {analyzePhase && <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700 flex items-center gap-2"><svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>{analyzePhase}</div>}
+
+      <GenerationModal
+        phase={analyzePhase}
+        result={genResult}
+        errorMessage={genErrorMsg}
+        onClose={closeGenerationModal}
+      />
 
       {/* Step 1: Choose Modules */}
       <ModuleSelector selectedModules={selectedModules} onToggleModule={toggleModule} />
@@ -796,16 +705,6 @@ export default function ProjectDetailPage() {
         />
       </SlideIn>
 
-      {/* Prefilled Config Summary */}
-      <SlideIn show={prefilledModuleSummary.length > 0}>
-        <PrefilledConfigSummary
-          moduleSummary={prefilledModuleSummary}
-          showJson={showPrefilledJson}
-          prefilledSdf={prefilledSdf}
-          onToggleJson={() => setShowPrefilledJson((v) => !v)}
-        />
-      </SlideIn>
-
       {/* Step 3: Business Questions */}
       <SlideIn show={!!defaultCompletion?.is_complete}>
         <BusinessQuestions
@@ -815,23 +714,19 @@ export default function ProjectDetailPage() {
         />
       </SlideIn>
 
-      <SlideIn show={!!defaultCompletion?.is_complete}>
-        <AccessRequirements items={accessRequirements} disabled={running} onChange={setAccessRequirements} />
-      </SlideIn>
-
-      {/* Chat Mode Panel */}
-      <SlideIn show={projectMode === 'chat' && !!defaultCompletion?.is_complete}>
-        <ChatPanel
-          chatHistory={chatHistory}
-          chatInput={chatInput}
-          chatLoading={chatLoading}
-          suggestedModules={chatSuggestedModules}
-          discussionPoints={chatDiscussionPoints}
-          confidence={chatConfidence}
-          onInputChange={setChatInput}
-          onSendMessage={sendChatMessage}
-        />
-      </SlideIn>
+      {/* SDF warnings / limitations */}
+      {sdf && Array.isArray((sdf as any).warnings) && (sdf as any).warnings.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <button type="button" onClick={() => { const el = document.getElementById('sdf-warnings-list'); if (el) el.classList.toggle('hidden'); }}
+            className="flex w-full items-center justify-between text-sm font-medium text-amber-800">
+            <span>Limitations &amp; Notes ({(sdf as any).warnings.length})</span>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+          </button>
+          <ul id="sdf-warnings-list" className="hidden mt-2 space-y-1 text-xs text-amber-700 list-disc pl-4">
+            {(sdf as any).warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
 
       {/* Post-generation (Steps 4 & 5) */}
       <SlideIn show={!!sdf} className="space-y-8">

@@ -259,17 +259,15 @@ def normalize_generator_sdf(data: dict, request_text: str = "") -> dict:
     }
     ALLOWED_FEATURES = {"audit_trail", "batch_tracking", "serial_tracking", "multi_location", "print_invoice"}
 
-    # 1. Validate Modules
+    # 1. Validate Modules (warn but keep — assembler ignores unknown keys gracefully)
     modules = data.get("modules")
     if isinstance(modules, dict):
         unknown_modules = [k for k in modules.keys() if k not in ALLOWED_MODULES]
         for m in unknown_modules:
             normalized_warnings.append(
-                f"Unsupported module `{m}` detected. It will be ignored. "
-                f"Supported modules: {', '.join(sorted(ALLOWED_MODULES))}."
+                f"Module `{m}` is not natively supported yet and may be ignored by the generator. "
+                f"Natively supported modules: {', '.join(sorted(ALLOWED_MODULES))}."
             )
-            # Remove unsupported module to prevent downstream confusion
-            del modules[m]
 
         # Ensure required ERP entities exist when a module is enabled.
         required_by_module = {
@@ -388,6 +386,28 @@ def normalize_generator_sdf(data: dict, request_text: str = "") -> dict:
             entities.append(ent)
             return ent, True
 
+        def _entity_has_role_fields(ent: dict, role_fields: set[str]) -> bool:
+            """Check if an entity has enough signature fields to fill a required role."""
+            fields = ent.get("fields")
+            if not isinstance(fields, list):
+                return False
+            field_names = {str(f.get("name") or "") for f in fields if isinstance(f, dict)}
+            return len(role_fields & field_names) >= max(1, len(role_fields) // 2)
+
+        def _find_role_entity(mod: str, role_fields: set[str]) -> dict | None:
+            """Find an entity in a module that looks like it fills a required role."""
+            for ent in entities:
+                if not isinstance(ent, dict):
+                    continue
+                ent_mod = str(ent.get("module") or "").lower()
+                if ent_mod in (mod, "shared") and _entity_has_role_fields(ent, role_fields):
+                    return ent
+            return None
+
+        EMPLOYEE_SIGNATURE = {"first_name", "last_name", "email", "hire_date"}
+        INVOICE_SIGNATURE = {"invoice_number", "issue_date", "due_date", "status", "grand_total"}
+        CUSTOMER_SIGNATURE = {"company_name", "email", "phone"}
+
         for mod_key, required in required_by_module.items():
             if mod_key not in modules:
                 continue
@@ -403,28 +423,31 @@ def normalize_generator_sdf(data: dict, request_text: str = "") -> dict:
                 inv_def = invoice_defaults["invoices"]
                 cust_def = invoice_defaults["customers"]
 
-                invoices_entity, created = _ensure_entity("invoices", inv_def)
-                _merge_defaults(invoices_entity, inv_def)
-                if created:
-                    auto_added.append("invoices")
-                else:
-                    _ensure_fields(invoices_entity, inv_def["fields"])
+                if "invoices" in missing and not _find_role_entity("invoice", INVOICE_SIGNATURE):
+                    invoices_entity, created = _ensure_entity("invoices", inv_def)
+                    _merge_defaults(invoices_entity, inv_def)
+                    if created:
+                        auto_added.append("invoices")
+                    else:
+                        _ensure_fields(invoices_entity, inv_def["fields"])
 
-                customers_entity, created = _ensure_entity("customers", cust_def)
-                _merge_defaults(customers_entity, cust_def)
-                if created:
-                    auto_added.append("customers")
-                else:
-                    _ensure_fields(customers_entity, cust_def["fields"])
+                if "customers" in missing and not _find_role_entity("shared", CUSTOMER_SIGNATURE):
+                    customers_entity, created = _ensure_entity("customers", cust_def)
+                    _merge_defaults(customers_entity, cust_def)
+                    if created:
+                        auto_added.append("customers")
+                    else:
+                        _ensure_fields(customers_entity, cust_def["fields"])
 
             if mod_key == "hr":
                 emp_def = hr_defaults["employees"]
-                employees_entity, created = _ensure_entity("employees", emp_def)
-                _merge_defaults(employees_entity, emp_def)
-                if created:
-                    auto_added.append("employees")
-                else:
-                    _ensure_fields(employees_entity, emp_def["fields"])
+                if "employees" in missing and not _find_role_entity("hr", EMPLOYEE_SIGNATURE):
+                    employees_entity, created = _ensure_entity("employees", emp_def)
+                    _merge_defaults(employees_entity, emp_def)
+                    if created:
+                        auto_added.append("employees")
+                    else:
+                        _ensure_fields(employees_entity, emp_def["fields"])
 
             if auto_added:
                 entity_slugs.update(auto_added)
@@ -432,7 +455,7 @@ def normalize_generator_sdf(data: dict, request_text: str = "") -> dict:
                     f"Module `{mod_key}` was missing required entities. Auto-added: {', '.join(auto_added)}."
                 )
 
-    # 2. Validate Entity Features
+    # 2. Validate Entity Features (warn but keep — generator skips unknown keys gracefully)
     if isinstance(entities, list):
         for ent in entities:
             if not isinstance(ent, dict):
@@ -443,11 +466,9 @@ def normalize_generator_sdf(data: dict, request_text: str = "") -> dict:
                 unknown_features = [k for k in features.keys() if k not in ALLOWED_FEATURES]
                 for f in unknown_features:
                     normalized_warnings.append(
-                        f"Unsupported feature `{f}` on entity `{ent_slug}`. It will be ignored. "
-                        f"Supported features: {', '.join(sorted(ALLOWED_FEATURES))}."
+                        f"Feature `{f}` on entity `{ent_slug}` is not natively supported yet and may be ignored by the generator. "
+                        f"Natively supported features: {', '.join(sorted(ALLOWED_FEATURES))}."
                     )
-                    # Remove unsupported feature
-                    del features[f]
 
     if normalized_warnings:
         # De-duplicate while preserving order

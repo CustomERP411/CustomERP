@@ -39,6 +39,7 @@ export interface ChatWithProjectResponse {
   suggested_modules: string[];
   discussion_points: string[];
   confidence: 'low' | 'medium' | 'high';
+  unsupported_features: string[];
 }
 
 export interface ProjectConversationRecord {
@@ -89,7 +90,6 @@ export const projectService = {
       modules?: string[];
       default_question_answers?: Record<string, unknown>;
       prefilled_sdf?: AiGatewaySdf;
-      mode?: 'chat' | 'build';
       conversation_context?: {
         business_answers?: Record<string, { question: string; answer: string }>;
         access_requirements?: { name: string; user_count: string; responsibilities: string; permissions: string[]; custom_permissions: string }[];
@@ -101,7 +101,6 @@ export const projectService = {
       ...(options?.modules?.length ? { modules: options.modules } : {}),
       ...(options?.default_question_answers ? { default_question_answers: options.default_question_answers } : {}),
       ...(options?.prefilled_sdf ? { prefilled_sdf: options.prefilled_sdf } : {}),
-      ...(options?.mode ? { mode: options.mode } : {}),
       ...(options?.conversation_context ? { conversation_context: options.conversation_context } : {}),
     }, { timeout: 300000 });
     return response.data;
@@ -233,6 +232,8 @@ export const projectService = {
       conversation_history?: { role: string; content: string }[];
       selected_modules?: string[];
       business_answers?: Record<string, unknown>;
+      current_step?: string;
+      sdf_status?: string;
     }
   ): Promise<ChatWithProjectResponse> => {
     const response = await api.post<ChatWithProjectResponse>(`/projects/${id}/chat`, {
@@ -240,6 +241,8 @@ export const projectService = {
       conversation_history: options?.conversation_history ?? [],
       selected_modules: options?.selected_modules ?? [],
       business_answers: options?.business_answers ?? null,
+      current_step: options?.current_step ?? null,
+      sdf_status: options?.sdf_status ?? null,
     }, { timeout: 60000 });
     return response.data;
   },

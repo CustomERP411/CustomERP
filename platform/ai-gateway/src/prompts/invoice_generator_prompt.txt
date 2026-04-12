@@ -29,14 +29,17 @@
 # What counts as a valid enhancement (add these):
 # - A new custom field on an existing entity mentioned in the business description
 #   Example: business says "we have project-based billing" -> add a project_reference field
+# - Additional fields on existing entities that the business clearly needs
+#   Example: business says "we track purchase order numbers" -> add po_number field on invoices
 # - A new entity not already in the prefilled SDF that the business clearly needs
 #   Example: business says "we issue proforma invoices first" -> add a proforma_invoices entity
 # - Adjusting tax_rate or currency if the business description overrides the default
+# - A display_name or slug tweak to match the business domain language
+#   Example: business calls customers "clients" -> rename slug to clients, display_name to "Client"
 #
 # What is not an enhancement (avoid these):
-# - Re-creating customers, invoices, invoice_items that already exist
+# - Re-creating customers, invoices, invoice_items that already exist under a different name
 # - Changing field types, options, or required flags that are already set
-# - Adding fields that duplicate what is already there under a different name
 # - Removing features like print_invoice, calculation_engine, payment tracking, etc.
 
 # Invoice capability scope (reference only, do not blindly generate all):

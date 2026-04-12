@@ -69,7 +69,7 @@ async function editSdf({ businessDescription, currentSdf, instructions }) {
   });
 }
 
-async function chat({ businessDescription, message, conversationHistory, selectedModules, businessAnswers }) {
+async function chat({ businessDescription, message, conversationHistory, selectedModules, businessAnswers, currentStep, sdfStatus }) {
   if (!message || typeof message !== 'string') throw new Error('message must be a string');
   return await postJson('/ai/chat', {
     business_description: businessDescription || '',
@@ -77,6 +77,8 @@ async function chat({ businessDescription, message, conversationHistory, selecte
     conversation_history: Array.isArray(conversationHistory) ? conversationHistory : [],
     selected_modules: Array.isArray(selectedModules) ? selectedModules : [],
     business_answers: businessAnswers && typeof businessAnswers === 'object' ? businessAnswers : null,
+    current_step: currentStep || null,
+    sdf_status: sdfStatus || null,
   });
 }
 

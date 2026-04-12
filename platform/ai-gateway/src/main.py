@@ -40,6 +40,54 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import pathlib
+import datetime
+import uuid as _uuid
+
+_TRAINING_DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "training_data"
+_SESSIONS_FILE = _TRAINING_DATA_DIR / "sessions.jsonl"
+
+
+def _log_training_session(
+    endpoint: str,
+    input_data: dict,
+    output_data: Any,
+    step_logs: Optional[list] = None,
+    token_usage: Optional[dict] = None,
+) -> str:
+    """Write a rich JSONL record per request, including per-agent step details.
+    Returns the generated session_id."""
+    session_id = str(_uuid.uuid4())
+    try:
+        _TRAINING_DATA_DIR.mkdir(parents=True, exist_ok=True)
+        if isinstance(output_data, dict):
+            out = output_data
+        elif hasattr(output_data, "model_dump"):
+            out = output_data.model_dump(exclude_none=True)
+        else:
+            out = str(output_data)
+
+        serialised_steps = []
+        for s in (step_logs or []):
+            serialised_steps.append(
+                s.model_dump() if hasattr(s, "model_dump") else (s if isinstance(s, dict) else str(s))
+            )
+
+        record = {
+            "session_id": session_id,
+            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "endpoint": endpoint,
+            "input": input_data,
+            "output": out,
+            "step_logs": serialised_steps,
+            "token_usage": token_usage or {},
+        }
+        with open(_SESSIONS_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+    except Exception as e:
+        print(f"[TRAINING-LOG] Failed to write training session: {e}")
+    return session_id
+
 # Lazy-loaded Gemini client (initialized on first use)
 _gemini_client: Optional[GeminiClient] = None
 _sdf_service: Optional[SDFService] = None
@@ -124,12 +172,15 @@ class ChatRequest(BaseModel):
     conversation_history: List[ChatMessage] = Field(default_factory=list, description="Prior chat exchanges.")
     selected_modules: List[str] = Field(default_factory=list, description="Modules the user has selected so far.")
     business_answers: Optional[Dict[str, Any]] = Field(default=None, description="Answers to business questions so far.")
+    current_step: Optional[str] = Field(default=None, description="Which wizard step the user is currently on.")
+    sdf_status: Optional[str] = Field(default=None, description="SDF generation status: none, generated, reviewed, approved.")
 
 class ChatResponse(BaseModel):
     reply: str
     suggested_modules: List[str] = Field(default_factory=list)
     discussion_points: List[str] = Field(default_factory=list)
     confidence: str = "medium"
+    unsupported_features: List[str] = Field(default_factory=list)
 
 
 _chatbot_client: Optional[BaseAIClient] = None
@@ -197,6 +248,8 @@ async def chat_endpoint(request: ChatRequest):
         selected_modules=modules_str,
         business_answers=answers_str,
         conversation_history=history_str,
+        current_step=request.current_step or "",
+        sdf_status=request.sdf_status or "",
     )
 
     try:
@@ -206,12 +259,38 @@ async def chat_endpoint(request: ChatRequest):
         )
 
         data = _parse_chat_json(result.text)
-        return ChatResponse(
+        chat_response = ChatResponse(
             reply=data.get("reply", "I'm sorry, I couldn't generate a response. Please try again."),
             suggested_modules=data.get("suggested_modules", []),
             discussion_points=data.get("discussion_points", []),
             confidence=data.get("confidence", "medium"),
+            unsupported_features=data.get("unsupported_features", []),
         )
+        chat_step = {
+            "agent": "chatbot", "model": config.model,
+            "temperature": config.temperature,
+            "input_summary": {"message": request.message, "business_description": request.business_description[:500]},
+            "output_parsed": chat_response.model_dump(exclude_none=True),
+            "raw_response": result.text[:5000],
+            "tokens_in": getattr(result, "prompt_tokens", 0),
+            "tokens_out": getattr(result, "completion_tokens", 0),
+        }
+        _log_training_session(
+            "/ai/chat",
+            {
+                "message": request.message,
+                "business_description": request.business_description,
+                "conversation_history": [m.model_dump() for m in request.conversation_history[-10:]] if request.conversation_history else [],
+                "selected_modules": request.selected_modules,
+                "business_answers": request.business_answers,
+                "current_step": request.current_step,
+                "sdf_status": request.sdf_status,
+            },
+            chat_response,
+            step_logs=[chat_step],
+            token_usage={"total": {"prompt": chat_step["tokens_in"], "completion": chat_step["tokens_out"]}},
+        )
+        return chat_response
     except Exception as e:
         print(f"[ERROR] Unexpected error in /ai/chat: {e}")
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
@@ -250,10 +329,21 @@ async def analyze(request: AnalyzeRequest):
 
     try:
         print("[API] Generating SDF using multi-agent pipeline")
-        sdf = await sdf_service.generate_sdf_multi_agent(
+        sdf, pipeline_result = await sdf_service.generate_sdf_multi_agent(
             business_description=request.business_description,
             default_question_answers=request.default_question_answers,
             prefilled_sdf=request.prefilled_sdf,
+        )
+        _log_training_session(
+            "/ai/analyze",
+            {
+                "business_description": request.business_description,
+                "default_question_answers": request.default_question_answers,
+                "prefilled_sdf": request.prefilled_sdf,
+            },
+            sdf,
+            step_logs=pipeline_result.step_logs,
+            token_usage=pipeline_result.token_usage,
         )
         return sdf
     except ValueError as e:
@@ -287,11 +377,21 @@ async def clarify_sdf_endpoint(request: ClarifyRequest):
         
         print(f"[API] /ai/clarify - Cycle 2+ with {len(merged_context)} answers")
         
-        # Use multi-agent pipeline with prior context injected
-        refined_sdf = await sdf_service.generate_sdf_multi_agent(
+        refined_sdf, pipeline_result = await sdf_service.generate_sdf_multi_agent(
             business_description=request.business_description,
             default_question_answers=merged_context,
             prefilled_sdf=request.prefilled_sdf,
+        )
+        _log_training_session(
+            "/ai/clarify",
+            {
+                "business_description": request.business_description,
+                "answers": merged_context,
+                "prefilled_sdf": request.prefilled_sdf,
+            },
+            refined_sdf,
+            step_logs=pipeline_result.step_logs,
+            token_usage=pipeline_result.token_usage,
         )
         return refined_sdf
     except ValueError as e:
@@ -360,6 +460,90 @@ async def edit_sdf_endpoint(request: EditRequest):
     except Exception as e:
         print(f"[ERROR] Unexpected error in /ai/edit: {e}")
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────
+# Training Data Endpoints (read-only, consumed by platform backend)
+# ─────────────────────────────────────────────────────────────
+
+def _read_sessions_file() -> list[dict]:
+    """Read all JSONL records from sessions.jsonl (newest first)."""
+    if not _SESSIONS_FILE.exists():
+        return []
+    records = []
+    with open(_SESSIONS_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+    records.reverse()
+    return records
+
+
+@app.get("/ai/training/sessions", tags=["Training Data"])
+async def list_training_sessions(
+    limit: int = 50,
+    offset: int = 0,
+    endpoint: Optional[str] = None,
+):
+    """List training sessions with pagination and optional endpoint filter."""
+    all_records = _read_sessions_file()
+    if endpoint:
+        all_records = [r for r in all_records if r.get("endpoint") == endpoint]
+    total = len(all_records)
+    page = all_records[offset : offset + limit]
+    summaries = []
+    for r in page:
+        inp = r.get("input", {})
+        desc = inp.get("business_description", inp.get("message", ""))
+        summaries.append({
+            "session_id": r.get("session_id", ""),
+            "timestamp": r.get("timestamp", ""),
+            "endpoint": r.get("endpoint", ""),
+            "description_snippet": desc[:200] if isinstance(desc, str) else "",
+            "step_count": len(r.get("step_logs", [])),
+            "token_usage": r.get("token_usage", {}),
+        })
+    return {"total": total, "offset": offset, "limit": limit, "sessions": summaries}
+
+
+@app.get("/ai/training/sessions/{session_id}", tags=["Training Data"])
+async def get_training_session(session_id: str):
+    """Get full detail for a single training session."""
+    all_records = _read_sessions_file()
+    for r in all_records:
+        if r.get("session_id") == session_id:
+            return r
+    raise HTTPException(status_code=404, detail="Session not found")
+
+
+@app.get("/ai/training/stats", tags=["Training Data"])
+async def get_training_stats():
+    """Aggregate stats across all training sessions."""
+    all_records = _read_sessions_file()
+    if not all_records:
+        return {"total_sessions": 0, "by_endpoint": {}, "date_range": None}
+    by_endpoint: Dict[str, int] = {}
+    timestamps = []
+    total_tokens = 0
+    for r in all_records:
+        ep = r.get("endpoint", "unknown")
+        by_endpoint[ep] = by_endpoint.get(ep, 0) + 1
+        ts = r.get("timestamp", "")
+        if ts:
+            timestamps.append(ts)
+        usage = r.get("token_usage", {}).get("total", {})
+        total_tokens += usage.get("total", usage.get("prompt", 0) + usage.get("completion", 0))
+    timestamps.sort()
+    return {
+        "total_sessions": len(all_records),
+        "by_endpoint": by_endpoint,
+        "total_tokens": total_tokens,
+        "date_range": {"earliest": timestamps[0], "latest": timestamps[-1]} if timestamps else None,
+    }
 
 
 @app.get("/test", tags=["Testing"], response_class=PlainTextResponse)

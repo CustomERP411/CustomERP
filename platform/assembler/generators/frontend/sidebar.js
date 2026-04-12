@@ -1,5 +1,6 @@
 function buildSidebar({ toolsBlock, moduleMap, rbac }) {
   const adminBlock = rbac ? `
+        {(isSuperadmin || hasPermission('__erp_users.read')) && (<>
         <div className="my-2 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Admin</div>
         <Link
           to="/admin/users"
@@ -27,13 +28,16 @@ function buildSidebar({ toolsBlock, moduleMap, rbac }) {
           ].join(' ')}
         >
           Permissions
-        </Link>` : '';
+        </Link>
+        </>)}` : '';
 
-  // If moduleMap exists and has multiple enabled modules, use module-aware navigation
   const hasMultipleModules = moduleMap && moduleMap.enabled && moduleMap.enabled.length > 1;
+
+  const canSeeEntity = rbac
+    ? `(e) => isSuperadmin || hasPermission(e.slug + '.read')`
+    : `() => true`;
   
   if (hasMultipleModules) {
-    // Module-aware navigation with grouping
     return `import { Link, useLocation } from 'react-router-dom';
 import { ENTITIES } from '../../config/entities';
 ${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
@@ -46,9 +50,10 @@ const MODULE_DISPLAY_NAMES: Record<string, string> = {
 
 export default function Sidebar() {
   const location = useLocation();
-${rbac ? `  const { user, logout } = useAuth();\n` : ''}
-  // Group entities by module
-  const entityGroups = ENTITIES.reduce((acc, entity) => {
+${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` : ''}
+  const canSee = ${canSeeEntity};
+
+  const entityGroups = ENTITIES.filter(canSee).reduce((acc, entity) => {
     const moduleKey = entity.module || 'inventory';
     if (!acc[moduleKey]) {
       acc[moduleKey] = [];
@@ -57,7 +62,6 @@ ${rbac ? `  const { user, logout } = useAuth();\n` : ''}
     return acc;
   }, {} as Record<string, typeof ENTITIES>);
 
-  // Order modules: inventory, invoice, hr, then shared
   const moduleOrder = ['inventory', 'invoice', 'hr', 'shared'];
   const orderedModules = moduleOrder.filter(mod => entityGroups[mod] && entityGroups[mod].length > 0);
 
@@ -114,13 +118,14 @@ ${rbac ? `      <div className="border-t px-4 py-3">
 }
 `;
   } else {
-    // Single module / backward compatible flat navigation
     return `import { Link, useLocation } from 'react-router-dom';
 import { ENTITIES } from '../../config/entities';
 ${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
 export default function Sidebar() {
   const location = useLocation();
-${rbac ? `  const { user, logout } = useAuth();\n` : ''}
+${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` : ''}
+  const canSee = ${canSeeEntity};
+
   return (
     <aside className="w-64 border-r bg-white flex flex-col">
       <div className="px-4 py-4">
@@ -138,7 +143,7 @@ ${rbac ? `  const { user, logout } = useAuth();\n` : ''}
           Dashboard
         </Link>
         <div className="my-2 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Entities</div>
-        {ENTITIES.map((e) => {
+        {ENTITIES.filter(canSee).map((e) => {
           const active = location.pathname === '/' + e.slug || location.pathname.startsWith('/' + e.slug + '/');
           return (
             <Link
@@ -170,5 +175,3 @@ ${rbac ? `      <div className="border-t px-4 py-3">
 module.exports = {
   buildSidebar,
 };
-
-

@@ -79,10 +79,13 @@ class SDFService:
         business_description: str,
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
-    ) -> SystemDefinitionFile:
+    ) -> tuple["SystemDefinitionFile", "PipelineResult"]:
         """
         Generates an SDF using the multi-agent pipeline.
-        
+
+        Returns a tuple of (validated_sdf, pipeline_result) so callers can
+        access per-agent step_logs for training data collection.
+
         Structural guarantees (independent of AI prompt adherence):
         1. Prefilled SDF (from wizard) is deep-merged so wizard choices can
            never be removed by the AI -- only added to.
@@ -90,49 +93,46 @@ class SDFService:
            topics are filtered out programmatically.
         """
         print("[SDFService] Generating SDF using multi-agent pipeline...")
-        
+
         result: PipelineResult = await self.multi_agent_service.generate_sdf(
             business_description=business_description,
             default_question_answers=default_question_answers,
             prefilled_sdf=prefilled_sdf,
         )
-        
+
         if not result.success:
             error_msg = "; ".join(result.errors) if result.errors else "Unknown error"
             raise ValueError(f"Multi-agent pipeline failed: {error_msg}")
-        
+
         if not result.sdf:
             raise ValueError("Multi-agent pipeline produced no SDF output")
-        
+
         # Normalize the SDF
         data = self._normalize_generator_sdf(result.sdf, request_text=business_description)
-        
+
         # STRUCTURAL GUARANTEE 1: Enforce prefilled SDF
-        # The wizard-built SDF is the ground truth for module configs and entities.
-        # The AI can add new things but never remove what the user explicitly chose.
         if prefilled_sdf:
             data = self._enforce_prefilled_sdf(data, prefilled_sdf)
-        
+
         # Inject aggregated clarifications from pipeline into normalized SDF
         if result.clarifications_needed:
             raw_questions = [
                 q.model_dump(exclude_none=True) for q in result.clarifications_needed
             ]
-            # STRUCTURAL GUARANTEE 2: Filter duplicate questions
             filtered_questions = self._filter_duplicate_questions(raw_questions, default_question_answers)
             data["clarifications_needed"] = filtered_questions
             print(f"[SDFService] Injected {len(filtered_questions)} clarification questions into SDF (from {len(raw_questions)} raw)")
-        
+
         # Inject pipeline metadata
         data["sdf_complete"] = result.sdf_complete
         if result.token_usage:
             data["token_usage"] = result.token_usage
-        
+
         # Validate against schema
         try:
             validated_sdf = SystemDefinitionFile.model_validate(data)
             print("[SDFService] Multi-agent SDF validation successful.")
-            return validated_sdf
+            return validated_sdf, result
         except ValidationError as e:
             print(f"[SDFService] Multi-agent SDF Validation Error: {e}")
             print(f"[SDFService] Raw Data:\n{data}")

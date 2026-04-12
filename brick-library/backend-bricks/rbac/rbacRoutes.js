@@ -118,4 +118,50 @@ router.post('/change-password', rbacLoader, async (req, res) => {
   }
 });
 
+/* ── User entity guards ─────────────────────────────────────
+   Mounted by the generated routes index as middleware on /__erp_users
+   to hash passwords and protect the superadmin account.            */
+
+function userEntityGuard() {
+  const guardRouter = express.Router();
+  const { hashPassword } = require('./rbacSeed');
+
+  async function isSeedAdmin(userId) {
+    try {
+      const repo = getProvider();
+      const user = await repo.findById('__erp_users', userId);
+      return user && String(user.username).toLowerCase() === 'admin';
+    } catch { return false; }
+  }
+
+  guardRouter.post('/', (req, _res, next) => {
+    if (req.body && req.body.password_hash && typeof req.body.password_hash === 'string' && req.body.password_hash.length > 0) {
+      req.body.password_hash = hashPassword(req.body.password_hash);
+    }
+    next();
+  });
+
+  guardRouter.put('/:id', async (req, res, next) => {
+    if (req.body && req.body.password_hash && typeof req.body.password_hash === 'string' && req.body.password_hash.length > 0) {
+      req.body.password_hash = hashPassword(req.body.password_hash);
+    }
+    if (await isSeedAdmin(req.params.id)) {
+      if (req.body.is_active !== undefined && Number(req.body.is_active) === 0) {
+        return res.status(403).json({ error: 'The default admin account cannot be deactivated' });
+      }
+    }
+    next();
+  });
+
+  guardRouter.delete('/:id', async (req, res, next) => {
+    if (await isSeedAdmin(req.params.id)) {
+      return res.status(403).json({ error: 'The default admin account cannot be deleted' });
+    }
+    next();
+  });
+
+  return guardRouter;
+}
+
 module.exports = router;
+module.exports.userEntityGuard = userEntityGuard;

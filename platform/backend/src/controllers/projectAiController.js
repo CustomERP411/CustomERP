@@ -20,13 +20,6 @@ exports.analyzeProject = async (req, res) => {
     // Ensure project belongs to user
     const project = await projectService.getProject(projectId, userId);
 
-    // Server-side mode enforcement: SDF generation requires build mode
-    if (project.mode === 'chat') {
-      return res.status(400).json({
-        error: 'Project must be in build mode to generate SDF. Switch to build mode first.',
-      });
-    }
-
     const requestedModules = parseModulesInput(req.body?.modules);
     const prefilledModuleKeys = parseModulesInput(Object.keys(req.body?.prefilled_sdf?.modules || {}));
     const modulesForQuestionnaire = requestedModules.length ? requestedModules : prefilledModuleKeys;
@@ -208,6 +201,8 @@ exports.chatWithProject = async (req, res) => {
       conversationHistory: Array.isArray(req.body?.conversation_history) ? req.body.conversation_history : [],
       selectedModules: Array.isArray(req.body?.selected_modules) ? req.body.selected_modules : [],
       businessAnswers: req.body?.business_answers || null,
+      currentStep: req.body?.current_step || null,
+      sdfStatus: req.body?.sdf_status || null,
     });
 
     res.json(chatResponse);

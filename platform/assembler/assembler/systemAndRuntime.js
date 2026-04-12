@@ -440,7 +440,13 @@ PGPASSWORD=erppassword
     if (acEnabled) {
       const entitySlugs = (backendEntities || []).map((e) => e && e.slug).filter(Boolean);
       const userGroups = Array.isArray(acModConfig.groups) ? acModConfig.groups : [];
-      systemConfig.rbac = { entitySlugs, groups: userGroups };
+      const entityModuleMap = {};
+      for (const e of (backendEntities || [])) {
+        if (e && e.slug) {
+          entityModuleMap[e.slug] = String(e.module || e.module_slug || e.moduleSlug || 'inventory').trim().toLowerCase() || 'inventory';
+        }
+      }
+      systemConfig.rbac = { entitySlugs, groups: userGroups, entityModuleMap };
     }
 
     const shouldWriteConfig =

@@ -255,6 +255,9 @@ export default function UsersAdminPageConnected() {
   const userGroups = (userId: string) =>
     memberships.filter((m) => m.user_id === userId).map((m) => groupMap.get(m.group_id) || m.group_id);
 
+  const isSuperadminUser = (userId: string) =>
+    userGroups(userId).some((g) => String(g).toLowerCase() === 'superadmin');
+
   const filtered = users.filter((u) => {
     const text = query.trim().toLowerCase();
     if (!text) return true;
@@ -379,10 +382,15 @@ export default function UsersAdminPageConnected() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((user) => (
+            {filtered.map((user) => {
+              const isProtected = isSuperadminUser(user.id);
+              return (
               <tr key={user.id} className="border-t border-slate-100">
                 <td className="px-3 py-2">
-                  <div className="font-medium text-slate-900">{user.display_name || user.username}</div>
+                  <div className="font-medium text-slate-900">
+                    {user.display_name || user.username}
+                    {isProtected && <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">SUPERADMIN</span>}
+                  </div>
                   <div className="text-xs text-slate-500">{user.email}</div>
                 </td>
                 <td className="px-3 py-2 text-slate-700">{userGroups(user.id).join(', ') || 'No groups'}</td>
@@ -394,11 +402,14 @@ export default function UsersAdminPageConnected() {
                 <td className="px-3 py-2 text-right">
                   <div className="inline-flex items-center gap-2">
                     <button onClick={() => openEdit(user)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit</button>
-                    <button onClick={() => toggleStatus(user)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">{Number(user.is_active) !== 0 ? 'Disable' : 'Activate'}</button>
+                    {!isProtected && (
+                      <button onClick={() => toggleStatus(user)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">{Number(user.is_active) !== 0 ? 'Disable' : 'Activate'}</button>
+                    )}
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -527,10 +538,27 @@ export default function GroupsAdminPageConnected() {
           <div>
             <div className="mb-1 text-sm font-medium text-slate-700">Permissions</div>
             <div className="max-h-64 overflow-y-auto rounded-lg border p-3 space-y-3">
-              {Object.entries(permsByEntity).map(([entity, perms]) => (
+              {Object.entries(permsByEntity).map(([entity, perms]) => {
+                const entityPermIds = perms.map((p) => p.id);
+                const selectedCount = entityPermIds.filter((id) => form.permission_ids.includes(id)).length;
+                const allSelected = selectedCount === entityPermIds.length;
+                const someSelected = selectedCount > 0 && !allSelected;
+                const toggleEntity = () => {
+                  setForm((f) => {
+                    if (allSelected) {
+                      return { ...f, permission_ids: f.permission_ids.filter((id) => !entityPermIds.includes(id)) };
+                    }
+                    const merged = new Set([...f.permission_ids, ...entityPermIds]);
+                    return { ...f, permission_ids: [...merged] };
+                  });
+                };
+                return (
                 <div key={entity}>
-                  <div className="mb-1 text-xs font-semibold uppercase text-slate-400">{entity}</div>
-                  <div className="flex flex-wrap gap-2">
+                  <label className="mb-1 inline-flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" checked={allSelected} ref={(el) => { if (el) el.indeterminate = someSelected; }} onChange={toggleEntity} className="h-3.5 w-3.5 rounded border-slate-300" />
+                    <span className="text-xs font-semibold uppercase text-slate-400">{entity}</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2 ml-5">
                     {perms.map((p) => (
                       <label key={p.id} className="inline-flex items-center gap-1 text-xs">
                         <input type="checkbox" checked={form.permission_ids.includes(p.id)} onChange={(e) => {
@@ -544,7 +572,8 @@ export default function GroupsAdminPageConnected() {
                     ))}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
           <div className="flex gap-2">

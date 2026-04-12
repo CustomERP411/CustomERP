@@ -30,14 +30,17 @@
 # What counts as a valid enhancement (add these):
 # - A new custom field on an existing entity mentioned in the business description
 #   Example: business says "we track supplier lead times" -> add a lead_time_days field
+# - Additional fields on existing entities that the business clearly needs
+#   Example: business says "we need tire dimensions" -> add width, profile, rim_size fields
 # - A new entity not already in the prefilled SDF that the business clearly needs
 #   Example: business says "we do quality inspections on receiving" -> add a qc_inspections entity
 # - Additional inventory_ops or dashboard config beyond what the wizard set up
+# - A display_name or slug tweak to match the business domain language
+#   Example: business sells tires -> rename products slug to tires, display_name to "Tire"
 #
 # What is not an enhancement (avoid these):
-# - Re-creating products, categories, locations, stock_movements that already exist
+# - Re-creating products, categories, locations, stock_movements that already exist under a different name
 # - Changing field types, options, or required flags that are already set
-# - Adding fields that duplicate what is already there under a different name
 # - Removing features like batch tracking, serial tracking, low-stock alerts, etc.
 
 # Inventory capability scope (reference only, do not blindly generate all):

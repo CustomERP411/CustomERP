@@ -241,6 +241,8 @@ def get_chat_prompt(
     selected_modules: str = "",
     business_answers: str = "",
     conversation_history: str = "",
+    current_step: str = "",
+    sdf_status: str = "",
 ) -> str:
     """Loads the chat mode prompt for conversational feature discussion."""
     try:
@@ -254,6 +256,8 @@ def get_chat_prompt(
                 "selected_modules": selected_modules or "None selected yet",
                 "business_answers": business_answers or "None provided yet",
                 "conversation_history": conversation_history or "No prior messages",
+                "current_step": current_step or "Unknown",
+                "sdf_status": sdf_status or "none",
             },
         )
     except FileNotFoundError:

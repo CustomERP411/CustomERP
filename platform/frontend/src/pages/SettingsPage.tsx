@@ -68,7 +68,7 @@ export default function SettingsPage() {
     setPwMsg(null);
 
     if (!currentPw) { setPwMsg({ type: 'err', text: 'Enter your current password.' }); return; }
-    if (newPw.length < 6) { setPwMsg({ type: 'err', text: 'New password must be at least 6 characters.' }); return; }
+    if (newPw.length < 8) { setPwMsg({ type: 'err', text: 'New password must be at least 8 characters.' }); return; }
     if (newPw !== confirmPw) { setPwMsg({ type: 'err', text: 'Passwords do not match.' }); return; }
 
     try {

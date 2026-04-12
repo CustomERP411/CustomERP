@@ -71,7 +71,7 @@ export default function DefaultQuestions({
                     const customValue = options.includes(answerString) ? '' : answerString;
 
                     return (
-                      <div key={q.id} className="px-5 py-4">
+                      <div key={q.id} id={`dq-${q.id}`} className="scroll-mt-6 px-5 py-4">
                         <div className="flex items-start gap-3">
                           <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">
                             {qi + 1}
@@ -191,7 +191,7 @@ export default function DefaultQuestions({
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div id="dq-continue-btn" className="scroll-mt-6 flex justify-end">
         <Button size="sm" variant="outline" onClick={onSave} loading={saving} disabled={!canSave || saving}>
           Continue
         </Button>

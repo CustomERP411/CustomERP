@@ -4,6 +4,7 @@ const aiGatewayClient = require('../services/aiGatewayClient');
 const clarificationService = require('../services/clarificationService');
 const moduleQuestionnaireService = require('../services/moduleQuestionnaireService');
 const prefilledSdfService = require('../services/prefilledSdfService');
+const featureRequestService = require('../services/featureRequestService');
 const SDF = require('../models/SDF');
 const ProjectConversation = require('../models/ProjectConversation');
 const { parseModulesInput } = require('./projectHelpers');
@@ -87,6 +88,11 @@ exports.analyzeProject = async (req, res) => {
         .catch((err) => logger.error('Failed to update conversation sdf_version:', err));
     }
 
+    if (Array.isArray(sdf?.warnings) && sdf.warnings.length > 0) {
+      featureRequestService.recordWarnings({ userId, projectId, warnings: sdf.warnings, userPrompt: description.trim() })
+        .catch((e) => logger.warn('Failed to record SDF feature requests:', e.message));
+    }
+
     const nextStatus = persistedQuestions.length ? 'Clarifying' : 'Ready';
     const updatedProject = await projectService.updateProject(projectId, userId, { status: nextStatus });
 
@@ -165,6 +171,12 @@ exports.clarifyProject = async (req, res) => {
     }
     const saved = await SDF.create(project.id, sdf);
 
+    if (Array.isArray(sdf?.warnings) && sdf.warnings.length > 0) {
+      const clarifyPrompt = (typeof description === 'string' && description.trim()) ? description.trim() : (project.description || '');
+      featureRequestService.recordWarnings({ userId, projectId, warnings: sdf.warnings, userPrompt: clarifyPrompt })
+        .catch((e) => logger.warn('Failed to record SDF feature requests:', e.message));
+    }
+
     const nextStatus = persistedQuestions.length ? 'Clarifying' : 'Ready';
     const updatedProject = await projectService.updateProject(projectId, userId, { status: nextStatus });
 
@@ -204,6 +216,14 @@ exports.chatWithProject = async (req, res) => {
       currentStep: req.body?.current_step || null,
       sdfStatus: req.body?.sdf_status || null,
     });
+
+    if (Array.isArray(chatResponse.unsupported_features) && chatResponse.unsupported_features.length > 0) {
+      featureRequestService.recordFeatures({
+        userId, projectId, source: 'chatbot',
+        features: chatResponse.unsupported_features,
+        userPrompt: message.trim(),
+      }).catch((e) => logger.warn('Failed to record chatbot feature requests:', e.message));
+    }
 
     res.json(chatResponse);
   } catch (err) {

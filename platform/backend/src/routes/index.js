@@ -6,10 +6,12 @@ const projectRoutes = require('./projectRoutes');
 const previewRoutes = require('./previewRoutes');
 const adminRoutes = require('./adminRoutes');
 const trainingRoutes = require('./trainingRoutes');
+const featureRequestRoutes = require('./featureRequestRoutes');
 
 router.use('/auth', authRoutes);
 router.use('/projects', projectRoutes);
 router.use('/projects', previewRoutes);
+router.use(featureRequestRoutes);
 router.use('/admin/training', trainingRoutes);
 router.use('/admin', adminRoutes);
 

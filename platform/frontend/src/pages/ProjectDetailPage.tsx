@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import type { Project } from '../types/project';
@@ -63,6 +63,8 @@ export default function ProjectDetailPage() {
   const [genErrorMsg, setGenErrorMsg] = useState('');
 
   const { setProjectContext } = useChatContext();
+  const stepRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
+  const hasScrolledRef = useRef(false);
   const detectedPlatform = useMemo(() => detectUserPlatform(), []);
   const running = analyzing || clarifying || saving || reviewActionRunning;
   const selectedModulesStorageKey = useMemo(
@@ -237,12 +239,24 @@ export default function ProjectDetailPage() {
           : modulesFromConversation.length
             ? modulesFromConversation
             : modulesFromLatestSdf;
-        const initialBusinessAnswers = Object.keys(storedBusinessAnswers).length
+        // Only fall back to conversation answers if the user has never visited this
+        // page (no localStorage key). If the key exists — even with empty value — the
+        // user has been here and their current state takes precedence over stale
+        // conversation data from a previous generation.
+        const businessAnswersKeyExists = !!window.localStorage.getItem(businessAnswersStorageKey);
+        const initialBusinessAnswers = businessAnswersKeyExists
           ? storedBusinessAnswers
-          : businessAnswersFromConversation;
+          : Object.keys(businessAnswersFromConversation).length
+            ? businessAnswersFromConversation
+            : {};
         setSelectedModules(initialModules);
         setBusinessAnswers(initialBusinessAnswers);
-        if (latest?.sdf) {
+        // Only restore the SDF if business answers are actually complete —
+        // prevents a stale SDF from showing when the user is mid-wizard.
+        const businessReady = BUSINESS_QUESTIONS
+          .filter((q) => !q.optional)
+          .every((q) => (initialBusinessAnswers[q.id] || '').trim().length > 0);
+        if (latest?.sdf && businessReady) {
           setSdf(latest.sdf);
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
           setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
@@ -250,7 +264,7 @@ export default function ProjectDetailPage() {
         const serverHistory = await projectService.getReviewHistory(projectId).catch(() => ({ history: [] }));
         if (!cancelled && serverHistory.history.length > 0) {
           setReviewHistory(serverHistory.history);
-        } else if (!cancelled && latest?.sdf) {
+        } else if (!cancelled && latest?.sdf && businessReady) {
           setReviewHistory([{
             id: `baseline-${latest.sdf_version || 0}`,
             action: 'generated',
@@ -367,6 +381,32 @@ export default function ProjectDetailPage() {
     return 3;
   }, [selectedModules, defaultCompletion, businessComplete, sdf]);
 
+  // Scroll to the user's current progress point after initial load + SlideIn animation
+  useEffect(() => {
+    if (loading || hasScrolledRef.current || currentStep === 0) return;
+    hasScrolledRef.current = true;
+    const timer = setTimeout(() => {
+      let target: Element | null = null;
+
+      if (currentStep === 1) {
+        // Find first unanswered default question
+        for (const q of visibleDefaultQuestions) {
+          const val = defaultAnswersById[q.id];
+          const empty = Array.isArray(val) ? val.length === 0 : !val;
+          if (empty && q.required) { target = document.getElementById(`dq-${q.id}`); break; }
+        }
+        if (!target) target = document.getElementById('dq-continue-btn');
+      } else if (currentStep === 2) {
+        // Set businessStep to first unanswered, then scroll to the section
+        const firstUnanswered = BUSINESS_QUESTIONS.findIndex((bq) => !bq.optional && !(businessAnswers[bq.id] || '').trim());
+        if (firstUnanswered >= 0) setBusinessStep(firstUnanswered);
+      }
+
+      (target || stepRefs[currentStep]?.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [loading, currentStep]);
+
   // Feed project context to the global chat widget
   useEffect(() => {
     if (!project || !projectId) {
@@ -420,7 +460,10 @@ export default function ProjectDetailPage() {
       return { ...prev, [questionId]: enabled ? Array.from(new Set([...existing, option])) : existing.filter((item) => item !== option) };
     });
   };
-  const toggleModule = (key: string) => setSelectedModules((prev) => prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key]);
+  const toggleModule = (key: string) => {
+    setSelectedModules((prev) => prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key]);
+    if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); }
+  };
 
   const saveDefaultAnswers = async () => {
     if (!projectId || !selectedModules.length) return;
@@ -431,6 +474,9 @@ export default function ProjectDetailPage() {
         answers: defaultQuestions.map((q) => ({ question_id: q.id, answer: defaultAnswersById[q.id] ?? (q.type === 'multi_choice' ? [] : '') })),
       });
       applyDefaultQuestionState(payload);
+      // Clear stale SDF so the user must complete business questions before
+      // the post-generation panel re-appears.
+      if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); }
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'Failed to save answers'); }
     finally { setSavingDefaultAnswers(false); }
   };
@@ -690,14 +736,20 @@ export default function ProjectDetailPage() {
         {STEPS.map((label, i) => {
           const done = i < currentStep;
           const active = i === currentStep;
+          const clickable = done || active;
           return (
             <div key={label} className="flex flex-1 items-center">
-              <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={!clickable}
+                onClick={() => stepRefs[i]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className={`flex items-center gap-2 ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
+              >
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${done ? 'bg-indigo-600 text-white' : active ? 'border-2 border-indigo-600 text-indigo-600' : 'border-2 border-slate-300 text-slate-400'}`}>
                   {done ? <IconCheck className="h-4 w-4" /> : i + 1}
                 </div>
                 <span className={`hidden text-xs font-medium sm:block ${done ? 'text-indigo-600' : active ? 'text-slate-900' : 'text-slate-400'}`}>{label}</span>
-              </div>
+              </button>
               {i < STEPS.length - 1 && <div className={`mx-2 h-0.5 flex-1 rounded ${done ? 'bg-indigo-600' : 'bg-slate-200'}`} />}
             </div>
           );
@@ -713,29 +765,38 @@ export default function ProjectDetailPage() {
         onClose={closeGenerationModal}
       />
 
-      {/* Step 1: Choose Modules */}
-      <ModuleSelector selectedModules={selectedModules} onToggleModule={toggleModule} />
+      {/* Step 0: Choose Modules */}
+      <div ref={stepRefs[0]} className="scroll-mt-6">
+        <ModuleSelector selectedModules={selectedModules} onToggleModule={toggleModule} />
+      </div>
 
-      {/* Step 2: Answer Questions */}
-      <SlideIn show={selectedModules.length > 0}>
-        <DefaultQuestions
-          answersById={defaultAnswersById}
-          completion={defaultCompletion} questionsByModule={questionsByModule}
-          moduleCompletionCounts={moduleCompletionCounts} loading={loadingDefaultQuestions}
-          saving={savingDefaultAnswers} canSave={canSaveDefaultAnswers}
-          onUpdateAnswer={updateDefaultAnswer} onToggleMultiChoice={toggleMultiChoiceAnswer}
-          onSave={saveDefaultAnswers}
-        />
-      </SlideIn>
+      {/* Step 1: Answer Questions */}
+      <div ref={stepRefs[1]} className="scroll-mt-6">
+        <SlideIn show={selectedModules.length > 0}>
+          <DefaultQuestions
+            answersById={defaultAnswersById}
+            completion={defaultCompletion} questionsByModule={questionsByModule}
+            moduleCompletionCounts={moduleCompletionCounts} loading={loadingDefaultQuestions}
+            saving={savingDefaultAnswers} canSave={canSaveDefaultAnswers}
+            onUpdateAnswer={updateDefaultAnswer} onToggleMultiChoice={toggleMultiChoiceAnswer}
+            onSave={saveDefaultAnswers}
+          />
+        </SlideIn>
+      </div>
 
-      {/* Step 3: Business Questions */}
-      <SlideIn show={!!defaultCompletion?.is_complete}>
-        <BusinessQuestions
-          answers={businessAnswers} step={businessStep} canAnalyze={canAnalyze} running={running}
-          onSetAnswers={setBusinessAnswers} onSetStep={setBusinessStep}
-          onAnalyze={() => { void analyze(); }}
-        />
-      </SlideIn>
+      {/* Step 2: Business Questions */}
+      <div ref={stepRefs[2]} className="scroll-mt-6">
+        <SlideIn show={!!defaultCompletion?.is_complete}>
+          <BusinessQuestions
+            answers={businessAnswers} step={businessStep} canAnalyze={canAnalyze} running={running}
+            onSetAnswers={setBusinessAnswers} onSetStep={setBusinessStep}
+            onAnalyze={() => { void analyze(); }}
+          />
+        </SlideIn>
+      </div>
+
+      {/* Step 3: Review & Generate (scroll target for the generate button area) */}
+      <div ref={stepRefs[3]} className="scroll-mt-6" />
 
       {/* SDF warnings / limitations */}
       {sdf && Array.isArray((sdf as any).warnings) && (sdf as any).warnings.length > 0 && (
@@ -751,10 +812,11 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Post-generation (Steps 4 & 5) */}
-      <SlideIn show={!!sdf} className="space-y-8">
-        {sdf && (
-          <PostGenerationPanel
+      {/* Step 4: Post-generation (Download & Run) */}
+      <div ref={stepRefs[4]} className="scroll-mt-6">
+        <SlideIn show={!!sdf} className="space-y-8">
+          {sdf && (
+            <PostGenerationPanel
             sdf={sdf} preview={preview}
             questions={questions} answersById={answersById} canSubmitAnswers={canSubmitAnswers}
             clarifying={clarifying} clarifyRound={clarifyRound} sdfComplete={sdfComplete}
@@ -773,7 +835,8 @@ export default function ProjectDetailPage() {
             onResetDraftJson={() => setDraftJson(JSON.stringify(sdf, null, 2))}
           />
         )}
-      </SlideIn>
+        </SlideIn>
+      </div>
     </div>
   );
 }

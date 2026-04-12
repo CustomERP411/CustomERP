@@ -65,8 +65,8 @@
 
 Sprint 5 planned tasks:
 **Chatbot Overhaul:**
-- Fix chatbot so it is always visible on the bottom right of the platform; remove the separate build/generate switch logic. (ASA)
-- Give chatbot full context awareness of all user answers, session actions, and project state so it can help and advise users in real time. (ASA)
+- [[DONE]] Fix chatbot so it is always visible on the bottom right of the platform; remove the separate build/generate switch logic. (ASA)
+- [[DONE]] Give chatbot full context awareness of all user answers, session actions, and project state so it can help and advise users in real time. (ASA)
 
 **Platform Administration:**
 - [[DONE]] Build a platform admin screen to manage platform-level users, roles, and access. (ASA)

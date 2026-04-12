@@ -310,30 +310,6 @@ export default function ProjectDetailPage() {
     try { window.localStorage.setItem(reviewHistoryStorageKey, JSON.stringify(reviewHistory)); } catch { /* ignore */ }
   }, [reviewHistory, reviewHistoryStorageKey]);
 
-  // Feed project context to the global chat widget
-  useEffect(() => {
-    if (!project || !projectId) {
-      setProjectContext(null);
-      return;
-    }
-    const sdfStatus: 'none' | 'generated' | 'reviewed' | 'approved' =
-      project.status === 'Approved' ? 'approved'
-        : sdf ? (project.status === 'Ready' ? 'reviewed' : 'generated')
-        : 'none';
-    setProjectContext({
-      projectId,
-      projectName: project.name,
-      description: project.description || '',
-      selectedModules,
-      businessAnswers: Object.fromEntries(
-        BUSINESS_QUESTIONS.map((q) => [q.id, { question: q.question, answer: (businessAnswers[q.id] || '').trim() }])
-      ),
-      currentStep: STEPS[currentStep] ?? 'Choose Modules',
-      sdfStatus: sdfStatus,
-    });
-    return () => setProjectContext(null);
-  }, [projectId, project, selectedModules, businessAnswers, sdf, currentStep, setProjectContext]);
-
   /* ── Derived state ──────────────────────────────────────── */
 
   const description = useMemo(() => {
@@ -367,6 +343,30 @@ export default function ProjectDetailPage() {
     if (sdf) return 4;
     return 3;
   }, [selectedModules, defaultCompletion, businessComplete, sdf]);
+
+  // Feed project context to the global chat widget
+  useEffect(() => {
+    if (!project || !projectId) {
+      setProjectContext(null);
+      return;
+    }
+    const sdfStatus: 'none' | 'generated' | 'reviewed' | 'approved' =
+      project.status === 'Approved' ? 'approved'
+        : sdf ? (project.status === 'Ready' ? 'reviewed' : 'generated')
+        : 'none';
+    setProjectContext({
+      projectId,
+      projectName: project.name,
+      description: project.description || '',
+      selectedModules,
+      businessAnswers: Object.fromEntries(
+        BUSINESS_QUESTIONS.map((q) => [q.id, { question: q.question, answer: (businessAnswers[q.id] || '').trim() }])
+      ),
+      currentStep: STEPS[currentStep] ?? 'Choose Modules',
+      sdfStatus: sdfStatus,
+    });
+    return () => setProjectContext(null);
+  }, [projectId, project, selectedModules, businessAnswers, sdf, currentStep, setProjectContext]);
 
   const questionsByModule = useMemo(() => {
     const groups: Record<string, DefaultModuleQuestion[]> = {};

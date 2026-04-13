@@ -22,10 +22,13 @@ interface ChatContextType {
   chatHistory: ChatMessage[];
   chatLoading: boolean;
   projectContext: ProjectContext | null;
+  pulsing: boolean;
   toggleChat: () => void;
+  openChat: () => void;
   sendMessage: (text: string) => Promise<void>;
   setProjectContext: (ctx: ProjectContext | null) => void;
   clearChat: () => void;
+  setPulsing: (v: boolean) => void;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -56,6 +59,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [projectContext, setProjectContextState] = useState<ProjectContext | null>(null);
+  const [pulsing, setPulsing] = useState(false);
   const projectContextRef = useRef<ProjectContext | null>(null);
 
   useEffect(() => {
@@ -80,6 +84,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [chatHistory]);
 
   const toggleChat = useCallback(() => setIsOpen((prev) => !prev), []);
+  const openChat = useCallback(() => setIsOpen(true), []);
 
   const setProjectContext = useCallback((ctx: ProjectContext | null) => {
     setProjectContextState(ctx);
@@ -135,10 +140,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       chatHistory,
       chatLoading,
       projectContext,
+      pulsing,
       toggleChat,
+      openChat,
       sendMessage,
       setProjectContext,
       clearChat,
+      setPulsing,
     }}>
       {children}
     </ChatContext.Provider>

@@ -12,6 +12,12 @@ function hashPassword(plain) {
 
 const CRUD_ACTIONS = ['create', 'read', 'update', 'delete'];
 
+const MODULE_DISPLAY_NAMES = {
+  inventory: 'Inventory',
+  invoice: 'Invoice',
+  hr: 'HR',
+};
+
 const ABSTRACT_PERM_SLUGS = {
   manage_users: ['__erp_users', '__erp_user_groups'],
   manage_groups: ['__erp_groups', '__erp_group_permissions'],
@@ -43,6 +49,17 @@ function resolveAbstractPermissions(abstractPerms, customPermsStr, entitySlugs) 
   }
 
   return keys;
+}
+
+function formatModuleDisplayName(mod) {
+  return MODULE_DISPLAY_NAMES[mod] || (mod.charAt(0).toUpperCase() + mod.slice(1));
+}
+
+function humanizeSlug(slug) {
+  return slug
+    .replace(/^__erp_/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 async function ensureGroup(repository, existingGroups, name, description) {
@@ -115,11 +132,13 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
         if (permByKey.has(key)) continue;
 
         const scope = slug.startsWith('__erp_') ? 'global' : 'module';
+        const displaySlug = humanizeSlug(slug);
+        const actionLabel = action.charAt(0).toUpperCase() + action.slice(1);
         const perm = await repository.create('__erp_permissions', {
           key,
-          label: `${action.charAt(0).toUpperCase() + action.slice(1)} ${slug}`,
+          label: `${actionLabel} ${displaySlug}`,
           scope,
-          description: `Allow ${action} on ${slug}`,
+          description: `Allow ${action} on ${displaySlug.toLowerCase()}`,
         });
         permByKey.set(key, perm);
       }
@@ -137,15 +156,23 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
 
     const businessSlugs = slugsToSeed.filter((s) => !s.startsWith('__erp_'));
     const moduleGroups = {};
+    const sharedSlugs = [];
     for (const slug of businessSlugs) {
       const mod = (entityModuleMap[slug] || 'inventory').toLowerCase();
-      if (!moduleGroups[mod]) moduleGroups[mod] = [];
-      moduleGroups[mod].push(slug);
+      if (mod === 'shared') {
+        sharedSlugs.push(slug);
+      } else {
+        if (!moduleGroups[mod]) moduleGroups[mod] = [];
+        moduleGroups[mod].push(slug);
+      }
     }
 
+    const moduleAdminGroups = {};
     for (const [mod, modSlugs] of Object.entries(moduleGroups)) {
-      const groupName = `${mod}admin`;
-      const modGroup = await ensureGroup(repository, existingGroups, groupName, `Admin for ${mod} module entities`);
+      const displayName = formatModuleDisplayName(mod);
+      const groupName = `${displayName} Admin`;
+      const modGroup = await ensureGroup(repository, existingGroups, groupName, `Admin for ${displayName} module`);
+      moduleAdminGroups[mod] = { group: modGroup, slugs: modSlugs };
 
       const modPermIds = [];
       for (const slug of modSlugs) {
@@ -156,6 +183,29 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
       }
       const cnt = await assignPermissionsToGroup(repository, modGroup.id, modPermIds, allGP);
       console.log(`[RBAC-SEED] Module group "${groupName}" assigned ${modPermIds.length} permissions (${cnt} new)`);
+    }
+
+    if (sharedSlugs.length > 0) {
+      const modKeys = Object.keys(moduleAdminGroups);
+      for (const sharedSlug of sharedSlugs) {
+        const sharedPermIds = [];
+        for (const action of CRUD_ACTIONS) {
+          const p = permByKey.get(`${sharedSlug}.${action}`);
+          if (p) sharedPermIds.push(p.id);
+        }
+        if (!sharedPermIds.length) continue;
+
+        if (modKeys.length > 0) {
+          for (const mod of modKeys) {
+            const cnt = await assignPermissionsToGroup(repository, moduleAdminGroups[mod].group.id, sharedPermIds, allGP);
+            if (cnt > 0) {
+              console.log(`[RBAC-SEED] Shared entity "${sharedSlug}" permissions added to "${formatModuleDisplayName(mod)} Admin" (${cnt} new)`);
+            }
+          }
+        } else {
+          await assignPermissionsToGroup(repository, adminGroup.id, sharedPermIds, allGP);
+        }
+      }
     }
   }
 

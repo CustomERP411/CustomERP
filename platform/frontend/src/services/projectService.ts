@@ -142,8 +142,20 @@ export const projectService = {
     return response.data;
   },
 
+  getGenerationProgress: async (id: string): Promise<{ step: string; pct: number; detail: string }> => {
+    const response = await api.get<{ step: string; pct: number; detail: string }>(`/projects/${id}/analyze/progress`);
+    return response.data;
+  },
+
   saveSdf: async (id: string, sdf: AiGatewaySdf): Promise<AnalyzeProjectResponse> => {
     const response = await api.post<AnalyzeProjectResponse>(`/projects/${id}/sdf/save`, { sdf });
+    return response.data;
+  },
+
+  regenerateProject: async (id: string, changeInstructions: string): Promise<AnalyzeProjectResponse> => {
+    const response = await api.post<AnalyzeProjectResponse>(`/projects/${id}/regenerate`, {
+      change_instructions: changeInstructions,
+    }, { timeout: 300000 });
     return response.data;
   },
 

@@ -41,7 +41,16 @@ async function analyzeDescription(description, priorContext = null, options = {}
     ...(options.prefilledSdf && typeof options.prefilledSdf === 'object'
       ? { prefilled_sdf: options.prefilledSdf }
       : {}),
+    ...(options.projectId ? { project_id: options.projectId } : {}),
   });
+}
+
+async function getGenerationProgress(projectId) {
+  const url = `${BASE_URL}/ai/progress/${encodeURIComponent(projectId)}`;
+  const res = await fetch(url);
+  const text = await res.text();
+  try { return text ? JSON.parse(text) : { step: 'idle', pct: 0 }; }
+  catch { return { step: 'idle', pct: 0 }; }
 }
 
 async function clarifySdf({ businessDescription, partialSdf, answers, defaultQuestionAnswers }) {
@@ -88,6 +97,7 @@ module.exports = {
   finalizeSdf,
   editSdf,
   chat,
+  getGenerationProgress,
   BASE_URL,
 };
 

@@ -19,10 +19,11 @@ async function gatewayGet(path) {
   return data;
 }
 
-async function listSessions({ limit = 50, offset = 0, endpoint, quality, reviewed } = {}) {
-  const gwData = await gatewayGet(
-    `/ai/training/sessions?limit=1000&offset=0${endpoint ? `&endpoint=${encodeURIComponent(endpoint)}` : ''}`
-  );
+async function listSessions({ limit = 50, offset = 0, endpoint, quality, reviewed, agent } = {}) {
+  let gwUrl = `/ai/training/sessions?limit=1000&offset=0`;
+  if (endpoint) gwUrl += `&endpoint=${encodeURIComponent(endpoint)}`;
+  if (agent) gwUrl += `&agent=${encodeURIComponent(agent)}`;
+  const gwData = await gatewayGet(gwUrl);
   let sessions = gwData.sessions || [];
 
   const reviewResult = await query('SELECT session_id, quality, reviewer_notes, corrective_instruction, is_exported, reviewed_at FROM training_reviews');
@@ -54,7 +55,61 @@ async function getSession(sessionId) {
     [sessionId]
   );
   const review = reviewResult.rows[0] || null;
-  return { ...gwData, review };
+
+  const stepReviewResult = await query(
+    'SELECT agent, quality, reviewer_notes, corrective_instruction, edited_output, is_exported, reviewed_at FROM training_step_reviews WHERE session_id = $1',
+    [sessionId]
+  );
+  const stepReviews = {};
+  for (const row of stepReviewResult.rows) {
+    stepReviews[row.agent] = row;
+  }
+
+  return { ...gwData, review, step_reviews: stepReviews };
+}
+
+async function saveStepReview(sessionId, agent, { quality, notes, editedOutput, correctiveInstruction }) {
+  const result = await query(
+    `INSERT INTO training_step_reviews (session_id, agent, quality, reviewer_notes, corrective_instruction, edited_output, reviewed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())
+     ON CONFLICT (session_id, agent) DO UPDATE SET
+       quality = EXCLUDED.quality,
+       reviewer_notes = EXCLUDED.reviewer_notes,
+       corrective_instruction = EXCLUDED.corrective_instruction,
+       edited_output = EXCLUDED.edited_output,
+       reviewed_at = NOW(),
+       updated_at = NOW()
+     RETURNING *`,
+    [sessionId, agent, quality, notes || null, correctiveInstruction || null, editedOutput ? JSON.stringify(editedOutput) : null]
+  );
+  logger.info(`Training step review saved for session ${sessionId}, agent ${agent}: ${quality}`);
+
+  await syncSessionReview(sessionId);
+
+  return result.rows[0];
+}
+
+async function syncSessionReview(sessionId) {
+  const allSteps = await query(
+    'SELECT quality FROM training_step_reviews WHERE session_id = $1',
+    [sessionId]
+  );
+  if (allSteps.rows.length === 0) return;
+
+  const qualities = allSteps.rows.map(r => r.quality);
+  let aggregate = 'good';
+  if (qualities.includes('bad')) aggregate = 'bad';
+  else if (qualities.includes('needs_edit')) aggregate = 'needs_edit';
+
+  await query(
+    `INSERT INTO training_reviews (session_id, quality, reviewed_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (session_id) DO UPDATE SET
+       quality = $2,
+       reviewed_at = NOW(),
+       updated_at = NOW()`,
+    [sessionId, aggregate]
+  );
 }
 
 async function saveReview(sessionId, { quality, notes, editedOutput, correctiveInstruction }) {
@@ -87,6 +142,27 @@ async function getStats() {
     FROM training_reviews
   `);
   const row = reviewStats.rows[0] || {};
+
+  const stepStats = await query(`
+    SELECT
+      agent,
+      COUNT(*) AS total,
+      COUNT(*) FILTER (WHERE quality = 'good') AS good,
+      COUNT(*) FILTER (WHERE quality = 'bad') AS bad,
+      COUNT(*) FILTER (WHERE quality = 'needs_edit') AS needs_edit
+    FROM training_step_reviews
+    GROUP BY agent
+  `);
+  const byAgent = {};
+  for (const r of stepStats.rows) {
+    byAgent[r.agent] = {
+      total: parseInt(r.total, 10) || 0,
+      good: parseInt(r.good, 10) || 0,
+      bad: parseInt(r.bad, 10) || 0,
+      needs_edit: parseInt(r.needs_edit, 10) || 0,
+    };
+  }
+
   return {
     ...gwStats,
     reviewed: {
@@ -96,6 +172,7 @@ async function getStats() {
       needs_edit: parseInt(row.needs_edit_count, 10) || 0,
       exported: parseInt(row.exported_count, 10) || 0,
     },
+    by_agent: byAgent,
   };
 }
 
@@ -142,11 +219,25 @@ async function exportForAzure({ agentTypes, qualityFilter = 'good' }) {
   const eligibleIds = new Set(Object.keys(reviewMap));
   const eligibleSessions = allSessions.filter((s) => eligibleIds.has(s.session_id));
 
+  const stepReviewResult = await query(
+    'SELECT session_id, agent, quality, edited_output FROM training_step_reviews WHERE quality = ANY($1)',
+    [qualityValues]
+  );
+  const stepReviewMap = {};
+  for (const row of stepReviewResult.rows) {
+    if (!stepReviewMap[row.session_id]) stepReviewMap[row.session_id] = {};
+    stepReviewMap[row.session_id][row.agent] = row;
+  }
+
+  const allEligibleIds = new Set([...eligibleIds, ...Object.keys(stepReviewMap)]);
+  const allEligibleSessions = allSessions.filter((s) => allEligibleIds.has(s.session_id));
+
   const fullSessions = [];
-  for (const s of eligibleSessions) {
+  for (const s of allEligibleSessions) {
     try {
       const full = await gatewayGet(`/ai/training/sessions/${encodeURIComponent(s.session_id)}`);
       full._review = reviewMap[s.session_id];
+      full._stepReviews = stepReviewMap[s.session_id] || {};
       fullSessions.push(full);
     } catch (e) {
       logger.warn(`Failed to fetch session ${s.session_id} for export: ${e.message}`);
@@ -159,11 +250,14 @@ async function exportForAzure({ agentTypes, qualityFilter = 'good' }) {
   for (const session of fullSessions) {
     const steps = session.step_logs || [];
     const review = session._review;
+    const stepRevs = session._stepReviews || {};
 
     if (steps.length === 0) {
       const agentName = session.endpoint === '/ai/chat' ? 'chatbot' : 'pipeline';
       if (requestedAgents.size && !requestedAgents.has(agentName)) continue;
-      const output = review?.edited_output || session.output;
+      const stepRev = stepRevs[agentName];
+      if (!review && !stepRev) continue;
+      const output = stepRev?.edited_output || review?.edited_output || session.output;
       const userContent = agentName === 'chatbot'
         ? buildChatUserContent(session.input)
         : JSON.stringify(session.input);
@@ -179,10 +273,11 @@ async function exportForAzure({ agentTypes, qualityFilter = 'good' }) {
     } else {
       for (const step of steps) {
         const agentName = step.agent || 'unknown';
+        if (step.model === 'deterministic') continue;
         if (requestedAgents.size && !requestedAgents.has(agentName)) continue;
-        const output = (review?.edited_output && agentName === 'integrator')
-          ? review.edited_output
-          : step.output_parsed;
+        const stepRev = stepRevs[agentName];
+        if (!review && !stepRev) continue;
+        const output = stepRev?.edited_output || step.output_parsed;
         const entry = {
           messages: [
             { role: 'system', content: getSystemPrompt(agentName) },
@@ -208,4 +303,4 @@ async function exportForAzure({ agentTypes, qualityFilter = 'good' }) {
   return agentFiles;
 }
 
-module.exports = { listSessions, getSession, saveReview, getStats, exportForAzure };
+module.exports = { listSessions, getSession, saveReview, saveStepReview, getStats, exportForAzure };

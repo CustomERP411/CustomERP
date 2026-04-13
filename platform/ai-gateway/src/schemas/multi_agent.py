@@ -9,7 +9,12 @@ from pydantic import BaseModel, Field
 class ModuleContext(BaseModel):
     """Context extracted for a specific module by the distributor."""
     enabled: bool = False
+    changed: bool = True
     description: str = ""
+    change_instructions: str = Field(
+        default="",
+        description="Explicit instructions for what the generator should add, modify, or remove (change mode only)",
+    )
     entities_hint: List[str] = Field(default_factory=list)
     features: List[str] = Field(default_factory=list)
 
@@ -21,8 +26,11 @@ class DistributorOutput(BaseModel):
     hr_context: ModuleContext = Field(default_factory=ModuleContext)
     invoice_context: ModuleContext = Field(default_factory=ModuleContext)
     inventory_context: ModuleContext = Field(default_factory=ModuleContext)
-    default_question_answers: Dict[str, Any] = Field(default_factory=dict)
-    prefilled_sdf: Dict[str, Any] = Field(default_factory=dict)
+    clarifications_needed: List["ClarificationQuestion"] = Field(default_factory=list)
+    unsupported_features: List[str] = Field(
+        default_factory=list,
+        description="Plain-English names of features the platform cannot provide",
+    )
     warnings: List[str] = Field(default_factory=list)
 
 
@@ -74,6 +82,7 @@ class AgentStepLog(BaseModel):
     agent: str
     model: str = ""
     temperature: float = 0.0
+    prompt_text: str = Field(default="", description="Full prompt sent to the AI model")
     input_summary: Dict[str, Any] = Field(default_factory=dict)
     output_parsed: Dict[str, Any] = Field(default_factory=dict)
     raw_response: str = Field(default="", description="Truncated raw AI response text")
@@ -101,5 +110,6 @@ class PipelineResult(BaseModel):
         default_factory=list,
         description="Per-agent step logs for training data collection"
     )
+    unsupported_features: List[str] = Field(default_factory=list)
     errors: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)

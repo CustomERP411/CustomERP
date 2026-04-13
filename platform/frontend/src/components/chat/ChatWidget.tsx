@@ -9,7 +9,7 @@ const QUICK_PROMPTS = [
 
 export default function ChatWidget() {
   const {
-    isOpen, chatHistory, chatLoading, projectContext,
+    isOpen, chatHistory, chatLoading, projectContext, pulsing,
     toggleChat, sendMessage,
   } = useChatContext();
 
@@ -22,7 +22,10 @@ export default function ChatWidget() {
   }, [chatHistory, chatLoading]);
 
   useEffect(() => {
-    if (isOpen) inputRef.current?.focus();
+    if (isOpen) {
+      inputRef.current?.focus();
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }), 50);
+    }
   }, [isOpen]);
 
   const handleSend = (text?: string) => {
@@ -41,7 +44,8 @@ export default function ChatWidget() {
         <button
           type="button"
           onClick={toggleChat}
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95"
+          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 hover:scale-105 active:scale-95"
+          style={pulsing ? { animation: 'chatPulse 1s ease-in-out infinite' } : undefined}
           aria-label="Open AI assistant"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

@@ -328,7 +328,7 @@ export default function UsersAdminPageConnected() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">User Management</h2>
-          <p className="mt-1 text-sm text-slate-500">Manage ERP users and assign them to groups.</p>
+          <p className="mt-1 text-sm text-slate-500">Add, edit, or deactivate users and assign their roles.</p>
         </div>
         <button onClick={openCreate} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">Add User</button>
       </div>
@@ -349,7 +349,7 @@ export default function UsersAdminPageConnected() {
             Active
           </label>
           <div>
-            <div className="mb-1 text-sm font-medium text-slate-700">Groups</div>
+            <div className="mb-1 text-sm font-medium text-slate-700">Roles</div>
             <div className="flex flex-wrap gap-2">
               {groups.map((g) => (
                 <label key={g.id} className="inline-flex items-center gap-1 text-sm">
@@ -376,7 +376,7 @@ export default function UsersAdminPageConnected() {
           <thead className="bg-slate-50">
             <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
               <th className="px-3 py-2">User</th>
-              <th className="px-3 py-2">Groups</th>
+              <th className="px-3 py-2">Roles</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2 text-right">Actions</th>
             </tr>
@@ -393,7 +393,7 @@ export default function UsersAdminPageConnected() {
                   </div>
                   <div className="text-xs text-slate-500">{user.email}</div>
                 </td>
-                <td className="px-3 py-2 text-slate-700">{userGroups(user.id).join(', ') || 'No groups'}</td>
+                <td className="px-3 py-2 text-slate-700">{userGroups(user.id).join(', ') || 'No roles'}</td>
                 <td className="px-3 py-2">
                   <span className={\`rounded-full px-2 py-0.5 text-xs font-semibold \${Number(user.is_active) !== 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}\`}>
                     {Number(user.is_active) !== 0 ? 'active' : 'disabled'}
@@ -422,13 +422,35 @@ export default function UsersAdminPageConnected() {
 function buildGroupsAdminPageConnected() {
   return `import { useEffect, useState, useCallback } from 'react';
 import { API } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { ENTITIES } from '../../config/entities';
 
 interface GroupRow { id: string; name: string; description: string; }
 interface MembershipRow { id: string; user_id: string; group_id: string; }
 interface GPRow { id: string; group_id: string; permission_id: string; }
 interface PermissionRow { id: string; key: string; label: string; scope: string; }
 
+const ACTION_LABELS: Record<string, string> = {
+  create: 'Add',
+  read: 'View',
+  update: 'Edit',
+  delete: 'Remove',
+};
+
+const ENTITY_DISPLAY: Record<string, string> = Object.fromEntries(
+  ENTITIES.map((e) => [e.slug, e.displayName])
+);
+
+function humanizeEntity(slug: string) {
+  if (ENTITY_DISPLAY[slug]) return ENTITY_DISPLAY[slug];
+  return slug
+    .replace(/^__erp_/, '')
+    .replace(/_/g, ' ')
+    .replace(/\\b\\w/g, (c) => c.toUpperCase());
+}
+
 export default function GroupsAdminPageConnected() {
+  const { isSuperadmin } = useAuth();
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [memberships, setMemberships] = useState<MembershipRow[]>([]);
   const [gps, setGps] = useState<GPRow[]>([]);
@@ -437,6 +459,7 @@ export default function GroupsAdminPageConnected() {
   const [editing, setEditing] = useState<GroupRow | null>(null);
   const [form, setForm] = useState({ name: '', description: '', permission_ids: [] as string[] });
   const [query, setQuery] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const load = useCallback(async () => {
     const [g, m, gp, p] = await Promise.all([
@@ -503,12 +526,15 @@ export default function GroupsAdminPageConnected() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this group?')) return;
+    if (!confirm('Delete this role?')) return;
     await API.delete('/__erp_groups/' + id);
     await load();
   };
 
-  const permsByEntity = permissions.reduce((acc, p) => {
+  const businessPerms = permissions.filter((p) => !p.key.startsWith('__erp_'));
+  const systemPerms = permissions.filter((p) => p.key.startsWith('__erp_'));
+
+  const permsByEntity = businessPerms.reduce((acc, p) => {
     const parts = p.key.split('.');
     const entity = parts.length > 1 ? parts.slice(0, -1).join('.') : 'other';
     if (!acc[entity]) acc[entity] = [];
@@ -516,66 +542,97 @@ export default function GroupsAdminPageConnected() {
     return acc;
   }, {} as Record<string, PermissionRow[]>);
 
+  const systemPermsByEntity = systemPerms.reduce((acc, p) => {
+    const parts = p.key.split('.');
+    const entity = parts.length > 1 ? parts.slice(0, -1).join('.') : 'other';
+    if (!acc[entity]) acc[entity] = [];
+    acc[entity].push(p);
+    return acc;
+  }, {} as Record<string, PermissionRow[]>);
+
+  const renderPermBlock = (entityPerms: Record<string, PermissionRow[]>) =>
+    Object.entries(entityPerms).map(([entity, perms]) => {
+      const entityPermIds = perms.map((p) => p.id);
+      const selectedCount = entityPermIds.filter((id) => form.permission_ids.includes(id)).length;
+      const allSelected = selectedCount === entityPermIds.length;
+      const someSelected = selectedCount > 0 && !allSelected;
+      const toggleEntity = () => {
+        setForm((f) => {
+          if (allSelected) {
+            return { ...f, permission_ids: f.permission_ids.filter((id) => !entityPermIds.includes(id)) };
+          }
+          const merged = new Set([...f.permission_ids, ...entityPermIds]);
+          return { ...f, permission_ids: [...merged] };
+        });
+      };
+      return (
+        <div key={entity} className="rounded-lg border border-slate-200 p-3">
+          <label className="mb-2 inline-flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={allSelected} ref={(el) => { if (el) el.indeterminate = someSelected; }} onChange={toggleEntity} className="h-4 w-4 rounded border-slate-300 text-indigo-600" />
+            <span className="text-sm font-semibold text-slate-800">{humanizeEntity(entity)}</span>
+            <span className="text-xs text-slate-400">{selectedCount}/{entityPermIds.length}</span>
+          </label>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 ml-6">
+            {perms.map((p) => {
+              const action = p.key.split('.').pop() || p.key;
+              return (
+                <label key={p.id} className="inline-flex items-center gap-1.5 text-sm text-slate-600">
+                  <input type="checkbox" checked={form.permission_ids.includes(p.id)} onChange={(e) => {
+                    setForm((f) => ({
+                      ...f,
+                      permission_ids: e.target.checked ? [...f.permission_ids, p.id] : f.permission_ids.filter((id) => id !== p.id),
+                    }));
+                  }} className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600" />
+                  {ACTION_LABELS[action] || (action.charAt(0).toUpperCase() + action.slice(1))}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      );
+    });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Group Management</h2>
-          <p className="mt-1 text-sm text-slate-500">Define groups and assign permissions.</p>
+          <h2 className="text-lg font-semibold text-slate-900">Roles</h2>
+          <p className="mt-1 text-sm text-slate-500">Manage roles and what each role can do.</p>
         </div>
-        <button onClick={openCreate} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">Add Group</button>
+        <button onClick={openCreate} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">Add Role</button>
       </div>
 
-      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search groups..." className="w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500" />
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search roles..." className="w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500" />
 
       {showForm && (
-        <div className="rounded-xl border bg-white p-5 shadow-sm space-y-3">
-          <h3 className="font-semibold text-slate-900">{editing ? 'Edit Group' : 'Create Group'}</h3>
+        <div className="rounded-xl border bg-white p-5 shadow-sm space-y-4">
+          <h3 className="font-semibold text-slate-900">{editing ? 'Edit Role' : 'Create Role'}</h3>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Group name" className="rounded-lg border px-3 py-2 text-sm" />
-            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className="rounded-lg border px-3 py-2 text-sm" />
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Role name" className="rounded-lg border px-3 py-2 text-sm" />
+            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" className="rounded-lg border px-3 py-2 text-sm" />
           </div>
           <div>
-            <div className="mb-1 text-sm font-medium text-slate-700">Permissions</div>
-            <div className="max-h-64 overflow-y-auto rounded-lg border p-3 space-y-3">
-              {Object.entries(permsByEntity).map(([entity, perms]) => {
-                const entityPermIds = perms.map((p) => p.id);
-                const selectedCount = entityPermIds.filter((id) => form.permission_ids.includes(id)).length;
-                const allSelected = selectedCount === entityPermIds.length;
-                const someSelected = selectedCount > 0 && !allSelected;
-                const toggleEntity = () => {
-                  setForm((f) => {
-                    if (allSelected) {
-                      return { ...f, permission_ids: f.permission_ids.filter((id) => !entityPermIds.includes(id)) };
-                    }
-                    const merged = new Set([...f.permission_ids, ...entityPermIds]);
-                    return { ...f, permission_ids: [...merged] };
-                  });
-                };
-                return (
-                <div key={entity}>
-                  <label className="mb-1 inline-flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox" checked={allSelected} ref={(el) => { if (el) el.indeterminate = someSelected; }} onChange={toggleEntity} className="h-3.5 w-3.5 rounded border-slate-300" />
-                    <span className="text-xs font-semibold uppercase text-slate-400">{entity}</span>
-                  </label>
-                  <div className="flex flex-wrap gap-2 ml-5">
-                    {perms.map((p) => (
-                      <label key={p.id} className="inline-flex items-center gap-1 text-xs">
-                        <input type="checkbox" checked={form.permission_ids.includes(p.id)} onChange={(e) => {
-                          setForm((f) => ({
-                            ...f,
-                            permission_ids: e.target.checked ? [...f.permission_ids, p.id] : f.permission_ids.filter((id) => id !== p.id),
-                          }));
-                        }} className="h-3.5 w-3.5 rounded border-slate-300" />
-                        {p.label || p.key}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                );
-              })}
+            <div className="mb-2 text-sm font-medium text-slate-700">What can this role do?</div>
+            <div className="max-h-80 overflow-y-auto space-y-2">
+              {renderPermBlock(permsByEntity)}
             </div>
           </div>
+          {isSuperadmin && Object.keys(systemPermsByEntity).length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="text-xs font-medium text-slate-500 hover:text-slate-700"
+              >
+                {showAdvanced ? 'Hide advanced settings' : 'Show advanced settings'}
+              </button>
+              {showAdvanced && (
+                <div className="mt-2 max-h-48 overflow-y-auto space-y-2 rounded-lg border border-dashed border-slate-300 p-3">
+                  {renderPermBlock(systemPermsByEntity)}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex gap-2">
             <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Save</button>
             <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
@@ -585,16 +642,18 @@ export default function GroupsAdminPageConnected() {
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {filtered.map((group) => (
-          <article key={group.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <article key={group.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-slate-900">{group.name}</h3>
-              <div className="text-xs text-slate-500">{memberCount(group.id)} members</div>
+              <div className="text-xs text-slate-500">{memberCount(group.id)} {memberCount(group.id) === 1 ? 'member' : 'members'}</div>
             </div>
-            <p className="mt-2 text-xs text-slate-600">{group.description || 'No description'}</p>
-            <div className="mt-3 text-xs text-slate-700">Permissions: <span className="font-semibold">{permCount(group.id)}</span></div>
+            <p className="mt-1 text-xs text-slate-500">{group.description || 'No description'}</p>
+            <div className="mt-2 text-xs text-slate-600">Permissions: <span className="font-semibold">{permCount(group.id)}</span></div>
             <div className="mt-3 flex items-center justify-end gap-2">
-              <button onClick={() => openEdit(group)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white">Edit</button>
-              <button onClick={() => handleDelete(group.id)} className="rounded border border-rose-300 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">Delete</button>
+              <button onClick={() => openEdit(group)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit</button>
+              {String(group.name).toLowerCase() !== 'superadmin' && String(group.name).toLowerCase() !== 'admin' && (
+                <button onClick={() => handleDelete(group.id)} className="rounded border border-rose-300 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">Delete</button>
+              )}
             </div>
           </article>
         ))}

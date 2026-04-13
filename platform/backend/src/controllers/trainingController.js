@@ -7,13 +7,14 @@ function errStatus(err) {
 
 exports.listSessions = async (req, res) => {
   try {
-    const { limit, offset, endpoint, quality, reviewed } = req.query;
+    const { limit, offset, endpoint, quality, reviewed, agent } = req.query;
     const data = await trainingService.listSessions({
       limit: limit ? parseInt(limit, 10) : 50,
       offset: offset ? parseInt(offset, 10) : 0,
       endpoint: endpoint || undefined,
       quality: quality || undefined,
       reviewed: reviewed || undefined,
+      agent: agent || undefined,
     });
     res.json(data);
   } catch (err) {
@@ -57,6 +58,26 @@ exports.saveReview = async (req, res) => {
     res.json({ review });
   } catch (err) {
     logger.error('Training saveReview error:', err);
+    res.status(errStatus(err)).json({ error: err.message || 'Internal server error' });
+  }
+};
+
+exports.saveStepReview = async (req, res) => {
+  try {
+    const { sessionId, agent } = req.params;
+    const { quality, notes, edited_output, corrective_instruction } = req.body;
+    if (!quality || !['good', 'bad', 'needs_edit'].includes(quality)) {
+      return res.status(400).json({ error: 'quality must be one of: good, bad, needs_edit' });
+    }
+    const review = await trainingService.saveStepReview(sessionId, agent, {
+      quality,
+      notes: notes || null,
+      editedOutput: edited_output || null,
+      correctiveInstruction: corrective_instruction || null,
+    });
+    res.json({ review });
+  } catch (err) {
+    logger.error('Training saveStepReview error:', err);
     res.status(errStatus(err)).json({ error: err.message || 'Internal server error' });
   }
 };

@@ -72,9 +72,9 @@ Sprint 5 planned tasks:
 - [[DONE]] Build a platform admin screen to manage platform-level users, roles, and access. (ASA)
 
 **ERP Generation Page UX:**
-- Add a loading modal during AI generation and ERP build that blocks interaction until complete; show tick animation on success with auto-close, X animation on error with a close button, and user-friendly error messages instead of technical ones. (ASA)
-- Remove group selection from the ERP generation page to reduce user confusion. (ASA)
-- Remove entity and functionality display from the ERP generation page to simplify the flow. (ASA)
+- [[DONE]] Add a loading modal during AI generation and ERP build that blocks interaction until complete; show tick animation on success with auto-close, X animation on error with a close button, and user-friendly error messages instead of technical ones. (ASA)
+- [[DONE]] Remove group selection from the ERP generation page to reduce user confusion. (ASA)
+- [[DONE]] Remove entity and functionality display from the ERP generation page to simplify the flow. (ASA)
 
 **Generated ERP Issues:**
 - Display company or project name on the top-left header instead of the module name. (ASA)
@@ -89,10 +89,10 @@ Sprint 5 planned tasks:
 - Add an unsupported-feature notification flow: when a user requests something the system cannot provide, show a clear message acknowledging the request, explain the limitation, and record the need for future development. (ASA)
 
 **AI Fine-Tuning Data Management:**
-- Build an AI fine-tuning data recording and management system: register and record all AI interactions, allow easy review to mark samples as good or bad, edit training pairs, and present them in a user-friendly interface within platform admin or a dedicated tool. (ASA)
+- [[DONE]] Build an AI fine-tuning data recording and management system: register and record all AI interactions, allow easy review to mark samples as good or bad, edit training pairs, and present them in a user-friendly interface within platform admin or a dedicated tool. (ASA)
 
 **Documentation:**
-- Write an SMB owner examples document listing real-world small business types that would use the ERP, what they would need, independent of what the generator currently supports. To be able to use for fine-tuning.(ASA)
+- [[DONE]] Write an SMB owner examples document listing real-world small business types that would use the ERP, what they would need, independent of what the generator currently supports. To be able to use for fine-tuning.(ASA)
 
 **AI Fine-Tuning:**
 - Generate fine-tuning training data from recorded platform interactions and domain outputs. (ASA)

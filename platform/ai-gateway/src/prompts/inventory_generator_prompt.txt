@@ -10,6 +10,7 @@
 # 2. Default answers the user already provided
 # 3. The business description
 # 4. Context from the distributor agent
+# 5. Change instructions from the distributor (when in change mode)
 
 # How the prefilled SDF works:
 # The user already went through a step-by-step wizard where they answered
@@ -21,11 +22,14 @@
 #
 # Your task:
 # 1. Start from the prefilled SDF exactly as given.
-# 2. Add business-specific enhancements the wizard could not know about.
-# 3. Ask clarification questions only for genuinely novel business needs.
+# 2. If CHANGE INSTRUCTIONS are provided, follow them EXACTLY — add, modify, or REMOVE
+#    entities, fields, or config as instructed. Change instructions take priority.
+# 3. Add business-specific enhancements the wizard could not know about.
+# 4. Ask clarification questions only for genuinely novel business needs.
 #
-# If the prefilled SDF already covers everything the business needs,
-# return it as-is with sdf_complete set to true and an empty clarifications array.
+# If the prefilled SDF already covers everything the business needs
+# (and there are no change instructions), return it as-is with sdf_complete
+# set to true and an empty clarifications array.
 
 # What counts as a valid enhancement (add these):
 # - A new custom field on an existing entity mentioned in the business description
@@ -38,10 +42,20 @@
 # - A display_name or slug tweak to match the business domain language
 #   Example: business sells tires -> rename products slug to tires, display_name to "Tire"
 #
-# What is not an enhancement (avoid these):
+# What is not an enhancement (avoid these — UNLESS change instructions say otherwise):
 # - Re-creating products, categories, locations, stock_movements that already exist under a different name
 # - Changing field types, options, or required flags that are already set
 # - Removing features like batch tracking, serial tracking, low-stock alerts, etc.
+# NOTE: If change instructions explicitly ask you to remove or modify something, DO IT.
+#
+# IMPORTANT — slug matching in change instructions:
+# Change instructions may reference entities using colloquial or slightly different names
+# than the actual slugs in the prefilled SDF. Match by INTENT, not just exact slug.
+# Example: instructions say "remove supplier_orders" but prefilled SDF has "purchase_orders"
+#   → remove purchase_orders (it's clearly the same entity).
+# Example: instructions say "rename goods_receipts to products_received"
+#   → rename the goods_receipts entity's slug to products_received and update display_name.
+# Always cross-reference entity names in change instructions against your prefilled SDF.
 
 # Inventory capability scope (reference only, do not blindly generate all):
 # 1) Core Item Master  2) Stock Ledger  3) Warehouse/Location
@@ -56,11 +70,14 @@
 {
   "module": "inventory",
   "entities": [
-    // Include every entity from the prefilled SDF unchanged.
-    // You may append new entities after them.
+    // Start from the prefilled SDF entities.
+    // If change instructions say to REMOVE an entity, do NOT include it here.
+    // If change instructions say to RENAME, include it with the new slug/display_name.
+    // You may add new entities for business-specific needs.
   ],
   "module_config": {
-    // Include every key from the prefilled module_config unchanged.
+    // Start from the prefilled module_config.
+    // If change instructions modify config (e.g. disable inbound), apply those changes.
     // You may add new keys if the business needs them.
   },
   "clarifications_needed": [
@@ -101,6 +118,21 @@
 #   "adjust": { "enabled": true, "label": "Adjust" },
 #   "sell": { "enabled": true, "label": "Sell" },
 #   "quick_actions": true }
+#
+# Children config for parent-child relationships (IMPORTANT for UI):
+# Line-item entities (e.g. purchase_order_items, goods_receipt_items, cycle_count_lines)
+# should NOT appear as standalone pages. Instead, add a "children" array on the PARENT
+# entity so the items are shown as embedded rows inside the parent form.
+# Example on purchase_orders / supplier_orders:
+# "children": [{ "entity": "purchase_order_items", "foreign_key": "purchase_order_id",
+#   "label": "Order Items", "columns": ["item_id","ordered_quantity","received_quantity","status"] }]
+# Example on goods_receipts:
+# "children": [{ "entity": "goods_receipt_items", "foreign_key": "goods_receipt_id",
+#   "label": "Receipt Items", "columns": ["item_id","received_quantity","accepted_quantity"] }]
+# Example on cycle_count_sessions:
+# "children": [{ "entity": "cycle_count_lines", "foreign_key": "cycle_count_session_id",
+#   "label": "Count Lines", "columns": ["item_id","expected_quantity","counted_quantity","variance_quantity"] }]
+# ALWAYS add children config on parent entities that have associated *_items or *_lines entities.
 
 # --- Inputs ---
 
@@ -115,10 +147,13 @@ Inventory Description: {inventory_description}
 Inventory Features Requested: {inventory_features}
 Shared Entities: {shared_entities}
 
+# Change instructions from distributor (follow these EXACTLY if provided):
+{change_instructions}
+
 # Original business description:
 {business_description}
 
 # SDF schema reference:
 {sdf_schema_reference}
 
-# Your JSON output (start from the prefilled SDF, only add enhancements):
+# Your JSON output (start from the prefilled SDF, apply change instructions if any, then add enhancements):

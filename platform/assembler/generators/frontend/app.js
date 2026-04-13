@@ -56,6 +56,3 @@ export default App;`;
 module.exports = {
   buildApp,
 };
-
-
-

@@ -143,7 +143,11 @@ class SystemDefinitionFile(BaseModel):
 
     warnings: Optional[List[str]] = Field(
         default=None,
-        description="Non-blocking warnings and limitations to show in the UI.",
+        description="Non-blocking warnings and limitations (internal/logs only).",
+    )
+    unsupported_features: Optional[List[str]] = Field(
+        default=None,
+        description="Plain-English list of requested features the platform cannot yet provide.",
     )
 
     # Backwards-compat: old AI schema used `relations`; we accept but ignore.

@@ -6,6 +6,7 @@ export interface SessionSummary {
   endpoint: string;
   description_snippet: string;
   step_count: number;
+  agents: string[];
   token_usage: Record<string, any>;
   quality: 'good' | 'bad' | 'needs_edit' | null;
   reviewed: boolean;
@@ -16,6 +17,7 @@ export interface StepLog {
   agent: string;
   model: string;
   temperature: number;
+  prompt_text: string;
   input_summary: Record<string, any>;
   output_parsed: Record<string, any>;
   raw_response: string;
@@ -33,6 +35,16 @@ export interface SessionReview {
   reviewed_at: string | null;
 }
 
+export interface StepReview {
+  agent: string;
+  quality: 'good' | 'bad' | 'needs_edit' | null;
+  reviewer_notes: string | null;
+  corrective_instruction: string | null;
+  edited_output: Record<string, any> | null;
+  is_exported: boolean;
+  reviewed_at: string | null;
+}
+
 export interface SessionDetail {
   session_id: string;
   timestamp: string;
@@ -42,6 +54,7 @@ export interface SessionDetail {
   step_logs: StepLog[];
   token_usage: Record<string, any>;
   review: SessionReview | null;
+  step_reviews: Record<string, StepReview>;
 }
 
 export interface TrainingStats {
@@ -56,6 +69,12 @@ export interface TrainingStats {
     needs_edit: number;
     exported: number;
   };
+  by_agent: Record<string, {
+    total: number;
+    good: number;
+    bad: number;
+    needs_edit: number;
+  }>;
 }
 
 export interface SessionListResponse {
@@ -69,16 +88,16 @@ export const trainingService = {
   listSessions: async (params: {
     limit?: number;
     offset?: number;
-    endpoint?: string;
     quality?: string;
     reviewed?: string;
+    agent?: string;
   } = {}): Promise<SessionListResponse> => {
     const query = new URLSearchParams();
     if (params.limit) query.set('limit', String(params.limit));
     if (params.offset) query.set('offset', String(params.offset));
-    if (params.endpoint) query.set('endpoint', params.endpoint);
     if (params.quality) query.set('quality', params.quality);
     if (params.reviewed) query.set('reviewed', params.reviewed);
+    if (params.agent) query.set('agent', params.agent);
     const qs = query.toString();
     const res = await api.get<SessionListResponse>(`/admin/training${qs ? `?${qs}` : ''}`);
     return res.data;
@@ -101,6 +120,16 @@ export const trainingService = {
     edited_output?: Record<string, any>;
   }): Promise<any> => {
     const res = await api.put(`/admin/training/${sessionId}/review`, data);
+    return res.data;
+  },
+
+  saveStepReview: async (sessionId: string, agent: string, data: {
+    quality: 'good' | 'bad' | 'needs_edit';
+    notes?: string;
+    corrective_instruction?: string;
+    edited_output?: Record<string, any>;
+  }): Promise<any> => {
+    const res = await api.put(`/admin/training/${sessionId}/steps/${agent}/review`, data);
     return res.data;
   },
 

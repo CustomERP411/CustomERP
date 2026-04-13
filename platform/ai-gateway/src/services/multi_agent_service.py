@@ -14,7 +14,7 @@ import json
 import asyncio
 import re
 import time
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 
 from src.config import settings
 from src.services.base_client import BaseAIClient, GenerationResult
@@ -24,7 +24,6 @@ from src.schemas.multi_agent import (
     AgentStepLog,
     ClarificationQuestion,
     DistributorOutput,
-    IntegratorOutput,
     ModuleContext,
     ModuleGeneratorOutput,
     PipelineResult,
@@ -34,9 +33,9 @@ from src.prompts.sdf_generation import (
     get_hr_generator_prompt,
     get_invoice_generator_prompt,
     get_inventory_generator_prompt,
-    get_integrator_prompt,
     get_fix_json_prompt,
 )
+from src.services.sdf.integrator import merge_module_outputs
 
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
@@ -50,13 +49,11 @@ class MultiAgentService:
         hr_client: Optional[BaseAIClient] = None,
         invoice_client: Optional[BaseAIClient] = None,
         inventory_client: Optional[BaseAIClient] = None,
-        integrator_client: Optional[BaseAIClient] = None,
     ):
         self.distributor_client = distributor_client or self._create_client("distributor")
         self.hr_client = hr_client or self._create_client("hr")
         self.invoice_client = invoice_client or self._create_client("invoice")
         self.inventory_client = inventory_client or self._create_client("inventory")
-        self.integrator_client = integrator_client or self._create_client("integrator")
 
     # ── client factory ──────────────────────────────────────────
 
@@ -111,15 +108,18 @@ class MultiAgentService:
         output_parsed: Dict[str, Any],
         result: GenerationResult,
         duration_ms: int,
+        prompt_text: str = "",
     ) -> AgentStepLog:
         config = settings.get_agent_config(agent_name)
+        model_str = config.model or getattr(client, "model_name", "") or getattr(client, "deployment", "") or ""
         return AgentStepLog(
             agent=agent_name,
-            model=config.model,
+            model=model_str,
             temperature=config.temperature,
+            prompt_text=prompt_text[:30000],
             input_summary=input_summary,
             output_parsed=output_parsed,
-            raw_response=result.text[:5000],
+            raw_response=result.text[:10000],
             tokens_in=result.prompt_tokens,
             tokens_out=result.completion_tokens,
             duration_ms=duration_ms,
@@ -132,17 +132,23 @@ class MultiAgentService:
         business_description: str,
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
+        on_progress: Optional[Callable] = None,
     ) -> PipelineResult:
         errors: List[str] = []
         warnings: List[str] = []
         token_usage = self._empty_token_usage()
         step_logs: List[AgentStepLog] = []
 
+        def _progress(step: str, pct: int, detail: str = ""):
+            if on_progress:
+                on_progress(step, pct, detail)
+
         # Step 1: Distributor
+        _progress("distributor", 10, "Analyzing your business requirements")
         print("[MultiAgentService] Step 1: Running distributor...")
         t0 = time.monotonic()
         try:
-            distributor_output, dist_tokens = await self._run_distributor(
+            distributor_output, dist_tokens, dist_prompt = await self._run_distributor(
                 business_description,
                 default_question_answers or {},
                 prefilled_sdf or {},
@@ -152,9 +158,14 @@ class MultiAgentService:
             warnings.extend(distributor_output.warnings)
             step_logs.append(self._build_step_log(
                 "distributor", self.distributor_client,
-                {"business_description": business_description[:500]},
+                {
+                    "business_description": business_description,
+                    "default_question_answers": default_question_answers or {},
+                    "prefilled_sdf_keys": list((prefilled_sdf or {}).get("modules", {}).keys()),
+                },
                 distributor_output.model_dump(exclude_none=True),
                 dist_tokens, dist_ms,
+                prompt_text=dist_prompt,
             ))
         except Exception as e:
             print(f"[MultiAgentService] Distributor failed: {e}")
@@ -165,24 +176,67 @@ class MultiAgentService:
                 step_logs=step_logs,
             )
 
-        print(f"[MultiAgentService] Modules needed: {distributor_output.modules_needed}")
+        # ── Gatekeeper: parse distributor clarifications & unsupported features ──
+        dist_clarifications = self._parse_clarifications(
+            [q.model_dump() if hasattr(q, "model_dump") else q for q in distributor_output.clarifications_needed],
+            "distributor",
+        ) if distributor_output.clarifications_needed else []
+        unsupported = list(distributor_output.unsupported_features or [])
 
-        # Step 2: Module generators (parallel)
-        print("[MultiAgentService] Step 2: Running module generators...")
+        if unsupported:
+            print(f"[MultiAgentService] Unsupported features detected: {unsupported}")
+
+        if dist_clarifications:
+            print(f"[MultiAgentService] Distributor returned {len(dist_clarifications)} clarification(s) — stopping pipeline early")
+            _progress("clarifications", 20, "Waiting for your answers")
+            return PipelineResult(
+                success=True,
+                sdf=None,
+                sdf_complete=False,
+                distributor_output=distributor_output,
+                clarifications_needed=dist_clarifications,
+                unsupported_features=unsupported,
+                token_usage=token_usage,
+                step_logs=step_logs,
+                warnings=warnings,
+            )
+
+        modules_needed = distributor_output.modules_needed
+        print(f"[MultiAgentService] Modules needed: {modules_needed}")
+
+        # Determine which modules actually need regeneration vs. carry-forward
+        context_for = {
+            "hr": distributor_output.hr_context,
+            "invoice": distributor_output.invoice_context,
+            "inventory": distributor_output.inventory_context,
+        }
+        skipped_modules: Dict[str, Any] = {}
+        modules_to_generate = []
+        for mod in modules_needed:
+            ctx = context_for.get(mod)
+            if ctx and not ctx.changed and prefilled_sdf:
+                skipped_modules[mod] = True
+                print(f"[MultiAgentService] Skipping {mod.upper()} generator (unchanged in change request)")
+            else:
+                modules_to_generate.append(mod)
+
+        module_labels = ", ".join(m.upper() for m in modules_to_generate) if modules_to_generate else "modules"
+        _progress("generators", 25, f"Generating {module_labels} configurations")
+        print(f"[MultiAgentService] Step 2: Running module generators for: {modules_to_generate}")
         module_outputs: Dict[str, ModuleGeneratorOutput] = {}
         generator_tasks = []
 
         answers = default_question_answers or {}
         pre_sdf = prefilled_sdf or {}
-        if "hr" in distributor_output.modules_needed:
+        if "hr" in modules_to_generate:
             generator_tasks.append(("hr", self._run_hr_generator(
                 business_description, distributor_output.hr_context, distributor_output.shared_entities, answers, pre_sdf,
             )))
-        if "invoice" in distributor_output.modules_needed:
+        if "invoice" in modules_to_generate:
             generator_tasks.append(("invoice", self._run_invoice_generator(
                 business_description, distributor_output.invoice_context, distributor_output.shared_entities, answers, pre_sdf,
             )))
-        if "inventory" in distributor_output.modules_needed:
+        if "inventory" in modules_to_generate:
             generator_tasks.append(("inventory", self._run_inventory_generator(
                 business_description, distributor_output.inventory_context, distributor_output.shared_entities, answers, pre_sdf,
             )))
@@ -194,21 +248,51 @@ class MultiAgentService:
             results = await asyncio.gather(*coros, return_exceptions=True)
             gen_elapsed_ms = int((time.monotonic() - gen_start) * 1000)
 
+            context_map = {
+                "hr": distributor_output.hr_context,
+                "invoice": distributor_output.invoice_context,
+                "inventory": distributor_output.inventory_context,
+            }
+
             for name, result in zip(names, results):
                 if isinstance(result, Exception):
                     errors.append(f"Module generator ({name}) failed: {str(result)}")
                 else:
-                    output, gen_tokens = result
+                    output, gen_tokens, gen_prompt = result
                     module_outputs[output.module] = output
                     warnings.extend(output.warnings)
                     self._add_tokens(token_usage, name, gen_tokens)
                     client_map = {"hr": self.hr_client, "invoice": self.invoice_client, "inventory": self.inventory_client}
+                    ctx = context_map.get(name)
                     step_logs.append(self._build_step_log(
                         f"{name}_generator", client_map.get(name, self.hr_client),
-                        {"business_description": business_description[:300], "module": name},
+                        {
+                            "business_description": business_description,
+                            "module": name,
+                            "module_context": ctx.model_dump(exclude_none=True) if ctx else {},
+                            "shared_entities": distributor_output.shared_entities,
+                        },
                         output.model_dump(exclude_none=True),
                         gen_tokens, gen_elapsed_ms,
+                        prompt_text=gen_prompt,
                     ))
+
+        # Carry forward skipped modules from prefilled SDF as synthetic outputs
+        for mod_name in skipped_modules:
+            mod_config = (pre_sdf.get("modules") or {}).get(mod_name, {})
+            mod_entities = [
+                e for e in (pre_sdf.get("entities") or [])
+                if mod_name in (e.get("belongs_to") if isinstance(e.get("belongs_to"), list) else [e.get("belongs_to", "")])
+                or e.get("module") == mod_name
+            ]
+            module_outputs[mod_name] = ModuleGeneratorOutput(
+                module=mod_name,
+                entities=mod_entities,
+                module_config=mod_config,
+                sdf_complete=True,
+                warnings=[],
+            )
+            print(f"[MultiAgentService] Carried forward {len(mod_entities)} entities for skipped {mod_name.upper()}")
 
         if not module_outputs:
             return PipelineResult(
@@ -220,93 +304,119 @@ class MultiAgentService:
                 step_logs=step_logs,
             )
 
-        # Step 3: Integrator
-        print("[MultiAgentService] Step 3: Running integrator...")
+        # Step 3: Deterministic merge (replaces LLM integrator)
+        _progress("integrator", 60, "Combining modules into your ERP")
+        print("[MultiAgentService] Step 3: Merging module outputs (deterministic)...")
         t_integ = time.monotonic()
-        try:
-            final_sdf, integ_tokens = await self._run_integrator(
-                project_name=distributor_output.project_name,
-                business_description=business_description,
-                shared_entities=distributor_output.shared_entities,
-                hr_output=module_outputs.get("hr"),
-                invoice_output=module_outputs.get("invoice"),
-                inventory_output=module_outputs.get("inventory"),
-                default_question_answers=default_question_answers or {},
-                prefilled_sdf=prefilled_sdf or {},
-            )
-            integ_ms = int((time.monotonic() - t_integ) * 1000)
-            self._add_tokens(token_usage, "integrator", integ_tokens)
 
-            step_logs.append(self._build_step_log(
-                "integrator", self.integrator_client,
-                {"modules": list(module_outputs.keys())},
-                {"project_name": final_sdf.get("project_name", ""), "entity_count": len(final_sdf.get("entities", []))},
-                integ_tokens, integ_ms,
-            ))
+        final_sdf = merge_module_outputs(
+            project_name=distributor_output.project_name,
+            module_outputs=module_outputs,
+            shared_entity_hints=distributor_output.shared_entities,
+            prefilled_sdf=prefilled_sdf or {},
+        )
+        integ_ms = int((time.monotonic() - t_integ) * 1000)
+        print(f"[MultiAgentService] Merge completed in {integ_ms}ms — "
+              f"{len(final_sdf.get('entities', []))} entities, "
+              f"{len(final_sdf.get('modules', {}))} modules")
 
-            if isinstance(final_sdf.get("warnings"), list):
-                warnings.extend(final_sdf["warnings"])
+        step_logs.append(AgentStepLog(
+            agent="integrator",
+            model="deterministic",
+            temperature=0.0,
+            prompt_text="",
+            input_summary={
+                "modules": list(module_outputs.keys()),
+                "project_name": distributor_output.project_name,
+                "shared_entities": distributor_output.shared_entities,
+                "method": "code_merge",
+            },
+            output_parsed=final_sdf,
+            raw_response=json.dumps(final_sdf, default=str)[:10000],
+            tokens_in=0,
+            tokens_out=0,
+            duration_ms=integ_ms,
+        ))
 
-            # Step 4: Aggregate clarifications (grouped by module, sorted by priority)
-            integrator_clarifications = final_sdf.get("clarifications_needed", [])
-            aggregated_clarifications = self._aggregate_clarifications(
-                module_outputs, integrator_clarifications,
-            )
+        if isinstance(final_sdf.get("warnings"), list):
+            warnings.extend(final_sdf["warnings"])
 
-            # Step 5: Termination check
-            all_modules_complete = all(
-                output.sdf_complete for output in module_outputs.values()
-            )
-            pipeline_complete = all_modules_complete and len(aggregated_clarifications) == 0
+        _progress("finalizing", 80, "Checking for follow-up questions")
+        aggregated_clarifications = self._aggregate_clarifications(module_outputs, [])
 
-            return PipelineResult(
-                success=True,
-                sdf=final_sdf,
-                sdf_complete=pipeline_complete,
-                distributor_output=distributor_output,
-                module_outputs=module_outputs,
-                clarifications_needed=aggregated_clarifications,
-                token_usage=token_usage,
-                step_logs=step_logs,
-                errors=errors,
-                warnings=warnings,
-            )
-        except Exception as e:
-            print(f"[MultiAgentService] Integrator failed: {e}")
-            partial_clarifications = self._aggregate_clarifications(module_outputs, [])
-            return PipelineResult(
-                success=False,
-                distributor_output=distributor_output,
-                module_outputs=module_outputs,
-                clarifications_needed=partial_clarifications,
-                token_usage=token_usage,
-                step_logs=step_logs,
-                errors=errors + [f"Integrator agent failed: {str(e)}"],
-                warnings=warnings,
-            )
+        all_modules_complete = all(
+            output.sdf_complete for output in module_outputs.values()
+        )
+        pipeline_complete = all_modules_complete and len(aggregated_clarifications) == 0
+
+        return PipelineResult(
+            success=True,
+            sdf=final_sdf,
+            sdf_complete=pipeline_complete,
+            distributor_output=distributor_output,
+            module_outputs=module_outputs,
+            clarifications_needed=aggregated_clarifications,
+            unsupported_features=unsupported,
+            token_usage=token_usage,
+            step_logs=step_logs,
+            errors=errors,
+            warnings=warnings,
+        )
 
     # ── individual agents ───────────────────────────────────────
+
+    @staticmethod
+    def _build_existing_modules_summary(prefilled_sdf: Dict[str, Any]) -> str:
+        """Build a lightweight text summary of which modules/entities exist in the prefilled SDF.
+        Includes display names so the distributor can map user's colloquial names to actual slugs."""
+        if not prefilled_sdf:
+            return "No existing ERP — this is a fresh generation."
+        modules = prefilled_sdf.get("modules") or {}
+        entities = prefilled_sdf.get("entities") or []
+
+        lines = []
+        enabled = [m for m, cfg in modules.items() if isinstance(cfg, dict) and cfg.get("enabled", True)]
+        if enabled:
+            lines.append(f"Enabled modules: {', '.join(enabled)}")
+
+        by_module: Dict[str, list] = {}
+        for e in entities:
+            if not isinstance(e, dict):
+                continue
+            mod = e.get("module", "unknown")
+            slug = e.get("slug", "?")
+            display = e.get("display_name", "")
+            label = f"{slug} (\"{display}\")" if display and display.lower().replace(" ", "_") != slug else slug
+            by_module.setdefault(mod, []).append(label)
+
+        for mod, slugs in sorted(by_module.items()):
+            lines.append(f"{mod.upper()} entities: {', '.join(slugs)}")
+
+        return "\n".join(lines) if lines else "No existing ERP — this is a fresh generation."
 
     async def _run_distributor(
         self, business_description: str,
         default_question_answers: Dict[str, Any],
         prefilled_sdf: Dict[str, Any],
-    ) -> tuple[DistributorOutput, GenerationResult]:
+    ) -> tuple[DistributorOutput, GenerationResult, str]:
         default_questions_str = json.dumps(default_question_answers, indent=2) if default_question_answers else ""
-        prefilled_sdf_str = json.dumps(prefilled_sdf, indent=2) if prefilled_sdf else ""
+        existing_modules_str = self._build_existing_modules_summary(prefilled_sdf)
 
-        prompt = get_distributor_prompt(business_description, default_questions_str, prefilled_sdf_str)
+        prompt = get_distributor_prompt(business_description, default_questions_str, existing_modules_str)
         result = await self.distributor_client.generate_with_retry(
             prompt, temperature=self.distributor_client.get_temperature(), response_schema=DistributorOutput,
         )
         data = await self._parse_json_with_repair(result.text, "distributor")
 
-        parsed_default_answers = data.get("default_question_answers", {})
-        if not isinstance(parsed_default_answers, dict):
-            parsed_default_answers = {}
-        parsed_prefilled_sdf = data.get("prefilled_sdf", {})
-        if not isinstance(parsed_prefilled_sdf, dict):
-            parsed_prefilled_sdf = {}
+        raw_clarifications = data.get("clarifications_needed", [])
+        parsed_clarifications = []
+        if isinstance(raw_clarifications, list):
+            for q in raw_clarifications:
+                if isinstance(q, dict):
+                    try:
+                        parsed_clarifications.append(ClarificationQuestion(**q))
+                    except Exception:
+                        pass
 
         output = DistributorOutput(
             project_name=data.get("project_name", "CustomERP Project"),
@@ -315,11 +425,11 @@ class MultiAgentService:
             hr_context=ModuleContext(**data["hr_context"]) if data.get("hr_context") else ModuleContext(),
             invoice_context=ModuleContext(**data["invoice_context"]) if data.get("invoice_context") else ModuleContext(),
             inventory_context=ModuleContext(**data["inventory_context"]) if data.get("inventory_context") else ModuleContext(),
-            default_question_answers=parsed_default_answers,
-            prefilled_sdf=parsed_prefilled_sdf,
+            clarifications_needed=parsed_clarifications,
+            unsupported_features=data.get("unsupported_features", []),
             warnings=data.get("warnings", []),
         )
-        return output, result
+        return output, result, prompt
 
     @staticmethod
     def _extract_module_prefilled(prefilled_sdf: Dict[str, Any], module_name: str) -> str:
@@ -344,7 +454,7 @@ class MultiAgentService:
         self, business_description: str, hr_context: ModuleContext, shared_entities: List[str],
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
-    ) -> tuple[ModuleGeneratorOutput, GenerationResult]:
+    ) -> tuple[ModuleGeneratorOutput, GenerationResult, str]:
         print("[MultiAgentService] Generating HR module...")
         hr_answers = {k: v for k, v in (default_question_answers or {}).items() if k.startswith("hr_")}
         prompt = get_hr_generator_prompt(
@@ -354,6 +464,7 @@ class MultiAgentService:
             shared_entities=", ".join(shared_entities),
             default_answers=json.dumps(hr_answers, indent=2) if hr_answers else "",
             prefilled_module_sdf=self._extract_module_prefilled(prefilled_sdf or {}, "hr"),
+            change_instructions=hr_context.change_instructions,
         )
         result = await self.hr_client.generate_with_retry(
             prompt, temperature=self.hr_client.get_temperature(), response_schema=ModuleGeneratorOutput,
@@ -368,13 +479,13 @@ class MultiAgentService:
             sdf_complete=bool(data.get("sdf_complete", False)),
             warnings=data.get("warnings", []),
         )
-        return output, result
+        return output, result, prompt
 
     async def _run_invoice_generator(
         self, business_description: str, invoice_context: ModuleContext, shared_entities: List[str],
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
-    ) -> tuple[ModuleGeneratorOutput, GenerationResult]:
+    ) -> tuple[ModuleGeneratorOutput, GenerationResult, str]:
         print("[MultiAgentService] Generating Invoice module...")
         inv_answers = {k: v for k, v in (default_question_answers or {}).items() if k.startswith("invoice_")}
         prompt = get_invoice_generator_prompt(
@@ -384,6 +495,7 @@ class MultiAgentService:
             shared_entities=", ".join(shared_entities),
             default_answers=json.dumps(inv_answers, indent=2) if inv_answers else "",
             prefilled_module_sdf=self._extract_module_prefilled(prefilled_sdf or {}, "invoice"),
+            change_instructions=invoice_context.change_instructions,
         )
         result = await self.invoice_client.generate_with_retry(
             prompt, temperature=self.invoice_client.get_temperature(), response_schema=ModuleGeneratorOutput,
@@ -398,13 +510,13 @@ class MultiAgentService:
             sdf_complete=bool(data.get("sdf_complete", False)),
             warnings=data.get("warnings", []),
         )
-        return output, result
+        return output, result, prompt
 
     async def _run_inventory_generator(
         self, business_description: str, inventory_context: ModuleContext, shared_entities: List[str],
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
-    ) -> tuple[ModuleGeneratorOutput, GenerationResult]:
+    ) -> tuple[ModuleGeneratorOutput, GenerationResult, str]:
         print("[MultiAgentService] Generating Inventory module...")
         stock_answers = {k: v for k, v in (default_question_answers or {}).items() if k.startswith("inv_")}
         prompt = get_inventory_generator_prompt(
@@ -414,6 +526,7 @@ class MultiAgentService:
             shared_entities=", ".join(shared_entities),
             default_answers=json.dumps(stock_answers, indent=2) if stock_answers else "",
             prefilled_module_sdf=self._extract_module_prefilled(prefilled_sdf or {}, "inventory"),
+            change_instructions=inventory_context.change_instructions,
         )
         result = await self.inventory_client.generate_with_retry(
             prompt, temperature=self.inventory_client.get_temperature(), response_schema=ModuleGeneratorOutput,
@@ -428,46 +541,13 @@ class MultiAgentService:
             sdf_complete=bool(data.get("sdf_complete", False)),
             warnings=data.get("warnings", []),
         )
-        return output, result
-
-    async def _run_integrator(
-        self,
-        project_name: str,
-        business_description: str,
-        shared_entities: List[str],
-        hr_output: Optional[ModuleGeneratorOutput],
-        invoice_output: Optional[ModuleGeneratorOutput],
-        inventory_output: Optional[ModuleGeneratorOutput],
-        default_question_answers: Dict[str, Any],
-        prefilled_sdf: Dict[str, Any],
-    ) -> tuple[Dict[str, Any], GenerationResult]:
-        hr_json = json.dumps(hr_output.model_dump(), indent=2) if hr_output else "null"
-        invoice_json = json.dumps(invoice_output.model_dump(), indent=2) if invoice_output else "null"
-        inventory_json = json.dumps(inventory_output.model_dump(), indent=2) if inventory_output else "null"
-        mandatory_answers_json = json.dumps(default_question_answers or {}, indent=2)
-        prefilled_sdf_json = json.dumps(prefilled_sdf or {}, indent=2)
-
-        prompt = get_integrator_prompt(
-            project_name=project_name,
-            business_description=business_description,
-            shared_entities=", ".join(shared_entities),
-            hr_output=hr_json,
-            invoice_output=invoice_json,
-            inventory_output=inventory_json,
-            default_question_answers=mandatory_answers_json,
-            prefilled_sdf=prefilled_sdf_json,
-        )
-        result = await self.integrator_client.generate_with_retry(
-            prompt, temperature=self.integrator_client.get_temperature(), response_schema=IntegratorOutput,
-        )
-        data = await self._parse_json_with_repair(result.text, "integrator")
-        return data, result
+        return output, result, prompt
 
     # ── JSON parsing ────────────────────────────────────────────
 
     async def _repair_json(self, malformed_json: str) -> GenerationResult:
         fix_prompt = get_fix_json_prompt(malformed_json)
-        return await self.integrator_client.generate_with_retry(
+        return await self.distributor_client.generate_with_retry(
             fix_prompt, temperature=0.0, json_mode=True,
         )
 

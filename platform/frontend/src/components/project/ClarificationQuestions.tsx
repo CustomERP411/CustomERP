@@ -47,25 +47,7 @@ export default function ClarificationQuestions({
     [grouped]
   );
 
-  if (sdfComplete && questions.length === 0) {
-    return (
-      <section className="rounded-xl border bg-emerald-50 p-6 space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold text-emerald-900">Your ERP Configuration is Complete</h2>
-          <p className="mt-1 text-sm text-emerald-700">
-            All modules have the information they need. You can review the setup below or finalize the current configuration.
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Button onClick={onFinalize} loading={running}>Finalize Setup</Button>
-          <button type="button" onClick={onSubmit}
-            className="text-sm font-medium text-slate-600 underline hover:text-slate-800">
-            I want to refine further
-          </button>
-        </div>
-      </section>
-    );
-  }
+  if (questions.length === 0) return null;
 
   return (
     <section className="rounded-xl border bg-white p-6 space-y-5">

@@ -1,14 +1,26 @@
-function buildDashboardHome({ lowStockCfg, expiryCfg, activityCfg, enableReportsPage }) {
+function buildDashboardHome({ lowStockCfg, expiryCfg, activityCfg, enableReportsPage, rbac }) {
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { ENTITIES } from '../config/entities';
 import InventoryAlertCard from '../components/modules/inventory/InventoryAlertCard';
-
+${rbac ? `import { useAuth } from '../contexts/AuthContext';\n` : ''}
 const LOW_STOCK = ${JSON.stringify(lowStockCfg, null, 2)} as const;
 const EXPIRY = ${JSON.stringify(expiryCfg, null, 2)} as const;
 const ACTIVITY = ${JSON.stringify(activityCfg, null, 2)} as const;
 const ENABLE_REPORTS_PAGE = ${enableReportsPage ? 'true' : 'false'} as const;
+
+const MODULE_DISPLAY_NAMES: Record<string, string> = {
+  inventory: 'Inventory',
+  invoice: 'Invoicing',
+  hr: 'HR & People',
+};
+
+const MODULE_ACCENT: Record<string, string> = {
+  inventory: 'border-t-blue-500',
+  invoice: 'border-t-emerald-500',
+  hr: 'border-t-violet-500',
+};
 
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(
   ENTITIES.map((e) => [e.slug, e.displayField])
@@ -33,6 +45,7 @@ const toNumber = (v: any): number | null => {
 };
 
 export default function DashboardHome() {
+${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ? \`Welcome back, \${user.display_name.split(' ')[0]}\` : 'Dashboard';\n` : '  const greeting = \'Dashboard\';\n'}
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loadingCounts, setLoadingCounts] = useState(true);
 
@@ -45,6 +58,8 @@ export default function DashboardHome() {
   const [auditItems, setAuditItems] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
 
+  const visibleEntities = useMemo(() => ENTITIES.filter((e) => !e.isChild), []);
+
   useEffect(() => {
     const run = async () => {
       try {
@@ -53,7 +68,7 @@ export default function DashboardHome() {
         tasks.push(
           (async () => {
             const entries = await Promise.all(
-              ENTITIES.map(async (e) => {
+              visibleEntities.map(async (e) => {
                 const res = await api.get('/' + e.slug);
                 return [e.slug, Array.isArray(res.data) ? res.data.length : 0] as const;
               })
@@ -126,7 +141,7 @@ export default function DashboardHome() {
       }
     };
     run();
-  }, []);
+  }, [visibleEntities]);
 
   const reorderSuggestion = useMemo(() => {
     const multiplier = Number(LOW_STOCK.suggestion_multiplier ?? 1);
@@ -142,31 +157,82 @@ export default function DashboardHome() {
     return map;
   }, [lowStockItems]);
 
+  const entityGroups = useMemo(() => {
+    const groups: Record<string, typeof ENTITIES> = {};
+    for (const e of visibleEntities) {
+      const modules = e.module === 'shared' && e.sharedModules?.length
+        ? e.sharedModules
+        : [e.module || 'inventory'];
+      for (const mod of modules) {
+        if (!groups[mod]) groups[mod] = [];
+        if (!groups[mod].some((x: any) => x.slug === e.slug)) {
+          groups[mod].push(e);
+        }
+      }
+    }
+    const moduleOrder = ['inventory', 'invoice', 'hr'];
+    const ordered = moduleOrder.filter((m) => groups[m] && groups[m].length > 0);
+    for (const key of Object.keys(groups)) {
+      if (!ordered.includes(key)) ordered.push(key);
+    }
+    return ordered.map((mod) => ({ mod, entities: groups[mod] }));
+  }, [visibleEntities]);
+
+  const totalRecords = Object.values(counts).reduce((sum, n) => sum + n, 0);
+
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-700 p-6 text-white shadow">
-        <div className="text-sm opacity-90">Welcome</div>
-        <div className="mt-1 text-2xl font-bold">Your Inventory Workspace</div>
-        <div className="mt-2 text-sm opacity-90">
-          Use the sidebar to manage entities and tools.
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">{greeting}</h1>
+          {!loadingCounts && (
+            <p className="mt-0.5 text-sm text-slate-500">
+              {totalRecords.toLocaleString()} total records across {visibleEntities.length} sections
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {ENTITIES.map((e) => (
-          <Link
-            key={e.slug}
-            to={'/' + e.slug}
-            className="rounded-xl border bg-white p-4 shadow-sm transition hover:shadow"
-          >
-            <div className="text-sm font-semibold text-slate-900">{e.displayName}</div>
-            <div className="mt-2 text-3xl font-bold text-slate-900">
-              {loadingCounts ? '…' : String(counts[e.slug] ?? 0)}
+      {entityGroups.length === 1 ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {entityGroups[0].entities.map((e) => (
+            <Link
+              key={e.slug}
+              to={'/' + e.slug}
+              className={\`rounded-xl border border-t-2 \${MODULE_ACCENT[entityGroups[0].mod] || 'border-t-slate-300'} bg-white p-4 shadow-sm transition hover:shadow\`}
+            >
+              <div className="text-sm font-semibold text-slate-900">{e.displayName}</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">
+                {loadingCounts ? '...' : String(counts[e.slug] ?? 0)}
+              </div>
+              <div className="mt-0.5 text-xs text-slate-400">records</div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        entityGroups.map(({ mod, entities: modEntities }) => (
+          <div key={mod}>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {MODULE_DISPLAY_NAMES[mod] || mod}
+            </h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {modEntities.map((e) => (
+                <Link
+                  key={e.slug}
+                  to={'/' + e.slug}
+                  className={\`rounded-xl border border-t-2 \${MODULE_ACCENT[mod] || 'border-t-slate-300'} bg-white p-4 shadow-sm transition hover:shadow\`}
+                >
+                  <div className="text-sm font-semibold text-slate-900">{e.displayName}</div>
+                  <div className="mt-2 text-2xl font-bold text-slate-900">
+                    {loadingCounts ? '...' : String(counts[e.slug] ?? 0)}
+                  </div>
+                  <div className="mt-0.5 text-xs text-slate-400">records</div>
+                </Link>
+              ))}
             </div>
-            <div className="mt-1 text-xs text-slate-500">records</div>
-          </Link>
-        ))}
-      </div>
+          </div>
+        ))
+      )}
 
       {(LOW_STOCK.enabled || EXPIRY.enabled || ACTIVITY.enabled) ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -243,7 +309,7 @@ export default function DashboardHome() {
               </div>
               <div className="mt-3">
                 {loadingAudit ? (
-                  <div className="text-sm text-slate-500">Loading…</div>
+                  <div className="text-sm text-slate-500">Loading...</div>
                 ) : auditItems.length === 0 ? (
                   <div className="text-sm text-slate-500">No activity yet.</div>
                 ) : (
@@ -280,5 +346,3 @@ export default function DashboardHome() {
 module.exports = {
   buildDashboardHome,
 };
-
-

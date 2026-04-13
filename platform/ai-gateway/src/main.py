@@ -47,6 +47,9 @@ import uuid as _uuid
 _TRAINING_DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "training_data"
 _SESSIONS_FILE = _TRAINING_DATA_DIR / "sessions.jsonl"
 
+# In-memory generation progress tracker: { project_id: { step, detail, pct, steps_done, steps_total } }
+_generation_progress: Dict[str, Dict[str, Any]] = {}
+
 
 def _log_training_session(
     endpoint: str,
@@ -151,6 +154,10 @@ class AnalyzeRequest(BaseModel):
     prefilled_sdf: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Prefilled SDF draft built from mandatory answers.",
+    )
+    project_id: Optional[str] = Field(
+        default=None,
+        description="Project ID for progress tracking.",
     )
 
 
@@ -269,9 +276,18 @@ async def chat_endpoint(request: ChatRequest):
         chat_step = {
             "agent": "chatbot", "model": config.model,
             "temperature": config.temperature,
-            "input_summary": {"message": request.message, "business_description": request.business_description[:500]},
+            "prompt_text": prompt,
+            "input_summary": {
+                "message": request.message,
+                "business_description": request.business_description,
+                "selected_modules": request.selected_modules,
+                "business_answers": request.business_answers,
+                "current_step": request.current_step,
+                "sdf_status": request.sdf_status,
+                "conversation_history_length": len(request.conversation_history) if request.conversation_history else 0,
+            },
             "output_parsed": chat_response.model_dump(exclude_none=True),
-            "raw_response": result.text[:5000],
+            "raw_response": result.text[:10000],
             "tokens_in": getattr(result, "prompt_tokens", 0),
             "tokens_out": getattr(result, "completion_tokens", 0),
         }
@@ -308,17 +324,16 @@ def _parse_chat_json(text: str) -> dict:
         return {"reply": text.strip()}
 
 
+@app.get("/ai/progress/{project_id}", tags=["SDF Generation"])
+async def get_progress(project_id: str):
+    """Returns current generation progress for a project."""
+    return _generation_progress.get(project_id, {"step": "idle", "pct": 0, "detail": ""})
+
+
 @app.post("/ai/analyze", response_model=SystemDefinitionFile, response_model_exclude_none=True, tags=["SDF Generation"])
 async def analyze(request: AnalyzeRequest):
     """
     Analyzes a business description and generates a System Definition File (SDF).
-    
-    Uses a multi-agent pipeline with specialized AI agents for:
-    - Distributor: Routes input to appropriate modules
-    - HR Generator: Generates HR-related entities
-    - Invoice Generator: Generates Invoice-related entities
-    - Inventory Generator: Generates Inventory-related entities
-    - Integrator: Combines all module outputs into final SDF
     """
     sdf_service = get_sdf_service()
     if not sdf_service:
@@ -327,13 +342,21 @@ async def analyze(request: AnalyzeRequest):
             detail="AI service is not configured or failed to initialize."
         )
 
+    pid = request.project_id or "unknown"
+
+    def on_progress(step: str, pct: int, detail: str = ""):
+        _generation_progress[pid] = {"step": step, "pct": pct, "detail": detail}
+
     try:
+        on_progress("starting", 5, "Saving your answers")
         print("[API] Generating SDF using multi-agent pipeline")
         sdf, pipeline_result = await sdf_service.generate_sdf_multi_agent(
             business_description=request.business_description,
             default_question_answers=request.default_question_answers,
             prefilled_sdf=request.prefilled_sdf,
+            on_progress=on_progress,
         )
+        on_progress("done", 100, "Complete")
         _log_training_session(
             "/ai/analyze",
             {
@@ -347,10 +370,18 @@ async def analyze(request: AnalyzeRequest):
         )
         return sdf
     except ValueError as e:
+        _generation_progress.pop(pid, None)
         raise HTTPException(status_code=400, detail=f"Failed to generate a valid SDF: {str(e)}")
     except Exception as e:
+        _generation_progress.pop(pid, None)
         print(f"[ERROR] Unexpected error in /ai/analyze: {e}")
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+    finally:
+        # Clean up after a short delay so the frontend can read the final 100%
+        async def _cleanup():
+            await asyncio.sleep(10)
+            _generation_progress.pop(pid, None)
+        asyncio.create_task(_cleanup())
 
 
 @app.post("/ai/clarify", response_model=SystemDefinitionFile, response_model_exclude_none=True, tags=["SDF Generation"])
@@ -488,23 +519,31 @@ async def list_training_sessions(
     limit: int = 50,
     offset: int = 0,
     endpoint: Optional[str] = None,
+    agent: Optional[str] = None,
 ):
-    """List training sessions with pagination and optional endpoint filter."""
+    """List training sessions with pagination and optional endpoint/agent filter."""
     all_records = _read_sessions_file()
     if endpoint:
         all_records = [r for r in all_records if r.get("endpoint") == endpoint]
+    if agent:
+        all_records = [
+            r for r in all_records
+            if any(s.get("agent", "") == agent for s in r.get("step_logs", []))
+        ]
     total = len(all_records)
     page = all_records[offset : offset + limit]
     summaries = []
     for r in page:
         inp = r.get("input", {})
         desc = inp.get("business_description", inp.get("message", ""))
+        agents_in_session = [s.get("agent", "") for s in r.get("step_logs", [])]
         summaries.append({
             "session_id": r.get("session_id", ""),
             "timestamp": r.get("timestamp", ""),
             "endpoint": r.get("endpoint", ""),
             "description_snippet": desc[:200] if isinstance(desc, str) else "",
             "step_count": len(r.get("step_logs", [])),
+            "agents": agents_in_session,
             "token_usage": r.get("token_usage", {}),
         })
     return {"total": total, "offset": offset, "limit": limit, "sessions": summaries}

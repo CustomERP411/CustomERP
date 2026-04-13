@@ -1,7 +1,10 @@
 """SDF normalization — transforms raw AI output into generator-compatible shape."""
 
+import logging
 import re
 from copy import deepcopy
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_generator_sdf(data: dict, request_text: str = "") -> dict:
@@ -12,8 +15,9 @@ def normalize_generator_sdf(data: dict, request_text: str = "") -> dict:
     if not isinstance(data, dict):
         return data
 
-    # Collect non-blocking warnings to display to the user (platform UI).
-    # Note: Pydantic will drop this unless SystemDefinitionFile includes it.
+    # Collect normalization notes for logging/debugging only.
+    # User-facing unsupported feature display is handled by the Distributor's
+    # `unsupported_features` field — these are NOT written back to data["warnings"].
     warnings = data.get("warnings")
     normalized_warnings: list[str] = []
     if isinstance(warnings, list):
@@ -257,16 +261,20 @@ def normalize_generator_sdf(data: dict, request_text: str = "") -> dict:
         "hr",
         "access_control",
     }
-    ALLOWED_FEATURES = {"audit_trail", "batch_tracking", "serial_tracking", "multi_location", "print_invoice"}
+    ALLOWED_FEATURES = {"audit_trail", "batch_tracking", "serial_tracking", "multi_location", "print_invoice", "expiry_tracking"}
 
-    # 1. Validate Modules (warn but keep — assembler ignores unknown keys gracefully)
+    # 1. Validate Modules (log but keep — assembler ignores unknown keys gracefully)
+    #    Technical warnings are logged for debugging; they are NOT added to the
+    #    user-facing warnings array. The Distributor handles user-facing
+    #    unsupported feature detection upstream.
     modules = data.get("modules")
     if isinstance(modules, dict):
         unknown_modules = [k for k in modules.keys() if k not in ALLOWED_MODULES]
         for m in unknown_modules:
-            normalized_warnings.append(
-                f"Module `{m}` is not natively supported yet and may be ignored by the generator. "
-                f"Natively supported modules: {', '.join(sorted(ALLOWED_MODULES))}."
+            logger.warning(
+                "Module `%s` is not natively supported yet and may be ignored by the generator. "
+                "Natively supported modules: %s.",
+                m, ", ".join(sorted(ALLOWED_MODULES)),
             )
 
         # Ensure required ERP entities exist when a module is enabled.
@@ -451,11 +459,12 @@ def normalize_generator_sdf(data: dict, request_text: str = "") -> dict:
 
             if auto_added:
                 entity_slugs.update(auto_added)
-                normalized_warnings.append(
-                    f"Module `{mod_key}` was missing required entities. Auto-added: {', '.join(auto_added)}."
+                logger.info(
+                    "Module `%s` was missing required entities. Auto-added: %s.",
+                    mod_key, ", ".join(auto_added),
                 )
 
-    # 2. Validate Entity Features (warn but keep — generator skips unknown keys gracefully)
+    # 2. Validate Entity Features (log but keep — generator skips unknown keys gracefully)
     if isinstance(entities, list):
         for ent in entities:
             if not isinstance(ent, dict):
@@ -465,20 +474,10 @@ def normalize_generator_sdf(data: dict, request_text: str = "") -> dict:
             if isinstance(features, dict):
                 unknown_features = [k for k in features.keys() if k not in ALLOWED_FEATURES]
                 for f in unknown_features:
-                    normalized_warnings.append(
-                        f"Feature `{f}` on entity `{ent_slug}` is not natively supported yet and may be ignored by the generator. "
-                        f"Natively supported features: {', '.join(sorted(ALLOWED_FEATURES))}."
+                    logger.warning(
+                        "Feature `%s` on entity `%s` is not natively supported yet. "
+                        "Natively supported features: %s.",
+                        f, ent_slug, ", ".join(sorted(ALLOWED_FEATURES)),
                     )
-
-    if normalized_warnings:
-        # De-duplicate while preserving order
-        seen = set()
-        out_warnings: list[str] = []
-        for w in normalized_warnings:
-            if w in seen:
-                continue
-            seen.add(w)
-            out_warnings.append(w)
-        data["warnings"] = out_warnings
 
     return data

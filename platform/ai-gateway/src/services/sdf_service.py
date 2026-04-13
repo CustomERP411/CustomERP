@@ -14,7 +14,7 @@ The multi-agent mode uses separate AI agents for:
 """
 
 import json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 from pydantic import ValidationError
 
 from .gemini_client import GeminiClient
@@ -79,6 +79,7 @@ class SDFService:
         business_description: str,
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
+        on_progress: Optional[Callable] = None,
     ) -> tuple["SystemDefinitionFile", "PipelineResult"]:
         """
         Generates an SDF using the multi-agent pipeline.
@@ -98,20 +99,45 @@ class SDFService:
             business_description=business_description,
             default_question_answers=default_question_answers,
             prefilled_sdf=prefilled_sdf,
+            on_progress=on_progress,
         )
 
         if not result.success:
             error_msg = "; ".join(result.errors) if result.errors else "Unknown error"
             raise ValueError(f"Multi-agent pipeline failed: {error_msg}")
 
+        # Clarification-only result: distributor needs more info before generators run
+        if not result.sdf and result.clarifications_needed:
+            print(f"[SDFService] Pipeline stopped early — {len(result.clarifications_needed)} clarification(s) needed")
+            raw_questions = [
+                q.model_dump(exclude_none=True) for q in result.clarifications_needed
+            ]
+            filtered_questions = self._filter_duplicate_questions(raw_questions, default_question_answers)
+            shell_data: Dict[str, Any] = {
+                "project_name": result.distributor_output.project_name if result.distributor_output else "CustomERP Project",
+                "entities": [],
+                "clarifications_needed": filtered_questions,
+                "sdf_complete": False,
+                "token_usage": result.token_usage or {},
+            }
+            if result.unsupported_features:
+                shell_data["unsupported_features"] = result.unsupported_features
+            validated_sdf = SystemDefinitionFile.model_validate(shell_data)
+            return validated_sdf, result
+
         if not result.sdf:
             raise ValueError("Multi-agent pipeline produced no SDF output")
 
-        # Normalize the SDF
+        if on_progress:
+            on_progress("normalizing", 85, "Validating & normalizing your ERP")
         data = self._normalize_generator_sdf(result.sdf, request_text=business_description)
 
         # STRUCTURAL GUARANTEE 1: Enforce prefilled SDF
-        if prefilled_sdf:
+        # In change mode the pipeline's changed/unchanged module logic already
+        # carries forward untouched modules.  Enforcing here would re-add
+        # entities the user explicitly asked to remove.
+        is_change_request = "--- CHANGE REQUEST ---" in (business_description or "")
+        if prefilled_sdf and not is_change_request:
             data = self._enforce_prefilled_sdf(data, prefilled_sdf)
 
         # Inject aggregated clarifications from pipeline into normalized SDF
@@ -123,12 +149,17 @@ class SDFService:
             data["clarifications_needed"] = filtered_questions
             print(f"[SDFService] Injected {len(filtered_questions)} clarification questions into SDF (from {len(raw_questions)} raw)")
 
+        # Inject unsupported_features from distributor
+        if result.unsupported_features:
+            data["unsupported_features"] = list(result.unsupported_features)
+
         # Inject pipeline metadata
         data["sdf_complete"] = result.sdf_complete
         if result.token_usage:
             data["token_usage"] = result.token_usage
 
-        # Validate against schema
+        if on_progress:
+            on_progress("validating", 95, "Finalizing your ERP")
         try:
             validated_sdf = SystemDefinitionFile.model_validate(data)
             print("[SDFService] Multi-agent SDF validation successful.")

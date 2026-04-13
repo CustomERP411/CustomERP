@@ -61,10 +61,13 @@ export default function ProjectDetailPage() {
   const [showAdvancedView, setShowAdvancedView] = useState(false);
   const [genResult, setGenResult] = useState<'success' | 'error' | null>(null);
   const [genErrorMsg, setGenErrorMsg] = useState('');
+  const [genProgress, setGenProgress] = useState<{ step: string; pct: number; detail: string } | null>(null);
+  const [bizSkipWarningOpen, setBizSkipWarningOpen] = useState(false);
 
-  const { setProjectContext } = useChatContext();
+  const { setProjectContext, openChat, sendMessage, setPulsing } = useChatContext();
   const stepRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
   const hasScrolledRef = useRef(false);
+  const savedDefaultAnswersRef = useRef<Record<string, string | string[]> | null>(null);
   const detectedPlatform = useMemo(() => detectUserPlatform(), []);
   const running = analyzing || clarifying || saving || reviewActionRunning;
   const selectedModulesStorageKey = useMemo(
@@ -77,6 +80,10 @@ export default function ProjectDetailPage() {
   );
   const defaultAnswersStorageKey = useMemo(
     () => (projectId ? `project_default_answers:${projectId}` : ''),
+    [projectId],
+  );
+  const businessStepStorageKey = useMemo(
+    () => (projectId ? `project_business_step:${projectId}` : ''),
     [projectId],
   );
   const reviewHistoryStorageKey = useMemo(
@@ -164,6 +171,7 @@ export default function ProjectDetailPage() {
     setDefaultQuestions(questionList);
     setDefaultAnswersById(answers);
     setDefaultCompletion(payload?.prefill_validation || payload?.completion || null);
+    savedDefaultAnswersRef.current = { ...answers };
   };
 
   const evaluateQuestionVisibility = (question: DefaultModuleQuestion) => {
@@ -251,12 +259,20 @@ export default function ProjectDetailPage() {
             : {};
         setSelectedModules(initialModules);
         setBusinessAnswers(initialBusinessAnswers);
-        // Only restore the SDF if business answers are actually complete —
-        // prevents a stale SDF from showing when the user is mid-wizard.
+        try {
+          const storedStep = window.localStorage.getItem(businessStepStorageKey);
+          if (storedStep !== null) {
+            const idx = parseInt(storedStep, 10);
+            if (!isNaN(idx) && idx >= 0 && idx < BUSINESS_QUESTIONS.length) setBusinessStep(idx);
+          }
+        } catch { /* ignore */ }
+        // Only restore the SDF if business answers are actually complete AND
+        // the project is not stuck in 'Analyzing' (which means the last generation failed).
         const businessReady = BUSINESS_QUESTIONS
           .filter((q) => !q.optional)
           .every((q) => (initialBusinessAnswers[q.id] || '').trim().length > 0);
-        if (latest?.sdf && businessReady) {
+        const generationFailed = p.status === 'Analyzing';
+        if (latest?.sdf && businessReady && !generationFailed) {
           setSdf(latest.sdf);
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
           setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
@@ -264,7 +280,7 @@ export default function ProjectDetailPage() {
         const serverHistory = await projectService.getReviewHistory(projectId).catch(() => ({ history: [] }));
         if (!cancelled && serverHistory.history.length > 0) {
           setReviewHistory(serverHistory.history);
-        } else if (!cancelled && latest?.sdf && businessReady) {
+        } else if (!cancelled && latest?.sdf && businessReady && !generationFailed) {
           setReviewHistory([{
             id: `baseline-${latest.sdf_version || 0}`,
             action: 'generated',
@@ -314,6 +330,11 @@ export default function ProjectDetailPage() {
     if (!defaultAnswersStorageKey || loading || !Object.keys(defaultAnswersById).length) return;
     try { window.localStorage.setItem(defaultAnswersStorageKey, JSON.stringify(defaultAnswersById)); } catch { /* ignore */ }
   }, [defaultAnswersById, defaultAnswersStorageKey, loading]);
+
+  useEffect(() => {
+    if (!businessStepStorageKey || loading) return;
+    try { window.localStorage.setItem(businessStepStorageKey, String(businessStep)); } catch { /* ignore */ }
+  }, [businessStep, businessStepStorageKey, loading]);
 
   useEffect(() => {
     if (!reviewHistoryStorageKey) return;
@@ -367,10 +388,31 @@ export default function ProjectDetailPage() {
   const visibleDefaultQuestions = useMemo(() => defaultQuestions.filter(evaluateQuestionVisibility), [defaultQuestions, defaultAnswersById]);
 
   const canAnalyze = useMemo(
-    () => businessComplete && defaultCompletion?.is_complete === true && selectedModules.length > 0,
-    [businessComplete, defaultCompletion, selectedModules.length],
+    () => defaultCompletion?.is_complete === true && selectedModules.length > 0
+      && BUSINESS_QUESTIONS.some((q) => (businessAnswers[q.id] || '').trim().length > 0),
+    [defaultCompletion, selectedModules.length, businessAnswers],
   );
-  const canSaveDefaultAnswers = useMemo(() => selectedModules.length > 0 && defaultQuestions.length > 0, [selectedModules.length, defaultQuestions.length]);
+  const defaultAnswersDirty = useMemo(() => {
+    const snapshot = savedDefaultAnswersRef.current;
+    if (!snapshot) return true;
+    for (const key of Object.keys(defaultAnswersById)) {
+      const cur = defaultAnswersById[key];
+      const prev = snapshot[key];
+      if (Array.isArray(cur) || Array.isArray(prev)) {
+        const a = Array.isArray(cur) ? cur : [];
+        const b = Array.isArray(prev) ? prev : [];
+        if (a.length !== b.length || a.some((v, i) => v !== b[i])) return true;
+      } else if ((cur || '') !== (prev || '')) return true;
+    }
+    for (const key of Object.keys(snapshot)) {
+      if (!(key in defaultAnswersById)) return true;
+    }
+    return false;
+  }, [defaultAnswersById]);
+  const canSaveDefaultAnswers = useMemo(
+    () => selectedModules.length > 0 && defaultQuestions.length > 0 && defaultAnswersDirty,
+    [selectedModules.length, defaultQuestions.length, defaultAnswersDirty],
+  );
   const canSubmitAnswers = useMemo(() => !!sdf && questions.length > 0 && questions.every((q) => (answersById[q.id] || '').trim().length > 0), [sdf, questions, answersById]);
 
   const currentStep = useMemo(() => {
@@ -397,15 +439,23 @@ export default function ProjectDetailPage() {
         }
         if (!target) target = document.getElementById('dq-continue-btn');
       } else if (currentStep === 2) {
-        // Set businessStep to first unanswered, then scroll to the section
-        const firstUnanswered = BUSINESS_QUESTIONS.findIndex((bq) => !bq.optional && !(businessAnswers[bq.id] || '').trim());
-        if (firstUnanswered >= 0) setBusinessStep(firstUnanswered);
+        // Prefer the persisted step; fall back to first unanswered question
+        const storedRaw = window.localStorage.getItem(businessStepStorageKey);
+        const storedIdx = storedRaw !== null ? parseInt(storedRaw, 10) : NaN;
+        if (!isNaN(storedIdx) && storedIdx >= 0 && storedIdx < BUSINESS_QUESTIONS.length) {
+          setBusinessStep(storedIdx);
+        } else {
+          const firstUnanswered = BUSINESS_QUESTIONS.findIndex((bq) => !bq.optional && !(businessAnswers[bq.id] || '').trim());
+          if (firstUnanswered >= 0) setBusinessStep(firstUnanswered);
+        }
       }
 
       (target || stepRefs[currentStep]?.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 600);
     return () => clearTimeout(timer);
   }, [loading, currentStep]);
+
+  useEffect(() => { setPulsing(bizSkipWarningOpen); }, [bizSkipWarningOpen, setPulsing]);
 
   // Feed project context to the global chat widget
   useEffect(() => {
@@ -491,17 +541,76 @@ export default function ProjectDetailPage() {
   };
 
   const closeGenerationModal = () => {
-    setAnalyzePhase(''); setGenResult(null); setGenErrorMsg('');
+    setAnalyzePhase(''); setGenResult(null); setGenErrorMsg(''); setGenProgress(null);
   };
+
+  const generatingKey = projectId ? `project_generating:${projectId}` : '';
+
+  const clearGeneratingFlag = () => {
+    if (generatingKey) try { window.localStorage.removeItem(generatingKey); } catch { /* ignore */ }
+  };
+
+  // On mount, if a generation was in progress before refresh, resume the modal
+  // and poll for the result by re-fetching the latest SDF + real progress.
+  useEffect(() => {
+    if (!generatingKey || loading || !projectId) return;
+    const stored = window.localStorage.getItem(generatingKey);
+    if (!stored) return;
+    const startedAt = parseInt(stored, 10);
+    if (isNaN(startedAt) || Date.now() - startedAt > 5 * 60 * 1000) {
+      clearGeneratingFlag();
+      return;
+    }
+    setAnalyzePhase('Resuming — checking generation status...');
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const [latest, prog] = await Promise.all([
+          projectService.getLatestSdf(projectId),
+          projectService.getGenerationProgress(projectId),
+        ]);
+        if (cancelled) return;
+        if (prog) setGenProgress(prog);
+        if (latest?.sdf) {
+          setSdf(latest.sdf);
+          setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
+          setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
+          clearGeneratingFlag();
+          setGenProgress({ step: 'done', pct: 100, detail: 'Complete' });
+          setGenResult('success');
+          setTimeout(() => { setAnalyzePhase(''); setGenResult(null); setGenProgress(null); }, 2500);
+          return;
+        }
+      } catch { /* ignore */ }
+      if (!cancelled) setTimeout(poll, 2000);
+    };
+    poll();
+    const timeout = setTimeout(() => {
+      cancelled = true;
+      clearGeneratingFlag();
+      setGenResult('error');
+      setGenErrorMsg('Generation timed out. Your inputs are saved — please try again.');
+    }, 3 * 60 * 1000);
+    return () => { cancelled = true; clearTimeout(timeout); };
+  }, [loading, generatingKey]);
 
   const analyze = async () => {
     if (!projectId) return;
-    setAnalyzing(true); setError(''); setGenResult(null); setGenErrorMsg('');
+    setAnalyzing(true); setError(''); setGenResult(null); setGenErrorMsg(''); setGenProgress(null);
     setAnalyzePhase('Saving your answers...');
-    const phaseTimer1 = setTimeout(() => setAnalyzePhase('Routing to AI specialists...'), 3000);
-    const phaseTimer2 = setTimeout(() => setAnalyzePhase('Generating module configurations...'), 10000);
-    const phaseTimer3 = setTimeout(() => setAnalyzePhase('Combining results...'), 25000);
-    const phaseTimer4 = setTimeout(() => setAnalyzePhase('This is taking longer than expected. Please wait...'), 45000);
+    if (generatingKey) try { window.localStorage.setItem(generatingKey, String(Date.now())); } catch { /* ignore */ }
+
+    // Poll real progress from the AI gateway
+    let progressCancelled = false;
+    const pollProgress = async () => {
+      if (progressCancelled || !projectId) return;
+      try {
+        const prog = await projectService.getGenerationProgress(projectId);
+        if (!progressCancelled && prog) setGenProgress(prog);
+      } catch { /* ignore */ }
+      if (!progressCancelled) setTimeout(pollProgress, 1500);
+    };
+
     try {
       const latestDefaults = await projectService.saveDefaultAnswers(projectId, {
         modules: selectedModules,
@@ -510,7 +619,7 @@ export default function ProjectDetailPage() {
       applyDefaultQuestionState(latestDefaults);
       if (!(latestDefaults.prefill_validation || latestDefaults.completion)?.is_complete) {
         setError('Please answer all required questions before generating.');
-        setAnalyzePhase('');
+        setAnalyzePhase(''); clearGeneratingFlag();
         return;
       }
 
@@ -530,6 +639,10 @@ export default function ProjectDetailPage() {
             },
           } as AiGatewaySdf)
         : undefined;
+
+      // Start polling progress right before the AI call
+      pollProgress();
+
       const res = await projectService.analyzeProject(projectId, description.trim(), {
         modules: selectedModules,
         default_question_answers: latestDefaults.mandatory_answers,
@@ -541,21 +654,40 @@ export default function ProjectDetailPage() {
           access_requirements: [defaultAdminGroup],
         },
       });
-      setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
-      setClarifyRound(res.cycle || 1); setSdfComplete(res.sdf_complete || false);
+      progressCancelled = true;
+      setProject(res.project);
+      const resQuestions = filterQuestions(res.questions || []);
+      setClarifyRound(res.cycle || 1);
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
+
+      // If distributor returned clarifying questions (early pipeline stop), show them in the modal
+      if (resQuestions.length > 0 && !res.sdf_complete) {
+        setSdf(res.sdf); setQuestions(resQuestions); setAnswersById({});
+        setSdfComplete(false);
+        setGenProgress({ step: 'clarifications', pct: 20, detail: 'Waiting for your answers' });
+        // Keep modal open — questions mode will activate automatically
+        return;
+      }
+
+      setSdf(res.sdf); setQuestions([]); setAnswersById({});
+      setSdfComplete(res.sdf_complete || false);
       appendReviewHistory({
         action: 'generated',
         version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
         status: res.project.status || null,
         note: 'Generated a new SDF from build mode inputs.',
       });
+      clearGeneratingFlag();
+      setGenProgress({ step: 'done', pct: 100, detail: 'Complete' });
       setGenResult('success');
-      setTimeout(() => { setAnalyzePhase(''); setGenResult(null); }, 2500);
+      setTimeout(() => { setAnalyzePhase(''); setGenResult(null); setGenProgress(null); }, 2500);
     } catch (err: any) {
+      progressCancelled = true;
+      clearGeneratingFlag();
+      setSdf(null); setSdfVersion(null); setQuestions([]);
       setGenResult('error');
       setGenErrorMsg(mapGenerationError(err));
-    } finally { setAnalyzing(false); clearTimeout(phaseTimer1); clearTimeout(phaseTimer2); clearTimeout(phaseTimer3); clearTimeout(phaseTimer4); }
+    } finally { progressCancelled = true; setAnalyzing(false); }
   };
 
   const submitAnswers = async () => {
@@ -577,6 +709,59 @@ export default function ProjectDetailPage() {
       const msg = err?.code === 'ECONNABORTED' ? 'Clarification timed out. Your answers are saved -- try again.' : (err?.response?.data?.error || err?.message || 'Clarify failed');
       setError(msg);
     } finally { setClarifying(false); }
+  };
+
+  const submitModalAnswers = async () => {
+    if (!projectId || !sdf || questions.length === 0) return;
+    setClarifying(true);
+    setGenProgress({ step: 'generators', pct: 30, detail: 'Processing your answers...' });
+
+    let progressCancelled = false;
+    const pollProgress = async () => {
+      if (progressCancelled || !projectId) return;
+      try {
+        const prog = await projectService.getGenerationProgress(projectId);
+        if (!progressCancelled && prog) setGenProgress(prog);
+      } catch { /* ignore */ }
+      if (!progressCancelled) setTimeout(pollProgress, 1500);
+    };
+
+    try {
+      const answers: ClarificationAnswer[] = questions.map((q) => ({ question_id: q.id, answer: (answersById[q.id] || '').trim() }));
+      setQuestions([]); setAnswersById({});
+      pollProgress();
+      const res = await projectService.clarifyProject(projectId, sdf, answers, description.trim());
+      progressCancelled = true;
+      setProject(res.project);
+      const resQuestions = filterQuestions(res.questions || []);
+      setClarifyRound(res.cycle || clarifyRound + 1);
+      setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
+
+      if (resQuestions.length > 0 && !res.sdf_complete) {
+        setSdf(res.sdf); setQuestions(resQuestions); setAnswersById({});
+        setSdfComplete(false);
+        setGenProgress({ step: 'clarifications', pct: 20, detail: 'Waiting for your answers' });
+        return;
+      }
+
+      setSdf(res.sdf); setQuestions([]); setAnswersById({});
+      setSdfComplete(res.sdf_complete || false);
+      appendReviewHistory({
+        action: 'clarified',
+        version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
+        status: res.project.status || null,
+        note: 'Applied clarification answers to the current SDF.',
+      });
+      clearGeneratingFlag();
+      setGenProgress({ step: 'done', pct: 100, detail: 'Complete' });
+      setGenResult('success');
+      setTimeout(() => { setAnalyzePhase(''); setGenResult(null); setGenProgress(null); }, 2500);
+    } catch (err: any) {
+      progressCancelled = true;
+      clearGeneratingFlag();
+      setGenResult('error');
+      setGenErrorMsg(mapGenerationError(err));
+    } finally { progressCancelled = true; setClarifying(false); }
   };
 
   const finalizeSdf = async () => {
@@ -731,30 +916,32 @@ export default function ProjectDetailPage() {
         <Link to="/" className="rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Back to Projects</Link>
       </div>
 
-      {/* Step Progress Bar */}
-      <nav className="flex items-center gap-1">
-        {STEPS.map((label, i) => {
-          const done = i < currentStep;
-          const active = i === currentStep;
-          const clickable = done || active;
-          return (
-            <div key={label} className="flex flex-1 items-center">
-              <button
-                type="button"
-                disabled={!clickable}
-                onClick={() => stepRefs[i]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                className={`flex items-center gap-2 ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
-              >
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${done ? 'bg-indigo-600 text-white' : active ? 'border-2 border-indigo-600 text-indigo-600' : 'border-2 border-slate-300 text-slate-400'}`}>
-                  {done ? <IconCheck className="h-4 w-4" /> : i + 1}
-                </div>
-                <span className={`hidden text-xs font-medium sm:block ${done ? 'text-indigo-600' : active ? 'text-slate-900' : 'text-slate-400'}`}>{label}</span>
-              </button>
-              {i < STEPS.length - 1 && <div className={`mx-2 h-0.5 flex-1 rounded ${done ? 'bg-indigo-600' : 'bg-slate-200'}`} />}
-            </div>
-          );
-        })}
-      </nav>
+      {/* Step Progress Bar — hidden after generation */}
+      {!sdf && (
+        <nav className="flex items-center gap-1">
+          {STEPS.map((label, i) => {
+            const done = i < currentStep;
+            const active = i === currentStep;
+            const clickable = done || active;
+            return (
+              <div key={label} className="flex flex-1 items-center">
+                <button
+                  type="button"
+                  disabled={!clickable}
+                  onClick={() => stepRefs[i]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  className={`flex items-center gap-2 ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
+                >
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${done ? 'bg-indigo-600 text-white' : active ? 'border-2 border-indigo-600 text-indigo-600' : 'border-2 border-slate-300 text-slate-400'}`}>
+                    {done ? <IconCheck className="h-4 w-4" /> : i + 1}
+                  </div>
+                  <span className={`hidden text-xs font-medium sm:block ${done ? 'text-indigo-600' : active ? 'text-slate-900' : 'text-slate-400'}`}>{label}</span>
+                </button>
+                {i < STEPS.length - 1 && <div className={`mx-2 h-0.5 flex-1 rounded ${done ? 'bg-indigo-600' : 'bg-slate-200'}`} />}
+              </div>
+            );
+          })}
+        </nav>
+      )}
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
@@ -763,53 +950,60 @@ export default function ProjectDetailPage() {
         result={genResult}
         errorMessage={genErrorMsg}
         onClose={closeGenerationModal}
+        progress={genProgress}
+        questions={questions}
+        answersById={answersById}
+        onSetAnswers={setAnswersById}
+        onSubmitAnswers={() => { void submitModalAnswers(); }}
+        canSubmitAnswers={canSubmitAnswers}
+        submittingAnswers={clarifying}
       />
 
-      {/* Step 0: Choose Modules */}
-      <div ref={stepRefs[0]} className="scroll-mt-6">
-        <ModuleSelector selectedModules={selectedModules} onToggleModule={toggleModule} />
-      </div>
+      {/* Steps 0-2 and generation area — hidden after SDF is generated */}
+      {!sdf && (
+        <>
+          {/* Step 0: Choose Modules */}
+          <div ref={stepRefs[0]} className="scroll-mt-6">
+            <ModuleSelector selectedModules={selectedModules} onToggleModule={toggleModule} />
+          </div>
 
-      {/* Step 1: Answer Questions */}
-      <div ref={stepRefs[1]} className="scroll-mt-6">
-        <SlideIn show={selectedModules.length > 0}>
-          <DefaultQuestions
-            answersById={defaultAnswersById}
-            completion={defaultCompletion} questionsByModule={questionsByModule}
-            moduleCompletionCounts={moduleCompletionCounts} loading={loadingDefaultQuestions}
-            saving={savingDefaultAnswers} canSave={canSaveDefaultAnswers}
-            onUpdateAnswer={updateDefaultAnswer} onToggleMultiChoice={toggleMultiChoiceAnswer}
-            onSave={saveDefaultAnswers}
-          />
-        </SlideIn>
-      </div>
+          {/* Step 1: Answer Questions */}
+          <div ref={stepRefs[1]} className="scroll-mt-6">
+            <SlideIn show={selectedModules.length > 0}>
+              <DefaultQuestions
+                answersById={defaultAnswersById}
+                completion={defaultCompletion} questionsByModule={questionsByModule}
+                moduleCompletionCounts={moduleCompletionCounts} loading={loadingDefaultQuestions}
+                saving={savingDefaultAnswers} canSave={canSaveDefaultAnswers}
+                onUpdateAnswer={updateDefaultAnswer} onToggleMultiChoice={toggleMultiChoiceAnswer}
+                onSave={saveDefaultAnswers}
+              />
+            </SlideIn>
+          </div>
 
-      {/* Step 2: Business Questions */}
-      <div ref={stepRefs[2]} className="scroll-mt-6">
-        <SlideIn show={!!defaultCompletion?.is_complete}>
-          <BusinessQuestions
-            answers={businessAnswers} step={businessStep} canAnalyze={canAnalyze} running={running}
-            onSetAnswers={setBusinessAnswers} onSetStep={setBusinessStep}
-            onAnalyze={() => { void analyze(); }}
-          />
-        </SlideIn>
-      </div>
+          {/* Step 2: Business Questions */}
+          <div ref={stepRefs[2]} className="scroll-mt-6">
+            <SlideIn show={!!defaultCompletion?.is_complete}>
+              <BusinessQuestions
+                answers={businessAnswers} step={businessStep} canAnalyze={canAnalyze} running={running}
+                skipWarningOpen={bizSkipWarningOpen}
+                onSetAnswers={setBusinessAnswers} onSetStep={setBusinessStep}
+                onAnalyze={() => { void analyze(); }}
+                onHelpWithQuestion={(questionText, currentAnswer) => {
+                  const prompt = currentAnswer
+                    ? `I need help with this question: "${questionText}"\nMy current answer is: "${currentAnswer}"\nCan you help me improve or expand this answer?`
+                    : `I need help answering this question: "${questionText}"\nCan you explain what this means and give me guidance on how to answer it for my business?`;
+                  openChat();
+                  void sendMessage(prompt);
+                }}
+                onSkipWarningChange={setBizSkipWarningOpen}
+              />
+            </SlideIn>
+          </div>
 
-      {/* Step 3: Review & Generate (scroll target for the generate button area) */}
-      <div ref={stepRefs[3]} className="scroll-mt-6" />
-
-      {/* SDF warnings / limitations */}
-      {sdf && Array.isArray((sdf as any).warnings) && (sdf as any).warnings.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-          <button type="button" onClick={() => { const el = document.getElementById('sdf-warnings-list'); if (el) el.classList.toggle('hidden'); }}
-            className="flex w-full items-center justify-between text-sm font-medium text-amber-800">
-            <span>Limitations &amp; Notes ({(sdf as any).warnings.length})</span>
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-          </button>
-          <ul id="sdf-warnings-list" className="hidden mt-2 space-y-1 text-xs text-amber-700 list-disc pl-4">
-            {(sdf as any).warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
-          </ul>
-        </div>
+          {/* Step 3: Review & Generate (scroll target) */}
+          <div ref={stepRefs[3]} className="scroll-mt-6" />
+        </>
       )}
 
       {/* Step 4: Post-generation (Download & Run) */}
@@ -818,9 +1012,6 @@ export default function ProjectDetailPage() {
           {sdf && (
             <PostGenerationPanel
             sdf={sdf} preview={preview}
-            questions={questions} answersById={answersById} canSubmitAnswers={canSubmitAnswers}
-            clarifying={clarifying} clarifyRound={clarifyRound} sdfComplete={sdfComplete}
-            onSetAnswers={setAnswersById} onSubmitAnswers={submitAnswers} onFinalize={() => { void finalizeSdf(); }}
             projectStatus={project.status} sdfVersion={sdfVersion} reviewHistory={reviewHistory} running={running}
             onApproveReview={() => { void approveReview(); }}
             onRejectReview={() => { void rejectReview(); }}

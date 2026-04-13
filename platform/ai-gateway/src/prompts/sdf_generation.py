@@ -123,14 +123,14 @@ def get_finalize_prompt(business_description: str, partial_sdf: str, answers: st
 def get_distributor_prompt(
     business_description: str,
     default_questions: str = "",
-    prefilled_sdf: str = "",
+    existing_modules: str = "",
 ) -> str:
     """Loads the distributor prompt for routing user input to modules.
     
     Args:
         business_description: The user's natural language input.
         default_questions: Answers to mandatory pre-generation questions.
-        prefilled_sdf: Prefilled SDF draft from mandatory answers.
+        existing_modules: Lightweight summary of enabled modules and entity slugs.
     """
     try:
         prompt_template_path = PROMPT_DIR / "distributor_prompt.txt"
@@ -140,7 +140,7 @@ def get_distributor_prompt(
             {
                 "business_description": business_description,
                 "default_questions": default_questions or "",
-                "prefilled_sdf": prefilled_sdf or "",
+                "existing_modules": existing_modules or "No existing ERP — this is a fresh generation.",
             },
         )
     except FileNotFoundError:
@@ -155,6 +155,7 @@ def get_hr_generator_prompt(
     shared_entities: str,
     default_answers: str = "",
     prefilled_module_sdf: str = "",
+    change_instructions: str = "",
 ) -> str:
     """Loads the HR module generator prompt."""
     try:
@@ -169,6 +170,7 @@ def get_hr_generator_prompt(
                 "shared_entities": shared_entities,
                 "default_answers": default_answers or "None provided",
                 "prefilled_module_sdf": prefilled_module_sdf or "None — generate from scratch",
+                "change_instructions": change_instructions or "None — this is a fresh generation, not a change request.",
                 "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
@@ -184,6 +186,7 @@ def get_invoice_generator_prompt(
     shared_entities: str,
     default_answers: str = "",
     prefilled_module_sdf: str = "",
+    change_instructions: str = "",
 ) -> str:
     """Loads the Invoice module generator prompt."""
     try:
@@ -198,6 +201,7 @@ def get_invoice_generator_prompt(
                 "shared_entities": shared_entities,
                 "default_answers": default_answers or "None provided",
                 "prefilled_module_sdf": prefilled_module_sdf or "None — generate from scratch",
+                "change_instructions": change_instructions or "None — this is a fresh generation, not a change request.",
                 "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
@@ -213,6 +217,7 @@ def get_inventory_generator_prompt(
     shared_entities: str,
     default_answers: str = "",
     prefilled_module_sdf: str = "",
+    change_instructions: str = "",
 ) -> str:
     """Loads the Inventory module generator prompt."""
     try:
@@ -227,6 +232,7 @@ def get_inventory_generator_prompt(
                 "shared_entities": shared_entities,
                 "default_answers": default_answers or "None provided",
                 "prefilled_module_sdf": prefilled_module_sdf or "None — generate from scratch",
+                "change_instructions": change_instructions or "None — this is a fresh generation, not a change request.",
                 "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )

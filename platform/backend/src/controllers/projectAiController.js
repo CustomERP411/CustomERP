@@ -70,6 +70,7 @@ exports.analyzeProject = async (req, res) => {
     let sdf = await aiGatewayClient.analyzeDescription(description.trim(), null, {
       defaultQuestionAnswers: mandatoryAnswers,
       prefilledSdf,
+      projectId,
     });
     const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
     const persistedQuestions = await clarificationService.persistQuestions({
@@ -86,6 +87,14 @@ exports.analyzeProject = async (req, res) => {
     if (conversation?.id && saved?.version) {
       await ProjectConversation.updateSdfVersion(conversation.id, saved.version)
         .catch((err) => logger.error('Failed to update conversation sdf_version:', err));
+    }
+
+    if (Array.isArray(sdf?.unsupported_features) && sdf.unsupported_features.length > 0) {
+      featureRequestService.recordFeatures({
+        userId, projectId, source: 'sdf_generation',
+        features: sdf.unsupported_features,
+        userPrompt: description.trim(),
+      }).catch((e) => logger.warn('Failed to record SDF unsupported feature requests:', e.message));
     }
 
     if (Array.isArray(sdf?.warnings) && sdf.warnings.length > 0) {
@@ -171,8 +180,17 @@ exports.clarifyProject = async (req, res) => {
     }
     const saved = await SDF.create(project.id, sdf);
 
+    const clarifyPrompt = (typeof description === 'string' && description.trim()) ? description.trim() : (project.description || '');
+
+    if (Array.isArray(sdf?.unsupported_features) && sdf.unsupported_features.length > 0) {
+      featureRequestService.recordFeatures({
+        userId, projectId, source: 'sdf_generation',
+        features: sdf.unsupported_features,
+        userPrompt: clarifyPrompt,
+      }).catch((e) => logger.warn('Failed to record SDF unsupported feature requests:', e.message));
+    }
+
     if (Array.isArray(sdf?.warnings) && sdf.warnings.length > 0) {
-      const clarifyPrompt = (typeof description === 'string' && description.trim()) ? description.trim() : (project.description || '');
       featureRequestService.recordWarnings({ userId, projectId, warnings: sdf.warnings, userPrompt: clarifyPrompt })
         .catch((e) => logger.warn('Failed to record SDF feature requests:', e.message));
     }
@@ -233,6 +251,91 @@ exports.chatWithProject = async (req, res) => {
     logger.error('Chat with project error:', err);
     const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;
     res.status(status).json({ error: err.message || 'Internal server error' });
+  }
+};
+
+exports.regenerateProject = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const projectId = req.params.id;
+    const changeInstructions = req.body?.change_instructions;
+    if (!changeInstructions || typeof changeInstructions !== 'string' || changeInstructions.trim().length < 3) {
+      return res.status(400).json({ error: 'change_instructions is required (min 3 chars)' });
+    }
+
+    const project = await projectService.getProject(projectId, userId);
+    const latestSdfRow = await SDF.findLatestByProject(project.id);
+    if (!latestSdfRow?.sdf_json) {
+      return res.status(400).json({ error: 'No existing SDF found for this project. Generate one first.' });
+    }
+    const existingSdf = typeof latestSdfRow.sdf_json === 'string' ? JSON.parse(latestSdfRow.sdf_json) : latestSdfRow.sdf_json;
+
+    const requestedModules = parseModulesInput(Object.keys(existingSdf?.modules || {}));
+    const questionnaireState = await moduleQuestionnaireService.getQuestionnaireState({
+      projectId: project.id,
+      modules: requestedModules,
+    });
+    const mandatoryAnswers = questionnaireState.mandatory_answers || {};
+
+    const combinedDescription = (project.description || '').trim() +
+      '\n\n--- CHANGE REQUEST ---\n' + changeInstructions.trim();
+
+    await projectService.updateProject(projectId, userId, { status: 'Analyzing' });
+
+    let sdf = await aiGatewayClient.analyzeDescription(combinedDescription, null, {
+      defaultQuestionAnswers: mandatoryAnswers,
+      prefilledSdf: existingSdf,
+      projectId,
+    });
+
+    const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
+    const priorCycleCount = await clarificationService.getCycleCount(project.id);
+    const currentCycle = priorCycleCount + 1;
+    const persistedQuestions = await clarificationService.persistQuestions({
+      projectId: project.id,
+      questions: rawQuestions,
+      cycle: currentCycle,
+    });
+    if (persistedQuestions.length) {
+      sdf = { ...sdf, clarifications_needed: persistedQuestions };
+    }
+    const saved = await SDF.create(project.id, sdf);
+
+    if (Array.isArray(sdf?.unsupported_features) && sdf.unsupported_features.length > 0) {
+      featureRequestService.recordFeatures({
+        userId, projectId, source: 'sdf_regeneration',
+        features: sdf.unsupported_features,
+        userPrompt: changeInstructions.trim(),
+      }).catch((e) => logger.warn('Failed to record regeneration unsupported features:', e.message));
+    }
+
+    const nextStatus = persistedQuestions.length ? 'Clarifying' : 'Ready';
+    const updatedProject = await projectService.updateProject(projectId, userId, { status: nextStatus });
+
+    res.json({
+      project: updatedProject,
+      sdf_version: saved?.version,
+      sdf,
+      questions: persistedQuestions,
+      sdf_complete: sdf?.sdf_complete || false,
+      token_usage: sdf?.token_usage || null,
+      cycle: currentCycle,
+    });
+  } catch (err) {
+    logger.error('Regenerate project error:', err);
+    const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;
+    res.status(status).json({ error: err.message || 'Internal server error' });
+  }
+};
+
+exports.getGenerationProgress = async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const progress = await aiGatewayClient.getGenerationProgress(projectId);
+    res.json(progress);
+  } catch (err) {
+    logger.error('Get generation progress error:', err);
+    res.json({ step: 'idle', pct: 0 });
   }
 };
 

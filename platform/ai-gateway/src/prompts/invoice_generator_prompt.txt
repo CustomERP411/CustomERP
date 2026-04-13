@@ -10,6 +10,7 @@
 # 2. Default answers the user already provided
 # 3. The business description
 # 4. Context from the distributor agent
+# 5. Change instructions from the distributor (when in change mode)
 
 # How the prefilled SDF works:
 # The user already went through a step-by-step wizard where they answered
@@ -20,11 +21,14 @@
 #
 # Your task:
 # 1. Start from the prefilled SDF exactly as given.
-# 2. Add business-specific enhancements the wizard could not know about.
-# 3. Ask clarification questions only for genuinely novel business needs.
+# 2. If CHANGE INSTRUCTIONS are provided, follow them EXACTLY — add, modify, or REMOVE
+#    entities, fields, or config as instructed. Change instructions take priority.
+# 3. Add business-specific enhancements the wizard could not know about.
+# 4. Ask clarification questions only for genuinely novel business needs.
 #
-# If the prefilled SDF already covers everything the business needs,
-# return it as-is with sdf_complete set to true and an empty clarifications array.
+# If the prefilled SDF already covers everything the business needs
+# (and there are no change instructions), return it as-is with sdf_complete
+# set to true and an empty clarifications array.
 
 # What counts as a valid enhancement (add these):
 # - A new custom field on an existing entity mentioned in the business description
@@ -37,10 +41,18 @@
 # - A display_name or slug tweak to match the business domain language
 #   Example: business calls customers "clients" -> rename slug to clients, display_name to "Client"
 #
-# What is not an enhancement (avoid these):
+# What is not an enhancement (avoid these — UNLESS change instructions say otherwise):
 # - Re-creating customers, invoices, invoice_items that already exist under a different name
 # - Changing field types, options, or required flags that are already set
 # - Removing features like print_invoice, calculation_engine, payment tracking, etc.
+# NOTE: If change instructions explicitly ask you to remove or modify something, DO IT.
+#
+# IMPORTANT — slug matching in change instructions:
+# Change instructions may reference entities using colloquial or slightly different names
+# than the actual slugs in the prefilled SDF. Match by INTENT, not just exact slug.
+# Example: instructions say "remove invoice_payments" but prefilled SDF has "payments" config
+#   → disable payments (set payments.enabled to false) and remove related entities.
+# Always cross-reference entity names in change instructions against your prefilled SDF.
 
 # Invoice capability scope (reference only, do not blindly generate all):
 # 1) Customer Master  2) Pre-Invoice Documents  3) Invoice Core
@@ -55,11 +67,14 @@
 {
   "module": "invoice",
   "entities": [
-    // Include every entity from the prefilled SDF unchanged.
-    // You may append new entities after them.
+    // Start from the prefilled SDF entities.
+    // If change instructions say to REMOVE an entity, do NOT include it here.
+    // If change instructions say to RENAME, include it with the new slug/display_name.
+    // You may add new entities for business-specific needs.
   ],
   "module_config": {
-    // Include every key from the prefilled module_config unchanged.
+    // Start from the prefilled module_config.
+    // If change instructions modify config (e.g. disable payments), apply those changes.
     // You may add new keys if the business needs them.
   },
   "clarifications_needed": [
@@ -110,10 +125,13 @@ Invoice Description: {invoice_description}
 Invoice Features Requested: {invoice_features}
 Shared Entities: {shared_entities}
 
+# Change instructions from distributor (follow these EXACTLY if provided):
+{change_instructions}
+
 # Original business description:
 {business_description}
 
 # SDF schema reference:
 {sdf_schema_reference}
 
-# Your JSON output (start from the prefilled SDF, only add enhancements):
+# Your JSON output (start from the prefilled SDF, apply change instructions if any, then add enhancements):

@@ -22,6 +22,8 @@ router.post('/:id/chat', projectController.chatWithProject);
 
 // AI workflow (Task B4 integration - used to test ai-gateway)
 router.post('/:id/analyze', projectController.analyzeProject);
+router.post('/:id/regenerate', projectController.regenerateProject);
+router.get('/:id/analyze/progress', projectController.getGenerationProgress);
 router.post('/:id/clarify', projectController.clarifyProject);
 router.get('/:id/sdf/latest', projectController.getLatestSdf);
 router.post('/:id/sdf/save', projectController.saveSdf);

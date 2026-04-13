@@ -14,6 +14,17 @@ export default function Sidebar() {
     localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0');
   }, [collapsed]);
 
+  useEffect(() => {
+    const collapse = () => setCollapsed(true);
+    const expand = () => setCollapsed(false);
+    window.addEventListener('sidebar-collapse', collapse);
+    window.addEventListener('sidebar-expand', expand);
+    return () => {
+      window.removeEventListener('sidebar-collapse', collapse);
+      window.removeEventListener('sidebar-expand', expand);
+    };
+  }, []);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -30,8 +41,8 @@ export default function Sidebar() {
       {/* Header: logo + toggle */}
       <div className="flex h-14 items-center justify-between px-3">
         {!collapsed && (
-          <Link to="/projects" className="flex items-center gap-1.5 font-bold text-lg truncate">
-            <span className="text-blue-400">C</span>ERP
+          <Link to="/projects" className="font-bold text-lg truncate">
+            <span className="text-blue-400">Custom</span>ERP
           </Link>
         )}
         <button
@@ -128,8 +139,26 @@ export default function Sidebar() {
         )}
       </nav>
 
-      {/* Footer: logout */}
-      <div className="border-t border-slate-800 px-2 py-3">
+      {/* Footer: user info + logout */}
+      <div className="border-t border-slate-800 px-2 py-3 space-y-1">
+        <div
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
+            collapsed ? 'justify-center' : ''
+          }`}
+          title={collapsed ? (user?.name || user?.username || 'User') : undefined}
+        >
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold text-blue-400">
+            {(user?.name || user?.username || 'U').charAt(0).toUpperCase()}
+          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-slate-200">{user?.name || user?.username || 'User'}</div>
+              {user?.name && user?.username && (
+                <div className="truncate text-xs text-slate-500">{user.username}</div>
+              )}
+            </div>
+          )}
+        </div>
         <button
           onClick={handleLogout}
           className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white ${

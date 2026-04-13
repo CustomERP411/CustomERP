@@ -241,16 +241,11 @@ module.exports = {
                 );
               }
 
-              // Enforce module boundary: same module or shared
+              // Enforce module boundary: same module, shared, or shared→enabled module
               if (sourceModule !== targetModule) {
-                if (targetModule !== 'shared') {
+                if (sourceModule !== 'shared' && targetModule !== 'shared') {
                   throw new Error(
                     `SDF Validation Error: Field '${ent.slug}.${field.name}' must reference an entity in the same module or marked shared.`
-                  );
-                }
-                if (sourceModule === 'shared') {
-                  throw new Error(
-                    `SDF Validation Error: Shared entity '${ent.slug}' cannot reference module-specific entity '${targetSlug}'.`
                   );
                 }
               }
@@ -284,14 +279,9 @@ module.exports = {
             const childModule = this._normalizeEntityModule(childEntity, { hasErpConfig });
             const sourceModule = this._normalizeEntityModule(ent, { hasErpConfig });
             if (sourceModule !== childModule) {
-              if (childModule !== 'shared') {
+              if (sourceModule !== 'shared' && childModule !== 'shared') {
                 throw new Error(
                   `SDF Validation Error: Child entity '${childSlug}' must be in the same module or marked shared.`
-                );
-              }
-              if (sourceModule === 'shared') {
-                throw new Error(
-                  `SDF Validation Error: Shared entity '${ent.slug}' cannot reference module-specific child '${childSlug}'.`
                 );
               }
             }

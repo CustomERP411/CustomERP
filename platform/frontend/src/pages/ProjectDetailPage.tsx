@@ -268,16 +268,12 @@ export default function ProjectDetailPage() {
             if (!isNaN(idx) && idx >= 0 && idx < BUSINESS_QUESTIONS.length) setBusinessStep(idx);
           }
         } catch { /* ignore */ }
-        // Restore the SDF when available. If the project already completed
-        // generation (Ready/Approved), always show it regardless of local
-        // business-answer state -- the answers may not survive a localStorage
-        // clear but the SDF on the server is the source of truth.
+        // Always restore the SDF if one exists on the server, unless the
+        // project is stuck mid-generation (Analyzing). The server SDF is the
+        // source of truth -- we should never hide it because local business
+        // answers are missing from localStorage.
         const generationFailed = p.status === 'Analyzing';
-        const projectAlreadyGenerated = p.status === 'Ready' || p.status === 'Approved';
-        const businessReady = projectAlreadyGenerated || BUSINESS_QUESTIONS
-          .filter((q) => !q.optional)
-          .every((q) => (initialBusinessAnswers[q.id] || '').trim().length > 0);
-        if (latest?.sdf && businessReady && !generationFailed) {
+        if (latest?.sdf && !generationFailed) {
           setSdf(latest.sdf);
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
           setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
@@ -285,7 +281,7 @@ export default function ProjectDetailPage() {
         const serverHistory = await projectService.getReviewHistory(projectId).catch(() => ({ history: [] }));
         if (!cancelled && serverHistory.history.length > 0) {
           setReviewHistory(serverHistory.history);
-        } else if (!cancelled && latest?.sdf && businessReady && !generationFailed) {
+        } else if (!cancelled && latest?.sdf && !generationFailed) {
           setReviewHistory([{
             id: `baseline-${latest.sdf_version || 0}`,
             action: 'generated',

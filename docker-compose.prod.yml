@@ -102,6 +102,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    volumes:
+      - training_data:/app/training_data
     expose:
       - "8000"
     networks:
@@ -148,5 +150,6 @@ networks:
 
 volumes:
   postgres_data:
+  training_data:
   certbot_webroot:
   certbot_certs:

@@ -48,6 +48,19 @@ def merge_module_outputs(
                 slug_sources[slug].add(mod_name)
                 _merge_entity(entities_by_slug[slug], ent)
 
+    # Carry forward shared entities from prefilled SDF that no generator produced.
+    # During change requests, shared entities (e.g. "customers") can be orphaned
+    # because the carry-forward loop only matches module-specific entities.
+    for pre_ent in (prefilled_sdf.get("entities") or []):
+        if not isinstance(pre_ent, dict):
+            continue
+        if (pre_ent.get("module") or "").lower() != "shared":
+            continue
+        slug = (pre_ent.get("slug") or "").strip()
+        if slug and slug not in entities_by_slug:
+            entities_by_slug[slug] = deepcopy(pre_ent)
+            slug_sources[slug] = {"_prefilled"}
+
     # Mark shared entities
     for slug, sources in slug_sources.items():
         already_shared = (entities_by_slug[slug].get("module") or "").lower() == "shared"

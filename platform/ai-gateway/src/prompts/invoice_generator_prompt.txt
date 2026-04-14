@@ -114,7 +114,10 @@
 
 # --- Inputs ---
 
-# Prefilled module SDF (this is your starting point, preserve it exactly):
+# Prefilled module SDF (this is your starting point, preserve it exactly).
+# Entities with module: "shared" MUST be included in your output unchanged
+# (unless change instructions explicitly modify them). They are needed for
+# cross-module references even though they may not be Invoice-specific.
 {prefilled_module_sdf}
 
 # Default answers (user's explicit wizard choices, do not contradict these):

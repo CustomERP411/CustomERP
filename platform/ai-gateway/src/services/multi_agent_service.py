@@ -294,6 +294,32 @@ class MultiAgentService:
             )
             print(f"[MultiAgentService] Carried forward {len(mod_entities)} entities for skipped {mod_name.upper()}")
 
+        # Carry forward shared entities that no generator or skip-loop captured.
+        # Shared entities (module=="shared") don't match any module-specific filter,
+        # so they must be preserved explicitly during change requests.
+        if pre_sdf and skipped_modules:
+            produced_slugs: set = set()
+            for out in module_outputs.values():
+                for ent in (out.entities if hasattr(out, "entities") else out.get("entities", [])):
+                    slug = ent.get("slug") if isinstance(ent, dict) else None
+                    if slug:
+                        produced_slugs.add(slug)
+            shared_carry = [
+                e for e in (pre_sdf.get("entities") or [])
+                if isinstance(e, dict)
+                and (e.get("module") or "").lower() == "shared"
+                and (e.get("slug") or "") not in produced_slugs
+            ]
+            if shared_carry:
+                module_outputs["_shared_carry"] = ModuleGeneratorOutput(
+                    module="shared",
+                    entities=shared_carry,
+                    module_config={},
+                    sdf_complete=True,
+                    warnings=[],
+                )
+                print(f"[MultiAgentService] Carried forward {len(shared_carry)} shared entities from prefilled SDF")
+
         if not module_outputs:
             return PipelineResult(
                 success=False,

@@ -268,12 +268,15 @@ export default function ProjectDetailPage() {
             if (!isNaN(idx) && idx >= 0 && idx < BUSINESS_QUESTIONS.length) setBusinessStep(idx);
           }
         } catch { /* ignore */ }
-        // Only restore the SDF if business answers are actually complete AND
-        // the project is not stuck in 'Analyzing' (which means the last generation failed).
-        const businessReady = BUSINESS_QUESTIONS
+        // Restore the SDF when available. If the project already completed
+        // generation (Ready/Approved), always show it regardless of local
+        // business-answer state -- the answers may not survive a localStorage
+        // clear but the SDF on the server is the source of truth.
+        const generationFailed = p.status === 'Analyzing';
+        const projectAlreadyGenerated = p.status === 'Ready' || p.status === 'Approved';
+        const businessReady = projectAlreadyGenerated || BUSINESS_QUESTIONS
           .filter((q) => !q.optional)
           .every((q) => (initialBusinessAnswers[q.id] || '').trim().length > 0);
-        const generationFailed = p.status === 'Analyzing';
         if (latest?.sdf && businessReady && !generationFailed) {
           setSdf(latest.sdf);
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
@@ -418,10 +421,10 @@ export default function ProjectDetailPage() {
   const canSubmitAnswers = useMemo(() => !!sdf && questions.length > 0 && questions.every((q) => (answersById[q.id] || '').trim().length > 0), [sdf, questions, answersById]);
 
   const currentStep = useMemo(() => {
+    if (sdf) return 4;
     if (!selectedModules.length) return 0;
     if (!defaultCompletion?.is_complete) return 1;
     if (!businessComplete) return 2;
-    if (sdf) return 4;
     return 3;
   }, [selectedModules, defaultCompletion, businessComplete, sdf]);
 

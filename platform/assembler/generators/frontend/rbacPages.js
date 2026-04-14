@@ -182,9 +182,13 @@ export default function LoginPage() {
           {submitting ? 'Signing in...' : 'Sign In'}
         </button>
 
-        <p className="text-center text-xs text-slate-400">
-          Default: admin / admin
-        </p>
+        <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-center">
+          <p className="text-sm font-medium text-blue-800">
+            <span className="inline-block mr-1">&#128273;</span>
+            Default login: <strong>admin</strong> / <strong>admin</strong>
+          </p>
+          <p className="text-xs text-blue-600 mt-1">You can change this after signing in via Settings.</p>
+        </div>
       </form>
     </div>
   );

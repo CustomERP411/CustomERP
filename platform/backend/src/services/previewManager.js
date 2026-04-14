@@ -1,8 +1,11 @@
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
-const { execSync, spawn } = require('child_process');
+const { exec, spawn } = require('child_process');
+const { promisify } = require('util');
 const crypto = require('crypto');
+
+const execAsync = promisify(exec);
 const logger = require('../utils/logger');
 const erpGenerationService = require('./erpGenerationService');
 
@@ -104,14 +107,14 @@ async function startPreview(projectId, sdf) {
     // 2. npm install backend
     logger.info(`[PreviewManager] Installing backend dependencies...`);
     try {
-      execSync('npm install --production --no-optional 2>&1', {
+      await execAsync('npm install --production --no-optional', {
         cwd: appDir,
-        stdio: 'pipe',
         timeout: 180_000,
         env: { ...process.env, NODE_ENV: 'production' },
+        maxBuffer: 10 * 1024 * 1024,
       });
     } catch (installErr) {
-      const output = installErr.stdout ? installErr.stdout.toString().slice(-2000) : '';
+      const output = (installErr.stdout || '').slice(-2000) + (installErr.stderr || '').slice(-2000);
       logger.error(`[PreviewManager] Backend npm install failed: ${output}`);
       throw installErr;
     }
@@ -120,32 +123,32 @@ async function startPreview(projectId, sdf) {
     if (fs.existsSync(path.join(frontendDir, 'package.json'))) {
       logger.info(`[PreviewManager] Installing frontend dependencies...`);
       try {
-        execSync('npm install --include=dev 2>&1', {
+        await execAsync('npm install --include=dev', {
           cwd: frontendDir,
-          stdio: 'pipe',
           timeout: 180_000,
+          maxBuffer: 10 * 1024 * 1024,
         });
       } catch (installErr) {
-        const output = installErr.stdout ? installErr.stdout.toString().slice(-2000) : '';
+        const output = (installErr.stdout || '').slice(-2000) + (installErr.stderr || '').slice(-2000);
         logger.error(`[PreviewManager] Frontend npm install failed: ${output}`);
         throw installErr;
       }
 
       logger.info(`[PreviewManager] Building frontend with base path ${basePath}/...`);
       try {
-        execSync(`npx vite build --base ${basePath}/ 2>&1`, {
+        await execAsync(`npx vite build --base ${basePath}/`, {
           cwd: frontendDir,
-          stdio: 'pipe',
           timeout: 120_000,
           env: {
             ...process.env,
             VITE_API_URL: `${basePath}/api`,
             VITE_BASE_PATH: basePath,
           },
+          maxBuffer: 10 * 1024 * 1024,
         });
       } catch (buildErr) {
-        const output = buildErr.stdout ? buildErr.stdout.toString().slice(-2000) : '';
-        const errOutput = buildErr.stderr ? buildErr.stderr.toString().slice(-2000) : '';
+        const output = (buildErr.stdout || '').slice(-2000);
+        const errOutput = (buildErr.stderr || '').slice(-2000);
         logger.error(`[PreviewManager] Vite build failed.\nSTDOUT: ${output}\nSTDERR: ${errOutput}`);
         throw buildErr;
       }

@@ -39,6 +39,7 @@ export default function PreviewPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [approving, setApproving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [credsBannerDismissed, setCredsBannerDismissed] = useState(() => sessionStorage.getItem('preview_creds_dismissed') === '1');
 
   // Change request state
   const [changeText, setChangeText] = useState('');
@@ -103,6 +104,43 @@ export default function PreviewPage() {
     return () => setProjectContext(null);
   }, [projectId, project, setProjectContext]);
 
+  const pollUntilReady = useCallback((pid: string) => {
+    setProgressText('Building your ERP...');
+    PROGRESS_MESSAGES.forEach(({ delay, text }) => {
+      const t = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
+      progressTimers.current.push(t);
+    });
+
+    const poll = async () => {
+      if (!mountedRef.current || !projectId) return;
+      try {
+        const res = await projectService.getPreviewStatus(projectId);
+        if (!mountedRef.current) return;
+        if (res.status === 'running' && res.previewId) {
+          clearProgressTimers();
+          setPreviewId(res.previewId);
+          setStatus('running');
+          setProgressText('');
+          return;
+        }
+        if (res.status === 'building') {
+          const t = setTimeout(poll, 3000);
+          progressTimers.current.push(t);
+          return;
+        }
+      } catch { /* ignore */ }
+      clearProgressTimers();
+      if (mountedRef.current) {
+        setStatus('error');
+        setProgressText('');
+        setErrorMsg('Preview build failed. Please try again.');
+      }
+    };
+
+    const t = setTimeout(poll, 3000);
+    progressTimers.current.push(t);
+  }, [projectId, clearProgressTimers]);
+
   const startPreviewFlow = useCallback(async () => {
     if (!projectId) return;
     setStatus('starting');
@@ -143,12 +181,18 @@ export default function PreviewPage() {
           setStatus('running');
           return;
         }
+        if (existing.status === 'building' && existing.previewId) {
+          setPreviewId(existing.previewId);
+          setStatus('starting');
+          pollUntilReady(existing.previewId);
+          return;
+        }
       } catch { /* ignore */ }
       if (!cancelled) startPreviewFlow();
     })();
 
     return () => { cancelled = true; clearProgressTimers(); };
-  }, [projectId, startPreviewFlow, clearProgressTimers]);
+  }, [projectId, startPreviewFlow, clearProgressTimers, pollUntilReady]);
 
   // Load current SDF for change requests
   useEffect(() => {
@@ -377,7 +421,15 @@ export default function PreviewPage() {
           )}
 
           {status === 'running' && iframeSrc && (
-            <iframe ref={iframeRef} src={iframeSrc} title="ERP Preview" className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
+            <div className="flex flex-col w-full h-full">
+              {!credsBannerDismissed && (
+                <div className="flex-shrink-0 flex items-center justify-between bg-indigo-50 border-b border-indigo-200 px-4 py-2 text-sm text-indigo-800">
+                  <span>Login with username: <strong>admin</strong> &nbsp;|&nbsp; password: <strong>admin</strong></span>
+                  <button onClick={() => { setCredsBannerDismissed(true); sessionStorage.setItem('preview_creds_dismissed', '1'); }} className="ml-3 text-indigo-400 hover:text-indigo-600 font-bold">&times;</button>
+                </div>
+              )}
+              <iframe ref={iframeRef} src={iframeSrc} title="ERP Preview" className="w-full flex-1 border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
+            </div>
           )}
         </div>
 

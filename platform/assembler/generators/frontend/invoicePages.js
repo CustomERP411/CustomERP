@@ -1,4 +1,4 @@
-function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, invoicePriorityCfg, title }) {
+function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, invoicePriorityCfg, enableCsvImport, enableCsvExport, fieldDefs, title }) {
   const base = importBase || '..';
   const config = invoiceConfig && typeof invoiceConfig === 'object' ? invoiceConfig : {};
   const currency = String(config.currency || 'USD');
@@ -11,6 +11,10 @@ function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, i
     : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
   const pageTitle = title || entityName;
 
+  const csvFieldNames = fieldDefs
+    ? `['id', ${fieldDefs.map((f) => `'${f.name}'`).join(', ')}]`
+    : `['id']`;
+
   return `import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -19,6 +23,7 @@ import InvoiceCard from '${base}/components/modules/invoice/InvoiceCard';
 
 const currency = '${currency}';
 const STATUS_OPTIONS = ${JSON.stringify(statusOptions)};
+${enableCsvExport ? `const CSV_HEADERS = ${csvFieldNames};` : ''}
 
 export default function ${entityName}Page() {
   const { toast } = useToast();
@@ -49,6 +54,13 @@ export default function ${entityName}Page() {
     ? items 
     : items.filter((inv) => String(inv?.status || 'Draft').toLowerCase() === statusFilter.toLowerCase());
 
+${enableCsvExport ? `  const exportCsv = () => {
+    const escape = (v: any) => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') || s.includes('\\n') ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const rows = [CSV_HEADERS.join(','), ...items.map((r) => CSV_HEADERS.map((h) => escape(r[h])).join(','))];
+    const blob = new Blob([rows.join('\\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '${entity.slug}.csv'; a.click(); URL.revokeObjectURL(a.href);
+  };` : ''}
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -56,9 +68,11 @@ export default function ${entityName}Page() {
           <h1 className="text-2xl font-bold text-slate-900">${pageTitle}</h1>
           <p className="text-sm text-slate-600">Track invoices and billing totals.</p>
         </div>
-        <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-          New Invoice
-        </Link>
+        <div className="flex items-center gap-2">
+${enableCsvImport ? `          <Link to="/${entity.slug}/import" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Import CSV</Link>` : ''}
+${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Export CSV</button>` : ''}
+          <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">New Invoice</Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

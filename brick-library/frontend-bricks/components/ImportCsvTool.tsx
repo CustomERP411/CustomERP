@@ -25,6 +25,7 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
   const [fileName, setFileName] = useState<string>('');
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
 
@@ -53,6 +54,7 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
   const onFileSelected = (file: File) => {
     setFileName(file.name);
     setErrors([]);
+    setWarnings([]);
     setRows([]);
 
     Papa.parse<Record<string, any>>(file, {
@@ -60,12 +62,13 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
       skipEmptyLines: true,
       complete: (result) => {
         const newErrors: string[] = [];
+        const newWarnings: string[] = [];
         const parsedRows = result.data || [];
 
         const headers = (result.meta.fields || []).filter(Boolean) as string[];
         const unknownHeaders = headers.filter((h) => !expectedHeaders.includes(h));
         if (unknownHeaders.length > 0) {
-          newErrors.push('Unknown columns (will be ignored): ' + unknownHeaders.join(', '));
+          newWarnings.push('Unknown columns (will be ignored): ' + unknownHeaders.join(', '));
         }
 
         if (result.errors?.length) {
@@ -73,6 +76,7 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
         }
 
         setErrors(newErrors);
+        setWarnings(newWarnings);
         setRows(parsedRows);
       },
     });
@@ -205,9 +209,20 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
         {fileName ? <div className="mt-1 text-xs text-slate-500">Selected: {fileName}</div> : null}
       </div>
 
+      {warnings.length > 0 ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <div className="font-semibold">Heads up</div>
+          <ul className="mt-1 list-disc pl-5">
+            {warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {errors.length > 0 ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          <div className="font-semibold">CSV issues</div>
+          <div className="font-semibold">CSV errors</div>
           <ul className="mt-1 list-disc pl-5">
             {errors.map((e, i) => (
               <li key={i}>{e}</li>

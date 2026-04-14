@@ -296,8 +296,8 @@ class MultiAgentService:
 
         # Carry forward shared entities that no generator or skip-loop captured.
         # Shared entities (module=="shared") don't match any module-specific filter,
-        # so they must be preserved explicitly during change requests.
-        if pre_sdf and skipped_modules:
+        # so they must be injected into an existing module output to survive the merge.
+        if pre_sdf and module_outputs:
             produced_slugs: set = set()
             for out in module_outputs.values():
                 for ent in (out.entities if hasattr(out, "entities") else out.get("entities", [])):
@@ -311,14 +311,18 @@ class MultiAgentService:
                 and (e.get("slug") or "") not in produced_slugs
             ]
             if shared_carry:
-                module_outputs["_shared_carry"] = ModuleGeneratorOutput(
-                    module="shared",
-                    entities=shared_carry,
-                    module_config={},
+                host_key = next(iter(module_outputs))
+                host_out = module_outputs[host_key]
+                host_entities = list(host_out.entities) if hasattr(host_out, "entities") else list(host_out.get("entities", []))
+                host_entities.extend(shared_carry)
+                module_outputs[host_key] = ModuleGeneratorOutput(
+                    module=host_out.module if hasattr(host_out, "module") else host_out.get("module", host_key),
+                    entities=host_entities,
+                    module_config=host_out.module_config if hasattr(host_out, "module_config") else host_out.get("module_config", {}),
                     sdf_complete=True,
-                    warnings=[],
+                    warnings=list(host_out.warnings) if hasattr(host_out, "warnings") else list(host_out.get("warnings", [])),
                 )
-                print(f"[MultiAgentService] Carried forward {len(shared_carry)} shared entities from prefilled SDF")
+                print(f"[MultiAgentService] Carried forward {len(shared_carry)} shared entities (appended to {host_key.upper()})")
 
         if not module_outputs:
             return PipelineResult(

@@ -37,7 +37,7 @@ function buildSidebar({ toolsBlock, moduleMap, rbac }) {
 
   if (hasMultipleModules) {
     return `import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ENTITIES } from '../../config/entities';
 ${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
 const MODULE_DISPLAY_NAMES: Record<string, string> = {
@@ -52,6 +52,7 @@ const DEFAULT_COLOR = { border: 'border-l-slate-400', active: 'bg-slate-600 text
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
 ${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` : ''}
   const canSee = ${canSeeEntity};
 
@@ -86,6 +87,13 @@ ${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` 
   return (
     <aside className="w-64 h-screen border-r bg-white flex flex-col">
       <nav className="px-2 py-3 flex-1 overflow-y-auto">
+        <button
+          onClick={() => navigate(-1)}
+          className="mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+          Back
+        </button>
         <Link
           to="/"
           className={[
@@ -149,7 +157,7 @@ ${rbac ? `      <div className="border-t px-4 py-3">
   }
 
   return `import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ENTITIES } from '../../config/entities';
 ${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
 const MODULE_DISPLAY_NAMES: Record<string, string> = {
@@ -164,6 +172,7 @@ const DEFAULT_COLOR = { border: 'border-l-slate-400', active: 'bg-slate-600 text
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
 ${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` : ''}
   const canSee = ${canSeeEntity};
 
@@ -200,6 +209,13 @@ ${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` 
   return (
     <aside className="w-64 h-screen border-r bg-white flex flex-col">
       <nav className="px-2 py-3 flex-1 overflow-y-auto">
+        <button
+          onClick={() => navigate(-1)}
+          className="mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+          Back
+        </button>
         <Link
           to="/"
           className={[

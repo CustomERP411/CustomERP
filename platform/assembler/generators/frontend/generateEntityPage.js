@@ -185,6 +185,9 @@ module.exports = {
           importBase,
           invoiceConfig,
           invoicePriorityCfg,
+          enableCsvImport,
+          enableCsvExport,
+          fieldDefs,
           title: this._escapeJsString(entity.display_name || entityName),
         })
       : isEmployeeEntity
@@ -193,6 +196,9 @@ module.exports = {
           entityName,
           importBase,
           hrConfig,
+          enableCsvImport,
+          enableCsvExport,
+          fieldDefs,
           title: this._escapeJsString(entity.display_name || entityName),
         })
       : isDepartmentEntity
@@ -201,6 +207,9 @@ module.exports = {
           entityName,
           importBase,
           hrConfig,
+          enableCsvImport,
+          enableCsvExport,
+          fieldDefs,
           title: this._escapeJsString(entity.display_name || entityName),
         })
       : isLeaveEntity
@@ -209,6 +218,9 @@ module.exports = {
           entityName,
           importBase,
           hrConfig,
+          enableCsvImport,
+          enableCsvExport,
+          fieldDefs,
           title: this._escapeJsString(entity.display_name || entityName),
         })
       : buildEntityListPage({

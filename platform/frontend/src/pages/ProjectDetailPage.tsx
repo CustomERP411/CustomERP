@@ -53,7 +53,7 @@ export default function ProjectDetailPage() {
   const [aiEditText, setAiEditText] = useState('');
   const [downloadStarted, setDownloadStarted] = useState<string | null>(null);
   const [clarifyRound, setClarifyRound] = useState(0);
-  const [sdfComplete, setSdfComplete] = useState(false);
+  const [, setSdfComplete] = useState(false);
   const [analyzePhase, setAnalyzePhase] = useState('');
   const [sdfVersion, setSdfVersion] = useState<number | null>(null);
   const [reviewHistory, setReviewHistory] = useState<ReviewHistoryItem[]>([]);
@@ -690,27 +690,6 @@ export default function ProjectDetailPage() {
     } finally { progressCancelled = true; setAnalyzing(false); }
   };
 
-  const submitAnswers = async () => {
-    if (!projectId || !sdf) return;
-    setClarifying(true); setError('');
-    try {
-      const answers: ClarificationAnswer[] = questions.map((q) => ({ question_id: q.id, answer: (answersById[q.id] || '').trim() }));
-      const res = await projectService.clarifyProject(projectId, sdf, answers, description.trim());
-      setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
-      setClarifyRound(res.cycle || clarifyRound + 1); setSdfComplete(res.sdf_complete || false);
-      setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
-      appendReviewHistory({
-        action: 'clarified',
-        version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
-        status: res.project.status || null,
-        note: 'Applied clarification answers to the current SDF.',
-      });
-    } catch (err: any) {
-      const msg = err?.code === 'ECONNABORTED' ? 'Clarification timed out. Your answers are saved -- try again.' : (err?.response?.data?.error || err?.message || 'Clarify failed');
-      setError(msg);
-    } finally { setClarifying(false); }
-  };
-
   const submitModalAnswers = async () => {
     if (!projectId || !sdf || questions.length === 0) return;
     setClarifying(true);
@@ -762,42 +741,6 @@ export default function ProjectDetailPage() {
       setGenResult('error');
       setGenErrorMsg(mapGenerationError(err));
     } finally { progressCancelled = true; setClarifying(false); }
-  };
-
-  const finalizeSdf = async () => {
-    if (!projectId || !sdf) {
-      setSdfComplete(true);
-      setQuestions([]);
-      return;
-    }
-
-    setSaving(true);
-    setError('');
-    try {
-      // "Skip remaining and finalize" should persist a final SDF snapshot without open clarifications.
-      const finalSdf = {
-        ...sdf,
-        clarifications_needed: [],
-      } as AiGatewaySdf;
-
-      const res = await projectService.saveSdf(projectId, finalSdf);
-      setProject(res.project);
-      setSdf(res.sdf);
-      setQuestions([]);
-      setAnswersById({});
-      setSdfComplete(true);
-      setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
-      appendReviewHistory({
-        action: 'manual_save',
-        version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
-        status: res.project.status || null,
-        note: 'Finalized SDF by clearing remaining clarifications.',
-      });
-    } catch (err: any) {
-      setError(err?.response?.data?.error || err?.message || 'Finalize failed');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const saveDraft = async () => {

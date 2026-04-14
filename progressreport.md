@@ -77,16 +77,16 @@ Sprint 5 planned tasks:
 - [[DONE]] Remove entity and functionality display from the ERP generation page to simplify the flow. (ASA)
 
 **Generated ERP Issues:**
-- Display company or project name on the top-left header instead of the module name. (ASA)
-- Make superadmin account non-deletable. (ASA)
-- Improve group permissions UI so that selecting an entity-level checkbox automatically selects all permissions underneath it. (ASA)
-- Show the logged-in user's actual name or username on the top right instead of the generic "user" label and avatar icon. (ASA)
-- Fix new user login so that newly added users can actually enter the generated ERP, and hide menu items and pages the user does not have access to. (ASA)
-- Create default groups on ERP generation: Admin (same privileges as superadmin), module-level admins (inventoryadmin, hradmin, invoiceadmin), and enforce hierarchical authorization so for example an hradmin has control over hr worker groups but not over inventory worker groups. (ASA)
+- [[DONE]] Display company or project name on the top-left header instead of the module name. (ASA)
+- [[DONE]] Make superadmin account non-deletable. (ASA)
+- [[DONE]] Improve group permissions UI so that selecting an entity-level checkbox automatically selects all permissions underneath it. (ASA)
+- [[DONE]] Show the logged-in user's actual name or username on the top right instead of the generic "user" label and avatar icon. (ASA)
+- [[DONE]] Fix new user login so that newly added users can actually enter the generated ERP, and hide menu items and pages the user does not have access to. (ASA)
+- [[DONE]] Create default groups on ERP generation: Admin (same privileges as superadmin), module-level admins (inventoryadmin, hradmin, invoiceadmin), and enforce hierarchical authorization so for example an hradmin has control over hr worker groups but not over inventory worker groups. (ASA)
 
 **AI Customizability and Flexibility:**
-- Improve generated ERP customizability: loosen strict rules so AI can add new entities, define relations between them, and allow customer-specific naming (e.g. "tires" instead of generic "products"). (ASA)
-- Add an unsupported-feature notification flow: when a user requests something the system cannot provide, show a clear message acknowledging the request, explain the limitation, and record the need for future development. (ASA)
+- [[DONE]] Improve generated ERP customizability: loosen strict rules so AI can add new entities, define relations between them, and allow customer-specific naming (e.g. "tires" instead of generic "products"). (ASA)
+- [[DONE]] Add an unsupported-feature notification flow: when a user requests something the system cannot provide, show a clear message acknowledging the request, explain the limitation, and record the need for future development. (ASA)
 
 **AI Fine-Tuning Data Management:**
 - [[DONE]] Build an AI fine-tuning data recording and management system: register and record all AI interactions, allow easy review to mark samples as good or bad, edit training pairs, and present them in a user-friendly interface within platform admin or a dedicated tool. (ASA)

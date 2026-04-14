@@ -145,17 +145,15 @@ export default function Sidebar() {
           className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
             collapsed ? 'justify-center' : ''
           }`}
-          title={collapsed ? (user?.name || user?.username || 'User') : undefined}
+          title={collapsed ? (user?.name || user?.email || 'User') : undefined}
         >
           <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold text-blue-400">
-            {(user?.name || user?.username || 'U').charAt(0).toUpperCase()}
+            {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="truncate text-sm font-medium text-slate-200">{user?.name || user?.username || 'User'}</div>
-              {user?.name && user?.username && (
-                <div className="truncate text-xs text-slate-500">{user.username}</div>
-              )}
+              <div className="truncate text-sm font-medium text-slate-200">{user?.name || 'User'}</div>
+              <div className="truncate text-xs text-slate-500">{user?.email}</div>
             </div>
           )}
         </div>

@@ -10,9 +10,10 @@ function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, i
     ? lifecycle.statuses
     : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
   const pageTitle = title || entityName;
+  const fields = Array.isArray(fieldDefs) ? fieldDefs : [];
 
-  const csvFieldNames = fieldDefs
-    ? `['id', ${fieldDefs.map((f) => `'${f.name}'`).join(', ')}]`
+  const csvFieldNames = fields.length
+    ? `['id', ${fields.map((f) => `'${f.name}'`).join(', ')}]`
     : `['id']`;
 
   return `import { useEffect, useState } from 'react';

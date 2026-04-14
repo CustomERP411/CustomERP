@@ -4,9 +4,10 @@ function buildEmployeeListPage({ entity, entityName, importBase, hrConfig, enabl
   const base = importBase || '..';
   const config = hrConfig && typeof hrConfig === 'object' ? hrConfig : {};
   const pageTitle = title || entityName;
+  const fields = Array.isArray(fieldDefs) ? fieldDefs : [];
 
-  const csvFieldNames = fieldDefs
-    ? `['id', ${fieldDefs.map((f) => `'${f.name}'`).join(', ')}]`
+  const csvFieldNames = fields.length
+    ? `['id', ${fields.map((f) => `'${f.name}'`).join(', ')}]`
     : `['id']`;
 
   return `import { useEffect, useState } from 'react';
@@ -115,9 +116,10 @@ function buildDepartmentListPage({ entity, entityName, importBase, hrConfig, ena
   const base = importBase || '..';
   const config = hrConfig && typeof hrConfig === 'object' ? hrConfig : {};
   const pageTitle = title || entityName;
+  const fields = Array.isArray(fieldDefs) ? fieldDefs : [];
 
-  const csvFieldNames = fieldDefs
-    ? `['id', ${fieldDefs.map((f) => `'${f.name}'`).join(', ')}]`
+  const csvFieldNames = fields.length
+    ? `['id', ${fields.map((f) => `'${f.name}'`).join(', ')}]`
     : `['id']`;
 
   return `import { useEffect, useState } from 'react';
@@ -200,9 +202,10 @@ function buildLeaveListPage({ entity, entityName, importBase, hrConfig, enableCs
   const base = importBase || '..';
   const config = hrConfig && typeof hrConfig === 'object' ? hrConfig : {};
   const pageTitle = title || entityName;
+  const fields = Array.isArray(fieldDefs) ? fieldDefs : [];
 
-  const csvFieldNames = fieldDefs
-    ? `['id', ${fieldDefs.map((f) => `'${f.name}'`).join(', ')}]`
+  const csvFieldNames = fields.length
+    ? `['id', ${fields.map((f) => `'${f.name}'`).join(', ')}]`
     : `['id']`;
 
   return `import { useEffect, useState } from 'react';

@@ -104,7 +104,7 @@ export default function PreviewPage() {
     return () => setProjectContext(null);
   }, [projectId, project, setProjectContext]);
 
-  const pollUntilReady = useCallback((pid: string) => {
+  const pollUntilReady = useCallback(() => {
     setProgressText('Building your ERP...');
     PROGRESS_MESSAGES.forEach(({ delay, text }) => {
       const t = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
@@ -184,7 +184,7 @@ export default function PreviewPage() {
         if (existing.status === 'building' && existing.previewId) {
           setPreviewId(existing.previewId);
           setStatus('starting');
-          pollUntilReady(existing.previewId);
+          pollUntilReady();
           return;
         }
       } catch { /* ignore */ }

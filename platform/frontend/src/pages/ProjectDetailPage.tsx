@@ -67,6 +67,7 @@ export default function ProjectDetailPage() {
   const { setProjectContext, openChat, sendMessage, setPulsing } = useChatContext();
   const stepRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
   const hasScrolledRef = useRef(false);
+  const loadedWithProgressRef = useRef(false);
   const savedDefaultAnswersRef = useRef<Record<string, string | string[]> | null>(null);
   const detectedPlatform = useMemo(() => detectUserPlatform(), []);
   const running = analyzing || clarifying || saving || reviewActionRunning;
@@ -257,6 +258,7 @@ export default function ProjectDetailPage() {
           : Object.keys(businessAnswersFromConversation).length
             ? businessAnswersFromConversation
             : {};
+        loadedWithProgressRef.current = initialModules.length > 0;
         setSelectedModules(initialModules);
         setBusinessAnswers(initialBusinessAnswers);
         try {
@@ -423,15 +425,20 @@ export default function ProjectDetailPage() {
     return 3;
   }, [selectedModules, defaultCompletion, businessComplete, sdf]);
 
-  // Scroll to the user's current progress point after initial load + SlideIn animation
+  // Scroll to the user's current progress point when returning to an in-progress project.
+  // Skip auto-scroll entirely for fresh projects (no modules on load) so that selecting
+  // a module doesn't yank the viewport away from the module selector.
   useEffect(() => {
-    if (loading || hasScrolledRef.current || currentStep === 0) return;
+    if (loading || loadingDefaultQuestions || hasScrolledRef.current) return;
+    if (!loadedWithProgressRef.current || currentStep === 0) {
+      hasScrolledRef.current = true;
+      return;
+    }
     hasScrolledRef.current = true;
     const timer = setTimeout(() => {
       let target: Element | null = null;
 
       if (currentStep === 1) {
-        // Find first unanswered default question
         for (const q of visibleDefaultQuestions) {
           const val = defaultAnswersById[q.id];
           const empty = Array.isArray(val) ? val.length === 0 : !val;
@@ -439,7 +446,6 @@ export default function ProjectDetailPage() {
         }
         if (!target) target = document.getElementById('dq-continue-btn');
       } else if (currentStep === 2) {
-        // Prefer the persisted step; fall back to first unanswered question
         const storedRaw = window.localStorage.getItem(businessStepStorageKey);
         const storedIdx = storedRaw !== null ? parseInt(storedRaw, 10) : NaN;
         if (!isNaN(storedIdx) && storedIdx >= 0 && storedIdx < BUSINESS_QUESTIONS.length) {
@@ -451,9 +457,9 @@ export default function ProjectDetailPage() {
       }
 
       (target || stepRefs[currentStep]?.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 600);
+    }, 350);
     return () => clearTimeout(timer);
-  }, [loading, currentStep]);
+  }, [loading, loadingDefaultQuestions]);
 
   useEffect(() => { setPulsing(bizSkipWarningOpen); }, [bizSkipWarningOpen, setPulsing]);
 

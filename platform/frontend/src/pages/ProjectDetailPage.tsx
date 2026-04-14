@@ -67,8 +67,7 @@ export default function ProjectDetailPage() {
   const { setProjectContext, openChat, sendMessage, setPulsing } = useChatContext();
   const stepRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
   const hasScrolledRef = useRef(false);
-  const loadedWithProgressRef = useRef(false);
-  const defaultQuestionsLoadedRef = useRef(false);
+  const expectQuestionFetchRef = useRef(false);
   const savedDefaultAnswersRef = useRef<Record<string, string | string[]> | null>(null);
   const detectedPlatform = useMemo(() => detectUserPlatform(), []);
   const running = analyzing || clarifying || saving || reviewActionRunning;
@@ -259,7 +258,7 @@ export default function ProjectDetailPage() {
           : Object.keys(businessAnswersFromConversation).length
             ? businessAnswersFromConversation
             : {};
-        loadedWithProgressRef.current = initialModules.length > 0;
+        expectQuestionFetchRef.current = initialModules.length > 0;
         setSelectedModules(initialModules);
         setBusinessAnswers(initialBusinessAnswers);
         try {
@@ -309,7 +308,7 @@ export default function ProjectDetailPage() {
       setLoadingDefaultQuestions(true); setError('');
       try {
         const payload = await projectService.getDefaultQuestions(projectId, selectedModules);
-        if (!cancelled) { applyDefaultQuestionState(payload); defaultQuestionsLoadedRef.current = true; }
+        if (!cancelled) applyDefaultQuestionState(payload);
       } catch (err: any) {
         if (!cancelled) setError(err?.response?.data?.error || err?.message || 'Failed to load default module questions');
       } finally { if (!cancelled) setLoadingDefaultQuestions(false); }
@@ -426,28 +425,19 @@ export default function ProjectDetailPage() {
     return 3;
   }, [selectedModules, defaultCompletion, businessComplete, sdf]);
 
-  // Scroll to the user's current progress point when returning to an in-progress project.
-  // Guards: (1) fresh projects never auto-scroll, (2) wait for default questions to load
-  // so the scroll target is accurate (avoids stale-closure race with React batching).
+  // Scroll to the user's progress point on initial page load.
+  // If modules were loaded from saved state, wait for question data (defaultCompletion)
+  // before deciding — this avoids the React batching race where loadingDefaultQuestions
+  // hasn't flipped yet. For fresh projects (no saved modules) the effect resolves
+  // immediately on first load and locks out, so later module selection never triggers it.
   useEffect(() => {
     if (loading || hasScrolledRef.current) return;
-    if (!loadedWithProgressRef.current || currentStep === 0) {
-      hasScrolledRef.current = true;
-      return;
-    }
-    if (currentStep === 1 && !defaultQuestionsLoadedRef.current) return;
+    if (expectQuestionFetchRef.current && !defaultCompletion) return;
     hasScrolledRef.current = true;
+    if (currentStep === 0) return;
+    if (currentStep === 1 && (defaultCompletion?.answered_required_visible ?? 0) === 0) return;
     const timer = setTimeout(() => {
-      let target: Element | null = null;
-
-      if (currentStep === 1) {
-        for (const q of visibleDefaultQuestions) {
-          const val = defaultAnswersById[q.id];
-          const empty = Array.isArray(val) ? val.length === 0 : !val;
-          if (empty && q.required) { target = document.getElementById(`dq-${q.id}`); break; }
-        }
-        if (!target) target = document.getElementById('dq-continue-btn');
-      } else if (currentStep === 2) {
+      if (currentStep === 2) {
         const storedRaw = window.localStorage.getItem(businessStepStorageKey);
         const storedIdx = storedRaw !== null ? parseInt(storedRaw, 10) : NaN;
         if (!isNaN(storedIdx) && storedIdx >= 0 && storedIdx < BUSINESS_QUESTIONS.length) {
@@ -457,11 +447,10 @@ export default function ProjectDetailPage() {
           if (firstUnanswered >= 0) setBusinessStep(firstUnanswered);
         }
       }
-
-      (target || stepRefs[currentStep]?.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      stepRefs[currentStep]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 350);
     return () => clearTimeout(timer);
-  }, [loading, loadingDefaultQuestions]);
+  }, [loading, defaultCompletion]);
 
   useEffect(() => { setPulsing(bizSkipWarningOpen); }, [bizSkipWarningOpen, setPulsing]);
 

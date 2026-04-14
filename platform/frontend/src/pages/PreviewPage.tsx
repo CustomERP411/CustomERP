@@ -420,7 +420,7 @@ export default function PreviewPage() {
           )}
 
           {status === 'running' && iframeSrc && (
-            <iframe ref={iframeRef} src={iframeSrc} title="ERP Preview" className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
+            <iframe ref={iframeRef} src={iframeSrc} title="ERP Preview" className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads" />
           )}
         </div>
 

@@ -39,7 +39,6 @@ function buildSidebar({ toolsBlock, moduleMap, rbac }) {
     return `import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ENTITIES } from '../../config/entities';
-import { useSidebar } from './DashboardLayout';
 ${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
 const MODULE_DISPLAY_NAMES: Record<string, string> = {
   inventory: 'Inventory',
@@ -53,7 +52,6 @@ const DEFAULT_COLOR = { border: 'border-l-slate-400', active: 'bg-slate-600 text
 
 export default function Sidebar() {
   const location = useLocation();
-  const { toggle, close } = useSidebar();
 ${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` : ''}
   const canSee = ${canSeeEntity};
 
@@ -85,23 +83,9 @@ ${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` 
   const toggleSection = (mod: string) =>
     setOpenSections((s) => ({ ...s, [mod]: !s[mod] }));
 
-  const handleCollapse = () => {
-    const isMobile = window.innerWidth < 768;
-    if (isMobile) close(); else toggle();
-  };
-
   return (
     <aside className="w-64 h-screen border-r bg-white flex flex-col">
-      <div className="flex items-center justify-end px-2 pt-2">
-        <button
-          onClick={handleCollapse}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-          aria-label="Collapse menu"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-        </button>
-      </div>
-      <nav className="px-2 pb-3 flex-1 overflow-y-auto">
+      <nav className="px-2 py-3 flex-1 overflow-y-auto">
         <Link
           to="/"
           className={[
@@ -167,7 +151,6 @@ ${rbac ? `      <div className="border-t px-4 py-3">
   return `import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ENTITIES } from '../../config/entities';
-import { useSidebar } from './DashboardLayout';
 ${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
 const MODULE_DISPLAY_NAMES: Record<string, string> = {
   inventory: 'Inventory',
@@ -181,7 +164,6 @@ const DEFAULT_COLOR = { border: 'border-l-slate-400', active: 'bg-slate-600 text
 
 export default function Sidebar() {
   const location = useLocation();
-  const { toggle, close } = useSidebar();
 ${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` : ''}
   const canSee = ${canSeeEntity};
 
@@ -215,23 +197,9 @@ ${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` 
   const toggleSection = (mod: string) =>
     setOpenSections((s) => ({ ...s, [mod]: !s[mod] }));
 
-  const handleCollapse = () => {
-    const isMobile = window.innerWidth < 768;
-    if (isMobile) close(); else toggle();
-  };
-
   return (
     <aside className="w-64 h-screen border-r bg-white flex flex-col">
-      <div className="flex items-center justify-end px-2 pt-2">
-        <button
-          onClick={handleCollapse}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-          aria-label="Collapse menu"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-        </button>
-      </div>
-      <nav className="px-2 pb-3 flex-1 overflow-y-auto">
+      <nav className="px-2 py-3 flex-1 overflow-y-auto">
         <Link
           to="/"
           className={[

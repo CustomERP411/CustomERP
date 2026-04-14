@@ -47,7 +47,10 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
     const a = document.createElement('a');
     a.href = url;
     a.download = entitySlug + '_template.csv';
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 

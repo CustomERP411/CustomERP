@@ -68,6 +68,7 @@ export default function ProjectDetailPage() {
   const stepRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
   const hasScrolledRef = useRef(false);
   const loadedWithProgressRef = useRef(false);
+  const defaultQuestionsLoadedRef = useRef(false);
   const savedDefaultAnswersRef = useRef<Record<string, string | string[]> | null>(null);
   const detectedPlatform = useMemo(() => detectUserPlatform(), []);
   const running = analyzing || clarifying || saving || reviewActionRunning;
@@ -308,7 +309,7 @@ export default function ProjectDetailPage() {
       setLoadingDefaultQuestions(true); setError('');
       try {
         const payload = await projectService.getDefaultQuestions(projectId, selectedModules);
-        if (!cancelled) applyDefaultQuestionState(payload);
+        if (!cancelled) { applyDefaultQuestionState(payload); defaultQuestionsLoadedRef.current = true; }
       } catch (err: any) {
         if (!cancelled) setError(err?.response?.data?.error || err?.message || 'Failed to load default module questions');
       } finally { if (!cancelled) setLoadingDefaultQuestions(false); }
@@ -426,14 +427,15 @@ export default function ProjectDetailPage() {
   }, [selectedModules, defaultCompletion, businessComplete, sdf]);
 
   // Scroll to the user's current progress point when returning to an in-progress project.
-  // Skip auto-scroll entirely for fresh projects (no modules on load) so that selecting
-  // a module doesn't yank the viewport away from the module selector.
+  // Guards: (1) fresh projects never auto-scroll, (2) wait for default questions to load
+  // so the scroll target is accurate (avoids stale-closure race with React batching).
   useEffect(() => {
-    if (loading || loadingDefaultQuestions || hasScrolledRef.current) return;
+    if (loading || hasScrolledRef.current) return;
     if (!loadedWithProgressRef.current || currentStep === 0) {
       hasScrolledRef.current = true;
       return;
     }
+    if (currentStep === 1 && !defaultQuestionsLoadedRef.current) return;
     hasScrolledRef.current = true;
     const timer = setTimeout(() => {
       let target: Element | null = null;

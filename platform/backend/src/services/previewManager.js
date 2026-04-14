@@ -120,7 +120,7 @@ async function startPreview(projectId, sdf) {
     if (fs.existsSync(path.join(frontendDir, 'package.json'))) {
       logger.info(`[PreviewManager] Installing frontend dependencies...`);
       try {
-        execSync('npm install 2>&1', {
+        execSync('npm install --include=dev 2>&1', {
           cwd: frontendDir,
           stdio: 'pipe',
           timeout: 180_000,

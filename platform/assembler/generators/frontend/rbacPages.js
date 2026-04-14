@@ -103,9 +103,10 @@ export { API };
 }
 
 function buildLoginPage() {
-  return `import { useState, type FormEvent } from 'react';
+  return `import { useState, useEffect, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
+import api from '../services/api';
 
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
@@ -113,6 +114,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showDefaultHint, setShowDefaultHint] = useState(false);
+
+  useEffect(() => {
+    api.get('/auth/default-credentials').then((res) => {
+      if (res.data?.active) setShowDefaultHint(true);
+    }).catch(() => {});
+  }, []);
 
   if (loading) {
     return (
@@ -182,13 +190,13 @@ export default function LoginPage() {
           {submitting ? 'Signing in...' : 'Sign In'}
         </button>
 
-        <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-center">
-          <p className="text-sm font-medium text-blue-800">
-            <span className="inline-block mr-1">&#128273;</span>
-            Default login: <strong>admin</strong> / <strong>admin</strong>
-          </p>
-          <p className="text-xs text-blue-600 mt-1">You can change this after signing in via Settings.</p>
-        </div>
+        {showDefaultHint && (
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-center">
+            <p className="text-sm font-medium text-blue-800">
+              Default login: <strong>admin</strong> / <strong>admin</strong>
+            </p>
+          </div>
+        )}
       </form>
     </div>
   );

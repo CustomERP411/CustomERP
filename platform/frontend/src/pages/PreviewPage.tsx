@@ -39,7 +39,6 @@ export default function PreviewPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [approving, setApproving] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [credsBannerDismissed, setCredsBannerDismissed] = useState(() => sessionStorage.getItem('preview_creds_dismissed') === '1');
 
   // Change request state
   const [changeText, setChangeText] = useState('');
@@ -421,15 +420,7 @@ export default function PreviewPage() {
           )}
 
           {status === 'running' && iframeSrc && (
-            <div className="flex flex-col w-full h-full">
-              {!credsBannerDismissed && (
-                <div className="flex-shrink-0 flex items-center justify-between bg-indigo-50 border-b border-indigo-200 px-4 py-2 text-sm text-indigo-800">
-                  <span>Login with username: <strong>admin</strong> &nbsp;|&nbsp; password: <strong>admin</strong></span>
-                  <button onClick={() => { setCredsBannerDismissed(true); sessionStorage.setItem('preview_creds_dismissed', '1'); }} className="ml-3 text-indigo-400 hover:text-indigo-600 font-bold">&times;</button>
-                </div>
-              )}
-              <iframe ref={iframeRef} src={iframeSrc} title="ERP Preview" className="w-full flex-1 border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
-            </div>
+            <iframe ref={iframeRef} src={iframeSrc} title="ERP Preview" className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
           )}
         </div>
 

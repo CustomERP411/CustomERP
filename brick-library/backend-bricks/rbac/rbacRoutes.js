@@ -12,6 +12,18 @@ function comparePassword(plain, hash) {
   }
 }
 
+router.get('/default-credentials', async (req, res) => {
+  try {
+    const repo = getProvider();
+    const users = await repo.findAll('__erp_users');
+    const admin = users.find((u) => u.username === 'admin');
+    if (!admin) return res.json({ active: false });
+    res.json({ active: comparePassword('admin', String(admin.password_hash || '')) });
+  } catch {
+    res.json({ active: false });
+  }
+});
+
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};

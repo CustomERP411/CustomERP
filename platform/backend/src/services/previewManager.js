@@ -256,6 +256,26 @@ async function _copyRecursive(src, dest) {
   }
 }
 
+// Wipe orphaned preview dirs left behind by a crash/restart.
+// The in-memory _previews map is empty on a fresh boot, so anything on disk
+// is leftover from a previous lifecycle and safe to delete.
+function cleanupOrphanedDirs() {
+  const os = require('os');
+  const outputRoot =
+    process.env.GENERATOR_OUTPUT_PATH ||
+    path.join(os.tmpdir(), 'customerp-generated');
+
+  fsp.readdir(outputRoot).then((entries) => {
+    if (!entries.length) return;
+    logger.info(`[PreviewManager] Cleaning ${entries.length} orphaned preview dir(s)`);
+    for (const entry of entries) {
+      fsp.rm(path.join(outputRoot, entry), { recursive: true, force: true }).catch(() => {});
+    }
+  }).catch(() => {});
+}
+
+cleanupOrphanedDirs();
+
 module.exports = {
   startPreview,
   stopPreview,

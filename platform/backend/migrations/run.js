@@ -34,10 +34,25 @@ function buildPgConfigFromEnv() {
   return { connectionString: process.env.DATABASE_URL };
 }
 
-const pool = new Pool(buildPgConfigFromEnv());
+const MAX_RETRIES = 15;
+const RETRY_DELAY_MS = 2000;
+
+async function connectWithRetry() {
+  const pool = new Pool(buildPgConfigFromEnv());
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const client = await pool.connect();
+      return { pool, client };
+    } catch (err) {
+      console.log(`⏳ Waiting for database (attempt ${attempt}/${MAX_RETRIES}): ${err.message}`);
+      if (attempt === MAX_RETRIES) throw err;
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    }
+  }
+}
 
 async function runMigrations() {
-  const client = await pool.connect();
+  const { pool, client } = await connectWithRetry();
   
   try {
     console.log('🚀 Starting database migrations...\n');

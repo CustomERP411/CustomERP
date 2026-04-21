@@ -91,6 +91,25 @@ app.use((err, req, res, _next) => {
   res.status(status).json({ error: status === 500 ? 'Internal server error' : (err.message || 'Internal server error') });
 });
 
+// Event loop watchdog — if the loop is blocked for over 30s, force-exit so
+// Docker restart: always can bring the process back.
+const WATCHDOG_INTERVAL_MS = 10_000;
+const WATCHDOG_MAX_DELAY_MS = 30_000;
+
+(function startWatchdog() {
+  let lastTick = Date.now();
+  const timer = setInterval(() => {
+    const now = Date.now();
+    const delta = now - lastTick;
+    lastTick = now;
+    if (delta > WATCHDOG_MAX_DELAY_MS) {
+      logger.error(`[Watchdog] Event loop was blocked for ${delta}ms — exiting`);
+      process.exit(1);
+    }
+  }, WATCHDOG_INTERVAL_MS);
+  timer.unref();
+})();
+
 // Start server
 async function start() {
   let dbConnected = false;

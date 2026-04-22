@@ -51,6 +51,10 @@ class ClarifyRequest(BaseModel):
         default=None,
         description="[LEGACY] List of answers. Use prior_context instead."
     )
+    language: str = Field(
+        default="en",
+        description="Project language code ('en' or 'tr'). Controls the language of the generated SDF text and clarification questions."
+    )
     
     def get_merged_context(self) -> Dict[str, Any]:
         """Merge original wizard answers + clarification answers into one dict.

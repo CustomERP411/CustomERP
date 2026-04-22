@@ -1,23 +1,9 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import type { ClarificationQuestion } from '../../types/aiGateway';
 
-const STEP_ORDER: { key: string; label: string }[] = [
-  { key: 'starting', label: 'Saving your answers' },
-  { key: 'distributor', label: 'Analyzing your business requirements' },
-  { key: 'clarifications', label: 'Waiting for your answers' },
-  { key: 'generators', label: 'Generating module configurations' },
-  { key: 'finalizing', label: 'Checking for follow-up questions' },
-  { key: 'normalizing', label: 'Validating & normalizing your ERP' },
-  { key: 'validating', label: 'Finalizing your ERP' },
-  { key: 'done', label: 'Complete' },
-];
-
-const MODULE_LABELS: Record<string, string> = {
-  hr: 'HR / People',
-  invoice: 'Invoicing',
-  inventory: 'Inventory',
-};
+const STEP_KEYS = ['starting', 'distributor', 'clarifications', 'generators', 'finalizing', 'normalizing', 'validating', 'done'];
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
@@ -40,14 +26,17 @@ export default function GenerationModal({
   questions = [], answersById = {}, onSetAnswers, onSubmitAnswers,
   canSubmitAnswers = false, submittingAnswers = false,
 }: GenerationModalProps) {
+  const { t } = useTranslation('projectDetail');
   if (!phase && !result) return null;
+
+  const stepOrder = STEP_KEYS.map((key) => ({ key, label: t(`generationModal.steps.${key}`) }));
 
   const hasQuestions = questions.length > 0 && !result;
   const step = progress?.step || 'starting';
   const pct = result === 'success' ? 100 : (progress?.pct ?? 5);
   const detail = progress?.detail || phase;
 
-  const activeIdx = STEP_ORDER.findIndex((s) => s.key === step);
+  const activeIdx = stepOrder.findIndex((s) => s.key === step);
   const currentIdx = activeIdx >= 0 ? activeIdx : 0;
 
   return createPortal(
@@ -65,7 +54,7 @@ export default function GenerationModal({
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             </div>
-            <h3 className="text-base font-semibold text-slate-900 mb-1">Generating Your ERP</h3>
+            <h3 className="text-base font-semibold text-slate-900 mb-1">{t('generationModal.generating')}</h3>
             <p className="text-sm text-slate-500 mb-5">{detail}</p>
 
             <div className="w-full rounded-full bg-slate-100 h-2.5 mb-3 overflow-hidden">
@@ -76,7 +65,7 @@ export default function GenerationModal({
             </div>
 
             <div className="space-y-1.5 mb-4">
-              {STEP_ORDER.filter((s) => s.key !== 'done').map((s, i) => {
+              {stepOrder.filter((s) => s.key !== 'done').map((s, i) => {
                 const done = i < currentIdx;
                 const active = i === currentIdx;
                 return (
@@ -102,7 +91,7 @@ export default function GenerationModal({
               })}
             </div>
 
-            <p className="text-xs text-slate-400">{pct}% complete</p>
+            <p className="text-xs text-slate-400">{t('generationModal.percentComplete', { pct })}</p>
           </>
         )}
 
@@ -126,8 +115,8 @@ export default function GenerationModal({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" className="animate-[checkDraw_0.5s_ease-out]" style={{ strokeDasharray: 30, strokeDashoffset: 0 }} />
               </svg>
             </div>
-            <h3 className="text-base font-semibold text-slate-900">ERP Generated Successfully</h3>
-            <p className="mt-2 text-sm text-slate-500">Your ERP configuration is ready.</p>
+            <h3 className="text-base font-semibold text-slate-900">{t('generationModal.successTitle')}</h3>
+            <p className="mt-2 text-sm text-slate-500">{t('generationModal.successBody')}</p>
             <div className="w-full rounded-full bg-slate-100 h-2.5 mt-4 overflow-hidden">
               <div className="h-full rounded-full bg-emerald-500 w-full transition-all duration-500" />
             </div>
@@ -142,14 +131,14 @@ export default function GenerationModal({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <h3 className="text-base font-semibold text-slate-900">Generation Failed</h3>
+            <h3 className="text-base font-semibold text-slate-900">{t('generationModal.errorTitle')}</h3>
             <p className="mt-2 text-sm text-slate-500">{errorMessage}</p>
             <button
               type="button"
               onClick={onClose}
               className="mt-5 rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
             >
-              Close
+              {t('generationModal.close')}
             </button>
           </>
         )}
@@ -181,7 +170,14 @@ function ModalQuestionsPanel({ questions, answersById, onSetAnswers, onSubmit, c
   canSubmit: boolean;
   submitting: boolean;
 }) {
+  const { t } = useTranslation('projectDetail');
   const [customActiveFor, setCustomActiveFor] = useState<Set<string>>(new Set());
+
+  const moduleLabels: Record<string, string> = {
+    hr: t('modules.hr.label'),
+    invoice: t('modules.invoice.label'),
+    inventory: t('modules.inventory.label'),
+  };
 
   const grouped = useMemo(() => {
     const sorted = [...questions].sort(
@@ -209,14 +205,14 @@ function ModalQuestionsPanel({ questions, answersById, onSetAnswers, onSubmit, c
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
           </svg>
         </div>
-        <h3 className="text-base font-semibold text-slate-900">We need a bit more information</h3>
-        <p className="mt-1 text-sm text-slate-500">Please answer these questions so we can build the right ERP for you.</p>
+        <h3 className="text-base font-semibold text-slate-900">{t('generationModal.needMoreInfoTitle')}</h3>
+        <p className="mt-1 text-sm text-slate-500">{t('generationModal.needMoreInfoBody')}</p>
       </div>
 
       <div className="max-h-[55vh] overflow-y-auto space-y-5 pr-1">
         {groupKeys.map((mod) => {
           const qs = grouped[mod];
-          const label = MODULE_LABELS[mod] || (mod === 'general' ? 'General' : mod);
+          const label = moduleLabels[mod] || (mod === 'general' ? t('generationModal.general') : mod);
           return (
             <div key={mod} className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -250,7 +246,7 @@ function ModalQuestionsPanel({ questions, answersById, onSetAnswers, onSubmit, c
           {submitting && (
             <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
           )}
-          Submit Answers
+          {t('generationModal.submitAnswers')}
         </button>
       </div>
     </div>
@@ -261,8 +257,9 @@ function ModalQuestionRow({ q, answer, isCustomActive, onAnswer, onToggleCustom 
   q: ClarificationQuestion; answer: string; isCustomActive: boolean;
   onAnswer: (val: string) => void; onToggleCustom: (active: boolean) => void;
 }) {
+  const { t } = useTranslation('projectDetail');
   const priorityBadge = q.priority === 'high'
-    ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">Required</span>
+    ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">{t('generationModal.required')}</span>
     : null;
 
   return (
@@ -279,7 +276,7 @@ function ModalQuestionRow({ q, answer, isCustomActive, onAnswer, onToggleCustom 
                 answer === val
                   ? val === 'yes' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-red-400 bg-red-50 text-red-700'
                   : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-              }`}>{val === 'yes' ? 'Yes' : 'No'}</button>
+              }`}>{val === 'yes' ? t('defaultQuestions.yes') : t('defaultQuestions.no')}</button>
           ))}
         </div>
       ) : q.type === 'choice' && Array.isArray(q.options) && q.options.length ? (() => {
@@ -297,19 +294,19 @@ function ModalQuestionRow({ q, answer, isCustomActive, onAnswer, onToggleCustom 
               <button type="button" onClick={() => onToggleCustom(true)}
                 className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
                   isCustom ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-dashed border-slate-300 bg-white text-slate-500 hover:bg-slate-50'
-                }`}>Custom...</button>
+                }`}>{t('defaultQuestions.custom')}</button>
             </div>
             {isCustom && (
               <textarea value={q.options!.includes(answer) ? '' : answer}
                 onChange={(e) => onAnswer(e.target.value)}
                 rows={2} className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
-                placeholder="Type your custom answer..." autoFocus />
+                placeholder={t('generationModal.customAnswerPlaceholder')} autoFocus />
             )}
           </div>
         );
       })() : (
         <input value={answer} onChange={(e) => onAnswer(e.target.value)}
-          className="w-full rounded-lg border bg-white px-3 py-2 text-sm" placeholder="Your answer..." />
+          className="w-full rounded-lg border bg-white px-3 py-2 text-sm" placeholder={t('defaultQuestions.textPlaceholder')} />
       )}
     </div>
   );

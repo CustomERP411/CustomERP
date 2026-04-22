@@ -1,7 +1,12 @@
-function buildSidebar({ toolsBlock, moduleMap, rbac }) {
+const { tFor, moduleDisplayNames } = require('../../i18n/labels');
+
+function buildSidebar({ toolsBlock, moduleMap, rbac, language }) {
+  const t = tFor(language);
+  const modLabels = moduleDisplayNames(language);
+
   const adminBlock = rbac ? `
         {(isSuperadmin || hasPermission('__erp_users.read')) && (<>
-        <div className="mt-4 px-3 mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Settings</div>
+        <div className="mt-4 px-3 mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">${t('sidebar.settings')}</div>
         <Link
           to="/admin/users"
           className={[
@@ -9,7 +14,7 @@ function buildSidebar({ toolsBlock, moduleMap, rbac }) {
             location.pathname.startsWith('/admin/users') ? 'bg-amber-600 text-white' : 'text-slate-700 hover:bg-slate-100',
           ].join(' ')}
         >
-          Users
+          ${t('sidebar.users')}
         </Link>
         <Link
           to="/admin/groups"
@@ -18,7 +23,7 @@ function buildSidebar({ toolsBlock, moduleMap, rbac }) {
             location.pathname.startsWith('/admin/groups') ? 'bg-amber-600 text-white' : 'text-slate-700 hover:bg-slate-100',
           ].join(' ')}
         >
-          Roles
+          ${t('sidebar.roles')}
         </Link>
         </>)}` : '';
 
@@ -35,16 +40,21 @@ function buildSidebar({ toolsBlock, moduleMap, rbac }) {
   shared: { border: 'border-l-slate-400', active: 'bg-slate-600 text-white', dot: 'bg-slate-400' },
 }`;
 
+  const moduleDisplayNamesBlock = `const MODULE_DISPLAY_NAMES: Record<string, string> = {
+  inventory: ${JSON.stringify(modLabels.inventory)},
+  invoice: ${JSON.stringify(modLabels.invoice)},
+  hr: ${JSON.stringify(modLabels.hr)},
+};`;
+
+  const dashboardLabel = t('sidebar.dashboard');
+  const signOutLabel = t('sidebar.signOut');
+
   if (hasMultipleModules) {
     return `import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ENTITIES } from '../../config/entities';
 ${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
-const MODULE_DISPLAY_NAMES: Record<string, string> = {
-  inventory: 'Inventory',
-  invoice: 'Invoicing',
-  hr: 'HR & People',
-};
+${moduleDisplayNamesBlock}
 
 const MODULE_COLORS: Record<string, { border: string; active: string; dot: string }> = ${moduleColors};
 
@@ -94,7 +104,7 @@ ${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` 
           ].join(' ')}
         >
           <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
-          Dashboard
+          ${dashboardLabel}
         </Link>
 
         {orderedModules.map((moduleKey) => {
@@ -140,7 +150,7 @@ ${adminBlock}
       </nav>
 ${rbac ? `      <div className="border-t px-4 py-3">
         <div className="text-xs text-slate-500 truncate">{user?.display_name || user?.username}</div>
-        <button onClick={logout} className="mt-1 text-xs font-medium text-indigo-600 hover:text-indigo-700">Sign out</button>
+        <button onClick={logout} className="mt-1 text-xs font-medium text-indigo-600 hover:text-indigo-700">${signOutLabel}</button>
       </div>` : ''}
     </aside>
   );
@@ -152,11 +162,7 @@ ${rbac ? `      <div className="border-t px-4 py-3">
 import { Link, useLocation } from 'react-router-dom';
 import { ENTITIES } from '../../config/entities';
 ${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
-const MODULE_DISPLAY_NAMES: Record<string, string> = {
-  inventory: 'Inventory',
-  invoice: 'Invoicing',
-  hr: 'HR & People',
-};
+${moduleDisplayNamesBlock}
 
 const MODULE_COLORS: Record<string, { border: string; active: string; dot: string }> = ${moduleColors};
 
@@ -208,7 +214,7 @@ ${rbac ? `  const { user, logout, hasPermission, isSuperadmin } = useAuth();\n` 
           ].join(' ')}
         >
           <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
-          Dashboard
+          ${dashboardLabel}
         </Link>
 
         {hasSections ? orderedModules.map((moduleKey) => {
@@ -272,7 +278,7 @@ ${adminBlock}
       </nav>
 ${rbac ? `      <div className="border-t px-4 py-3">
         <div className="text-xs text-slate-500 truncate">{user?.display_name || user?.username}</div>
-        <button onClick={logout} className="mt-1 text-xs font-medium text-indigo-600 hover:text-indigo-700">Sign out</button>
+        <button onClick={logout} className="mt-1 text-xs font-medium text-indigo-600 hover:text-indigo-700">${signOutLabel}</button>
       </div>` : ''}
     </aside>
   );

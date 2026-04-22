@@ -1,12 +1,13 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { trainingService, type TrainingStats } from '../../services/trainingService';
 
 const AGENT_TYPES = [
-  { id: 'distributor', label: 'Distributor' },
-  { id: 'hr_generator', label: 'HR Generator' },
-  { id: 'invoice_generator', label: 'Invoice Generator' },
-  { id: 'inventory_generator', label: 'Inventory Generator' },
-  { id: 'chatbot', label: 'Chatbot' },
+  { id: 'distributor', labelKey: 'exportModal.agents.distributor' },
+  { id: 'hr_generator', labelKey: 'exportModal.agents.hr_generator' },
+  { id: 'invoice_generator', labelKey: 'exportModal.agents.invoice_generator' },
+  { id: 'inventory_generator', labelKey: 'exportModal.agents.inventory_generator' },
+  { id: 'chatbot', labelKey: 'exportModal.agents.chatbot' },
 ];
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function ExportModal({ stats, onClose }: Props) {
+  const { t } = useTranslation('admin');
   const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set(AGENT_TYPES.map(a => a.id)));
   const [qualityFilter, setQualityFilter] = useState<'good' | 'good_and_edited'>('good');
   const [exporting, setExporting] = useState(false);
@@ -61,7 +63,7 @@ export default function ExportModal({ stats, onClose }: Props) {
       downloadBlob(blob, filename);
       onClose();
     } catch (e: any) {
-      alert(e?.message || 'Export failed');
+      alert(e?.message || t('exportModal.exportFailed'));
     } finally {
       setExporting(false);
     }
@@ -76,7 +78,7 @@ export default function ExportModal({ stats, onClose }: Props) {
       });
       downloadBlob(blob, `${agentId}.jsonl`);
     } catch (e: any) {
-      alert(e?.message || 'Export failed');
+      alert(e?.message || t('exportModal.exportFailed'));
     } finally {
       setExporting(false);
     }
@@ -88,12 +90,12 @@ export default function ExportModal({ stats, onClose }: Props) {
         className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-bold text-slate-800 mb-4">Export Training Data for Azure</h2>
-        <p className="text-xs text-slate-500 mb-4">Each selected agent is exported as a separate JSONL file for independent fine-tuning.</p>
+        <h2 className="text-lg font-bold text-slate-800 mb-4">{t('exportModal.title')}</h2>
+        <p className="text-xs text-slate-500 mb-4">{t('exportModal.subtitle')}</p>
 
         {/* Quality filter */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-slate-700 mb-2">Quality Filter</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">{t('exportModal.qualityFilter')}</label>
           <div className="flex gap-3">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -103,7 +105,7 @@ export default function ExportModal({ stats, onClose }: Props) {
                 onChange={() => setQualityFilter('good')}
                 className="text-blue-600 focus:ring-blue-500"
               />
-              Good only
+              {t('exportModal.goodOnly')}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -113,14 +115,14 @@ export default function ExportModal({ stats, onClose }: Props) {
                 onChange={() => setQualityFilter('good_and_edited')}
                 className="text-blue-600 focus:ring-blue-500"
               />
-              Good + Edited
+              {t('exportModal.goodAndEdited')}
             </label>
           </div>
         </div>
 
         {/* Per-agent export */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-slate-700 mb-2">Export per Agent</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">{t('exportModal.exportPerAgent')}</label>
           <div className="space-y-1.5">
             {AGENT_TYPES.map((a) => (
               <div key={a.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
@@ -131,7 +133,7 @@ export default function ExportModal({ stats, onClose }: Props) {
                     onChange={() => toggleAgent(a.id)}
                     className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-slate-700">{a.label}</span>
+                  <span className="text-sm text-slate-700">{t(a.labelKey)}</span>
                 </div>
                 <button
                   onClick={() => handleExportSingle(a.id)}
@@ -147,7 +149,7 @@ export default function ExportModal({ stats, onClose }: Props) {
 
         {/* Preview count */}
         <div className="mb-5 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-          Estimated sessions to export: <span className="font-bold text-slate-800">{previewCount}</span>
+          {t('exportModal.estimatedSessions')}: <span className="font-bold text-slate-800">{previewCount}</span>
         </div>
 
         {/* Actions */}
@@ -156,14 +158,14 @@ export default function ExportModal({ stats, onClose }: Props) {
             onClick={onClose}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
           >
-            Cancel
+            {t('exportModal.cancel')}
           </button>
           <button
             onClick={handleExportAll}
             disabled={selectedAgents.size === 0 || exporting || previewCount === 0}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {exporting ? 'Exporting...' : selectedAgents.size > 1 ? 'Download All (ZIP)' : 'Download'}
+            {exporting ? t('exportModal.exporting') : selectedAgents.size > 1 ? t('exportModal.downloadZip') : t('exportModal.download')}
           </button>
         </div>
       </div>

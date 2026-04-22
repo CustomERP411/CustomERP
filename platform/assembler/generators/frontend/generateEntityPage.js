@@ -477,7 +477,7 @@ module.exports = {
         scan: labels.scan === true,
       };
 
-      const labelsPageContent = buildLabelsPage({ entity, entityName, labelsCfg, importBase });
+      const labelsPageContent = buildLabelsPage({ entity, entityName, labelsCfg, importBase, language: this._language });
 
       await fs.writeFile(path.join(modulePagesDir, `${entityName}LabelsPage.tsx`), labelsPageContent);
     }

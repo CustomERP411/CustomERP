@@ -2,6 +2,7 @@
 const path = require('path');
 const BackendGenerator = require('./generators/BackendGenerator');
 const FrontendGenerator = require('./generators/FrontendGenerator');
+const { normalizeLanguage } = require('./i18n/labels');
 
 const ERP_MODULE_KEYS = ['inventory', 'invoice', 'hr'];
 const DEFAULT_ERP_MODULE = 'inventory';
@@ -16,11 +17,12 @@ class ProjectAssembler {
 
   async assemble(projectId, sdf, options = {}) {
     const standalone = !!options.standalone;
+    const language = normalizeLanguage(options.language);
     const outputDir = path.join(this.outputPath, projectId);
     const backendDir = standalone ? path.join(outputDir, 'app') : path.join(outputDir, 'backend');
     const frontendDir = path.join(outputDir, 'frontend');
 
-    console.log(`Starting assembly for project ${projectId} at ${outputDir} (standalone=${standalone})`);
+    console.log(`Starting assembly for project ${projectId} at ${outputDir} (standalone=${standalone}, language=${language})`);
 
     try {
       this._validateSdf(sdf);
@@ -29,9 +31,15 @@ class ProjectAssembler {
       if (standalone && typeof this.frontendGenerator.setStandalone === 'function') {
         this.frontendGenerator.setStandalone(true);
       }
+      if (typeof this.frontendGenerator.setLanguage === 'function') {
+        this.frontendGenerator.setLanguage(language);
+      }
+      if (typeof this.backendGenerator.setLanguage === 'function') {
+        this.backendGenerator.setLanguage(language);
+      }
       const acConfig = (sdf && sdf.modules && sdf.modules.access_control) || {};
       const accessControlEnabled = acConfig.enabled !== false;
-      await this.backendGenerator.scaffold(backendDir, projectId, { standalone, accessControlEnabled });
+      await this.backendGenerator.scaffold(backendDir, projectId, { standalone, accessControlEnabled, language });
       if (typeof this.backendGenerator.setModules === 'function') {
         this.backendGenerator.setModules((sdf && sdf.modules) || {});
       }

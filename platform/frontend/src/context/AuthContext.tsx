@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '../services/api';
-import type { User, AuthResponse, AuthContextType } from '../types/auth';
+import type { User, AuthResponse, AuthContextType, UserLanguage } from '../types/auth';
+import { normalizeLanguage, setAppLanguage } from '../i18n';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -24,12 +25,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (token && savedUser) {
         try {
-          // Set user from localStorage first for faster UI
-          setUser(JSON.parse(savedUser) as User);
-          
-          // Optionally verify token with backend
-          // const res = await api.get('/auth/me');
-          // setUser(res.data.user);
+          const parsed = JSON.parse(savedUser) as User;
+          setUser(parsed);
+          if (parsed.preferred_language) {
+            void setAppLanguage(normalizeLanguage(parsed.preferred_language));
+          }
         } catch (error) {
           console.error('Auth verification failed:', error);
           // Clear invalid session
@@ -51,25 +51,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (email: string, password: string): Promise<AuthResponse> => {
     const res = await api.post<AuthResponse>('/auth/login', { email, password });
     const { token, user: userData } = res.data;
-    
+
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
-    
+
+    if (userData.preferred_language) {
+      await setAppLanguage(normalizeLanguage(userData.preferred_language));
+    }
+
     return res.data;
   };
 
   /**
    * Register a new user
    */
-  const register = async (name: string, email: string, password: string): Promise<AuthResponse> => {
-    const res = await api.post<AuthResponse>('/auth/register', { name, email, password });
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    preferredLanguage: UserLanguage = 'en',
+  ): Promise<AuthResponse> => {
+    const res = await api.post<AuthResponse>('/auth/register', {
+      name,
+      email,
+      password,
+      preferred_language: preferredLanguage,
+    });
     const { token, user: userData } = res.data;
-    
+
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
-    
+
+    if (userData.preferred_language) {
+      await setAppLanguage(normalizeLanguage(userData.preferred_language));
+    }
+
     return res.data;
   };
 

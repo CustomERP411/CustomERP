@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { projectService } from '../services/projectService';
 import ProjectCard from '../components/projects/ProjectCard';
 import NewProjectModal from '../components/projects/NewProjectModal';
@@ -31,6 +32,7 @@ export default function ProjectListPage() {
   const [deleteError, setDeleteError] = useState('');
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { t } = useTranslation(['projects', 'common', 'errors']);
 
   useEffect(() => {
     loadProjects();
@@ -42,7 +44,7 @@ export default function ProjectListPage() {
       const data = await projectService.getProjects();
       setProjects(data);
     } catch (err) {
-      setError('Failed to load projects');
+      setError(t('errors:generic'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -69,7 +71,7 @@ export default function ProjectListPage() {
   const confirmDeleteProject = async () => {
     if (!projectToDelete) return;
     if (deleteConfirmText.trim() !== projectToDelete.name.trim()) {
-      setDeleteError('Type the exact project name to confirm deletion.');
+      setDeleteError(t('projects:card.confirmDelete'));
       return;
     }
 
@@ -81,7 +83,7 @@ export default function ProjectListPage() {
       setProjectToDelete(null);
       setDeleteConfirmText('');
     } catch (err: unknown) {
-      setDeleteError(getErrorMessage(err, 'Failed to delete project'));
+      setDeleteError(getErrorMessage(err, t('errors:generic')));
     } finally {
       setDeletingProjectId(null);
     }
@@ -99,11 +101,11 @@ export default function ProjectListPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
-          <p className="text-slate-500">Manage your ERP generation projects</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('projects:title')}</h1>
+          <p className="text-slate-500">{t('projects:subtitle')}</p>
         </div>
         <Button onClick={() => setIsModalOpen(true)}>
-          New Project
+          {t('projects:newProject')}
         </Button>
       </div>
 
@@ -118,12 +120,10 @@ export default function ProjectListPage() {
           <div className="rounded-full bg-white p-4 shadow-sm">
             <div className="h-8 w-8 rounded-full bg-slate-100" />
           </div>
-          <h3 className="mt-4 text-lg font-semibold text-slate-900">No projects yet</h3>
-          <p className="mt-1 text-sm text-slate-500 max-w-sm">
-            Create your first project to start generating your custom ERP solution.
-          </p>
+          <h3 className="mt-4 text-lg font-semibold text-slate-900">{t('projects:empty.title')}</h3>
+          <p className="mt-1 text-sm text-slate-500 max-w-sm">{t('projects:empty.subtitle')}</p>
           <div className="mt-6">
-            <Button onClick={() => setIsModalOpen(true)}>Create Project</Button>
+            <Button onClick={() => setIsModalOpen(true)}>{t('projects:empty.cta')}</Button>
           </div>
         </div>
       ) : (
@@ -143,13 +143,12 @@ export default function ProjectListPage() {
       {projectToDelete && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 px-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-slate-900">Delete Project</h3>
+            <h3 className="text-base font-semibold text-slate-900">{t('projects:card.delete')}</h3>
             <p className="mt-2 text-sm text-slate-600">
-              This action cannot be undone in the current platform build. Type
+              {t('projects:card.confirmDelete')}{' '}
               <span className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-900">
                 {projectToDelete.name}
               </span>
-              to confirm.
             </p>
             <input
               value={deleteConfirmText}
@@ -169,7 +168,7 @@ export default function ProjectListPage() {
                 disabled={!!deletingProjectId}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Cancel
+                {t('common:cancel')}
               </button>
               <button
                 type="button"
@@ -177,7 +176,7 @@ export default function ProjectListPage() {
                 disabled={!!deletingProjectId}
                 className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {deletingProjectId ? 'Deleting...' : 'Delete Project'}
+                {deletingProjectId ? t('projects:card.deleting') : t('projects:card.delete')}
               </button>
             </div>
           </div>

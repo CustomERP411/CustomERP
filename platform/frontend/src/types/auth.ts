@@ -1,3 +1,5 @@
+export type UserLanguage = 'en' | 'tr';
+
 export interface User {
   id: string;
   name: string;
@@ -5,6 +7,7 @@ export interface User {
   role?: string;
   is_admin?: boolean;
   created_at?: string;
+  preferred_language?: UserLanguage;
 }
 
 export interface AuthResponse {
@@ -17,7 +20,12 @@ export interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<AuthResponse>;
-  register: (name: string, email: string, password: string) => Promise<AuthResponse>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    preferredLanguage?: UserLanguage,
+  ) => Promise<AuthResponse>;
   logout: () => void;
   deleteAccount: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
@@ -33,6 +41,7 @@ export interface RegisterFormData {
   email: string;
   password: string;
   confirmPassword: string;
+  preferredLanguage: UserLanguage;
 }
 
 export interface FormErrors {

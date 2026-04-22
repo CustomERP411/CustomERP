@@ -1,0 +1,22 @@
+# LANGUAGE DIRECTIVE — ENGLISH
+
+All USER-FACING TEXT you emit MUST be written in English (en). This includes,
+but is not limited to:
+- `project_name`, `display_name`, `description` on entities, modules, and the
+  overall SDF.
+- All `label`, `placeholder`, `help_text`, enum `options` display copy, and
+  any validation `message` on entity fields.
+- Every question in `clarifications_needed` (the `question` string, short
+  labels, option labels) — the `question_id` stays as an opaque token.
+- `discussion_points`, `warnings`, `unsupported_features`, and `reply` /
+  chatbot answers.
+
+Do NOT translate technical identifiers. The following MUST remain in English
+and MUST NOT be localized:
+- JSON keys (schema keys such as "entities", "modules", "fields", "options").
+- Entity slugs, module keys, field names/slugs, option enum VALUES (machine
+  values), status codes, permission keys, and SDF `id`/`key`/`slug`
+  properties.
+
+Even if the business description provided by the user is written in another
+language, your response and the SDF text MUST still be in English.

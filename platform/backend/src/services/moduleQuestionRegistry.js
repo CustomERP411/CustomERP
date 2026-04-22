@@ -2,6 +2,10 @@ const hrV1Pack = require('../defaultQuestions/packs/hr.v1');
 const inventoryV1Pack = require('../defaultQuestions/packs/inventory.v1');
 const invoiceV1Pack = require('../defaultQuestions/packs/invoice.v1');
 
+const hrV2TrTranslations = require('../defaultQuestions/translations/hr.v2.tr');
+const invoiceV2TrTranslations = require('../defaultQuestions/translations/invoice.v2.tr');
+const inventoryV3TrTranslations = require('../defaultQuestions/translations/inventory.v3.tr');
+
 const PACKS_BY_MODULE = {
   inventory: [inventoryV1Pack],
   invoice: [invoiceV1Pack],
@@ -13,6 +17,22 @@ const ACTIVE_VERSION_BY_MODULE = {
   invoice: 'invoice.v2',
   hr: 'hr.v2',
 };
+
+// Translation tables keyed by pack version; each resolves to per-language
+// `prompts` and `optionLabels` dictionaries. Adding a new language for an
+// existing module is just a matter of registering another table here.
+const TRANSLATIONS_BY_VERSION = {
+  'hr.v2': { tr: hrV2TrTranslations },
+  'invoice.v2': { tr: invoiceV2TrTranslations },
+  'inventory.v3': { tr: inventoryV3TrTranslations },
+};
+
+const SUPPORTED_QUESTION_LANGUAGES = new Set(['en', 'tr']);
+
+function normalizeQuestionLanguage(language) {
+  const raw = String(language || '').toLowerCase();
+  return SUPPORTED_QUESTION_LANGUAGES.has(raw) ? raw : 'en';
+}
 
 function listSupportedModules() {
   return Object.keys(PACKS_BY_MODULE);
@@ -46,28 +66,73 @@ function getActivePack(moduleKey) {
   return active;
 }
 
-function normalizeQuestion(moduleKey, pack, question, orderOffset) {
-  return {
+function getTranslation(version, language) {
+  if (language === 'en') return null;
+  const table = TRANSLATIONS_BY_VERSION[version];
+  return (table && table[language]) || null;
+}
+
+function localizeOptions(options, key, translation) {
+  if (!Array.isArray(options)) return undefined;
+  if (!translation || !translation.optionLabels || !translation.optionLabels[key]) {
+    return options.slice();
+  }
+  const labelMap = translation.optionLabels[key];
+  // Keep option VALUES unchanged (they are the stored slug values) and emit a
+  // parallel `option_labels` map for the frontend to render.
+  return options.slice();
+}
+
+function buildOptionLabels(options, key, translation) {
+  if (!Array.isArray(options) || !translation || !translation.optionLabels) return undefined;
+  const labelMap = translation.optionLabels[key];
+  if (!labelMap) return undefined;
+  const labels = {};
+  let hit = false;
+  for (const opt of options) {
+    if (Object.prototype.hasOwnProperty.call(labelMap, opt)) {
+      labels[opt] = labelMap[opt];
+      hit = true;
+    }
+  }
+  return hit ? labels : undefined;
+}
+
+function normalizeQuestion(moduleKey, pack, question, orderOffset, translation) {
+  const localizedPrompt = translation && translation.prompts && translation.prompts[question.key]
+    ? translation.prompts[question.key]
+    : question.prompt;
+  const options = localizeOptions(question.options, question.key, translation);
+  const optionLabels = buildOptionLabels(question.options, question.key, translation);
+
+  const normalized = {
     id: `${pack.version}::${question.key}`,
     key: question.key,
     module: moduleKey,
     version: pack.version,
     template_type: pack.template_type,
-    prompt: question.prompt,
+    prompt: localizedPrompt,
     type: question.type || 'text',
     required: question.required !== false,
     allow_custom: question.allow_custom === true,
-    options: Array.isArray(question.options) ? question.options : undefined,
+    options,
     condition: question.condition || undefined,
     section: question.section || 'General',
     order_index: typeof question.order_index === 'number' ? question.order_index + orderOffset : orderOffset,
     sdf_mapping: question.sdf_mapping || { target: `constraints.${moduleKey}.${question.key}` },
   };
+
+  if (optionLabels) {
+    normalized.option_labels = optionLabels;
+  }
+
+  return normalized;
 }
 
-function getQuestionTemplatePayload(modules) {
+function getQuestionTemplatePayload(modules, options = {}) {
   const moduleList = normalizeModuleList(modules);
   const requestedModules = moduleList.length ? moduleList : ['inventory', 'invoice', 'hr'];
+  const language = normalizeQuestionLanguage(options.language);
 
   const modulesPayload = {};
   const questions = [];
@@ -76,9 +141,10 @@ function getQuestionTemplatePayload(modules) {
   for (const moduleKey of requestedModules) {
     const pack = getActivePack(moduleKey);
     const packQuestions = Array.isArray(pack.getQuestions()) ? pack.getQuestions() : [];
+    const translation = getTranslation(pack.version, language);
 
     const normalizedQuestions = packQuestions.map((question, index) =>
-      normalizeQuestion(moduleKey, pack, question, orderOffset + index)
+      normalizeQuestion(moduleKey, pack, question, orderOffset + index, translation)
     );
 
     modulesPayload[moduleKey] = {
@@ -86,6 +152,7 @@ function getQuestionTemplatePayload(modules) {
       template_type: pack.template_type,
       total_questions: normalizedQuestions.length,
       source_path: pack.source_path || null,
+      language,
     };
 
     questions.push(...normalizedQuestions);
@@ -95,6 +162,7 @@ function getQuestionTemplatePayload(modules) {
   return {
     template_versions: modulesPayload,
     questions,
+    language,
   };
 }
 
@@ -102,4 +170,5 @@ module.exports = {
   listSupportedModules,
   normalizeModuleList,
   getQuestionTemplatePayload,
+  normalizeQuestionLanguage,
 };

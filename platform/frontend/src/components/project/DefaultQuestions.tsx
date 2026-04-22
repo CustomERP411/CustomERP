@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DefaultModuleQuestion, DefaultQuestionCompletion } from '../../types/defaultQuestions';
-import { MODULE_META, MODULE_KEYS, MOD_STYLES } from './projectConstants';
+import { useModuleMeta, MODULE_KEYS, MOD_STYLES } from './projectConstants';
 
 interface Props {
 
@@ -22,23 +23,25 @@ export default function DefaultQuestions({
   onUpdateAnswer, onToggleMultiChoice, onSave,
 }: Props) {
   const [customActiveFor, setCustomActiveFor] = useState<Set<string>>(new Set());
+  const { t } = useTranslation('projectDetail');
+  const MODULE_META = useModuleMeta();
 
   return (
     <section className="space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">2. Answer Questions</h2>
-          <p className="mt-0.5 text-sm text-slate-500">These answers directly configure your ERP. Answer all to continue.</p>
+          <h2 className="text-lg font-semibold text-slate-900">{t('defaultQuestions.title')}</h2>
+          <p className="mt-0.5 text-sm text-slate-500">{t('defaultQuestions.subtitle')}</p>
         </div>
         {completion && (
           <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${completion.is_complete ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-            {completion.answered_required_visible}/{completion.total_required_visible} answered
+            {t('defaultQuestions.answeredCount', { answered: completion.answered_required_visible, total: completion.total_required_visible })}
           </span>
         )}
       </div>
 
       {loading ? (
-        <div className="rounded-xl border bg-slate-50 p-6 text-center text-sm text-slate-500">Loading questions...</div>
+        <div className="rounded-xl border bg-slate-50 p-6 text-center text-sm text-slate-500">{t('defaultQuestions.loading')}</div>
       ) : (
         <div className="space-y-6">
           {MODULE_KEYS.filter((mod) => questionsByModule[mod]?.length).map((mod) => {
@@ -91,7 +94,7 @@ export default function DefaultQuestions({
                                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                                     }`}
                                   >
-                                    {val === 'yes' ? 'Yes' : 'No'}
+                                    {val === 'yes' ? t('defaultQuestions.yes') : t('defaultQuestions.no')}
                                   </button>
                                 ))}
                               </div>
@@ -143,7 +146,7 @@ export default function DefaultQuestions({
                                           isCustomActive ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-dashed border-slate-300 bg-white text-slate-500 hover:bg-slate-50'
                                         }`}
                                       >
-                                        Custom...
+                                        {t('defaultQuestions.custom')}
                                       </button>
                                     )}
                                   </div>
@@ -161,14 +164,14 @@ export default function DefaultQuestions({
                                     }}
                                     className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
                                   >
-                                    <option value="">Select...</option>
+                                    <option value="">{t('defaultQuestions.select')}</option>
                                     {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                                    {q.allow_custom && <option value="__custom__">Custom...</option>}
+                                    {q.allow_custom && <option value="__custom__">{t('defaultQuestions.custom')}</option>}
                                   </select>
                                 )}
                                 {q.allow_custom && isCustomActive && (
                                   <input value={customValue} onChange={(e) => onUpdateAnswer(q.id, e.target.value)}
-                                    className="w-full rounded-lg border bg-white px-3 py-2 text-sm" placeholder="Type your custom value..." autoFocus />
+                                    className="w-full rounded-lg border bg-white px-3 py-2 text-sm" placeholder={t('defaultQuestions.customPlaceholder')} autoFocus />
                                 )}
                               </div>
                               );
@@ -176,7 +179,7 @@ export default function DefaultQuestions({
 
                             {q.type === 'text' && (
                               <input value={answerString} onChange={(e) => onUpdateAnswer(q.id, e.target.value)}
-                                className="w-full rounded-lg border bg-white px-3 py-2 text-sm" placeholder="Your answer..." />
+                                className="w-full rounded-lg border bg-white px-3 py-2 text-sm" placeholder={t('defaultQuestions.textPlaceholder')} />
                             )}
                           </div>
                         </div>
@@ -207,7 +210,7 @@ export default function DefaultQuestions({
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
           )}
-          Continue
+          {t('defaultQuestions.continue')}
         </button>
       </div>
     </section>

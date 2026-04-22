@@ -1,0 +1,26 @@
+{
+  "title": "İstekleriniz",
+  "subtitle": "Şu anda mevcut olmayan ve sorduğunuz özellikler. Gelecekteki geliştirmelere öncelik vermek için bunları takip ediyoruz.",
+  "loading": "Yükleniyor...",
+  "empty": "Henüz özellik isteği yok.",
+  "emptyHint": "Sohbet botuna desteklemediğimiz bir şey sorarsanız burada görünür.",
+  "statusLabels": {
+    "recorded": "Kaydedildi",
+    "denied": "Planlanmadı",
+    "in_progress": "Devam Ediyor",
+    "completed": "Tamamlandı"
+  },
+  "source": {
+    "chatbot": "Sohbet botundan",
+    "erp": "ERP oluşturmadan"
+  },
+  "projectLabel": "Proje",
+  "yourPrompt": "Orijinal mesajınız",
+  "conversation": "Konuşma",
+  "noMessages": "Henüz mesaj yok. İsteğiniz hakkında daha fazla ayrıntıya ihtiyaç duyarsak ekibimiz buradan iletişime geçebilir.",
+  "replyPlaceholder": "Yanıt...",
+  "send": "Gönder",
+  "sendFailed": "Gönderilemedi",
+  "admin": "Yönetici",
+  "you": "Siz"
+}

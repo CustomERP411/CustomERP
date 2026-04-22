@@ -159,6 +159,10 @@ class AnalyzeRequest(BaseModel):
         default=None,
         description="Project ID for progress tracking.",
     )
+    language: str = Field(
+        default="en",
+        description="Project language code ('en' or 'tr'). Locks AI output language for this project.",
+    )
 
 
 class EditRequest(BaseModel):
@@ -166,6 +170,10 @@ class EditRequest(BaseModel):
     business_description: Optional[str] = None
     current_sdf: SystemDefinitionFile
     instructions: str = Field(..., min_length=3)
+    language: str = Field(
+        default="en",
+        description="Project language code ('en' or 'tr').",
+    )
 
 
 class ChatMessage(BaseModel):
@@ -181,6 +189,7 @@ class ChatRequest(BaseModel):
     business_answers: Optional[Dict[str, Any]] = Field(default=None, description="Answers to business questions so far.")
     current_step: Optional[str] = Field(default=None, description="Which wizard step the user is currently on.")
     sdf_status: Optional[str] = Field(default=None, description="SDF generation status: none, generated, reviewed, approved.")
+    language: str = Field(default="en", description="Project language code ('en' or 'tr').")
 
 class ChatResponse(BaseModel):
     reply: str
@@ -257,6 +266,7 @@ async def chat_endpoint(request: ChatRequest):
         conversation_history=history_str,
         current_step=request.current_step or "",
         sdf_status=request.sdf_status or "",
+        language=request.language,
     )
 
     try:
@@ -355,6 +365,7 @@ async def analyze(request: AnalyzeRequest):
             default_question_answers=request.default_question_answers,
             prefilled_sdf=request.prefilled_sdf,
             on_progress=on_progress,
+            language=request.language,
         )
         on_progress("done", 100, "Complete")
         _log_training_session(
@@ -412,6 +423,7 @@ async def clarify_sdf_endpoint(request: ClarifyRequest):
             business_description=request.business_description,
             default_question_answers=merged_context,
             prefilled_sdf=request.prefilled_sdf,
+            language=request.language,
         )
         _log_training_session(
             "/ai/clarify",
@@ -456,8 +468,9 @@ async def finalize_sdf_endpoint(payload: Union[SystemDefinitionFile, ClarifyRequ
     try:
         final_sdf = await sdf_service.finalize_sdf(
             business_description=payload.business_description or "",
-            partial_sdf=payload.partial_sdf,
-            answers=payload.answers
+            partial_sdf=payload.prefilled_sdf,
+            answers=payload.answers,
+            language=getattr(payload, "language", "en"),
         )
         return final_sdf
     except ValueError as e:
@@ -483,7 +496,8 @@ async def edit_sdf_endpoint(request: EditRequest):
         updated = await sdf_service.edit_sdf(
             business_description=request.business_description or "",
             current_sdf=request.current_sdf,
-            instructions=request.instructions
+            instructions=request.instructions,
+            language=request.language,
         )
         return updated
     except ValueError as e:

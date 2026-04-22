@@ -1,0 +1,43 @@
+{
+  "title": "Settings",
+  "subtitle": "Manage your account preferences.",
+  "sections": {
+    "profile": "Profile",
+    "password": "Change password",
+    "language": "Language",
+    "danger": "Danger zone"
+  },
+  "profile": {
+    "nameLabel": "Full name",
+    "emailLabel": "Email",
+    "save": "Save changes",
+    "saving": "Saving...",
+    "saved": "Changes saved.",
+    "error": "Could not save profile."
+  },
+  "password": {
+    "currentLabel": "Current password",
+    "newLabel": "New password",
+    "confirmLabel": "Confirm new password",
+    "save": "Update password",
+    "saving": "Updating...",
+    "saved": "Password updated.",
+    "mismatch": "Passwords do not match.",
+    "tooShort": "Password must be at least 8 characters.",
+    "error": "Could not update password."
+  },
+  "language": {
+    "label": "Preferred language",
+    "info": "Changing this updates the app UI and the default language for NEW projects. Existing projects and their generated ERPs keep the language they were created with.",
+    "saved": "Language preference updated.",
+    "error": "Could not save language preference."
+  },
+  "danger": {
+    "title": "Delete account",
+    "description": "Permanently delete your account and all associated data. This cannot be undone.",
+    "delete": "Delete my account",
+    "confirmPrompt": "Type DELETE to confirm.",
+    "deleting": "Deleting...",
+    "error": "Could not delete account."
+  }
+}

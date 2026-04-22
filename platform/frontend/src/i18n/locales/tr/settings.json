@@ -1,0 +1,43 @@
+{
+  "title": "Ayarlar",
+  "subtitle": "Hesap tercihlerinizi yönetin.",
+  "sections": {
+    "profile": "Profil",
+    "password": "Parola değiştir",
+    "language": "Dil",
+    "danger": "Tehlikeli bölge"
+  },
+  "profile": {
+    "nameLabel": "Ad soyad",
+    "emailLabel": "E-posta",
+    "save": "Değişiklikleri kaydet",
+    "saving": "Kaydediliyor...",
+    "saved": "Değişiklikler kaydedildi.",
+    "error": "Profil kaydedilemedi."
+  },
+  "password": {
+    "currentLabel": "Mevcut parola",
+    "newLabel": "Yeni parola",
+    "confirmLabel": "Yeni parolayı doğrulayın",
+    "save": "Parolayı güncelle",
+    "saving": "Güncelleniyor...",
+    "saved": "Parola güncellendi.",
+    "mismatch": "Parolalar eşleşmiyor.",
+    "tooShort": "Parola en az 8 karakter olmalıdır.",
+    "error": "Parola güncellenemedi."
+  },
+  "language": {
+    "label": "Tercih edilen dil",
+    "info": "Bunu değiştirmek, uygulama arayüzünü ve YENİ projelerin varsayılan dilini günceller. Mevcut projeler ve oluşturulmuş ERP'leri, oluşturuldukları dilde kalır.",
+    "saved": "Dil tercihi güncellendi.",
+    "error": "Dil tercihi kaydedilemedi."
+  },
+  "danger": {
+    "title": "Hesabı sil",
+    "description": "Hesabınızı ve tüm verilerinizi kalıcı olarak silin. Bu işlem geri alınamaz.",
+    "delete": "Hesabımı sil",
+    "confirmPrompt": "Onaylamak için DELETE yazın.",
+    "deleting": "Siliniyor...",
+    "error": "Hesap silinemedi."
+  }
+}

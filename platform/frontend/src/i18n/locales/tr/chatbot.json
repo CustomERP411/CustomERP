@@ -1,0 +1,20 @@
+{
+  "title": "Yapay Zeka Asistanı",
+  "placeholder": "ERP'niz hakkında her şeyi sorun...",
+  "send": "Gönder",
+  "sending": "Gönderiliyor...",
+  "empty": {
+    "title": "Nasıl yardımcı olabilirim?",
+    "subtitle": "Modüller, varlıklar veya işletmenizi nasıl anlatacağınız hakkında soru sorun.",
+    "quickPrompts": {
+      "whatIsErp": "ERP nedir?",
+      "howToStart": "Nereden başlamalıyım?",
+      "chooseModules": "Modülleri nasıl seçerim?",
+      "describeBusiness": "İşletmemi nasıl anlatırım?"
+    }
+  },
+  "errorFallback": "Üzgünüm, mesajınızı işleyemedim. Lütfen tekrar deneyin.",
+  "recordedForFuture": "Gelecek geliştirmeler için kaydedildi:",
+  "openChat": "Yapay zekâ asistanını aç",
+  "closeChat": "Yapay zekâ asistanını kapat"
+}

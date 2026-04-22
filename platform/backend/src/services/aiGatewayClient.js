@@ -1,7 +1,14 @@
 const logger = require('../utils/logger');
+const { normalizeLanguage, DEFAULT_LANGUAGE } = require('./authService');
 
 const DEFAULT_BASE_URL = 'http://localhost:8000';
 const BASE_URL = (process.env.AI_GATEWAY_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+
+function resolveLanguage(options) {
+  // Accept either `options.language` or `options.projectLanguage`.
+  const raw = options && (options.language || options.projectLanguage);
+  return normalizeLanguage(raw || DEFAULT_LANGUAGE);
+}
 
 async function postJson(path, body) {
   const url = `${BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
@@ -35,6 +42,7 @@ async function analyzeDescription(description, priorContext = null, options = {}
   return await postJson('/ai/analyze', {
     description,
     prior_context: priorContext,
+    language: resolveLanguage(options),
     ...(options.defaultQuestionAnswers && typeof options.defaultQuestionAnswers === 'object'
       ? { default_question_answers: options.defaultQuestionAnswers }
       : {}),
@@ -53,32 +61,36 @@ async function getGenerationProgress(projectId) {
   catch { return { step: 'idle', pct: 0 }; }
 }
 
-async function clarifySdf({ businessDescription, partialSdf, answers, defaultQuestionAnswers }) {
+async function clarifySdf({ businessDescription, partialSdf, answers, defaultQuestionAnswers, language }) {
   return await postJson('/ai/clarify', {
     business_description: businessDescription,
     partial_sdf: partialSdf,
     answers: Array.isArray(answers) ? answers : [],
+    language: resolveLanguage({ language }),
     ...(defaultQuestionAnswers && typeof defaultQuestionAnswers === 'object'
       ? { default_question_answers: defaultQuestionAnswers }
       : {}),
   });
 }
 
-async function finalizeSdf(sdf) {
-  return await postJson('/ai/finalize', sdf);
+async function finalizeSdf(sdf, options = {}) {
+  const payload = sdf && typeof sdf === 'object' ? { ...sdf } : {};
+  payload.language = resolveLanguage(options);
+  return await postJson('/ai/finalize', payload);
 }
 
-async function editSdf({ businessDescription, currentSdf, instructions }) {
+async function editSdf({ businessDescription, currentSdf, instructions, language }) {
   if (!instructions || typeof instructions !== 'string') throw new Error('instructions must be a string');
   if (!currentSdf || typeof currentSdf !== 'object') throw new Error('currentSdf must be an object');
   return await postJson('/ai/edit', {
     business_description: businessDescription,
     current_sdf: currentSdf,
     instructions,
+    language: resolveLanguage({ language }),
   });
 }
 
-async function chat({ businessDescription, message, conversationHistory, selectedModules, businessAnswers, currentStep, sdfStatus }) {
+async function chat({ businessDescription, message, conversationHistory, selectedModules, businessAnswers, currentStep, sdfStatus, language }) {
   if (!message || typeof message !== 'string') throw new Error('message must be a string');
   return await postJson('/ai/chat', {
     business_description: businessDescription || '',
@@ -88,6 +100,7 @@ async function chat({ businessDescription, message, conversationHistory, selecte
     business_answers: businessAnswers && typeof businessAnswers === 'object' ? businessAnswers : null,
     current_step: currentStep || null,
     sdf_status: sdfStatus || null,
+    language: resolveLanguage({ language }),
   });
 }
 
@@ -100,5 +113,3 @@ module.exports = {
   getGenerationProgress,
   BASE_URL,
 };
-
-

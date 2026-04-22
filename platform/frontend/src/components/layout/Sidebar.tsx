@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 
 const SIDEBAR_KEY = 'sidebar_collapsed';
@@ -8,6 +9,7 @@ export default function Sidebar() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation('sidebar');
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_KEY) === '1');
 
   useEffect(() => {
@@ -50,7 +52,8 @@ export default function Sidebar() {
           className={`flex items-center justify-center rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white ${
             collapsed ? 'mx-auto' : ''
           }`}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? t('expandSidebar') : t('collapseSidebar')}
+          aria-label={collapsed ? t('expandSidebar') : t('collapseSidebar')}
         >
           {collapsed ? (
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,7 +71,7 @@ export default function Sidebar() {
       <nav className="flex-1 px-2 py-3 space-y-1">
         <NavItem
           to="/projects"
-          label="Projects"
+          label={t('projects')}
           active={isActive('/projects')}
           collapsed={collapsed}
           icon={
@@ -79,7 +82,7 @@ export default function Sidebar() {
         />
         <NavItem
           to="/settings"
-          label="Settings"
+          label={t('settings')}
           active={isActive('/settings')}
           collapsed={collapsed}
           icon={
@@ -91,7 +94,7 @@ export default function Sidebar() {
         />
         <NavItem
           to="/my/requests"
-          label="Your Requests"
+          label={t('myRequests')}
           active={isActive('/my/requests')}
           collapsed={collapsed}
           icon={
@@ -104,7 +107,7 @@ export default function Sidebar() {
           <>
             <NavItem
               to="/admin"
-              label="Admin"
+              label={t('admin')}
               active={location.pathname === '/admin'}
               collapsed={collapsed}
               icon={
@@ -115,7 +118,7 @@ export default function Sidebar() {
             />
             <NavItem
               to="/admin/training"
-              label="Training Data"
+              label={t('training')}
               active={isActive('/admin/training')}
               collapsed={collapsed}
               icon={
@@ -126,7 +129,7 @@ export default function Sidebar() {
             />
             <NavItem
               to="/admin/feature-requests"
-              label="Feature Requests"
+              label={t('featureRequests')}
               active={isActive('/admin/feature-requests')}
               collapsed={collapsed}
               icon={
@@ -145,14 +148,14 @@ export default function Sidebar() {
           className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
             collapsed ? 'justify-center' : ''
           }`}
-          title={collapsed ? (user?.name || user?.email || 'User') : undefined}
+          title={collapsed ? (user?.name || user?.email || t('user')) : undefined}
         >
           <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold text-blue-400">
             {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="truncate text-sm font-medium text-slate-200">{user?.name || 'User'}</div>
+              <div className="truncate text-sm font-medium text-slate-200">{user?.name || t('user')}</div>
               <div className="truncate text-xs text-slate-500">{user?.email}</div>
             </div>
           )}
@@ -162,13 +165,13 @@ export default function Sidebar() {
           className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white ${
             collapsed ? 'justify-center' : ''
           }`}
-          title="Logout"
+          title={t('signOut')}
         >
           <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          {!collapsed && <span className="text-sm">Logout</span>}
-          {collapsed && <Tooltip label="Logout" />}
+          {!collapsed && <span className="text-sm">{t('signOut')}</span>}
+          {collapsed && <Tooltip label={t('signOut')} />}
         </button>
       </div>
     </div>

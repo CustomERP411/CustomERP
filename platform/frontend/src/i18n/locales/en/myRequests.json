@@ -1,0 +1,26 @@
+{
+  "title": "Your Requests",
+  "subtitle": "Features you've asked about that aren't currently available. We track these to prioritize future development.",
+  "loading": "Loading...",
+  "empty": "No feature requests yet.",
+  "emptyHint": "If you ask the chatbot about something we don't support, it will show up here.",
+  "statusLabels": {
+    "recorded": "Recorded",
+    "denied": "Not Planned",
+    "in_progress": "In Progress",
+    "completed": "Done"
+  },
+  "source": {
+    "chatbot": "From chatbot",
+    "erp": "From ERP generation"
+  },
+  "projectLabel": "Project",
+  "yourPrompt": "Your original prompt",
+  "conversation": "Conversation",
+  "noMessages": "No messages yet. Our team may reach out here if they need more details about your request.",
+  "replyPlaceholder": "Reply...",
+  "send": "Send",
+  "sendFailed": "Failed to send",
+  "admin": "Admin",
+  "you": "You"
+}

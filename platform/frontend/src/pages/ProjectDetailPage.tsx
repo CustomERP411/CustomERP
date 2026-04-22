@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { projectService } from '../services/projectService';
 import type { Project } from '../types/project';
 import type { AiGatewaySdf, ClarificationAnswer, ClarificationQuestion } from '../types/aiGateway';
@@ -10,7 +11,7 @@ import type {
 } from '../types/defaultQuestions';
 
 import {
-  MODULE_KEYS, STEPS, BUSINESS_QUESTIONS,
+  MODULE_KEYS, useSteps, useBusinessQuestions,
   SlideIn, IconCheck,
   detectUserPlatform,
 } from '../components/project/projectConstants';
@@ -27,6 +28,9 @@ import { useChatContext } from '../context/ChatContext';
 export default function ProjectDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation(['projectDetail', 'common', 'errors']);
+  const STEPS = useSteps();
+  const BUSINESS_QUESTIONS = useBusinessQuestions();
   const projectId = String(params.id || '');
 
   /* ── State ──────────────────────────────────────────────── */
@@ -109,7 +113,7 @@ export default function ProjectDetailPage() {
     const seen = new Set<string>();
     for (const item of value) {
       const key = String(item || '').trim().toLowerCase();
-      if (!MODULE_KEYS.includes(key) || seen.has(key)) continue;
+      if (!(MODULE_KEYS as readonly string[]).includes(key) || seen.has(key)) continue;
       seen.add(key);
       unique.push(key);
     }
@@ -287,12 +291,12 @@ export default function ProjectDetailPage() {
             action: 'generated',
             version: typeof latest.sdf_version === 'number' ? latest.sdf_version : null,
             status: p.status || null,
-            note: 'Loaded latest saved SDF from project history.',
+            note: t('projectDetail:history.loadedBaseline'),
             createdAt: p.updated_at || new Date().toISOString(),
           }]);
         }
       } catch (err: any) {
-        if (!cancelled) setError(err?.response?.data?.error || err?.message || 'Failed to load project');
+        if (!cancelled) setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.loadProject'));
       } finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
@@ -309,7 +313,7 @@ export default function ProjectDetailPage() {
         const payload = await projectService.getDefaultQuestions(projectId, selectedModules);
         if (!cancelled) applyDefaultQuestionState(payload);
       } catch (err: any) {
-        if (!cancelled) setError(err?.response?.data?.error || err?.message || 'Failed to load default module questions');
+        if (!cancelled) setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.loadDefaultQuestions'));
       } finally { if (!cancelled) setLoadingDefaultQuestions(false); }
     })();
     return () => { cancelled = true; };
@@ -471,7 +475,7 @@ export default function ProjectDetailPage() {
       businessAnswers: Object.fromEntries(
         BUSINESS_QUESTIONS.map((q) => [q.id, { question: q.question, answer: (businessAnswers[q.id] || '').trim() }])
       ),
-      currentStep: STEPS[currentStep] ?? 'Choose Modules',
+      currentStep: STEPS[currentStep] ?? STEPS[0],
       sdfStatus: sdfStatus,
     });
     return () => setProjectContext(null);
@@ -495,7 +499,26 @@ export default function ProjectDetailPage() {
     return counts;
   }, [visibleDefaultQuestions, defaultAnswersById]);
 
-  const preview = useMemo(() => sdf ? buildPreview(sdf) : null, [sdf]);
+  const preview = useMemo(() => sdf ? buildPreview(sdf, {
+    listPage: t('projectDetail:buildPreview.listPage'),
+    createEditForm: t('projectDetail:buildPreview.createEditForm'),
+    csvImportPage: t('projectDetail:buildPreview.csvImportPage'),
+    csvExportPage: t('projectDetail:buildPreview.csvExportPage'),
+    printPdf: t('projectDetail:buildPreview.printPdf'),
+    receiveStock: t('projectDetail:buildPreview.receiveStock'),
+    sellDefault: t('projectDetail:buildPreview.sellDefault'),
+    adjustStock: t('projectDetail:buildPreview.adjustStock'),
+    transferStock: t('projectDetail:buildPreview.transferStock'),
+    qrLabels: t('projectDetail:buildPreview.qrLabels'),
+    activityLog: t('projectDetail:buildPreview.activityLog'),
+    activityLogDesc: t('projectDetail:buildPreview.activityLogDesc'),
+    lowStockAlerts: t('projectDetail:buildPreview.lowStockAlerts'),
+    lowStockDesc: t('projectDetail:buildPreview.lowStockDesc'),
+    expiryAlerts: t('projectDetail:buildPreview.expiryAlerts'),
+    expiryDesc: t('projectDetail:buildPreview.expiryDesc'),
+    reports: t('projectDetail:buildPreview.reports'),
+    reportsDesc: t('projectDetail:buildPreview.reportsDesc'),
+  }) : null, [sdf, t]);
 
   /* ── Handlers ───────────────────────────────────────────── */
 
@@ -523,17 +546,17 @@ export default function ProjectDetailPage() {
       // Clear stale SDF so the user must complete business questions before
       // the post-generation panel re-appears.
       if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); }
-    } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'Failed to save answers'); }
+    } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.saveAnswersFailed')); }
     finally { setSavingDefaultAnswers(false); }
   };
 
   const mapGenerationError = (err: any): string => {
     const raw = err?.response?.data?.error || err?.message || '';
     console.error('ERP generation error:', raw, err);
-    if (err?.code === 'ECONNABORTED') return 'Generation is taking longer than expected. Your inputs are saved — please try again in a few minutes.';
-    if (!err?.response && err?.message?.toLowerCase().includes('network')) return 'Our AI service is temporarily unreachable. We\'re working on it — please try again in a few minutes.';
-    if (err?.response?.status >= 500) return 'Our AI service encountered an issue. We\'re working on it — please try again in a few minutes.';
-    return 'Something went wrong during generation. Please try again.';
+    if (err?.code === 'ECONNABORTED') return t('projectDetail:errors.genSlow');
+    if (!err?.response && err?.message?.toLowerCase().includes('network')) return t('projectDetail:errors.genNetwork');
+    if (err?.response?.status >= 500) return t('projectDetail:errors.genServer');
+    return t('projectDetail:errors.genGeneric');
   };
 
   const closeGenerationModal = () => {
@@ -557,7 +580,7 @@ export default function ProjectDetailPage() {
       clearGeneratingFlag();
       return;
     }
-    setAnalyzePhase('Resuming — checking generation status...');
+    setAnalyzePhase(t('projectDetail:phases.resuming'));
     let cancelled = false;
     const poll = async () => {
       try {
@@ -572,7 +595,7 @@ export default function ProjectDetailPage() {
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
           setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
           clearGeneratingFlag();
-          setGenProgress({ step: 'done', pct: 100, detail: 'Complete' });
+          setGenProgress({ step: 'done', pct: 100, detail: t('projectDetail:progress.complete') });
           setGenResult('success');
           setTimeout(() => { setAnalyzePhase(''); setGenResult(null); setGenProgress(null); }, 2500);
           return;
@@ -585,7 +608,7 @@ export default function ProjectDetailPage() {
       cancelled = true;
       clearGeneratingFlag();
       setGenResult('error');
-      setGenErrorMsg('Generation timed out. Your inputs are saved — please try again.');
+      setGenErrorMsg(t('projectDetail:errors.genTimeout'));
     }, 3 * 60 * 1000);
     return () => { cancelled = true; clearTimeout(timeout); };
   }, [loading, generatingKey]);
@@ -593,7 +616,7 @@ export default function ProjectDetailPage() {
   const analyze = async () => {
     if (!projectId) return;
     setAnalyzing(true); setError(''); setGenResult(null); setGenErrorMsg(''); setGenProgress(null);
-    setAnalyzePhase('Saving your answers...');
+    setAnalyzePhase(t('projectDetail:phases.savingAnswers'));
     if (generatingKey) try { window.localStorage.setItem(generatingKey, String(Date.now())); } catch { /* ignore */ }
 
     // Poll real progress from the AI gateway
@@ -614,11 +637,13 @@ export default function ProjectDetailPage() {
       });
       applyDefaultQuestionState(latestDefaults);
       if (!(latestDefaults.prefill_validation || latestDefaults.completion)?.is_complete) {
-        setError('Please answer all required questions before generating.');
+        setError(t('projectDetail:errors.answerRequired'));
         setAnalyzePhase(''); clearGeneratingFlag();
         return;
       }
 
+      // NOTE: these strings are baked into the SDF the AI sees; keep them in
+      // English so the AI builds consistent admin roles regardless of UI language.
       const defaultAdminGroup = {
         name: 'Administrators',
         user_count: '1',
@@ -660,7 +685,7 @@ export default function ProjectDetailPage() {
       if (resQuestions.length > 0 && !res.sdf_complete) {
         setSdf(res.sdf); setQuestions(resQuestions); setAnswersById({});
         setSdfComplete(false);
-        setGenProgress({ step: 'clarifications', pct: 20, detail: 'Waiting for your answers' });
+        setGenProgress({ step: 'clarifications', pct: 20, detail: t('projectDetail:progress.waitingAnswers') });
         // Keep modal open — questions mode will activate automatically
         return;
       }
@@ -671,10 +696,10 @@ export default function ProjectDetailPage() {
         action: 'generated',
         version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
         status: res.project.status || null,
-        note: 'Generated a new SDF from build mode inputs.',
+        note: t('projectDetail:history.generated'),
       });
       clearGeneratingFlag();
-      setGenProgress({ step: 'done', pct: 100, detail: 'Complete' });
+      setGenProgress({ step: 'done', pct: 100, detail: t('projectDetail:progress.complete') });
       setGenResult('success');
       setTimeout(() => { setAnalyzePhase(''); setGenResult(null); setGenProgress(null); }, 2500);
     } catch (err: any) {
@@ -689,7 +714,7 @@ export default function ProjectDetailPage() {
   const submitModalAnswers = async () => {
     if (!projectId || !sdf || questions.length === 0) return;
     setClarifying(true);
-    setGenProgress({ step: 'generators', pct: 30, detail: 'Processing your answers...' });
+    setGenProgress({ step: 'generators', pct: 30, detail: t('projectDetail:progress.processing') });
 
     let progressCancelled = false;
     const pollProgress = async () => {
@@ -715,7 +740,7 @@ export default function ProjectDetailPage() {
       if (resQuestions.length > 0 && !res.sdf_complete) {
         setSdf(res.sdf); setQuestions(resQuestions); setAnswersById({});
         setSdfComplete(false);
-        setGenProgress({ step: 'clarifications', pct: 20, detail: 'Waiting for your answers' });
+        setGenProgress({ step: 'clarifications', pct: 20, detail: t('projectDetail:progress.waitingAnswers') });
         return;
       }
 
@@ -725,10 +750,10 @@ export default function ProjectDetailPage() {
         action: 'clarified',
         version: typeof res.sdf_version === 'number' ? res.sdf_version : null,
         status: res.project.status || null,
-        note: 'Applied clarification answers to the current SDF.',
+        note: t('projectDetail:history.clarified'),
       });
       clearGeneratingFlag();
-      setGenProgress({ step: 'done', pct: 100, detail: 'Complete' });
+      setGenProgress({ step: 'done', pct: 100, detail: t('projectDetail:progress.complete') });
       setGenResult('success');
       setTimeout(() => { setAnalyzePhase(''); setGenResult(null); setGenProgress(null); }, 2500);
     } catch (err: any) {
@@ -744,12 +769,12 @@ export default function ProjectDetailPage() {
     setSaving(true); setError(''); setDraftError('');
     try {
       let parsed: any;
-      try { parsed = JSON.parse(draftJson); } catch (e: any) { setDraftError('Invalid JSON: ' + (e?.message || 'Parse error')); return; }
+      try { parsed = JSON.parse(draftJson); } catch (e: any) { setDraftError(t('projectDetail:errors.invalidJson', { message: e?.message || t('projectDetail:errors.parseError') })); return; }
       const res = await projectService.saveSdf(projectId, parsed);
       setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setDraftJson(JSON.stringify(res.sdf, null, 2));
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
-      appendReviewHistory({ action: 'manual_save', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: 'Saved manual JSON edits to the SDF.' });
-    } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'Save failed'); }
+      appendReviewHistory({ action: 'manual_save', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.manualSave') });
+    } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.saveFailed')); }
     finally { setSaving(false); }
   };
 
@@ -760,8 +785,8 @@ export default function ProjectDetailPage() {
       const res = await projectService.aiEditSdf(projectId, aiEditText.trim(), sdf || undefined);
       setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setAiEditText('');
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
-      appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: 'Applied AI edit instructions from SDF preview.' });
-    } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'AI edit failed'); }
+      appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.aiRevision') });
+    } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.aiEditFailed')); }
     finally { setSaving(false); }
   };
 
@@ -771,8 +796,8 @@ export default function ProjectDetailPage() {
     try {
       const res = await projectService.approveReview(projectId);
       setProject(res.project);
-      appendReviewHistory({ action: 'approved', version: res.approval.sdf_version, status: res.project.status || null, note: 'Approved current SDF for ERP generation.' });
-    } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'Approve action failed'); }
+      appendReviewHistory({ action: 'approved', version: res.approval.sdf_version, status: res.project.status || null, note: t('projectDetail:history.approved') });
+    } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.approveFailed')); }
     finally { setReviewActionRunning(false); }
   };
 
@@ -782,8 +807,8 @@ export default function ProjectDetailPage() {
     try {
       const res = await projectService.rejectReview(projectId);
       setProject(res.project);
-      appendReviewHistory({ action: 'rejected', version: res.approval.sdf_version, status: res.project.status || null, note: 'Rejected current SDF and moved project back to Draft.' });
-    } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'Reject action failed'); }
+      appendReviewHistory({ action: 'rejected', version: res.approval.sdf_version, status: res.project.status || null, note: t('projectDetail:history.rejected') });
+    } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.rejectFailed')); }
     finally { setReviewActionRunning(false); }
   };
 
@@ -795,8 +820,8 @@ export default function ProjectDetailPage() {
       setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
       appendReviewHistory({ action: 'revision_requested', version: res.approval.sdf_version, status: null, note: instructions.trim() });
-      appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: 'Applied AI revision requested from review panel.' });
-    } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'Revision request failed'); }
+      appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.aiRevisionFromReview') });
+    } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.revisionFailed')); }
     finally { setReviewActionRunning(false); }
   };
 
@@ -809,8 +834,8 @@ export default function ProjectDetailPage() {
       const a = document.createElement('a'); a.href = url; a.download = ((sdf as any)?.project_name || project?.name || 'custom-erp') + '.zip'; a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      try { const text = await (err?.response?.data instanceof Blob ? err.response.data.text() : Promise.resolve('')); const parsed = text ? JSON.parse(text) : null; setError(parsed?.error || err?.message || 'Generate failed'); }
-      catch { setError(err?.response?.data?.error || err?.message || 'Generate failed'); }
+      try { const text = await (err?.response?.data instanceof Blob ? err.response.data.text() : Promise.resolve('')); const parsed = text ? JSON.parse(text) : null; setError(parsed?.error || err?.message || t('projectDetail:errors.generateFailed')); }
+      catch { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.generateFailed')); }
     } finally { setSaving(false); }
   };
 
@@ -823,23 +848,23 @@ export default function ProjectDetailPage() {
       const a = document.createElement('a'); a.href = url; a.download = `${(sdf as any)?.project_name || project?.name || 'custom-erp'}-${platform}.zip`; a.click();
       URL.revokeObjectURL(url); setDownloadStarted(platform);
     } catch (err: any) {
-      try { const text = await (err?.response?.data instanceof Blob ? err.response.data.text() : Promise.resolve('')); const parsed = text ? JSON.parse(text) : null; setError(parsed?.error || err?.message || 'Standalone generation failed'); }
-      catch { setError(err?.response?.data?.error || err?.message || 'Standalone generation failed'); }
+      try { const text = await (err?.response?.data instanceof Blob ? err.response.data.text() : Promise.resolve('')); const parsed = text ? JSON.parse(text) : null; setError(parsed?.error || err?.message || t('projectDetail:errors.standaloneFailed')); }
+      catch { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.standaloneFailed')); }
     } finally { setStandaloneRunning(null); }
   };
 
   /* ── Render ─────────────────────────────────────────────── */
 
-  if (loading) return <div className="flex items-center justify-center py-20 text-slate-500">Loading project...</div>;
+  if (loading) return <div className="flex items-center justify-center py-20 text-slate-500">{t('projectDetail:loading.project')}</div>;
 
   if (!project) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-900">Project</h1>
-          <Link to="/" className="text-sm font-semibold text-indigo-600 hover:underline">Back</Link>
+          <h1 className="text-xl font-bold text-slate-900">{t('projectDetail:header.projectFallback')}</h1>
+          <Link to="/" className="text-sm font-semibold text-indigo-600 hover:underline">{t('common:back')}</Link>
         </div>
-        <div className="rounded-lg border bg-white p-4 text-sm text-red-600">{error || 'Project not found'}</div>
+        <div className="rounded-lg border bg-white p-4 text-sm text-red-600">{error || t('projectDetail:errors.notFound')}</div>
       </div>
     );
   }
@@ -850,9 +875,9 @@ export default function ProjectDetailPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{project.name}</h1>
-          <p className="mt-1 text-sm text-slate-500">Set up your ERP step by step</p>
+          <p className="mt-1 text-sm text-slate-500">{t('projectDetail:header.subtitle')}</p>
         </div>
-        <Link to="/" className="rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Back to Projects</Link>
+        <Link to="/" className="rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">{t('projectDetail:header.backToProjects')}</Link>
       </div>
 
       {/* Step Progress Bar — hidden after generation */}

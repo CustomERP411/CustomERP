@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { adminService, type AdminUser, type AdminProject } from '../services/adminService';
 
-function getErrorMessage(err: unknown): string {
-  if (!err) return 'Unknown error';
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (!err) return fallback;
   if (typeof err === 'string') return err;
   const obj = err as Record<string, unknown>;
   const resp = obj.response as Record<string, unknown> | undefined;
   const data = resp?.data as Record<string, unknown> | undefined;
-  return String(data?.error || obj.message || 'Unknown error');
+  return String(data?.error || obj.message || fallback);
 }
 
 export default function AdminPage() {
   const { user } = useAuth();
+  const { t, i18n } = useTranslation('admin');
+  const tProjects = useTranslation('projects').t;
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [projects, setProjects] = useState<AdminProject[]>([]);
@@ -39,7 +42,7 @@ export default function AdminPage() {
       setUsers(u);
       setProjects(p);
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getErrorMessage(err, t('unknownError')));
     } finally {
       setLoading(false);
     }
@@ -51,7 +54,7 @@ export default function AdminPage() {
       const updated = await adminService.setAdminStatus(target.id, !target.is_admin);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
     } catch (err) {
-      setActionError(getErrorMessage(err));
+      setActionError(getErrorMessage(err, t('unknownError')));
     }
   }
 
@@ -70,7 +73,7 @@ export default function AdminPage() {
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       setBlockingUser(null);
     } catch (err) {
-      setActionError(getErrorMessage(err));
+      setActionError(getErrorMessage(err, t('unknownError')));
     } finally {
       setBlockSaving(false);
     }
@@ -82,7 +85,7 @@ export default function AdminPage() {
       const updated = await adminService.unblockUser(target.id);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
     } catch (err) {
-      setActionError(getErrorMessage(err));
+      setActionError(getErrorMessage(err, t('unknownError')));
     }
   }
 
@@ -94,14 +97,14 @@ export default function AdminPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
           </svg>
         </div>
-        <h1 className="text-xl font-bold text-slate-900">Access Denied</h1>
-        <p className="mt-2 text-sm text-slate-500">You do not have permission to access the admin panel.</p>
+        <h1 className="text-xl font-bold text-slate-900">{t('accessDenied')}</h1>
+        <p className="mt-2 text-sm text-slate-500">{t('accessDeniedMessage')}</p>
       </div>
     );
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20 text-slate-500">Loading admin data...</div>;
+    return <div className="flex items-center justify-center py-20 text-slate-500">{t('loadingAdminData')}</div>;
   }
 
   const activeUsers = users.filter((u) => !u.deleted);
@@ -109,8 +112,8 @@ export default function AdminPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8 pb-16">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Platform Admin</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage platform users and view all projects.</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t('title')}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t('subtitle')}</p>
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -127,7 +130,7 @@ export default function AdminPage() {
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
-          Users ({activeUsers.length})
+          {t('tabs.users')} ({activeUsers.length})
         </button>
         <button
           type="button"
@@ -138,7 +141,7 @@ export default function AdminPage() {
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
-          Projects ({projects.length})
+          {t('tabs.projects')} ({projects.length})
         </button>
       </div>
 
@@ -149,11 +152,11 @@ export default function AdminPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-slate-50 text-left">
-                  <th className="px-4 py-3 font-medium text-slate-600">Name</th>
-                  <th className="px-4 py-3 font-medium text-slate-600">Email</th>
-                  <th className="px-4 py-3 font-medium text-slate-600">Status</th>
-                  <th className="px-4 py-3 font-medium text-slate-600">Joined</th>
-                  <th className="px-4 py-3 font-medium text-slate-600 text-right">Actions</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">{t('users.columns.name')}</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">{t('users.columns.email')}</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">{t('users.columns.status')}</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">{t('users.columns.joined')}</th>
+                  <th className="px-4 py-3 font-medium text-slate-600 text-right">{t('users.columns.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -161,24 +164,24 @@ export default function AdminPage() {
                   <tr key={u.id} className={`border-b last:border-b-0 hover:bg-slate-50/50 ${u.blocked ? 'bg-red-50/30' : ''}`}>
                     <td className="px-4 py-3 font-medium text-slate-900">
                       {u.name}
-                      {u.id === user.id && <span className="ml-1.5 text-xs text-slate-400">(you)</span>}
+                      {u.id === user.id && <span className="ml-1.5 text-xs text-slate-400">{t('users.youLabel')}</span>}
                     </td>
                     <td className="px-4 py-3 text-slate-600">{u.email}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         {u.is_admin ? (
-                          <span className="inline-flex w-fit items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">Admin</span>
+                          <span className="inline-flex w-fit items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">{t('users.adminBadge')}</span>
                         ) : (
-                          <span className="inline-flex w-fit items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">User</span>
+                          <span className="inline-flex w-fit items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{t('users.userBadge')}</span>
                         )}
                         {u.blocked && (
                           <span className="inline-flex w-fit items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700" title={u.block_reason || ''}>
-                            Blocked
+                            {t('users.blocked')}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-slate-500">{new Date(u.created_at).toLocaleDateString(i18n.language)}</td>
                     <td className="px-4 py-3 text-right">
                       {u.id !== user.id && (
                         <div className="flex items-center justify-end gap-1">
@@ -187,7 +190,7 @@ export default function AdminPage() {
                             onClick={() => handleToggleAdmin(u)}
                             className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
                           >
-                            {u.is_admin ? 'Remove Admin' : 'Make Admin'}
+                            {u.is_admin ? t('users.revokeAdmin') : t('users.makeAdmin')}
                           </button>
                           {u.blocked ? (
                             <button
@@ -195,7 +198,7 @@ export default function AdminPage() {
                               onClick={() => void handleUnblock(u)}
                               className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 transition-colors"
                             >
-                              Unblock
+                              {t('users.unblock')}
                             </button>
                           ) : (
                             <button
@@ -203,7 +206,7 @@ export default function AdminPage() {
                               onClick={() => openBlock(u)}
                               className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
                             >
-                              Block
+                              {t('users.block')}
                             </button>
                           )}
                         </div>
@@ -212,7 +215,7 @@ export default function AdminPage() {
                   </tr>
                 ))}
                 {activeUsers.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">No users found.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">{t('users.noUsers')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -227,10 +230,10 @@ export default function AdminPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-slate-50 text-left">
-                  <th className="px-4 py-3 font-medium text-slate-600">Project</th>
-                  <th className="px-4 py-3 font-medium text-slate-600">Owner</th>
-                  <th className="px-4 py-3 font-medium text-slate-600">Status</th>
-                  <th className="px-4 py-3 font-medium text-slate-600">Created</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">{t('projects.columns.project')}</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">{t('projects.columns.owner')}</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">{t('projects.columns.status')}</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">{t('projects.columns.created')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -248,14 +251,14 @@ export default function AdminPage() {
                           : p.status === 'Generated' ? 'bg-violet-100 text-violet-700'
                           : 'bg-slate-100 text-slate-600'
                       }`}>
-                        {p.status}
+                        {tProjects(`status.${p.status}`, { defaultValue: p.status })}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{new Date(p.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-slate-500">{new Date(p.created_at).toLocaleDateString(i18n.language)}</td>
                   </tr>
                 ))}
                 {projects.length === 0 && (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">No projects found.</td></tr>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">{t('projects.noProjects')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -267,18 +270,24 @@ export default function AdminPage() {
       {blockingUser && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 px-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-slate-900">Block User</h3>
-            <p className="mt-2 text-sm text-slate-600">
-              Block <strong>{blockingUser.name}</strong> ({blockingUser.email}) from accessing the platform.
-              They will see a suspension message when they try to log in.
-            </p>
+            <h3 className="text-base font-semibold text-slate-900">{t('blockModal.title')}</h3>
+            <p
+              className="mt-2 text-sm text-slate-600"
+              dangerouslySetInnerHTML={{
+                __html: t('blockModal.description', {
+                  name: blockingUser.name,
+                  email: blockingUser.email,
+                  interpolation: { escapeValue: false },
+                }),
+              }}
+            />
             <div className="mt-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Reason (optional)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t('blockModal.reasonLabel')}</label>
               <input
                 type="text"
                 value={blockReason}
                 onChange={(e) => setBlockReason(e.target.value)}
-                placeholder="e.g. suspicious activity, policy violation..."
+                placeholder={t('blockModal.reasonPlaceholder')}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
@@ -289,7 +298,7 @@ export default function AdminPage() {
                 onClick={() => { setBlockingUser(null); setActionError(''); }}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Cancel
+                {t('blockModal.cancel')}
               </button>
               <button
                 type="button"
@@ -297,7 +306,7 @@ export default function AdminPage() {
                 disabled={blockSaving}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
               >
-                {blockSaving ? 'Blocking...' : 'Block User'}
+                {blockSaving ? t('blockModal.blocking') : t('blockModal.blockUser')}
               </button>
             </div>
           </div>

@@ -1,16 +1,70 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
+// NOTE: keys ('inventory', 'invoice', 'hr') must stay English — they are used
+// as module identifiers everywhere in the SDF / backend. Only labels are translated.
+export const MODULE_KEYS = ['inventory', 'invoice', 'hr'] as const;
+
+export function useModuleMeta(): Record<string, { label: string; desc: string }> {
+  const { t } = useTranslation('projectDetail');
+  return {
+    inventory: { label: t('modules.inventory.label'), desc: t('modules.inventory.desc') },
+    invoice:   { label: t('modules.invoice.label'),   desc: t('modules.invoice.desc') },
+    hr:        { label: t('modules.hr.label'),        desc: t('modules.hr.desc') },
+  };
+}
+
+// Legacy English-only fallback. Prefer `useModuleMeta()` for UI-facing code.
 export const MODULE_META: Record<string, { label: string; desc: string }> = {
   inventory: { label: 'Inventory', desc: 'Track products, stock levels, purchases, and shipments' },
   invoice:   { label: 'Invoice',   desc: 'Create invoices, record payments, issue credit notes' },
   hr:        { label: 'HR',        desc: 'Manage employees, leave, attendance, and payroll prep' },
 };
 
-export const MODULE_KEYS = Object.keys(MODULE_META);
+export function useSteps(): string[] {
+  const { t } = useTranslation('projectDetail');
+  return [
+    t('steps.chooseModules'),
+    t('steps.answerQuestions'),
+    t('steps.describeBusiness'),
+    t('steps.reviewGenerate'),
+    t('steps.downloadRun'),
+  ];
+}
 
 export const STEPS = ['Choose Modules', 'Answer Questions', 'Describe Your Business', 'Review & Generate', 'Download & Run'];
 
-export const BUSINESS_QUESTIONS: { id: string; question: string; placeholder: string; hint?: string; optional?: boolean }[] = [
+export type BusinessQuestion = { id: string; question: string; placeholder: string; hint?: string; optional?: boolean };
+
+// Stable IDs — used for storing answers. Never change these.
+export const BUSINESS_QUESTION_IDS: { id: string; optional?: boolean }[] = [
+  { id: 'what_business' },
+  { id: 'products_services' },
+  { id: 'user_count' },
+  { id: 'main_problem' },
+  { id: 'special_rules' },
+  { id: 'anything_else', optional: true },
+];
+
+export function useBusinessQuestions(): BusinessQuestion[] {
+  const { t } = useTranslation('projectDetail');
+  return BUSINESS_QUESTION_IDS.map((q) => {
+    const hintKey = `businessQuestions.${q.id}.hint`;
+    const translatedHint = t(hintKey);
+    return {
+      id: q.id,
+      question: t(`businessQuestions.${q.id}.question`),
+      placeholder: t(`businessQuestions.${q.id}.placeholder`),
+      // i18next returns the key itself when missing — treat that as "no hint".
+      hint: translatedHint && translatedHint !== hintKey ? translatedHint : undefined,
+      optional: q.optional,
+    };
+  });
+}
+
+// Legacy English-only export for code paths that can't use hooks (e.g. outside
+// components). Prefer `useBusinessQuestions()` wherever possible.
+export const BUSINESS_QUESTIONS: BusinessQuestion[] = [
   { id: 'what_business', question: 'What does your business do?', placeholder: 'e.g. "We sell clothing in two small shops" or "We run a bakery with home delivery"' },
   { id: 'products_services', question: 'What products or services do you offer?', placeholder: 'e.g. "T-shirts, jeans, and accessories" or "Cakes, bread, pastries"' },
   { id: 'user_count', question: 'How many people will use this system?', placeholder: 'e.g. "3 people" or "Just me"' },
@@ -53,6 +107,16 @@ export const MOD_STYLES: Record<string, { sel: string; unsel: string; left: stri
   },
 };
 
+export function useAiEditChips(): string[] {
+  const { t } = useTranslation('projectDetail');
+  return [
+    t('aiEditChips.productCategory'),
+    t('aiEditChips.stockTransfers'),
+    t('aiEditChips.invoiceCurrency'),
+    t('aiEditChips.employeeDocs'),
+  ];
+}
+
 export const AI_EDIT_CHIPS = [
   'Add a product category field',
   'Enable stock transfers between locations',
@@ -76,6 +140,16 @@ export const PLATFORM_INFO: Record<string, { label: string; icon: string; startF
   'windows-x64': { label: 'Windows',               icon: '\uD83D\uDDA5\uFE0F', startFile: 'start.bat',     extractTip: 'Right-click the .zip file and choose "Extract All..."' },
   'linux-x64':   { label: 'Linux',                 icon: '\uD83D\uDDA5\uFE0F', startFile: 'start.sh',      extractTip: 'Run: unzip your-erp.zip  (or use your file manager)' },
 };
+
+export function usePlatformInfo(): typeof PLATFORM_INFO {
+  const { t } = useTranslation('projectDetail');
+  return {
+    'macos-arm64': { label: t('platforms.macosArm'),  icon: '\uD83D\uDDA5\uFE0F', startFile: 'start.command', extractTip: t('platforms.extractTip.mac') },
+    'macos-x64':   { label: t('platforms.macosX64'),  icon: '\uD83D\uDDA5\uFE0F', startFile: 'start.command', extractTip: t('platforms.extractTip.mac') },
+    'windows-x64': { label: t('platforms.windows'),   icon: '\uD83D\uDDA5\uFE0F', startFile: 'start.bat',     extractTip: t('platforms.extractTip.windows') },
+    'linux-x64':   { label: t('platforms.linux'),     icon: '\uD83D\uDDA5\uFE0F', startFile: 'start.sh',      extractTip: t('platforms.extractTip.linux') },
+  };
+}
 
 /* ── Reusable slide animation wrapper ─────────────────────── */
 
@@ -146,7 +220,44 @@ export const MODULE_ICONS: Record<string, (p: { className?: string }) => JSX.Ele
 
 /* ── Preview helpers ──────────────────────────────────────── */
 
-export function summarizeModulesForPreview(modules: Record<string, any>, entities?: any[]) {
+export type PreviewTranslator = (key: string) => string;
+
+function defaultPreviewT(key: string): string {
+  const map: Record<string, string> = {
+    'modules.inventory.label': 'Inventory',
+    'modules.invoice.label': 'Invoice',
+    'modules.hr.label': 'HR',
+    'preview.caps.transactionSafety': 'Transaction safety',
+    'preview.caps.reservations': 'Reservations',
+    'preview.caps.purchaseReceiving': 'Purchase receiving',
+    'preview.caps.stockCounts': 'Stock counts',
+    'preview.caps.batchTracking': 'Batch tracking',
+    'preview.caps.serialTracking': 'Serial tracking',
+    'preview.caps.expiryAlerts': 'Expiry alerts',
+    'preview.caps.lowStockAlerts': 'Low stock alerts',
+    'preview.caps.qrLabels': 'QR labels',
+    'preview.caps.payments': 'Payments',
+    'preview.caps.creditNotes': 'Credit / debit notes',
+    'preview.caps.statusWorkflow': 'Status workflow',
+    'preview.caps.lineDiscounts': 'Line discounts',
+    'preview.caps.printPdf': 'Print / PDF',
+    'preview.caps.leaveTracking': 'Leave tracking',
+    'preview.caps.leaveApprovals': 'Leave approvals',
+    'preview.caps.attendanceTime': 'Attendance & time',
+    'preview.caps.payrollPrep': 'Payroll prep',
+    'preview.config.currency': 'Currency',
+    'preview.config.taxRate': 'Tax rate',
+    'preview.config.workDays': 'Work days',
+    'preview.config.hoursPerDay': 'Hours / day',
+  };
+  return map[key] ?? key;
+}
+
+export function summarizeModulesForPreview(
+  modules: Record<string, any>,
+  entities?: any[],
+  t: PreviewTranslator = defaultPreviewT,
+) {
   const out: { key: string; label: string; caps: { label: string; enabled: boolean }[]; config: Record<string, string> }[] = [];
   const ents = Array.isArray(entities) ? entities : [];
   const findEntity = (slug: string) => ents.find((e: any) => e.slug === slug) || {} as any;
@@ -157,17 +268,17 @@ export function summarizeModulesForPreview(modules: Record<string, any>, entitie
     const feat = stockEnt.features || {};
     const dash = modules.inventory_dashboard || {};
     out.push({
-      key: 'inventory', label: 'Inventory',
+      key: 'inventory', label: t('modules.inventory.label'),
       caps: [
-        { label: 'Transaction safety', enabled: !!modules.inventory.transactions?.enabled },
-        { label: 'Reservations',       enabled: !!modules.inventory.reservations?.enabled },
-        { label: 'Purchase receiving',  enabled: !!modules.inventory.inbound?.enabled },
-        { label: 'Stock counts',        enabled: !!modules.inventory.cycle_counting?.enabled },
-        { label: 'Batch tracking',      enabled: !!feat.batch_tracking },
-        { label: 'Serial tracking',     enabled: !!feat.serial_tracking },
-        { label: 'Expiry alerts',       enabled: !!dash.expiry?.enabled },
-        { label: 'Low stock alerts',    enabled: !!dash.low_stock?.enabled },
-        { label: 'QR labels',           enabled: !!stockEnt.labels?.enabled },
+        { label: t('preview.caps.transactionSafety'), enabled: !!modules.inventory.transactions?.enabled },
+        { label: t('preview.caps.reservations'),       enabled: !!modules.inventory.reservations?.enabled },
+        { label: t('preview.caps.purchaseReceiving'),  enabled: !!modules.inventory.inbound?.enabled },
+        { label: t('preview.caps.stockCounts'),        enabled: !!modules.inventory.cycle_counting?.enabled },
+        { label: t('preview.caps.batchTracking'),      enabled: !!feat.batch_tracking },
+        { label: t('preview.caps.serialTracking'),     enabled: !!feat.serial_tracking },
+        { label: t('preview.caps.expiryAlerts'),       enabled: !!dash.expiry?.enabled },
+        { label: t('preview.caps.lowStockAlerts'),     enabled: !!dash.low_stock?.enabled },
+        { label: t('preview.caps.qrLabels'),           enabled: !!stockEnt.labels?.enabled },
       ],
       config: {},
     });
@@ -177,18 +288,18 @@ export function summarizeModulesForPreview(modules: Record<string, any>, entitie
     const invoiceEnt = findEntity('invoices');
     const invFeat = invoiceEnt.features || {};
     out.push({
-      key: 'invoice', label: 'Invoice',
+      key: 'invoice', label: t('modules.invoice.label'),
       caps: [
-        { label: 'Transaction safety',  enabled: !!modules.invoice.transactions?.enabled },
-        { label: 'Payments',             enabled: !!modules.invoice.payments?.enabled },
-        { label: 'Credit / debit notes', enabled: !!modules.invoice.notes?.enabled },
-        { label: 'Status workflow',      enabled: !!modules.invoice.lifecycle?.enabled },
-        { label: 'Line discounts',       enabled: !!modules.invoice.calculation_engine?.enabled },
-        { label: 'Print / PDF',          enabled: !!invFeat.print_invoice },
+        { label: t('preview.caps.transactionSafety'),  enabled: !!modules.invoice.transactions?.enabled },
+        { label: t('preview.caps.payments'),           enabled: !!modules.invoice.payments?.enabled },
+        { label: t('preview.caps.creditNotes'),        enabled: !!modules.invoice.notes?.enabled },
+        { label: t('preview.caps.statusWorkflow'),     enabled: !!modules.invoice.lifecycle?.enabled },
+        { label: t('preview.caps.lineDiscounts'),      enabled: !!modules.invoice.calculation_engine?.enabled },
+        { label: t('preview.caps.printPdf'),           enabled: !!invFeat.print_invoice },
       ],
       config: {
-        Currency: String(modules.invoice.currency || 'USD'),
-        'Tax rate': modules.invoice.tax_rate != null ? `${modules.invoice.tax_rate}%` : '-',
+        [t('preview.config.currency')]: String(modules.invoice.currency || 'USD'),
+        [t('preview.config.taxRate')]: modules.invoice.tax_rate != null ? `${modules.invoice.tax_rate}%` : '-',
       },
     });
   }
@@ -196,16 +307,16 @@ export function summarizeModulesForPreview(modules: Record<string, any>, entitie
   if (modules.hr?.enabled) {
     const wd = Array.isArray(modules.hr.work_days) ? modules.hr.work_days.join(', ') : '-';
     out.push({
-      key: 'hr', label: 'HR',
+      key: 'hr', label: t('modules.hr.label'),
       caps: [
-        { label: 'Leave tracking',   enabled: !!modules.hr.leave_engine?.enabled },
-        { label: 'Leave approvals',   enabled: !!modules.hr.leave_approvals?.enabled },
-        { label: 'Attendance & time', enabled: !!modules.hr.attendance_time?.enabled },
-        { label: 'Payroll prep',      enabled: !!modules.hr.compensation_ledger?.enabled },
+        { label: t('preview.caps.leaveTracking'),   enabled: !!modules.hr.leave_engine?.enabled },
+        { label: t('preview.caps.leaveApprovals'),  enabled: !!modules.hr.leave_approvals?.enabled },
+        { label: t('preview.caps.attendanceTime'),  enabled: !!modules.hr.attendance_time?.enabled },
+        { label: t('preview.caps.payrollPrep'),     enabled: !!modules.hr.compensation_ledger?.enabled },
       ],
       config: {
-        'Work days': wd,
-        'Hours / day': modules.hr.daily_hours != null ? String(modules.hr.daily_hours) : '-',
+        [t('preview.config.workDays')]: wd,
+        [t('preview.config.hoursPerDay')]: modules.hr.daily_hours != null ? String(modules.hr.daily_hours) : '-',
       },
     });
   }

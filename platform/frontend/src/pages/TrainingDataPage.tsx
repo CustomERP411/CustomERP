@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   trainingService,
   type SessionSummary,
@@ -30,24 +31,29 @@ function agentLabel(agent: string) {
   return agent.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function validateSdf(output: Record<string, any>): { valid: boolean; issues: string[] } {
+function validateSdf(
+  output: Record<string, any>,
+  t: (key: string, opts?: any) => string,
+): { valid: boolean; issues: string[] } {
   const issues: string[] = [];
-  if (!output) { issues.push('Output is empty'); return { valid: false, issues }; }
-  if (!output.project_name) issues.push('Missing project_name');
+  if (!output) { issues.push(t('training.validation.empty')); return { valid: false, issues }; }
+  if (!output.project_name) issues.push(t('training.validation.missingProjectName'));
   const entities = output.entities;
   if (!Array.isArray(entities) || entities.length === 0) {
-    issues.push('No entities defined');
+    issues.push(t('training.validation.noEntities'));
   } else {
     for (const e of entities) {
-      if (!e.slug) issues.push(`Entity missing slug`);
-      if (!Array.isArray(e.fields) || e.fields.length === 0) issues.push(`Entity "${e.slug || '?'}" has no fields`);
+      if (!e.slug) issues.push(t('training.validation.entityMissingSlug'));
+      if (!Array.isArray(e.fields) || e.fields.length === 0) issues.push(t('training.validation.entityNoFields', { slug: e.slug || '?' }));
     }
   }
-  if (!output.modules || typeof output.modules !== 'object') issues.push('Missing modules object');
+  if (!output.modules || typeof output.modules !== 'object') issues.push(t('training.validation.missingModules'));
   return { valid: issues.length === 0, issues };
 }
 
 export default function TrainingDataPage() {
+  const { t, i18n } = useTranslation('admin');
+  const lang = i18n.language;
   const [stats, setStats] = useState<TrainingStats | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -158,7 +164,7 @@ export default function TrainingDataPage() {
       fetchSessions();
       trainingService.getStats().then(setStats);
     } catch (e: any) {
-      alert(e?.message || 'Failed to save review');
+      alert(e?.message || t('training.agentsTab.failedToSave'));
     } finally {
       setStepReviewState(prev => ({ ...prev, [agent]: { ...prev[agent], saving: false } }));
     }
@@ -187,21 +193,21 @@ export default function TrainingDataPage() {
     });
   };
 
-  const sdfValidation = detail?.output ? validateSdf(detail.output) : null;
+  const sdfValidation = detail?.output ? validateSdf(detail.output, t) : null;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Stats bar */}
       <div className="flex flex-wrap items-center gap-4 border-b bg-white px-5 py-3">
-        <h1 className="text-lg font-bold text-slate-800">AI Training Data</h1>
+        <h1 className="text-lg font-bold text-slate-800">{t('training.title')}</h1>
         {stats && (
           <>
-            <Pill label="Sessions" value={stats.total_sessions ?? 0} />
-            <Pill label="Reviewed" value={stats.reviewed?.total ?? 0} color="blue" />
-            <Pill label="Good" value={stats.reviewed?.good ?? 0} color="green" />
-            <Pill label="Bad" value={stats.reviewed?.bad ?? 0} color="red" />
-            <Pill label="Needs Edit" value={stats.reviewed?.needs_edit ?? 0} color="amber" />
-            <Pill label="Tokens" value={(stats.total_tokens ?? 0).toLocaleString()} />
+            <Pill label={t('training.stats.sessions')} value={stats.total_sessions ?? 0} />
+            <Pill label={t('training.stats.reviewed')} value={stats.reviewed?.total ?? 0} color="blue" />
+            <Pill label={t('training.stats.good')} value={stats.reviewed?.good ?? 0} color="green" />
+            <Pill label={t('training.stats.bad')} value={stats.reviewed?.bad ?? 0} color="red" />
+            <Pill label={t('training.stats.needsEdit')} value={stats.reviewed?.needs_edit ?? 0} color="amber" />
+            <Pill label={t('training.stats.tokens')} value={(stats.total_tokens ?? 0).toLocaleString(lang)} />
           </>
         )}
         <div className="ml-auto">
@@ -209,7 +215,7 @@ export default function TrainingDataPage() {
             onClick={() => setShowExport(true)}
             className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
           >
-            Export for Azure
+            {t('training.export')}
           </button>
         </div>
       </div>
@@ -224,7 +230,7 @@ export default function TrainingDataPage() {
               onChange={(e) => { setFilterAgent(e.target.value); setOffset(0); }}
               className="rounded border px-2 py-1 text-xs"
             >
-              <option value="">All agents</option>
+              <option value="">{t('training.filters.allAgents')}</option>
               {AGENT_OPTIONS.map((a) => <option key={a} value={a}>{agentLabel(a)}</option>)}
             </select>
             <select
@@ -232,7 +238,7 @@ export default function TrainingDataPage() {
               onChange={(e) => { setFilterQuality(e.target.value); setOffset(0); }}
               className="rounded border px-2 py-1 text-xs"
             >
-              <option value="">All quality</option>
+              <option value="">{t('training.filters.allQuality')}</option>
               {QUALITY_OPTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
             </select>
             <select
@@ -240,18 +246,18 @@ export default function TrainingDataPage() {
               onChange={(e) => { setFilterReviewed(e.target.value); setOffset(0); }}
               className="rounded border px-2 py-1 text-xs"
             >
-              <option value="">All</option>
-              <option value="true">Reviewed</option>
-              <option value="false">Unreviewed</option>
+              <option value="">{t('training.filters.all')}</option>
+              <option value="true">{t('training.filters.reviewed')}</option>
+              <option value="false">{t('training.filters.unreviewed')}</option>
             </select>
           </div>
 
           {/* List */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-6 text-center text-sm text-slate-400">Loading...</div>
+              <div className="p-6 text-center text-sm text-slate-400">{t('training.loading')}</div>
             ) : sessions.length === 0 ? (
-              <div className="p-6 text-center text-sm text-slate-400">No sessions found</div>
+              <div className="p-6 text-center text-sm text-slate-400">{t('training.noSessions')}</div>
             ) : (
               sessions.map((s) => (
                 <button
@@ -268,14 +274,14 @@ export default function TrainingDataPage() {
                             {agentLabel(a).replace(' Generator', '')}
                           </span>
                         ))
-                      : <span className="rounded px-1.5 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-500">Pipeline</span>
+                      : <span className="rounded px-1.5 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-500">{t('training.sessionItem.pipeline')}</span>
                     }
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${qualityColor(s.quality)}`}>
-                      {s.quality || 'unreviewed'}
+                      {s.quality || t('training.sessionItem.unreviewed')}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-slate-600 line-clamp-2">{s.description_snippet || '(no description)'}</p>
-                  <p className="mt-0.5 text-[10px] text-slate-400">{new Date(s.timestamp).toLocaleString()}</p>
+                  <p className="mt-1 text-xs text-slate-600 line-clamp-2">{s.description_snippet || t('training.sessionItem.noDescription')}</p>
+                  <p className="mt-0.5 text-[10px] text-slate-400">{new Date(s.timestamp).toLocaleString(lang)}</p>
                 </button>
               ))
             )}
@@ -283,18 +289,18 @@ export default function TrainingDataPage() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between border-t bg-white px-3 py-2 text-xs text-slate-500">
-            <span>{total} total</span>
+            <span>{t('training.sessionsTotal', { count: total })}</span>
             <div className="flex gap-1">
               <button
                 disabled={offset === 0}
                 onClick={() => setOffset(Math.max(0, offset - limit))}
                 className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-slate-100"
-              >Prev</button>
+              >{t('training.prev')}</button>
               <button
                 disabled={offset + limit >= total}
                 onClick={() => setOffset(offset + limit)}
                 className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-slate-100"
-              >Next</button>
+              >{t('training.next')}</button>
             </div>
           </div>
         </div>
@@ -303,10 +309,10 @@ export default function TrainingDataPage() {
         <div className="flex-1 overflow-y-auto bg-white">
           {!selectedId ? (
             <div className="flex h-full items-center justify-center text-sm text-slate-400">
-              Select a session to view details
+              {t('training.selectSession')}
             </div>
           ) : detailLoading ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">Loading session...</div>
+            <div className="flex h-full items-center justify-center text-sm text-slate-400">{t('training.loadingSession')}</div>
           ) : detail ? (
             <div className="flex flex-col h-full">
               {/* Tabs */}
@@ -321,11 +327,11 @@ export default function TrainingDataPage() {
                         : 'border-transparent text-slate-500 hover:text-slate-700'
                     }`}
                   >
-                    {tab === 'agents' ? `Agents (${detail.step_logs?.filter(s => s.model !== 'deterministic').length || 0})` : tab}
+                    {tab === 'agents' ? t('training.tabs.agents', { count: detail.step_logs?.filter(s => s.model !== 'deterministic').length || 0 }) : t('training.tabs.overview')}
                   </button>
                 ))}
                 <div className="ml-auto flex items-center gap-2 text-xs text-slate-400 pr-2">
-                  <span>{new Date(detail.timestamp).toLocaleString()}</span>
+                  <span>{new Date(detail.timestamp).toLocaleString(lang)}</span>
                 </div>
               </div>
 
@@ -336,7 +342,7 @@ export default function TrainingDataPage() {
                     {sdfValidation && (
                       <div className={`rounded-lg border p-3 ${sdfValidation.valid ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
                         <h3 className="text-sm font-semibold">
-                          {sdfValidation.valid ? 'SDF Valid' : 'SDF Validation Issues'}
+                          {sdfValidation.valid ? t('training.overview.sdfValid') : t('training.overview.sdfIssues')}
                         </h3>
                         {!sdfValidation.valid && (
                           <ul className="mt-1 list-disc pl-5 text-xs text-red-700">
@@ -347,7 +353,7 @@ export default function TrainingDataPage() {
                     )}
 
                     <div className="rounded-lg border p-3">
-                      <h3 className="text-sm font-semibold text-slate-700 mb-2">Token Usage</h3>
+                      <h3 className="text-sm font-semibold text-slate-700 mb-2">{t('training.overview.tokenUsage')}</h3>
                       <div className="flex flex-wrap gap-3 text-xs">
                         {Object.entries(detail.token_usage || {}).map(([key, val]) => {
                           if (typeof val !== 'object' || val === null) {
@@ -359,20 +365,20 @@ export default function TrainingDataPage() {
                           }
                           const prompt = val.prompt ?? 0;
                           const completion = val.completion ?? 0;
-                          const t = val.total ?? (prompt + completion);
+                          const totalTok = val.total ?? (prompt + completion);
                           return (
                             <div key={key} className="rounded bg-slate-100 px-2.5 py-1">
                               <span className="font-medium">{key}:</span>{' '}
-                              {t.toLocaleString()} tokens
-                              <span className="ml-1 text-slate-400">({prompt.toLocaleString()} in / {completion.toLocaleString()} out)</span>
+                              {totalTok.toLocaleString(lang)} {t('training.overview.tokens')}
+                              <span className="ml-1 text-slate-400">{t('training.overview.inOut', { in_: prompt.toLocaleString(lang), out: completion.toLocaleString(lang) })}</span>
                             </div>
                           );
                         })}
                       </div>
                     </div>
 
-                    <JsonSection title="Input (top-level)" data={detail.input} defaultExpanded />
-                    <JsonSection title="Output (final SDF)" data={detail.output} defaultExpanded />
+                    <JsonSection title={t('training.overview.inputTopLevel')} data={detail.input} defaultExpanded />
+                    <JsonSection title={t('training.overview.outputFinal')} data={detail.output} defaultExpanded />
                   </div>
                 )}
 
@@ -380,7 +386,7 @@ export default function TrainingDataPage() {
                 {detailTab === 'agents' && (
                   <div className="space-y-4">
                     {(!detail.step_logs || detail.step_logs.filter(s => s.model !== 'deterministic').length === 0) ? (
-                      <p className="text-sm text-slate-400">No agent step logs available for this session.</p>
+                      <p className="text-sm text-slate-400">{t('training.agentsTab.noAgentLogs')}</p>
                     ) : (
                       detail.step_logs.filter(s => s.model !== 'deterministic').map((step, i) => {
                         const isExpanded = expandedSteps.has(i);
@@ -409,8 +415,8 @@ export default function TrainingDataPage() {
                                 )}
                               </div>
                               <div className="flex items-center gap-3 text-xs text-slate-500">
-                                <span className="font-medium">{(step.tokens_in + step.tokens_out).toLocaleString()} tokens</span>
-                                <span className="text-slate-400">{step.tokens_in.toLocaleString()} in / {step.tokens_out.toLocaleString()} out</span>
+                                <span className="font-medium">{t('training.agentsTab.tokens', { count: (step.tokens_in + step.tokens_out).toLocaleString(lang) as any })}</span>
+                                <span className="text-slate-400">{t('training.agentsTab.tokensInOut', { in_: step.tokens_in.toLocaleString(lang), out: step.tokens_out.toLocaleString(lang) })}</span>
                                 <span>{(step.duration_ms / 1000).toFixed(1)}s</span>
                                 <svg className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -424,7 +430,7 @@ export default function TrainingDataPage() {
                                 <div className="divide-y">
                                   {step.prompt_text && (
                                     <SectionToggle
-                                      title="Prompt Sent to AI"
+                                      title={t('training.agentsTab.promptSent')}
                                       sectionKey={promptKey}
                                       expanded={expandedSections.has(promptKey)}
                                       onToggle={toggleSection}
@@ -437,7 +443,7 @@ export default function TrainingDataPage() {
                                   )}
 
                                   <SectionToggle
-                                    title="Input Data (structured)"
+                                    title={t('training.agentsTab.inputData')}
                                     sectionKey={inputKey}
                                     expanded={expandedSections.has(inputKey)}
                                     onToggle={toggleSection}
@@ -449,7 +455,7 @@ export default function TrainingDataPage() {
                                   </SectionToggle>
 
                                   <SectionToggle
-                                    title="Parsed Output (JSON)"
+                                    title={t('training.agentsTab.parsedOutput')}
                                     sectionKey={outputKey}
                                     expanded={expandedSections.has(outputKey)}
                                     onToggle={toggleSection}
@@ -462,7 +468,7 @@ export default function TrainingDataPage() {
 
                                   {step.raw_response && (
                                     <SectionToggle
-                                      title="Raw AI Response"
+                                      title={t('training.agentsTab.rawResponse')}
                                       sectionKey={rawKey}
                                       expanded={expandedSections.has(rawKey)}
                                       onToggle={toggleSection}
@@ -478,10 +484,10 @@ export default function TrainingDataPage() {
                                 {/* Review — always visible when expanded */}
                                 <div className="border-t bg-white px-4 py-3 space-y-3">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-slate-700">Review</span>
+                                    <span className="text-xs font-semibold text-slate-700">{t('training.agentsTab.review')}</span>
                                     {existingReview?.reviewed_at && (
                                       <span className="text-[10px] text-slate-400">
-                                        Last saved {new Date(existingReview.reviewed_at).toLocaleDateString()}
+                                        {t('training.agentsTab.lastSaved', { date: new Date(existingReview.reviewed_at).toLocaleDateString(lang) })}
                                       </span>
                                     )}
                                   </div>
@@ -506,7 +512,7 @@ export default function TrainingDataPage() {
                                       disabled={!sr.quality || sr.saving}
                                       className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
                                     >
-                                      {sr.saving ? 'Saving...' : 'Save'}
+                                      {sr.saving ? t('training.agentsTab.saving') : t('training.agentsTab.save')}
                                     </button>
                                   </div>
 
@@ -516,14 +522,14 @@ export default function TrainingDataPage() {
                                       onChange={(e) => updateStepReview(step.agent, 'notes', e.target.value)}
                                       rows={2}
                                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                      placeholder="Notes (not used in training)..."
+                                      placeholder={t('training.agentsTab.notesPlaceholder')}
                                     />
                                     <textarea
                                       value={sr.corrective}
                                       onChange={(e) => updateStepReview(step.agent, 'corrective', e.target.value)}
                                       rows={2}
                                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                      placeholder="Correction notes (personal reference)..."
+                                      placeholder={t('training.agentsTab.correctivePlaceholder')}
                                     />
                                   </div>
 
@@ -534,11 +540,11 @@ export default function TrainingDataPage() {
                                         onChange={(e) => updateStepReview(step.agent, 'edited', e.target.value)}
                                         rows={8}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                        placeholder="Paste corrected JSON output for this agent..."
+                                        placeholder={t('training.agentsTab.editedPlaceholder')}
                                       />
                                       {sr.edited.trim() && (() => {
-                                        try { JSON.parse(sr.edited); return <p className="mt-1 text-xs text-emerald-600">Valid JSON</p>; }
-                                        catch { return <p className="mt-1 text-xs text-red-600">Invalid JSON</p>; }
+                                        try { JSON.parse(sr.edited); return <p className="mt-1 text-xs text-emerald-600">{t('training.agentsTab.validJson')}</p>; }
+                                        catch { return <p className="mt-1 text-xs text-red-600">{t('training.agentsTab.invalidJson')}</p>; }
                                       })()}
                                     </div>
                                   )}

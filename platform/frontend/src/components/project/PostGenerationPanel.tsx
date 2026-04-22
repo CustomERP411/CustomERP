@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { AiGatewaySdf } from '../../types/aiGateway';
 import type { ReviewHistoryItem } from './ReviewApprovalPanel';
 import ReviewApprovalPanel from './ReviewApprovalPanel';
@@ -46,6 +47,7 @@ export default function PostGenerationPanel({
   onSaveDraft, onDownloadStandalone, onDownloadZip,
   onApplyAiEdit, onSetAiEditText, onSetDraftJson, onResetDraftJson,
 }: PostGenerationPanelProps) {
+  const { t } = useTranslation('projectDetail');
   return (
     <>
       {preview && sdf && (
@@ -57,9 +59,9 @@ export default function PostGenerationPanel({
               </svg>
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-slate-900">Your ERP is ready</h3>
+              <h3 className="text-xl font-semibold text-slate-900">{t('postGeneration.readyTitle')}</h3>
               <p className="mt-1 text-sm text-slate-600">
-                Preview your ERP live, test it out, and request any changes you need.
+                {t('postGeneration.readyBody')}
               </p>
             </div>
           </div>
@@ -69,7 +71,7 @@ export default function PostGenerationPanel({
               const key = typeof mod === 'string' ? mod : (mod?.title || `mod-${idx}`);
               const label = typeof mod === 'string'
                 ? mod.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
-                : (mod?.title || 'Module');
+                : (mod?.title || t('postGeneration.moduleFallback'));
               const colorKey = key.toLowerCase().replace(/\s+/g, '_');
               const colors: Record<string, string> = {
                 inventory: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -83,7 +85,7 @@ export default function PostGenerationPanel({
               );
             })}
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600 border border-slate-200">
-              {preview.entityCount} {preview.entityCount === 1 ? 'data type' : 'data types'}
+              {t('postGeneration.dataTypes', { count: preview.entityCount })}
             </span>
           </div>
 
@@ -93,7 +95,7 @@ export default function PostGenerationPanel({
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-base font-semibold text-white shadow-lg hover:bg-indigo-700 hover:shadow-xl transition-all"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            Preview My ERP
+            {t('postGeneration.previewBtn')}
           </button>
         </section>
       )}
@@ -119,7 +121,7 @@ export default function PostGenerationPanel({
             onClick={onToggleAdvancedView}
             className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors"
           >
-            {showAdvancedView ? 'Hide developer details' : 'Show developer details'}
+            {showAdvancedView ? t('postGeneration.hideDevDetails') : t('postGeneration.showDevDetails')}
           </button>
           <SlideIn show={showAdvancedView} className="mt-4 space-y-8">
             <SdfPreviewSection

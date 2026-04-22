@@ -1,18 +1,20 @@
 const db = require('../config/database');
+const { normalizeLanguage, DEFAULT_LANGUAGE } = require('../services/authService');
 
 class Project {
-  static async create({ name, userId, description = null }) {
-    // We let DB generate UUID via default if we want, or generate here.
-    // Migration says: project_id UUID PRIMARY KEY DEFAULT uuid_generate_v4()
-    // So we can skip ID generation or do it here. Let's do it here to return it immediately if needed, 
-    // but cleaner to let DB handle it if configured. However, pg driver returns the row.
-    // Let's use DB default for ID, but we need to pass owner_user_id.
-    
+  /**
+   * Create a project. `language` is silently inherited from the user's preferred
+   * language (passed in by the controller) and LOCKED at creation time. Callers
+   * MUST NOT allow it to be mutated later.
+   */
+  static async create({ name, userId, description = null, language }) {
+    const lang = normalizeLanguage(language || DEFAULT_LANGUAGE);
+
     const result = await db.query(
-      `INSERT INTO projects (name, owner_user_id, description, status)
-       VALUES ($1, $2, $3, 'Draft')
+      `INSERT INTO projects (name, owner_user_id, description, status, language)
+       VALUES ($1, $2, $3, 'Draft', $4)
        RETURNING *`,
-      [name, userId, description]
+      [name, userId, description, lang]
     );
     return this._transform(result.rows[0]);
   }
@@ -33,8 +35,14 @@ class Project {
     return result.rows[0] ? this._transform(result.rows[0]) : null;
   }
 
+  /**
+   * Update a project. `language` is intentionally immutable after creation:
+   * even if the caller passes it, we ignore it.
+   */
   static async update(id, userId, updates) {
-    const { name, description, status, mode } = updates;
+    const { name, description, status, mode } = updates || {};
+    // Note: `language` is explicitly NOT destructured and NOT updated. The
+    // project language is locked at creation.
     const result = await db.query(
       `UPDATE projects
        SET name = COALESCE($1, name),
@@ -76,8 +84,6 @@ class Project {
     return result.rowCount > 0;
   }
 
-  // Helper to normalize DB columns to API response fields if needed
-  // e.g. project_id -> id, owner_user_id -> userId (optional, but good for frontend consistency)
   static _transform(row) {
     if (!row) return null;
     return {
@@ -86,6 +92,7 @@ class Project {
       status: row.status,
       description: row.description,
       mode: row.mode || 'chat',
+      language: normalizeLanguage(row.language || DEFAULT_LANGUAGE),
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

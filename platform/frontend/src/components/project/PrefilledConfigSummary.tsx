@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { MOD_STYLES } from './projectConstants';
 import type { AiGatewaySdf } from '../../types/aiGateway';
 
@@ -18,15 +19,16 @@ export interface PrefilledConfigSummaryProps {
 export default function PrefilledConfigSummary({
   moduleSummary, showJson, prefilledSdf, onToggleJson,
 }: PrefilledConfigSummaryProps) {
+  const { t } = useTranslation('projectDetail');
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-slate-900">Your ERP Configuration</h3>
-          <p className="mt-0.5 text-xs text-slate-500">Auto-generated from your answers above. This is sent as a starting point for AI.</p>
+          <h3 className="text-base font-semibold text-slate-900">{t('prefilledConfig.title')}</h3>
+          <p className="mt-0.5 text-xs text-slate-500">{t('prefilledConfig.subtitle')}</p>
         </div>
         <button type="button" onClick={onToggleJson} className="text-xs text-slate-500 underline hover:text-slate-700">
-          {showJson ? 'Hide JSON' : 'Show JSON'}
+          {showJson ? t('prefilledConfig.hideJson') : t('prefilledConfig.showJson')}
         </button>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

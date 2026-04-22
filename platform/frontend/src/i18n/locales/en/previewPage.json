@@ -1,0 +1,68 @@
+{
+  "livePreview": "Live Preview",
+  "approveDownload": "Approve & Download",
+  "iframeTitle": "ERP Preview",
+  "preparingPreview": "Preparing preview...",
+  "mayTake": "This may take up to a minute",
+  "previewFailed": "Preview Failed",
+  "previewFailedGeneric": "Something went wrong while generating the preview.",
+  "tryAgain": "Try Again",
+  "backToProject": "Back to Project",
+  "status": {
+    "running": "Running",
+    "inQueue": "In Queue",
+    "building": "Building...",
+    "error": "Error",
+    "stopping": "Stopping...",
+    "idle": "Idle"
+  },
+  "queue": {
+    "title": "Your preview is queued",
+    "position": "Position {{position}} in queue. Another build is in progress.",
+    "waiting": "Waiting for a build slot to open up."
+  },
+  "progress": {
+    "generating": "Generating your ERP...",
+    "installBackend": "Installing backend dependencies...",
+    "installFrontend": "Installing frontend dependencies...",
+    "buildingInterface": "Building interface...",
+    "starting": "Starting your ERP..."
+  },
+  "errors": {
+    "previewBuildFailed": "Preview build failed. Please try again.",
+    "startFailed": "Failed to start preview",
+    "downloadFailed": "Download failed. Please try again.",
+    "tooLong": "Generation took too long. Your inputs are saved — please try again.",
+    "unreachable": "Our AI service is temporarily unreachable. Please try again in a few minutes.",
+    "highDemand": "We're experiencing high demand. Please wait a moment and try again.",
+    "unexpectedFormat": "The AI produced an unexpected format. Please try generating again.",
+    "generic": "Something went wrong during generation. Please try again."
+  },
+  "phase": {
+    "applying": "Applying changes...",
+    "waitingAnswers": "Waiting for your answers",
+    "processingAnswers": "Processing your answers...",
+    "complete": "Complete"
+  },
+  "changePanel": {
+    "title": "Request Changes",
+    "subtitle": "Describe what you'd like changed and we'll regenerate your ERP.",
+    "placeholder": "e.g. Add an expiry date field to products, change the invoice layout to show tax separately...",
+    "button": "Request Changes"
+  },
+  "downloadModal": {
+    "choosePlatform": "Choose the operating system you'll run this ERP on.",
+    "runWith": "Run with",
+    "compiling": "Compiling your ERP",
+    "buildingFor": "Building for {{platform}}. This may take a few minutes.",
+    "dontClose": "Please don't close this page.",
+    "startedTitle": "Download started!",
+    "startedBody": "Your ERP has been approved and the download should begin automatically.",
+    "failedTitle": "Download failed",
+    "retry": "Retry"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close"
+  }
+}

@@ -5,6 +5,19 @@ const { generateToken } = require('../utils/jwt');
 const logger = require('../utils/logger');
 
 const SALT_ROUNDS = 10;
+const SUPPORTED_LANGUAGES = ['en', 'tr'];
+const DEFAULT_LANGUAGE = 'en';
+
+function normalizeLanguage(value) {
+  if (typeof value !== 'string') return DEFAULT_LANGUAGE;
+  const lower = value.trim().toLowerCase();
+  if (!lower) return DEFAULT_LANGUAGE;
+  if (SUPPORTED_LANGUAGES.includes(lower)) return lower;
+  // Accept locale tags like "tr-TR" by using the language part.
+  const prefix = lower.split('-')[0];
+  if (SUPPORTED_LANGUAGES.includes(prefix)) return prefix;
+  return DEFAULT_LANGUAGE;
+}
 
 /**
  * Authentication Service
@@ -13,11 +26,10 @@ const SALT_ROUNDS = 10;
 class AuthService {
   /**
    * Register a new user
-   * @param {Object} userData - { name, email, password }
+   * @param {Object} userData - { name, email, password, preferred_language }
    * @returns {Promise<{token: string, user: Object}>}
    */
-  async register({ name, email, password }) {
-    // Check if email already exists
+  async register({ name, email, password, preferred_language }) {
     const existingUser = await this.findByEmail(email);
     if (existingUser) {
       const error = new Error('An account with this email address already exists.');
@@ -25,32 +37,33 @@ class AuthService {
       throw error;
     }
 
-    // Hash password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const userId = uuidv4();
+    const lang = normalizeLanguage(preferred_language);
 
-    // Insert user into database
     const insertQuery = `
-      INSERT INTO users (user_id, name, email, password_hash, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING user_id, name, email, is_admin, created_at
+      INSERT INTO users (user_id, name, email, password_hash, preferred_language, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING user_id, name, email, is_admin, preferred_language, created_at
     `;
-    
+
     const result = await query(insertQuery, [
       userId,
       name.trim(),
       email.toLowerCase().trim(),
       passwordHash,
+      lang,
     ]);
 
     const user = result.rows[0];
-    logger.info(`User registered: ${user.email}`);
+    logger.info(`User registered: ${user.email} (lang=${user.preferred_language})`);
 
     const token = generateToken({
       userId: user.user_id,
       email: user.email,
       name: user.name,
       isAdmin: !!user.is_admin,
+      preferredLanguage: user.preferred_language,
     });
 
     return {
@@ -60,6 +73,7 @@ class AuthService {
         name: user.name,
         email: user.email,
         is_admin: !!user.is_admin,
+        preferred_language: user.preferred_language,
         created_at: user.created_at,
       },
     };
@@ -98,11 +112,14 @@ class AuthService {
 
     logger.info(`User logged in: ${email}`);
 
+    const preferredLanguage = normalizeLanguage(user.preferred_language);
+
     const token = generateToken({
       userId: user.user_id,
       email: user.email,
       name: user.name,
       isAdmin: !!user.is_admin,
+      preferredLanguage,
     });
 
     return {
@@ -112,6 +129,7 @@ class AuthService {
         name: user.name,
         email: user.email,
         is_admin: !!user.is_admin,
+        preferred_language: preferredLanguage,
         created_at: user.created_at,
       },
     };
@@ -119,23 +137,24 @@ class AuthService {
 
   /**
    * Get user by ID
-   * @param {string} userId 
+   * @param {string} userId
    * @returns {Promise<Object|null>}
    */
   async findById(userId) {
     const result = await query(
-      'SELECT user_id, name, email, is_admin, created_at, updated_at FROM users WHERE user_id = $1 AND deleted_at IS NULL',
+      'SELECT user_id, name, email, is_admin, preferred_language, created_at, updated_at FROM users WHERE user_id = $1 AND deleted_at IS NULL',
       [userId]
     );
-    
+
     if (!result.rows[0]) return null;
-    
+
     const user = result.rows[0];
     return {
       id: user.user_id,
       name: user.name,
       email: user.email,
       is_admin: !!user.is_admin,
+      preferred_language: normalizeLanguage(user.preferred_language),
       created_at: user.created_at,
       updated_at: user.updated_at,
     };
@@ -143,12 +162,12 @@ class AuthService {
 
   /**
    * Get user by email
-   * @param {string} email 
+   * @param {string} email
    * @returns {Promise<Object|null>}
    */
   async findByEmail(email) {
     const result = await query(
-      'SELECT user_id, name, email, password_hash, is_admin, deleted_at, blocked_at, block_reason, created_at, updated_at FROM users WHERE email = $1',
+      'SELECT user_id, name, email, password_hash, is_admin, preferred_language, deleted_at, blocked_at, block_reason, created_at, updated_at FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
     );
     return result.rows[0] || null;
@@ -164,7 +183,7 @@ class AuthService {
     return user;
   }
 
-  async updateProfile(userId, { name, email }) {
+  async updateProfile(userId, { name, email, preferred_language }) {
     const updates = [];
     const values = [];
     let paramIdx = 1;
@@ -184,6 +203,10 @@ class AuthService {
       updates.push(`email = $${paramIdx++}`);
       values.push(normalizedEmail);
     }
+    if (preferred_language !== undefined) {
+      updates.push(`preferred_language = $${paramIdx++}`);
+      values.push(normalizeLanguage(preferred_language));
+    }
 
     if (!updates.length) {
       return this.findById(userId);
@@ -192,7 +215,7 @@ class AuthService {
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
     values.push(userId);
 
-    const sql = `UPDATE users SET ${updates.join(', ')} WHERE user_id = $${paramIdx} AND deleted_at IS NULL RETURNING user_id, name, email, created_at, updated_at`;
+    const sql = `UPDATE users SET ${updates.join(', ')} WHERE user_id = $${paramIdx} AND deleted_at IS NULL RETURNING user_id, name, email, preferred_language, created_at, updated_at`;
     const result = await query(sql, values);
     if (!result.rows[0]) {
       const error = new Error('User not found');
@@ -201,7 +224,14 @@ class AuthService {
     }
     const row = result.rows[0];
     logger.info(`Profile updated: ${userId}`);
-    return { id: row.user_id, name: row.name, email: row.email, created_at: row.created_at, updated_at: row.updated_at };
+    return {
+      id: row.user_id,
+      name: row.name,
+      email: row.email,
+      preferred_language: normalizeLanguage(row.preferred_language),
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
   }
 
   async changePassword(userId, currentPassword, newPassword) {
@@ -247,3 +277,6 @@ class AuthService {
 }
 
 module.exports = new AuthService();
+module.exports.SUPPORTED_LANGUAGES = SUPPORTED_LANGUAGES;
+module.exports.DEFAULT_LANGUAGE = DEFAULT_LANGUAGE;
+module.exports.normalizeLanguage = normalizeLanguage;

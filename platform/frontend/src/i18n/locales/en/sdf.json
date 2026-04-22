@@ -1,0 +1,24 @@
+{
+  "section": {
+    "title": "Your ERP Setup",
+    "entities": "Entities",
+    "modules": "Modules",
+    "warnings": "Warnings",
+    "unsupported": "Recorded for future development"
+  },
+  "entity": {
+    "tableColumns": "Table columns",
+    "availableActions": "Available actions",
+    "relations": "Relations",
+    "importCsv": "Import CSV",
+    "exportCsv": "Export CSV",
+    "noColumns": "No columns defined.",
+    "noRelations": "No relations."
+  },
+  "actions": {
+    "create": "Create",
+    "read": "View",
+    "update": "Edit",
+    "delete": "Delete"
+  }
+}

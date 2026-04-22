@@ -56,7 +56,7 @@ async function rmDirRecursive(dir) {
   }
 }
 
-async function generateProjectDir({ projectId, sdf, standalone = false }) {
+async function generateProjectDir({ projectId, sdf, standalone = false, language = 'en' }) {
   await acquireGenerationSlot();
   try {
     const { assemblerPath, brickLibraryPath, outputRoot } = getPaths();
@@ -70,14 +70,14 @@ async function generateProjectDir({ projectId, sdf, standalone = false }) {
     const assembler = new ProjectAssembler(brickRepo, outputRoot);
 
     const genId = `${safeFileName(projectId)}-${Date.now()}`;
-    const outputDir = await assembler.assemble(genId, sdf, { standalone });
+    const outputDir = await assembler.assemble(genId, sdf, { standalone, language });
     return { outputDir, genId };
   } finally {
     releaseGenerationSlot();
   }
 }
 
-async function generateStandaloneDir({ projectId, sdf, platform }) {
+async function generateStandaloneDir({ projectId, sdf, platform, language = 'en' }) {
   const { assemblerPath } = getPaths();
   const StandalonePackager = require(path.join(assemblerPath, 'StandalonePackager'));
 
@@ -88,7 +88,7 @@ async function generateStandaloneDir({ projectId, sdf, platform }) {
     throw err;
   }
 
-  const { outputDir } = await generateProjectDir({ projectId, sdf, standalone: true });
+  const { outputDir } = await generateProjectDir({ projectId, sdf, standalone: true, language });
 
   try {
     await StandalonePackager.buildStandaloneBundle({

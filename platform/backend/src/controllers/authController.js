@@ -1,6 +1,15 @@
 const authService = require('../services/authService');
+const { SUPPORTED_LANGUAGES, normalizeLanguage } = require('../services/authService');
 const { isValidEmail, validatePassword, validateName, sanitize } = require('../utils/validators');
 const logger = require('../utils/logger');
+
+function validateLanguage(value) {
+  if (value === undefined || value === null) return { valid: true, value: undefined };
+  if (typeof value !== 'string' || !SUPPORTED_LANGUAGES.includes(value.trim().toLowerCase().split('-')[0])) {
+    return { valid: false, message: `preferred_language must be one of: ${SUPPORTED_LANGUAGES.join(', ')}` };
+  }
+  return { valid: true, value: normalizeLanguage(value) };
+}
 
 /**
  * Authentication Controller
@@ -13,30 +22,32 @@ const logger = require('../utils/logger');
  */
 async function register(req, res, next) {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, preferred_language } = req.body;
 
-    // Validate name
     const nameValidation = validateName(name);
     if (!nameValidation.valid) {
       return res.status(400).json({ error: nameValidation.message });
     }
 
-    // Validate email
     if (!email || !isValidEmail(email)) {
       return res.status(400).json({ error: 'Valid email is required' });
     }
 
-    // Validate password
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.valid) {
       return res.status(400).json({ error: passwordValidation.message });
     }
 
-    // Register user
+    const langValidation = validateLanguage(preferred_language);
+    if (!langValidation.valid) {
+      return res.status(400).json({ error: langValidation.message });
+    }
+
     const result = await authService.register({
       name: sanitize(name),
       email: email.toLowerCase().trim(),
       password,
+      preferred_language: langValidation.value,
     });
 
     res.status(201).json(result);
@@ -139,7 +150,7 @@ async function deleteAccount(req, res, next) {
 
 async function updateProfile(req, res, next) {
   try {
-    const { name, email } = req.body;
+    const { name, email, preferred_language } = req.body;
 
     if (name !== undefined) {
       const nameValidation = validateName(name);
@@ -150,10 +161,15 @@ async function updateProfile(req, res, next) {
     if (email !== undefined && !isValidEmail(email)) {
       return res.status(400).json({ error: 'Valid email is required' });
     }
+    const langValidation = validateLanguage(preferred_language);
+    if (!langValidation.valid) {
+      return res.status(400).json({ error: langValidation.message });
+    }
 
     const user = await authService.updateProfile(req.user.userId, {
       name: name !== undefined ? sanitize(name) : undefined,
       email: email !== undefined ? email.toLowerCase().trim() : undefined,
+      preferred_language: langValidation.value,
     });
 
     res.json({ user });

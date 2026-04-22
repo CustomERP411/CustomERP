@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import {
   featureRequestService,
@@ -10,13 +11,6 @@ import {
 
 const STATUSES: FeatureStatus[] = ['recorded', 'denied', 'in_progress', 'completed'];
 const SOURCES = ['chatbot', 'sdf_generation'];
-
-const STATUS_LABELS: Record<FeatureStatus, string> = {
-  recorded: 'Recorded',
-  denied: 'Not Planned',
-  in_progress: 'In Progress',
-  completed: 'Done',
-};
 
 function statusColor(s: string) {
   if (s === 'recorded') return 'bg-slate-100 text-slate-700';
@@ -32,6 +26,13 @@ function sourceBadge(s: string) {
 
 export default function FeatureRequestsAdminPage() {
   const { user } = useAuth();
+  const { t, i18n } = useTranslation('admin');
+  const STATUS_LABELS: Record<FeatureStatus, string> = {
+    recorded: t('featureRequests.statusLabels.recorded'),
+    denied: t('featureRequests.statusLabels.denied'),
+    in_progress: t('featureRequests.statusLabels.in_progress'),
+    completed: t('featureRequests.statusLabels.completed'),
+  };
   const [stats, setStats] = useState<FeatureRequestStats | null>(null);
   const [requests, setRequests] = useState<FeatureRequest[]>([]);
   const [total, setTotal] = useState(0);
@@ -94,7 +95,7 @@ export default function FeatureRequestsAdminPage() {
       setDetail(d);
       fetchList();
       featureRequestService.getStats().then(setStats);
-    } catch (e: any) { alert(e?.message || 'Failed to save'); }
+    } catch (e: any) { alert(e?.message || t('featureRequests.detail.saveFailed')); }
     finally { setSaving(false); }
   };
 
@@ -106,14 +107,14 @@ export default function FeatureRequestsAdminPage() {
       const d = await featureRequestService.getDetail(detail.id);
       setDetail(d);
       setMsgText('');
-    } catch (e: any) { alert(e?.message || 'Failed to send'); }
+    } catch (e: any) { alert(e?.message || t('featureRequests.detail.sendFailed')); }
     finally { setMsgSending(false); }
   };
 
   if (!user?.is_admin) {
     return (
       <div className="mx-auto max-w-2xl py-20 text-center">
-        <h1 className="text-xl font-bold text-slate-900">Access Denied</h1>
+        <h1 className="text-xl font-bold text-slate-900">{t('featureRequests.accessDenied')}</h1>
       </div>
     );
   }
@@ -122,14 +123,14 @@ export default function FeatureRequestsAdminPage() {
     <div className="flex h-full flex-col overflow-hidden">
       {/* Stats bar */}
       <div className="flex flex-wrap items-center gap-4 border-b bg-white px-5 py-3">
-        <h1 className="text-lg font-bold text-slate-800">Feature Requests</h1>
+        <h1 className="text-lg font-bold text-slate-800">{t('featureRequests.title')}</h1>
         {stats && (
           <>
-            <Pill label="Total" value={stats.total} />
-            <Pill label="Recorded" value={stats.by_status?.recorded ?? 0} />
-            <Pill label="In Progress" value={stats.by_status?.in_progress ?? 0} color="blue" />
-            <Pill label="Done" value={stats.by_status?.completed ?? 0} color="green" />
-            <Pill label="Not Planned" value={stats.by_status?.denied ?? 0} color="red" />
+            <Pill label={t('featureRequests.stats.total')} value={stats.total} />
+            <Pill label={t('featureRequests.stats.recorded')} value={stats.by_status?.recorded ?? 0} />
+            <Pill label={t('featureRequests.stats.inProgress')} value={stats.by_status?.in_progress ?? 0} color="blue" />
+            <Pill label={t('featureRequests.stats.done')} value={stats.by_status?.completed ?? 0} color="green" />
+            <Pill label={t('featureRequests.stats.notPlanned')} value={stats.by_status?.denied ?? 0} color="red" />
           </>
         )}
       </div>
@@ -140,21 +141,21 @@ export default function FeatureRequestsAdminPage() {
           {/* Filters */}
           <div className="flex flex-wrap gap-2 border-b px-3 py-2 bg-white">
             <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setOffset(0); }} className="rounded border px-2 py-1 text-xs">
-              <option value="">All statuses</option>
+              <option value="">{t('featureRequests.filters.allStatuses')}</option>
               {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
             </select>
             <select value={filterSource} onChange={(e) => { setFilterSource(e.target.value); setOffset(0); }} className="rounded border px-2 py-1 text-xs">
-              <option value="">All sources</option>
-              {SOURCES.map((s) => <option key={s} value={s}>{s === 'chatbot' ? 'Chatbot' : 'SDF Generation'}</option>)}
+              <option value="">{t('featureRequests.filters.allSources')}</option>
+              {SOURCES.map((s) => <option key={s} value={s}>{s === 'chatbot' ? t('featureRequests.sources.chatbot') : t('featureRequests.sources.sdfGeneration')}</option>)}
             </select>
           </div>
 
           {/* List */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-6 text-center text-sm text-slate-400">Loading...</div>
+              <div className="p-6 text-center text-sm text-slate-400">{t('featureRequests.list.loading')}</div>
             ) : requests.length === 0 ? (
-              <div className="p-6 text-center text-sm text-slate-400">No feature requests found</div>
+              <div className="p-6 text-center text-sm text-slate-400">{t('featureRequests.list.empty')}</div>
             ) : (
               requests.map((r) => (
                 <button
@@ -166,12 +167,12 @@ export default function FeatureRequestsAdminPage() {
                 >
                   <div className="flex items-center gap-1.5 text-xs">
                     <span className={`rounded px-1.5 py-0.5 font-medium ${sourceBadge(r.source)}`}>
-                      {r.source === 'chatbot' ? 'Chatbot' : 'SDF'}
+                      {r.source === 'chatbot' ? t('featureRequests.sources.chatbot') : t('featureRequests.sources.sdfShort')}
                     </span>
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusColor(r.status)}`}>
                       {STATUS_LABELS[r.status] || r.status}
                     </span>
-                    <span className="ml-auto text-slate-400">{new Date(r.created_at).toLocaleDateString()}</span>
+                    <span className="ml-auto text-slate-400">{new Date(r.created_at).toLocaleDateString(i18n.language)}</span>
                   </div>
                   <p className="mt-1 text-sm font-medium text-slate-800 line-clamp-2">{r.feature_name}</p>
                   <p className="mt-0.5 text-[11px] text-slate-500">{r.user_name || r.user_email || '—'} {r.project_name ? `· ${r.project_name}` : ''}</p>
@@ -182,10 +183,10 @@ export default function FeatureRequestsAdminPage() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between border-t bg-white px-3 py-2 text-xs text-slate-500">
-            <span>{total} total</span>
+            <span>{t('featureRequests.list.total', { count: total })}</span>
             <div className="flex gap-1">
-              <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))} className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-slate-100">Prev</button>
-              <button disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)} className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-slate-100">Next</button>
+              <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))} className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-slate-100">{t('featureRequests.list.prev')}</button>
+              <button disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)} className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-slate-100">{t('featureRequests.list.next')}</button>
             </div>
           </div>
         </div>
@@ -194,10 +195,10 @@ export default function FeatureRequestsAdminPage() {
         <div className="flex-1 overflow-y-auto bg-white">
           {!detail && !detailLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-slate-400">
-              Select a feature request to view details
+              {t('featureRequests.detail.empty')}
             </div>
           ) : detailLoading ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">Loading...</div>
+            <div className="flex h-full items-center justify-center text-sm text-slate-400">{t('featureRequests.list.loading')}</div>
           ) : detail ? (
             <div className="flex flex-col h-full">
               {/* Header */}
@@ -210,53 +211,53 @@ export default function FeatureRequestsAdminPage() {
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
                   <span className={`rounded px-1.5 py-0.5 font-medium ${sourceBadge(detail.source)}`}>
-                    {detail.source === 'chatbot' ? 'Chatbot' : 'SDF Generation'}
+                    {detail.source === 'chatbot' ? t('featureRequests.sources.chatbot') : t('featureRequests.sources.sdfGeneration')}
                   </span>
-                  <span>By {detail.user_name || detail.user_email}</span>
-                  {detail.project_name && <span>Project: {detail.project_name}</span>}
-                  <span>{new Date(detail.created_at).toLocaleString()}</span>
+                  <span>{t('featureRequests.detail.byUser', { user: detail.user_name || detail.user_email })}</span>
+                  {detail.project_name && <span>{t('featureRequests.detail.projectLabel')}: {detail.project_name}</span>}
+                  <span>{new Date(detail.created_at).toLocaleString(i18n.language)}</span>
                 </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-5">
                 {/* User prompt */}
                 {detail.user_prompt && (
-                  <Section title="User's Original Prompt">
+                  <Section title={t('featureRequests.detail.userPrompt')}>
                     <p className="whitespace-pre-wrap text-sm text-slate-700 leading-relaxed">{detail.user_prompt}</p>
                   </Section>
                 )}
 
                 {/* Source detail */}
                 {detail.source_detail && (
-                  <Section title="Source Detail">
+                  <Section title={t('featureRequests.detail.sourceDetail')}>
                     <p className="whitespace-pre-wrap text-xs text-slate-600">{detail.source_detail}</p>
                   </Section>
                 )}
 
                 {/* Status + Notes */}
-                <Section title="Status & Notes">
+                <Section title={t('featureRequests.detail.statusAndNotes')}>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Status</label>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">{t('featureRequests.detail.status')}</label>
                       <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as FeatureStatus)} className="w-full rounded border px-3 py-2 text-sm">
                         {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Admin Notes</label>
-                      <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} className="w-full rounded border px-3 py-2 text-sm" placeholder="Internal notes..." />
+                      <label className="block text-xs font-medium text-slate-500 mb-1">{t('featureRequests.detail.adminNotes')}</label>
+                      <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} className="w-full rounded border px-3 py-2 text-sm" placeholder={t('featureRequests.detail.notesPlaceholder')} />
                     </div>
                   </div>
                   <button onClick={handleSave} disabled={saving} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                    {saving ? 'Saving...' : 'Save Changes'}
+                    {saving ? t('featureRequests.detail.saving') : t('featureRequests.detail.saveChanges')}
                   </button>
                 </Section>
 
                 {/* Chat thread */}
-                <Section title="Conversation">
+                <Section title={t('featureRequests.detail.conversation')}>
                   <div className="rounded-lg border bg-slate-50 max-h-80 overflow-y-auto">
                     {detail.messages.length === 0 ? (
-                      <p className="p-4 text-xs text-slate-400 text-center">No messages yet. Ask the user a question to start a conversation.</p>
+                      <p className="p-4 text-xs text-slate-400 text-center">{t('featureRequests.detail.noMessages')}</p>
                     ) : (
                       <div className="p-3 space-y-2.5">
                         {detail.messages.map((m) => (
@@ -268,7 +269,7 @@ export default function FeatureRequestsAdminPage() {
                             }`}>
                               <p className="text-[13px] whitespace-pre-wrap">{m.body}</p>
                               <p className={`mt-1 text-[10px] ${m.sender_role === 'admin' ? 'text-blue-200' : 'text-slate-400'}`}>
-                                {m.sender_name || m.sender_email} · {new Date(m.created_at).toLocaleString()}
+                                {m.sender_name || m.sender_email} · {new Date(m.created_at).toLocaleString(i18n.language)}
                               </p>
                             </div>
                           </div>
@@ -283,7 +284,7 @@ export default function FeatureRequestsAdminPage() {
                       value={msgText}
                       onChange={(e) => setMsgText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                      placeholder="Ask the user a question..."
+                      placeholder={t('featureRequests.detail.messagePlaceholder')}
                       className="flex-1 rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                     <button
@@ -291,7 +292,7 @@ export default function FeatureRequestsAdminPage() {
                       disabled={!msgText.trim() || msgSending}
                       className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
                     >
-                      {msgSending ? '...' : 'Send'}
+                      {msgSending ? '...' : t('featureRequests.detail.send')}
                     </button>
                   </div>
                 </Section>

@@ -1,4 +1,5 @@
-import { MODULE_META, MODULE_KEYS, MOD_STYLES, MODULE_ICONS, IconCheck } from './projectConstants';
+import { useTranslation } from 'react-i18next';
+import { useModuleMeta, MODULE_KEYS, MOD_STYLES, MODULE_ICONS, IconCheck } from './projectConstants';
 
 export interface ModuleSelectorProps {
   selectedModules: string[];
@@ -6,11 +7,13 @@ export interface ModuleSelectorProps {
 }
 
 export default function ModuleSelector({ selectedModules, onToggleModule }: ModuleSelectorProps) {
+  const { t } = useTranslation('projectDetail');
+  const MODULE_META = useModuleMeta();
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">1. Choose Modules</h2>
-        <p className="mt-0.5 text-sm text-slate-500">Select which parts of the ERP you need. You can always change this later.</p>
+        <h2 className="text-lg font-semibold text-slate-900">{t('moduleSelector.title')}</h2>
+        <p className="mt-0.5 text-sm text-slate-500">{t('moduleSelector.subtitle')}</p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {MODULE_KEYS.map((key) => {

@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "signIn": "Giriş Yap",
+    "getStarted": "Başla"
+  },
+  "hero": {
+    "titleLine1": "Kendi Özel ERP'nizi Oluşturun",
+    "titleLine2": "Kod Yazmadan",
+    "subtitle": "İş süreçlerinizi yalnızca doğal dille anlatarak tam işlevsel bir ERP sistemine dönüştürün. Yapay zekâ destekli.",
+    "ctaPrimary": "Ücretsiz Başla",
+    "ctaSecondary": "Nasıl Çalışıyor?"
+  },
+  "pills": {
+    "aiPowered": "Yapay Zekâ Destekli",
+    "noCoding": "Kod Gerektirmez",
+    "deployFast": "Saatler İçinde Yayına Alın",
+    "openSource": "Açık Kaynak"
+  },
+  "howItWorks": {
+    "heading": "Üç Basit Adım",
+    "step1Title": "İşletmenizi Anlatın",
+    "step1Body": "Operasyonlarınızı günlük dille anlatın. Teknik bilgi gerekmez.",
+    "step2Title": "Yapay Zekâ Sistemi Üretir",
+    "step2Body": "Yapay zekâmız ihtiyaçlarınızı analiz edip tam size uygun ERP yapısını otomatik oluşturur.",
+    "step3Title": "İndirin ve Yayına Alın",
+    "step3Body": "Özel ERP sisteminizi kullanıma hazır bir konteynerde teslim alın.",
+    "quote": "İş süreçlerinizi yalnızca doğal dille anlatarak özel bir ERP sistemine dönüştürün.",
+    "quoteAttribution": "— The Assembly Architecture"
+  },
+  "cta": {
+    "heading": "ERP'nizi Oluşturmaya Hazır mısınız?",
+    "body": "Operasyonlarını hızlandırmak için CustomERP kullanan işletmelere siz de katılın.",
+    "button": "Ücretsiz Başlayın"
+  },
+  "footer": {
+    "copyright": "© 2026 CustomERP. Bilkent Üniversitesi CTIS Projesi.",
+    "docs": "Dokümantasyon",
+    "github": "GitHub",
+    "contact": "İletişim"
+  }
+}

@@ -74,6 +74,7 @@ exports.aiEditSdf = async (req, res) => {
       businessDescription: project.description || '',
       currentSdf,
       instructions: instructions.trim(),
+      language: project.language,
     });
     const saved = await SDF.create(project.id, sdf);
 

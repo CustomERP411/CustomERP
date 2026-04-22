@@ -27,6 +27,7 @@ exports.analyzeProject = async (req, res) => {
     const questionnaireState = await moduleQuestionnaireService.getQuestionnaireState({
       projectId: project.id,
       modules: modulesForQuestionnaire,
+      language: project.language,
     });
 
     if (!questionnaireState.completion.is_complete) {
@@ -71,6 +72,7 @@ exports.analyzeProject = async (req, res) => {
       defaultQuestionAnswers: mandatoryAnswers,
       prefilledSdf,
       projectId,
+      language: project.language,
     });
     const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
     const persistedQuestions = await clarificationService.persistQuestions({
@@ -160,6 +162,7 @@ exports.clarifyProject = async (req, res) => {
     const questionnaireState = await moduleQuestionnaireService.getQuestionnaireState({
       projectId: project.id,
       modules: requestedModules,
+      language: project.language,
     });
     const mandatoryAnswers = questionnaireState.mandatory_answers || {};
 
@@ -168,6 +171,7 @@ exports.clarifyProject = async (req, res) => {
       partialSdf,
       answers,
       defaultQuestionAnswers: mandatoryAnswers,
+      language: project.language,
     });
     const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
     const persistedQuestions = await clarificationService.persistQuestions({
@@ -233,6 +237,7 @@ exports.chatWithProject = async (req, res) => {
       businessAnswers: req.body?.business_answers || null,
       currentStep: req.body?.current_step || null,
       sdfStatus: req.body?.sdf_status || null,
+      language: project.language,
     });
 
     if (Array.isArray(chatResponse.unsupported_features) && chatResponse.unsupported_features.length > 0) {
@@ -274,6 +279,7 @@ exports.regenerateProject = async (req, res) => {
     const questionnaireState = await moduleQuestionnaireService.getQuestionnaireState({
       projectId: project.id,
       modules: requestedModules,
+      language: project.language,
     });
     const mandatoryAnswers = questionnaireState.mandatory_answers || {};
 
@@ -286,6 +292,7 @@ exports.regenerateProject = async (req, res) => {
       defaultQuestionAnswers: mandatoryAnswers,
       prefilledSdf: existingSdf,
       projectId,
+      language: project.language,
     });
 
     const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];

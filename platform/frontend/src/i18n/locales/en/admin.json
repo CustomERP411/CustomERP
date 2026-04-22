@@ -1,0 +1,223 @@
+{
+  "title": "Platform Admin",
+  "subtitle": "Manage platform users and view all projects.",
+  "accessDenied": "Access Denied",
+  "accessDeniedMessage": "You do not have permission to access the admin panel.",
+  "loadingAdminData": "Loading admin data...",
+  "unknownError": "Unknown error",
+  "tabs": {
+    "users": "Users",
+    "projects": "Projects",
+    "featureRequests": "Feature Requests",
+    "training": "Training Data"
+  },
+  "users": {
+    "title": "Users",
+    "youLabel": "(you)",
+    "adminBadge": "Admin",
+    "userBadge": "User",
+    "noUsers": "No users found.",
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "admin": "Admin",
+      "status": "Status",
+      "joined": "Joined",
+      "actions": "Actions"
+    },
+    "makeAdmin": "Make Admin",
+    "revokeAdmin": "Remove Admin",
+    "block": "Block",
+    "unblock": "Unblock",
+    "blocked": "Blocked",
+    "active": "Active",
+    "blockReasonPrompt": "Reason for blocking:"
+  },
+  "blockModal": {
+    "title": "Block User",
+    "description": "Block <strong>{{name}}</strong> ({{email}}) from accessing the platform. They will see a suspension message when they try to log in.",
+    "reasonLabel": "Reason (optional)",
+    "reasonPlaceholder": "e.g. suspicious activity, policy violation...",
+    "cancel": "Cancel",
+    "blockUser": "Block User",
+    "blocking": "Blocking..."
+  },
+  "projects": {
+    "title": "All projects",
+    "noProjects": "No projects found.",
+    "columns": {
+      "name": "Name",
+      "project": "Project",
+      "owner": "Owner",
+      "status": "Status",
+      "language": "Language",
+      "created": "Created"
+    }
+  },
+  "featureRequests": {
+    "title": "Feature Requests",
+    "accessDenied": "Access Denied",
+    "filters": {
+      "all": "All",
+      "open": "Open",
+      "inProgress": "In progress",
+      "completed": "Completed",
+      "declined": "Declined",
+      "allStatuses": "All statuses",
+      "allSources": "All sources"
+    },
+    "columns": {
+      "title": "Title",
+      "user": "User",
+      "status": "Status",
+      "created": "Created"
+    },
+    "statusLabels": {
+      "open": "Open",
+      "in_progress": "In Progress",
+      "completed": "Done",
+      "declined": "Not Planned",
+      "pending": "Pending",
+      "recorded": "Recorded",
+      "denied": "Not Planned"
+    },
+    "sources": {
+      "chatbot": "Chatbot",
+      "sdfShort": "SDF",
+      "sdfGeneration": "SDF Generation"
+    },
+    "stats": {
+      "total": "Total",
+      "recorded": "Recorded",
+      "inProgress": "In Progress",
+      "done": "Done",
+      "notPlanned": "Not Planned"
+    },
+    "list": {
+      "loading": "Loading...",
+      "empty": "No feature requests found",
+      "total": "{{count}} total",
+      "prev": "Prev",
+      "next": "Next"
+    },
+    "detail": {
+      "empty": "Select a feature request to view details",
+      "byUser": "By {{user}}",
+      "projectLabel": "Project",
+      "userPrompt": "User's Original Prompt",
+      "sourceDetail": "Source Detail",
+      "statusAndNotes": "Status & Notes",
+      "status": "Status",
+      "adminNotes": "Admin Notes",
+      "notesPlaceholder": "Internal notes...",
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "saveFailed": "Failed to save",
+      "conversation": "Conversation",
+      "noMessages": "No messages yet. Ask the user a question to start a conversation.",
+      "messagePlaceholder": "Ask the user a question...",
+      "send": "Send",
+      "sendFailed": "Failed to send"
+    },
+    "addNote": "Add note",
+    "sendMessage": "Send message",
+    "messagePlaceholder": "Type a message...",
+    "updateStatus": "Update status"
+  },
+  "training": {
+    "title": "AI Training Data",
+    "export": "Export for Azure",
+    "review": "Review",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "pending": "Pending",
+    "loading": "Loading...",
+    "loadingSession": "Loading session...",
+    "noSessions": "No sessions found",
+    "selectSession": "Select a session to view details",
+    "sessionsTotal": "{{count}} total",
+    "prev": "Prev",
+    "next": "Next",
+    "filters": {
+      "allAgents": "All agents",
+      "allQuality": "All quality",
+      "all": "All",
+      "reviewed": "Reviewed",
+      "unreviewed": "Unreviewed"
+    },
+    "stats": {
+      "sessions": "Sessions",
+      "reviewed": "Reviewed",
+      "good": "Good",
+      "bad": "Bad",
+      "needsEdit": "Needs Edit",
+      "tokens": "Tokens"
+    },
+    "sessionItem": {
+      "pipeline": "Pipeline",
+      "unreviewed": "unreviewed",
+      "noDescription": "(no description)"
+    },
+    "tabs": {
+      "overview": "overview",
+      "agents": "Agents ({{count}})"
+    },
+    "overview": {
+      "sdfValid": "SDF Valid",
+      "sdfIssues": "SDF Validation Issues",
+      "tokenUsage": "Token Usage",
+      "tokens": "tokens",
+      "inOut": "({{in_}} in / {{out}} out)",
+      "inputTopLevel": "Input (top-level)",
+      "outputFinal": "Output (final SDF)"
+    },
+    "agentsTab": {
+      "noAgentLogs": "No agent step logs available for this session.",
+      "tokens": "{{count}} tokens",
+      "tokensInOut": "{{in_}} in / {{out}} out",
+      "promptSent": "Prompt Sent to AI",
+      "inputData": "Input Data (structured)",
+      "parsedOutput": "Parsed Output (JSON)",
+      "rawResponse": "Raw AI Response",
+      "review": "Review",
+      "lastSaved": "Last saved {{date}}",
+      "saving": "Saving...",
+      "save": "Save",
+      "notesPlaceholder": "Notes (not used in training)...",
+      "correctivePlaceholder": "Correction notes (personal reference)...",
+      "editedPlaceholder": "Paste corrected JSON output for this agent...",
+      "validJson": "Valid JSON",
+      "invalidJson": "Invalid JSON",
+      "failedToSave": "Failed to save review"
+    },
+    "validation": {
+      "empty": "Output is empty",
+      "missingProjectName": "Missing project_name",
+      "noEntities": "No entities defined",
+      "entityMissingSlug": "Entity missing slug",
+      "entityNoFields": "Entity \"{{slug}}\" has no fields",
+      "missingModules": "Missing modules object"
+    }
+  },
+  "exportModal": {
+    "title": "Export Training Data for Azure",
+    "subtitle": "Each selected agent is exported as a separate JSONL file for independent fine-tuning.",
+    "qualityFilter": "Quality Filter",
+    "goodOnly": "Good only",
+    "goodAndEdited": "Good + Edited",
+    "exportPerAgent": "Export per Agent",
+    "estimatedSessions": "Estimated sessions to export",
+    "cancel": "Cancel",
+    "exporting": "Exporting...",
+    "downloadZip": "Download All (ZIP)",
+    "download": "Download",
+    "exportFailed": "Export failed",
+    "agents": {
+      "distributor": "Distributor",
+      "hr_generator": "HR Generator",
+      "invoice_generator": "Invoice Generator",
+      "inventory_generator": "Inventory Generator",
+      "chatbot": "Chatbot"
+    }
+  }
+}

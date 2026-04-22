@@ -26,6 +26,7 @@ exports.generateErpZip = async (req, res) => {
     const result = await erpGenerationService.generateProjectDir({
       projectId: project.name || project.id,
       sdf,
+      language: project.language,
     });
     outputDir = result.outputDir;
 
@@ -79,6 +80,7 @@ exports.generateStandaloneErpZip = async (req, res) => {
       projectId: project.name || project.id,
       sdf,
       platform,
+      language: project.language,
     });
     outputDir = result.outputDir;
 

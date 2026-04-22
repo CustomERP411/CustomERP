@@ -133,6 +133,7 @@ class MultiAgentService:
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
         on_progress: Optional[Callable] = None,
+        language: str = "en",
     ) -> PipelineResult:
         errors: List[str] = []
         warnings: List[str] = []
@@ -152,6 +153,7 @@ class MultiAgentService:
                 business_description,
                 default_question_answers or {},
                 prefilled_sdf or {},
+                language=language,
             )
             dist_ms = int((time.monotonic() - t0) * 1000)
             self._add_tokens(token_usage, "distributor", dist_tokens)
@@ -231,14 +233,17 @@ class MultiAgentService:
         if "hr" in modules_to_generate:
             generator_tasks.append(("hr", self._run_hr_generator(
                 business_description, distributor_output.hr_context, distributor_output.shared_entities, answers, pre_sdf,
+                language=language,
             )))
         if "invoice" in modules_to_generate:
             generator_tasks.append(("invoice", self._run_invoice_generator(
                 business_description, distributor_output.invoice_context, distributor_output.shared_entities, answers, pre_sdf,
+                language=language,
             )))
         if "inventory" in modules_to_generate:
             generator_tasks.append(("inventory", self._run_inventory_generator(
                 business_description, distributor_output.inventory_context, distributor_output.shared_entities, answers, pre_sdf,
+                language=language,
             )))
 
         if generator_tasks:
@@ -428,11 +433,12 @@ class MultiAgentService:
         self, business_description: str,
         default_question_answers: Dict[str, Any],
         prefilled_sdf: Dict[str, Any],
+        language: str = "en",
     ) -> tuple[DistributorOutput, GenerationResult, str]:
         default_questions_str = json.dumps(default_question_answers, indent=2) if default_question_answers else ""
         existing_modules_str = self._build_existing_modules_summary(prefilled_sdf)
 
-        prompt = get_distributor_prompt(business_description, default_questions_str, existing_modules_str)
+        prompt = get_distributor_prompt(business_description, default_questions_str, existing_modules_str, language=language)
         result = await self.distributor_client.generate_with_retry(
             prompt, temperature=self.distributor_client.get_temperature(), response_schema=DistributorOutput,
         )
@@ -484,6 +490,7 @@ class MultiAgentService:
         self, business_description: str, hr_context: ModuleContext, shared_entities: List[str],
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
+        language: str = "en",
     ) -> tuple[ModuleGeneratorOutput, GenerationResult, str]:
         print("[MultiAgentService] Generating HR module...")
         hr_answers = {k: v for k, v in (default_question_answers or {}).items() if k.startswith("hr_")}
@@ -495,6 +502,7 @@ class MultiAgentService:
             default_answers=json.dumps(hr_answers, indent=2) if hr_answers else "",
             prefilled_module_sdf=self._extract_module_prefilled(prefilled_sdf or {}, "hr"),
             change_instructions=hr_context.change_instructions,
+            language=language,
         )
         result = await self.hr_client.generate_with_retry(
             prompt, temperature=self.hr_client.get_temperature(), response_schema=ModuleGeneratorOutput,
@@ -515,6 +523,7 @@ class MultiAgentService:
         self, business_description: str, invoice_context: ModuleContext, shared_entities: List[str],
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
+        language: str = "en",
     ) -> tuple[ModuleGeneratorOutput, GenerationResult, str]:
         print("[MultiAgentService] Generating Invoice module...")
         inv_answers = {k: v for k, v in (default_question_answers or {}).items() if k.startswith("invoice_")}
@@ -526,6 +535,7 @@ class MultiAgentService:
             default_answers=json.dumps(inv_answers, indent=2) if inv_answers else "",
             prefilled_module_sdf=self._extract_module_prefilled(prefilled_sdf or {}, "invoice"),
             change_instructions=invoice_context.change_instructions,
+            language=language,
         )
         result = await self.invoice_client.generate_with_retry(
             prompt, temperature=self.invoice_client.get_temperature(), response_schema=ModuleGeneratorOutput,
@@ -546,6 +556,7 @@ class MultiAgentService:
         self, business_description: str, inventory_context: ModuleContext, shared_entities: List[str],
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
+        language: str = "en",
     ) -> tuple[ModuleGeneratorOutput, GenerationResult, str]:
         print("[MultiAgentService] Generating Inventory module...")
         stock_answers = {k: v for k, v in (default_question_answers or {}).items() if k.startswith("inv_")}
@@ -557,6 +568,7 @@ class MultiAgentService:
             default_answers=json.dumps(stock_answers, indent=2) if stock_answers else "",
             prefilled_module_sdf=self._extract_module_prefilled(prefilled_sdf or {}, "inventory"),
             change_instructions=inventory_context.change_instructions,
+            language=language,
         )
         result = await self.inventory_client.generate_with_retry(
             prompt, temperature=self.inventory_client.get_temperature(), response_schema=ModuleGeneratorOutput,

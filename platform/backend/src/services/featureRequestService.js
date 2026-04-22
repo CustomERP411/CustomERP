@@ -34,11 +34,18 @@ async function recordWarnings({ userId, projectId, warnings, userPrompt }) {
   if (!Array.isArray(warnings) || warnings.length === 0) return [];
 
   const unsupportedPatterns = [
+    // English
     /not (?:natively )?supported/i,
     /unsupported/i,
     /is not supported by the generator/i,
     /currently does not/i,
     /will be ignored/i,
+    // Turkish — AI may emit warnings in Turkish when project.language === 'tr'
+    /desteklen(?:m(?:iyor|ez|emektedir)|memektedir)/i,          // "desteklenmiyor / desteklenmez / desteklenmemektedir"
+    /desteklenmeyen/i,                                          // "desteklenmeyen"
+    /(?:jenerat[öo]r|üretici) taraf[ıi]ndan desteklen/i,        // "jeneratör tarafından desteklen..."
+    /(?:göz ardı|yok ?say[iı]l|dikkate al[iı]nm[aı])/i,          // "göz ardı / yok sayılacak / dikkate alınmayacak"
+    /şu an(?:da)? (?:destek(?:lemiyor|lemez)|yapam)/i,           // "şu an desteklemiyor/yapamaz"
   ];
 
   const featureWarnings = warnings.filter((w) =>

@@ -17,6 +17,8 @@ const {
   buildPermissionsAdminPageConnected,
 } = require('./frontend/rbacPages');
 
+const { normalizeLanguage, tFor } = require('../i18n/labels');
+
 class FrontendGenerator {
   constructor(brickRepo) {
     this.brickRepo = brickRepo;
@@ -25,10 +27,19 @@ class FrontendGenerator {
     this._moduleDirs = new Set();
     this._standalone = false;
     this._accessControlEnabled = false;
+    this._language = 'en';
   }
 
   setStandalone(flag) {
     this._standalone = !!flag;
+  }
+
+  setLanguage(language) {
+    this._language = normalizeLanguage(language);
+  }
+
+  _t(keyPath) {
+    return tFor(this._language)(keyPath);
   }
 
   setModules(modules) {
@@ -174,11 +185,11 @@ class FrontendGenerator {
 
   async _generateRbacFrontend(outputDir) {
     await fs.writeFile(path.join(outputDir, 'src/contexts/AuthContext.tsx'), buildAuthContext());
-    await fs.writeFile(path.join(outputDir, 'src/pages/LoginPage.tsx'), buildLoginPage());
+    await fs.writeFile(path.join(outputDir, 'src/pages/LoginPage.tsx'), buildLoginPage({ language: this._language }));
     await fs.writeFile(path.join(outputDir, 'src/components/RequireAuth.tsx'), buildRequireAuth());
-    await fs.writeFile(path.join(outputDir, 'src/pages/admin/UsersAdminPage.tsx'), buildUsersAdminPageConnected());
-    await fs.writeFile(path.join(outputDir, 'src/pages/admin/GroupsAdminPage.tsx'), buildGroupsAdminPageConnected());
-    await fs.writeFile(path.join(outputDir, 'src/pages/admin/PermissionsAdminPage.tsx'), buildPermissionsAdminPageConnected());
+    await fs.writeFile(path.join(outputDir, 'src/pages/admin/UsersAdminPage.tsx'), buildUsersAdminPageConnected({ language: this._language }));
+    await fs.writeFile(path.join(outputDir, 'src/pages/admin/GroupsAdminPage.tsx'), buildGroupsAdminPageConnected({ language: this._language }));
+    await fs.writeFile(path.join(outputDir, 'src/pages/admin/PermissionsAdminPage.tsx'), buildPermissionsAdminPageConnected({ language: this._language }));
   }
 
   /* ── Base files generation ──────────────────────────────── */
@@ -451,6 +462,7 @@ ${rbac
       capitalize: (s) => this._capitalize(s),
       guessDisplayField: (e) => this._guessDisplayField(e),
       sharedModulesMap,
+      language: this._language,
     });
     await fs.writeFile(path.join(outputDir, 'src/config/entities.ts'), entityRegistry);
 
@@ -657,6 +669,7 @@ ${toolsLinks.map((t) => `          <Link
       toolsBlock,
       moduleMap,
       rbac: this._accessControlEnabled,
+      language: this._language,
     });
     await fs.writeFile(path.join(outputDir, 'src/components/layout/Sidebar.tsx'), sidebarContent);
   }

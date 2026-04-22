@@ -112,18 +112,23 @@ function extractQuestionMetadata(row) {
   return raw;
 }
 
-function toApiQuestion(row, metadata) {
+function toApiQuestion(row, metadata, templateByKey) {
   const options = Array.isArray(metadata.choices) ? metadata.choices : [];
+  const template = templateByKey ? templateByKey.get(`${metadata.module}::${metadata.version}::${metadata.key}`) : null;
   return {
     id: row.id,
     key: metadata.key,
     module: metadata.module,
     version: metadata.version,
-    question: row.question,
+    // Prefer the (potentially language-localized) template prompt over the
+    // text persisted at creation time so switching locales on a fresh request
+    // stays consistent.
+    question: (template && template.prompt) || row.question,
     type: row.type || metadata.type || 'text',
     required: metadata.required !== false,
     allow_custom: metadata.allow_custom === true,
     options,
+    option_labels: (template && template.option_labels) || undefined,
     condition: metadata.condition || null,
     section: metadata.section || 'General',
     order_index: typeof row.order_index === 'number' ? row.order_index : 0,
@@ -131,10 +136,10 @@ function toApiQuestion(row, metadata) {
   };
 }
 
-async function ensureDefaultQuestionsForProject({ projectId, modules }) {
+async function ensureDefaultQuestionsForProject({ projectId, modules, language }) {
   if (!projectId) throw new Error('projectId is required');
 
-  const templatePayload = moduleQuestionRegistry.getQuestionTemplatePayload(modules);
+  const templatePayload = moduleQuestionRegistry.getQuestionTemplatePayload(modules, { language });
   const requestedModules = Object.keys(templatePayload.template_versions || {});
 
   const existingRows = await Question.findDefaultByProjectAndModules(projectId, requestedModules);
@@ -185,12 +190,16 @@ async function ensureDefaultQuestionsForProject({ projectId, modules }) {
     Object.entries(templatePayload.template_versions || {}).map(([moduleKey, meta]) => [moduleKey, meta.version])
   );
 
+  const templateByKey = new Map(
+    (templatePayload.questions || []).map((q) => [`${q.module}::${q.version}::${q.key}`, q])
+  );
+
   const normalizedQuestions = refreshedRows
     .map((row) => {
       const metadata = extractQuestionMetadata(row);
       if (!metadata) return null;
       if (activeVersionByModule[metadata.module] !== metadata.version) return null;
-      return toApiQuestion(row, metadata);
+      return toApiQuestion(row, metadata, templateByKey);
     })
     .filter(Boolean)
     .sort((a, b) => a.order_index - b.order_index);
@@ -199,11 +208,12 @@ async function ensureDefaultQuestionsForProject({ projectId, modules }) {
     modules: requestedModules,
     template_versions: templatePayload.template_versions,
     questions: normalizedQuestions,
+    language: templatePayload.language,
   };
 }
 
-async function getQuestionnaireState({ projectId, modules }) {
-  const ensured = await ensureDefaultQuestionsForProject({ projectId, modules });
+async function getQuestionnaireState({ projectId, modules, language }) {
+  const ensured = await ensureDefaultQuestionsForProject({ projectId, modules, language });
   const questionIds = ensured.questions.map((question) => question.id);
   const latestAnswers = await Answer.findLatestByProjectAndQuestionIds(projectId, questionIds);
   const latestAnswerByQuestionId = Object.fromEntries(
@@ -238,6 +248,7 @@ async function getQuestionnaireState({ projectId, modules }) {
   return {
     modules: ensured.modules,
     template_versions: ensured.template_versions,
+    language: ensured.language,
     questions: withVisibility,
     completion: {
       total_required_visible: requiredVisible.length,
@@ -258,9 +269,9 @@ async function getQuestionnaireState({ projectId, modules }) {
   };
 }
 
-async function saveQuestionnaireAnswers({ projectId, modules, answers }) {
+async function saveQuestionnaireAnswers({ projectId, modules, answers, language }) {
   if (!projectId) throw new Error('projectId is required');
-  const state = await getQuestionnaireState({ projectId, modules });
+  const state = await getQuestionnaireState({ projectId, modules, language });
   const questionsById = Object.fromEntries(state.questions.map((question) => [question.id, question]));
   const questionsByKey = Object.fromEntries(state.questions.map((question) => [question.key, question]));
   const normalized = normalizeIncomingAnswers(answers);
@@ -287,7 +298,7 @@ async function saveQuestionnaireAnswers({ projectId, modules, answers }) {
     await Answer.createMany(rowsToInsert);
   }
 
-  return getQuestionnaireState({ projectId, modules: state.modules });
+  return getQuestionnaireState({ projectId, modules: state.modules, language });
 }
 
 module.exports = {

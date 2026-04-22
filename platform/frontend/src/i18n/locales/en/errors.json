@@ -1,0 +1,12 @@
+{
+  "generic": "Something went wrong. Please try again.",
+  "network": "Network error. Please check your connection.",
+  "unauthorized": "Your session has expired. Please sign in again.",
+  "forbidden": "You don't have permission to do that.",
+  "notFound": "Not found.",
+  "validation": "Please check the form for errors.",
+  "mobileBlocked": {
+    "title": "Desktop required",
+    "body": "CustomERP is designed for desktop browsers. Please open this site on a laptop or desktop computer."
+  }
+}

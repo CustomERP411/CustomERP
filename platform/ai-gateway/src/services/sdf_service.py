@@ -80,6 +80,7 @@ class SDFService:
         default_question_answers: Optional[Dict[str, Any]] = None,
         prefilled_sdf: Optional[Dict[str, Any]] = None,
         on_progress: Optional[Callable] = None,
+        language: str = "en",
     ) -> tuple["SystemDefinitionFile", "PipelineResult"]:
         """
         Generates an SDF using the multi-agent pipeline.
@@ -100,6 +101,7 @@ class SDFService:
             default_question_answers=default_question_answers,
             prefilled_sdf=prefilled_sdf,
             on_progress=on_progress,
+            language=language,
         )
 
         if not result.success:
@@ -169,7 +171,7 @@ class SDFService:
             print(f"[SDFService] Raw Data:\n{data}")
             raise ValueError(f"Multi-agent pipeline output did not match the required SDF schema: {e}") from e
 
-    async def generate_sdf_from_description(self, business_description: str) -> SystemDefinitionFile:
+    async def generate_sdf_from_description(self, business_description: str, language: str = "en") -> SystemDefinitionFile:
         """
         Generates, validates, and returns a SystemDefinitionFile from a business description.
 
@@ -185,7 +187,7 @@ class SDFService:
         print("[SDFService] Generating SDF for business description...")
 
         # 1. Get the full prompt
-        prompt = get_sdf_prompt(business_description)
+        prompt = get_sdf_prompt(business_description, language=language)
 
         # 2. Call the AI to get the JSON response
         json_response = await self.gemini_client.generate_with_retry(
@@ -236,7 +238,8 @@ class SDFService:
         self, 
         business_description: str, 
         partial_sdf: SystemDefinitionFile, 
-        answers: list[ClarificationAnswer]
+        answers: list[ClarificationAnswer],
+        language: str = "en",
     ) -> SystemDefinitionFile:
         """Refines an SDF based on user answers to clarification questions."""
         print("[SDFService] Refining SDF with user answers...")
@@ -249,7 +252,8 @@ class SDFService:
         prompt = get_clarify_prompt(
             business_description=business_description,
             partial_sdf=partial_sdf_json,
-            answers=answers_formatted
+            answers=answers_formatted,
+            language=language,
         )
 
         # 3. Call the AI to get the refined JSON response
@@ -294,7 +298,8 @@ class SDFService:
         self,
         business_description: str,
         partial_sdf: SystemDefinitionFile,
-        answers: list[ClarificationAnswer]
+        answers: list[ClarificationAnswer],
+        language: str = "en",
     ) -> SystemDefinitionFile:
         """
         Produces a final, clean SDF by merging the partial SDF with user answers.
@@ -310,7 +315,8 @@ class SDFService:
         prompt = get_finalize_prompt(
             business_description=business_description,
             partial_sdf=partial_sdf_json,
-            answers=answers_formatted
+            answers=answers_formatted,
+            language=language,
         )
 
         # 3. Call the AI to get the JSON response
@@ -358,7 +364,8 @@ class SDFService:
         self,
         business_description: str,
         current_sdf: SystemDefinitionFile,
-        instructions: str
+        instructions: str,
+        language: str = "en",
     ) -> SystemDefinitionFile:
         """Apply a change request to an existing generator SDF."""
         print("[SDFService] Editing SDF with user instructions...")
@@ -367,7 +374,8 @@ class SDFService:
         prompt = get_edit_prompt(
             business_description=business_description or "",
             current_sdf=current_json,
-            instructions=instructions
+            instructions=instructions,
+            language=language,
         )
 
         json_response = await self.gemini_client.generate_with_retry(

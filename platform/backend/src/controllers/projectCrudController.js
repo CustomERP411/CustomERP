@@ -80,6 +80,7 @@ exports.getDefaultModuleQuestions = async (req, res) => {
     const state = await moduleQuestionnaireService.getQuestionnaireState({
       projectId: project.id,
       modules,
+      language: project.language,
     });
 
     const prefill = prefilledSdfService.buildPrefilledFromQuestionnaireState({
@@ -118,6 +119,7 @@ exports.saveDefaultModuleAnswers = async (req, res) => {
       projectId: project.id,
       modules,
       answers,
+      language: project.language,
     });
 
     const prefill = prefilledSdfService.buildPrefilledFromQuestionnaireState({
@@ -157,6 +159,7 @@ exports.getDefaultModulePrefill = async (req, res) => {
     const state = await moduleQuestionnaireService.getQuestionnaireState({
       projectId: project.id,
       modules,
+      language: project.language,
     });
 
     const prefill = prefilledSdfService.buildPrefilledFromQuestionnaireState({

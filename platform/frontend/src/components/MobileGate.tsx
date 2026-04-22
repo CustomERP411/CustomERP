@@ -1,9 +1,11 @@
 import { useState, useEffect, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const MOBILE_BREAKPOINT = 768;
 
 export default function MobileGate({ children }: { children: ReactNode }) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < MOBILE_BREAKPOINT);
+  const { t } = useTranslation(['errors', 'landing']);
 
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
@@ -34,38 +36,25 @@ export default function MobileGate({ children }: { children: ReactNode }) {
       </div>
 
       {/* Message */}
-      <h1 className="text-2xl font-bold text-white mb-3">Desktop Experience Only</h1>
+      <h1 className="text-2xl font-bold text-white mb-3">{t('errors:mobileBlocked.title')}</h1>
       <p className="text-indigo-200 text-base leading-relaxed max-w-sm mb-10">
-        CustomERP is a powerful ERP generation platform designed for desktop use.
-        Please visit us on a computer for the best experience.
+        {t('errors:mobileBlocked.body')}
       </p>
 
       {/* Feature pills */}
       <div className="flex flex-wrap justify-center gap-3 mb-10">
         <span className="px-4 py-1.5 rounded-full bg-white/10 text-sm text-white font-medium backdrop-blur-sm">
-          AI-Powered Generation
+          {t('landing:pills.aiPowered')}
         </span>
         <span className="px-4 py-1.5 rounded-full bg-white/10 text-sm text-white font-medium backdrop-blur-sm">
-          Live ERP Preview
+          {t('landing:pills.deployFast')}
         </span>
         <span className="px-4 py-1.5 rounded-full bg-white/10 text-sm text-white font-medium backdrop-blur-sm">
-          No Coding Required
+          {t('landing:pills.noCoding')}
         </span>
       </div>
 
-      {/* Visual hint */}
-      <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur-sm px-8 py-6 max-w-sm">
-        <div className="flex items-center gap-3 text-left">
-          <svg className="w-6 h-6 text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-          </svg>
-          <p className="text-white text-sm">Open <span className="font-semibold text-emerald-400">customerp.site</span> on your desktop browser to get started.</p>
-        </div>
-      </div>
-
-      <p className="mt-12 text-indigo-300 text-xs">
-        © 2026 CustomERP. Bilkent University CTIS Project.
-      </p>
+      <p className="mt-12 text-indigo-300 text-xs">{t('landing:footer.copyright')}</p>
     </div>
   );
 }

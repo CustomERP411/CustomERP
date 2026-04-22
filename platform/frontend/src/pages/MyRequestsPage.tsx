@@ -1,17 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   featureRequestService,
   type FeatureRequest,
   type FeatureRequestDetail,
   type FeatureStatus,
 } from '../services/featureRequestService';
-
-const STATUS_LABELS: Record<FeatureStatus, string> = {
-  recorded: 'Recorded',
-  denied: 'Not Planned',
-  in_progress: 'In Progress',
-  completed: 'Done',
-};
 
 function statusColor(s: string) {
   if (s === 'recorded') return 'bg-slate-100 text-slate-700';
@@ -46,6 +40,13 @@ function statusIcon(s: string) {
 }
 
 export default function MyRequestsPage() {
+  const { t, i18n } = useTranslation('myRequests');
+  const STATUS_LABELS: Record<FeatureStatus, string> = {
+    recorded: t('statusLabels.recorded'),
+    denied: t('statusLabels.denied'),
+    in_progress: t('statusLabels.in_progress'),
+    completed: t('statusLabels.completed'),
+  };
   const [requests, setRequests] = useState<FeatureRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -90,28 +91,28 @@ export default function MyRequestsPage() {
       const d = await featureRequestService.getMyDetail(detail.id);
       setDetail(d);
       setMsgText('');
-    } catch (e: any) { alert(e?.message || 'Failed to send'); }
+    } catch (e: any) { alert(e?.message || t('sendFailed')); }
     finally { setMsgSending(false); }
   };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 pb-16">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Your Requests</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t('title')}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Features you've asked about that aren't currently available. We track these to prioritize future development.
+          {t('subtitle')}
         </p>
       </div>
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-slate-400">Loading...</div>
+        <div className="py-12 text-center text-sm text-slate-400">{t('loading')}</div>
       ) : requests.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white py-12 text-center">
           <svg className="mx-auto h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p className="mt-3 text-sm text-slate-500">No feature requests yet.</p>
-          <p className="mt-1 text-xs text-slate-400">If you ask the chatbot about something we don't support, it will show up here.</p>
+          <p className="mt-3 text-sm text-slate-500">{t('empty')}</p>
+          <p className="mt-1 text-xs text-slate-400">{t('emptyHint')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -139,18 +140,18 @@ export default function MyRequestsPage() {
               {expandedId === r.id && (
                 <div className="border-t px-5 py-4 bg-slate-50 space-y-4">
                   {detailLoading ? (
-                    <p className="text-sm text-slate-400 text-center py-4">Loading...</p>
+                    <p className="text-sm text-slate-400 text-center py-4">{t('loading')}</p>
                   ) : detail ? (
                     <>
                       <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-                        <span className="capitalize">{r.source === 'chatbot' ? 'From chatbot' : 'From ERP generation'}</span>
-                        {r.project_name && <span>Project: {r.project_name}</span>}
-                        <span>{new Date(r.created_at).toLocaleDateString()}</span>
+                        <span className="capitalize">{r.source === 'chatbot' ? t('source.chatbot') : t('source.erp')}</span>
+                        {r.project_name && <span>{t('projectLabel')}: {r.project_name}</span>}
+                        <span>{new Date(r.created_at).toLocaleDateString(i18n.language)}</span>
                       </div>
 
                       {detail.user_prompt && (
                         <div>
-                          <p className="text-xs font-medium text-slate-500 mb-1">Your original prompt</p>
+                          <p className="text-xs font-medium text-slate-500 mb-1">{t('yourPrompt')}</p>
                           <div className="rounded-lg border bg-white p-3">
                             <p className="text-sm text-slate-700 whitespace-pre-wrap">{detail.user_prompt}</p>
                           </div>
@@ -160,11 +161,11 @@ export default function MyRequestsPage() {
                       {/* Chat */}
                       <div>
                         <p className="text-xs font-medium text-slate-500 mb-1">
-                          Conversation {detail.messages.length === 0 ? '' : `(${detail.messages.length})`}
+                          {t('conversation')} {detail.messages.length === 0 ? '' : `(${detail.messages.length})`}
                         </p>
                         <div className="rounded-lg border bg-white max-h-64 overflow-y-auto">
                           {detail.messages.length === 0 ? (
-                            <p className="p-4 text-xs text-slate-400 text-center">No messages yet. Our team may reach out here if they need more details about your request.</p>
+                            <p className="p-4 text-xs text-slate-400 text-center">{t('noMessages')}</p>
                           ) : (
                             <div className="p-3 space-y-2.5">
                               {detail.messages.map((m) => (
@@ -176,7 +177,7 @@ export default function MyRequestsPage() {
                                   }`}>
                                     <p className="text-[13px] whitespace-pre-wrap">{m.body}</p>
                                     <p className={`mt-1 text-[10px] ${m.sender_role === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>
-                                      {m.sender_role === 'admin' ? 'Admin' : 'You'} · {new Date(m.created_at).toLocaleString()}
+                                      {m.sender_role === 'admin' ? t('admin') : t('you')} · {new Date(m.created_at).toLocaleString(i18n.language)}
                                     </p>
                                   </div>
                                 </div>
@@ -191,7 +192,7 @@ export default function MyRequestsPage() {
                             value={msgText}
                             onChange={(e) => setMsgText(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                            placeholder="Reply..."
+                            placeholder={t('replyPlaceholder')}
                             className="flex-1 rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                           <button
@@ -199,7 +200,7 @@ export default function MyRequestsPage() {
                             disabled={!msgText.trim() || msgSending}
                             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
                           >
-                            {msgSending ? '...' : 'Send'}
+                            {msgSending ? '...' : t('send')}
                           </button>
                         </div>
                       </div>

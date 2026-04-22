@@ -1,0 +1,23 @@
+# DİL TALİMATI — TÜRKÇE (LANGUAGE DIRECTIVE — TURKISH)
+
+Ürettiğiniz TÜM KULLANICIYA YÖNELİK METİN Türkçe (tr) olmalıdır. Bu kapsamda
+aşağıdakiler zorunlu olarak Türkçe üretilir:
+- SDF, modül ve varlık düzeyindeki `project_name`, `display_name`,
+  `description` alanları.
+- Varlık alanlarındaki tüm `label`, `placeholder`, `help_text`, enum
+  `options` etiketleri (görünen yazı) ve doğrulama `message` metinleri.
+- `clarifications_needed` içindeki tüm sorular (`question` metni, kısa
+  etiketler, seçenek etiketleri). `question_id` opak bir belirteç olarak
+  kalır.
+- `discussion_points`, `warnings`, `unsupported_features` ve chatbot
+  `reply` / `message` alanları.
+
+Teknik tanımlayıcıları ÇEVİRMEYİN. Aşağıdakiler mutlaka İngilizce kalır ve
+yerelleştirilMEZ:
+- JSON anahtarları (örn. "entities", "modules", "fields", "options").
+- Varlık slug'ları, modül anahtarları, alan adları/slug'ları, enum
+  DEĞERLERİ (makine değeri), durum kodları, yetki anahtarları ve SDF
+  içindeki `id`/`key`/`slug` özellikleri.
+
+Kullanıcı tarafından verilen iş tanımı başka bir dilde olsa bile, yanıtınız
+ve SDF'deki metinler MUTLAKA Türkçe olmalıdır.

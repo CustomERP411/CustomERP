@@ -1,17 +1,19 @@
 import { useRef, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useChatContext } from '../../context/ChatContext';
-
-const QUICK_PROMPTS = [
-  'What modules do you recommend for my business?',
-  'What inventory features are available?',
-  'Tell me about invoice capabilities',
-];
 
 export default function ChatWidget() {
   const {
     isOpen, chatHistory, chatLoading, projectContext, pulsing,
     toggleChat, sendMessage,
   } = useChatContext();
+  const { t } = useTranslation('chatbot');
+
+  const quickPrompts: { key: string; text: string }[] = [
+    { key: 'chooseModules', text: t('empty.quickPrompts.chooseModules') },
+    { key: 'describeBusiness', text: t('empty.quickPrompts.describeBusiness') },
+    { key: 'howToStart', text: t('empty.quickPrompts.howToStart') },
+  ];
 
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -46,7 +48,7 @@ export default function ChatWidget() {
           onClick={toggleChat}
           className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 hover:scale-105 active:scale-95"
           style={pulsing ? { animation: 'chatPulse 1s ease-in-out infinite' } : undefined}
-          aria-label="Open AI assistant"
+          aria-label={t('openChat')}
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
@@ -66,7 +68,7 @@ export default function ChatWidget() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
               </svg>
               <div>
-                <div className="text-sm font-semibold text-white">AI Assistant</div>
+                <div className="text-sm font-semibold text-white">{t('title')}</div>
                 {projectContext?.projectName && (
                   <div className="text-[11px] text-white/70 truncate max-w-[240px]">{projectContext.projectName}</div>
                 )}
@@ -76,7 +78,7 @@ export default function ChatWidget() {
               type="button"
               onClick={toggleChat}
               className="rounded-lg p-1 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
-              aria-label="Minimize chat"
+              aria-label={t('closeChat')}
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -94,8 +96,8 @@ export default function ChatWidget() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-slate-700">No project selected</p>
-                  <p className="mt-1 text-xs text-slate-400">Open a project to start chatting with the AI assistant.</p>
+                  <p className="text-sm font-medium text-slate-700">{t('empty.title')}</p>
+                  <p className="mt-1 text-xs text-slate-400">{t('empty.subtitle')}</p>
                 </div>
               </div>
             )}
@@ -107,16 +109,16 @@ export default function ChatWidget() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
                   </svg>
                 </div>
-                <p className="text-sm text-slate-500">Ask me anything about your ERP setup, features, or modules.</p>
+                <p className="text-sm text-slate-500">{t('empty.subtitle')}</p>
                 <div className="mt-4 flex flex-wrap justify-center gap-1.5">
-                  {QUICK_PROMPTS.map((prompt) => (
+                  {quickPrompts.map((prompt) => (
                     <button
-                      key={prompt}
+                      key={prompt.key}
                       type="button"
-                      onClick={() => handleSend(prompt)}
+                      onClick={() => handleSend(prompt.text)}
                       className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
                     >
-                      {prompt}
+                      {prompt.text}
                     </button>
                   ))}
                 </div>
@@ -132,7 +134,7 @@ export default function ChatWidget() {
                 }`}>
                   {msg.unsupportedFeatures && msg.unsupportedFeatures.length > 0 && (
                     <div className="mb-2 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-[11px] text-amber-800">
-                      <span className="font-semibold">Recorded for future development:</span>{' '}
+                      <span className="font-semibold">{t('recordedForFuture')}</span>{' '}
                       {msg.unsupportedFeatures.join(', ')}
                     </div>
                   )}
@@ -165,7 +167,7 @@ export default function ChatWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder={hasProject ? 'Ask about features, modules, or your setup...' : 'Open a project first...'}
+                placeholder={hasProject ? t('placeholder') : t('empty.title')}
                 disabled={!hasProject || chatLoading}
                 className="flex-1 rounded-xl border bg-slate-50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
               />
@@ -174,7 +176,7 @@ export default function ChatWidget() {
                 onClick={() => handleSend()}
                 disabled={!input.trim() || !hasProject || chatLoading}
                 className="rounded-xl bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-                aria-label="Send message"
+                aria-label={t('send')}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />

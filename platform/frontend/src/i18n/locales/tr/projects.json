@@ -1,0 +1,39 @@
+{
+  "title": "Projeleriniz",
+  "subtitle": "Özel ERP'lerinizi oluşturun ve yönetin.",
+  "newProject": "Yeni Proje",
+  "empty": {
+    "title": "Henüz proje yok",
+    "subtitle": "ERP'nizi oluşturmak için ilk projenizi başlatın.",
+    "cta": "Proje oluştur"
+  },
+  "card": {
+    "created": "Oluşturuldu",
+    "updated": "Güncellendi",
+    "language": "Dil",
+    "open": "Aç",
+    "delete": "Sil",
+    "confirmDelete": "Bu proje silinsin mi? Bu işlem geri alınamaz.",
+    "deleting": "Siliniyor..."
+  },
+  "status": {
+    "Draft": "Taslak",
+    "Analyzing": "Analiz Ediliyor",
+    "Clarifying": "Açıklama Bekleniyor",
+    "Ready": "Hazır",
+    "Generated": "Oluşturuldu",
+    "Approved": "Onaylandı",
+    "Failed": "Başarısız"
+  },
+  "newModal": {
+    "title": "Yeni Proje",
+    "nameLabel": "Proje adı",
+    "namePlaceholder": "örn. Acme ERP",
+    "languageNotice": "Bu proje {{language}} dilinde oluşturulacak. Proje oluşturulduğunda dili — oluşturulacak ERP dahil — kilitlenir. Gelecek projeler için varsayılan dili Ayarlar'dan değiştirebilirsiniz.",
+    "create": "Oluştur",
+    "creating": "Oluşturuluyor...",
+    "cancel": "İptal",
+    "errorName": "Proje adı zorunludur.",
+    "errorGeneric": "Proje oluşturulamadı. Lütfen tekrar deneyin."
+  }
+}

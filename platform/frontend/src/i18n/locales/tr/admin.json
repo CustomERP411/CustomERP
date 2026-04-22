@@ -1,0 +1,223 @@
+{
+  "title": "Platform Yönetimi",
+  "subtitle": "Platform kullanıcılarını yönetin ve tüm projeleri görüntüleyin.",
+  "accessDenied": "Erişim Engellendi",
+  "accessDeniedMessage": "Yönetim paneline erişim izniniz yok.",
+  "loadingAdminData": "Yönetim verileri yükleniyor...",
+  "unknownError": "Bilinmeyen hata",
+  "tabs": {
+    "users": "Kullanıcılar",
+    "projects": "Projeler",
+    "featureRequests": "Özellik İstekleri",
+    "training": "Eğitim Verileri"
+  },
+  "users": {
+    "title": "Kullanıcılar",
+    "youLabel": "(siz)",
+    "adminBadge": "Yönetici",
+    "userBadge": "Kullanıcı",
+    "noUsers": "Kullanıcı bulunamadı.",
+    "columns": {
+      "name": "Ad",
+      "email": "E-posta",
+      "admin": "Yönetici",
+      "status": "Durum",
+      "joined": "Katıldı",
+      "actions": "İşlemler"
+    },
+    "makeAdmin": "Yönetici Yap",
+    "revokeAdmin": "Yöneticiyi Kaldır",
+    "block": "Engelle",
+    "unblock": "Engeli Kaldır",
+    "blocked": "Engellendi",
+    "active": "Aktif",
+    "blockReasonPrompt": "Engelleme sebebi:"
+  },
+  "blockModal": {
+    "title": "Kullanıcıyı Engelle",
+    "description": "<strong>{{name}}</strong> ({{email}}) kullanıcısının platforma erişimini engelleyin. Giriş yapmayı denediklerinde askıya alınma mesajı göreceklerdir.",
+    "reasonLabel": "Sebep (isteğe bağlı)",
+    "reasonPlaceholder": "örn. şüpheli etkinlik, politika ihlali...",
+    "cancel": "İptal",
+    "blockUser": "Kullanıcıyı Engelle",
+    "blocking": "Engelleniyor..."
+  },
+  "projects": {
+    "title": "Tüm projeler",
+    "noProjects": "Proje bulunamadı.",
+    "columns": {
+      "name": "Ad",
+      "project": "Proje",
+      "owner": "Sahip",
+      "status": "Durum",
+      "language": "Dil",
+      "created": "Oluşturuldu"
+    }
+  },
+  "featureRequests": {
+    "title": "Özellik İstekleri",
+    "accessDenied": "Erişim Engellendi",
+    "filters": {
+      "all": "Tümü",
+      "open": "Açık",
+      "inProgress": "Devam Ediyor",
+      "completed": "Tamamlandı",
+      "declined": "Reddedildi",
+      "allStatuses": "Tüm durumlar",
+      "allSources": "Tüm kaynaklar"
+    },
+    "columns": {
+      "title": "Başlık",
+      "user": "Kullanıcı",
+      "status": "Durum",
+      "created": "Oluşturuldu"
+    },
+    "statusLabels": {
+      "open": "Açık",
+      "in_progress": "Devam Ediyor",
+      "completed": "Tamamlandı",
+      "declined": "Planlanmadı",
+      "pending": "Beklemede",
+      "recorded": "Kaydedildi",
+      "denied": "Planlanmadı"
+    },
+    "sources": {
+      "chatbot": "Sohbet Botu",
+      "sdfShort": "SDF",
+      "sdfGeneration": "SDF Üretimi"
+    },
+    "stats": {
+      "total": "Toplam",
+      "recorded": "Kaydedildi",
+      "inProgress": "Devam Ediyor",
+      "done": "Tamamlandı",
+      "notPlanned": "Planlanmadı"
+    },
+    "list": {
+      "loading": "Yükleniyor...",
+      "empty": "Özellik isteği bulunamadı",
+      "total": "{{count}} toplam",
+      "prev": "Önceki",
+      "next": "Sonraki"
+    },
+    "detail": {
+      "empty": "Ayrıntıları görüntülemek için bir özellik isteği seçin",
+      "byUser": "{{user}} tarafından",
+      "projectLabel": "Proje",
+      "userPrompt": "Kullanıcının Orijinal Mesajı",
+      "sourceDetail": "Kaynak Detayı",
+      "statusAndNotes": "Durum ve Notlar",
+      "status": "Durum",
+      "adminNotes": "Yönetici Notları",
+      "notesPlaceholder": "Dahili notlar...",
+      "saveChanges": "Değişiklikleri Kaydet",
+      "saving": "Kaydediliyor...",
+      "saveFailed": "Kaydedilemedi",
+      "conversation": "Konuşma",
+      "noMessages": "Henüz mesaj yok. Konuşma başlatmak için kullanıcıya bir soru sorun.",
+      "messagePlaceholder": "Kullanıcıya bir soru sorun...",
+      "send": "Gönder",
+      "sendFailed": "Gönderilemedi"
+    },
+    "addNote": "Not ekle",
+    "sendMessage": "Mesaj gönder",
+    "messagePlaceholder": "Bir mesaj yazın...",
+    "updateStatus": "Durumu güncelle"
+  },
+  "training": {
+    "title": "AI Eğitim Verileri",
+    "export": "Azure için Dışa Aktar",
+    "review": "İncele",
+    "approved": "Onaylandı",
+    "rejected": "Reddedildi",
+    "pending": "Beklemede",
+    "loading": "Yükleniyor...",
+    "loadingSession": "Oturum yükleniyor...",
+    "noSessions": "Oturum bulunamadı",
+    "selectSession": "Ayrıntıları görüntülemek için bir oturum seçin",
+    "sessionsTotal": "{{count}} toplam",
+    "prev": "Önceki",
+    "next": "Sonraki",
+    "filters": {
+      "allAgents": "Tüm ajanlar",
+      "allQuality": "Tüm kalite",
+      "all": "Tümü",
+      "reviewed": "İncelendi",
+      "unreviewed": "İncelenmedi"
+    },
+    "stats": {
+      "sessions": "Oturumlar",
+      "reviewed": "İncelendi",
+      "good": "İyi",
+      "bad": "Kötü",
+      "needsEdit": "Düzenleme Gerekli",
+      "tokens": "Token"
+    },
+    "sessionItem": {
+      "pipeline": "Pipeline",
+      "unreviewed": "incelenmedi",
+      "noDescription": "(açıklama yok)"
+    },
+    "tabs": {
+      "overview": "genel bakış",
+      "agents": "Ajanlar ({{count}})"
+    },
+    "overview": {
+      "sdfValid": "SDF Geçerli",
+      "sdfIssues": "SDF Doğrulama Sorunları",
+      "tokenUsage": "Token Kullanımı",
+      "tokens": "token",
+      "inOut": "({{in_}} giriş / {{out}} çıkış)",
+      "inputTopLevel": "Giriş (üst düzey)",
+      "outputFinal": "Çıkış (nihai SDF)"
+    },
+    "agentsTab": {
+      "noAgentLogs": "Bu oturum için ajan adım günlüğü mevcut değil.",
+      "tokens": "{{count}} token",
+      "tokensInOut": "{{in_}} giriş / {{out}} çıkış",
+      "promptSent": "AI'ye Gönderilen Prompt",
+      "inputData": "Giriş Verileri (yapılandırılmış)",
+      "parsedOutput": "Ayrıştırılmış Çıkış (JSON)",
+      "rawResponse": "Ham AI Yanıtı",
+      "review": "İnceleme",
+      "lastSaved": "Son kayıt {{date}}",
+      "saving": "Kaydediliyor...",
+      "save": "Kaydet",
+      "notesPlaceholder": "Notlar (eğitimde kullanılmaz)...",
+      "correctivePlaceholder": "Düzeltme notları (kişisel referans)...",
+      "editedPlaceholder": "Bu ajan için düzeltilmiş JSON çıktısını yapıştırın...",
+      "validJson": "Geçerli JSON",
+      "invalidJson": "Geçersiz JSON",
+      "failedToSave": "İnceleme kaydedilemedi"
+    },
+    "validation": {
+      "empty": "Çıkış boş",
+      "missingProjectName": "project_name eksik",
+      "noEntities": "Tanımlı varlık yok",
+      "entityMissingSlug": "Varlıkta slug eksik",
+      "entityNoFields": "\"{{slug}}\" varlığının alanı yok",
+      "missingModules": "modules nesnesi eksik"
+    }
+  },
+  "exportModal": {
+    "title": "Azure için Eğitim Verilerini Dışa Aktar",
+    "subtitle": "Seçilen her ajan, bağımsız ince ayar için ayrı bir JSONL dosyası olarak dışa aktarılır.",
+    "qualityFilter": "Kalite Filtresi",
+    "goodOnly": "Sadece iyi",
+    "goodAndEdited": "İyi + Düzenlenmiş",
+    "exportPerAgent": "Ajan Başına Dışa Aktar",
+    "estimatedSessions": "Dışa aktarılacak tahmini oturum sayısı",
+    "cancel": "İptal",
+    "exporting": "Dışa aktarılıyor...",
+    "downloadZip": "Tümünü İndir (ZIP)",
+    "download": "İndir",
+    "exportFailed": "Dışa aktarma başarısız",
+    "agents": {
+      "distributor": "Dağıtıcı",
+      "hr_generator": "İK Oluşturucu",
+      "invoice_generator": "Fatura Oluşturucu",
+      "inventory_generator": "Envanter Oluşturucu",
+      "chatbot": "Sohbet Botu"
+    }
+  }
+}

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { projectService } from '../services/projectService';
-import { detectUserPlatform, PLATFORM_INFO } from '../components/project/projectConstants';
+import { detectUserPlatform, usePlatformInfo } from '../components/project/projectConstants';
 import GenerationModal from '../components/project/GenerationModal';
 import { useChatContext } from '../context/ChatContext';
 import type { Project } from '../types/project';
@@ -11,26 +12,28 @@ type PreviewStatus = 'idle' | 'queued' | 'starting' | 'running' | 'error' | 'sto
 
 const SIDEBAR_KEY = 'sidebar_collapsed';
 
-const PROGRESS_MESSAGES = [
-  { delay: 0, text: 'Generating your ERP...' },
-  { delay: 4_000, text: 'Installing backend dependencies...' },
-  { delay: 18_000, text: 'Installing frontend dependencies...' },
-  { delay: 35_000, text: 'Building interface...' },
-  { delay: 50_000, text: 'Starting your ERP...' },
-];
-
-function mapGenerationError(err: any): string {
-  const raw = err?.response?.data?.error || err?.message || '';
-  if (err?.code === 'ECONNABORTED' || /timeout/i.test(raw)) return 'Generation took too long. Your inputs are saved — please try again.';
-  if (/network|ECONNREFUSED/i.test(raw)) return 'Our AI service is temporarily unreachable. Please try again in a few minutes.';
-  if (/quota|rate.limit/i.test(raw)) return 'We\'re experiencing high demand. Please wait a moment and try again.';
-  if (/schema|validation/i.test(raw)) return 'The AI produced an unexpected format. Please try generating again.';
-  return raw || 'Something went wrong during generation. Please try again.';
-}
-
 export default function PreviewPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const { setProjectContext } = useChatContext();
+  const { t } = useTranslation('previewPage');
+  const PLATFORM_INFO = usePlatformInfo();
+
+  const PROGRESS_MESSAGES = useMemo(() => [
+    { delay: 0, text: t('progress.generating') },
+    { delay: 4_000, text: t('progress.installBackend') },
+    { delay: 18_000, text: t('progress.installFrontend') },
+    { delay: 35_000, text: t('progress.buildingInterface') },
+    { delay: 50_000, text: t('progress.starting') },
+  ], [t]);
+
+  const mapGenerationError = useCallback((err: any): string => {
+    const raw = err?.response?.data?.error || err?.message || '';
+    if (err?.code === 'ECONNABORTED' || /timeout/i.test(raw)) return t('errors.tooLong');
+    if (/network|ECONNREFUSED/i.test(raw)) return t('errors.unreachable');
+    if (/quota|rate.limit/i.test(raw)) return t('errors.highDemand');
+    if (/schema|validation/i.test(raw)) return t('errors.unexpectedFormat');
+    return raw || t('errors.generic');
+  }, [t]);
 
   const [project, setProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<PreviewStatus>('idle');
@@ -124,21 +127,21 @@ export default function PreviewPage() {
           setStatus('queued');
           setQueuePosition(res.queuePosition || 0);
           setProgressText('');
-          const t = setTimeout(poll, 3000);
-          progressTimers.current.push(t);
+          const timer = setTimeout(poll, 3000);
+          progressTimers.current.push(timer);
           return;
         }
         if (res.status === 'building') {
           if (status === 'queued') {
             setStatus('starting');
             PROGRESS_MESSAGES.forEach(({ delay, text }) => {
-              const t = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
-              progressTimers.current.push(t);
+              const timer = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
+              progressTimers.current.push(timer);
             });
           }
           setQueuePosition(0);
-          const t = setTimeout(poll, 3000);
-          progressTimers.current.push(t);
+          const timer = setTimeout(poll, 3000);
+          progressTimers.current.push(timer);
           return;
         }
       } catch { /* ignore */ }
@@ -147,13 +150,13 @@ export default function PreviewPage() {
         setStatus('error');
         setProgressText('');
         setQueuePosition(0);
-        setErrorMsg('Preview build failed. Please try again.');
+        setErrorMsg(t('errors.previewBuildFailed'));
       }
     };
 
-    const t = setTimeout(poll, 3000);
-    progressTimers.current.push(t);
-  }, [projectId, clearProgressTimers, status]);
+    const timer = setTimeout(poll, 3000);
+    progressTimers.current.push(timer);
+  }, [projectId, clearProgressTimers, status, PROGRESS_MESSAGES, t]);
 
   const startPreviewFlow = useCallback(async () => {
     if (!projectId) return;
@@ -173,8 +176,8 @@ export default function PreviewPage() {
       } else if (result.status === 'building') {
         setStatus('starting');
         PROGRESS_MESSAGES.forEach(({ delay, text }) => {
-          const t = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
-          progressTimers.current.push(t);
+          const timer = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
+          progressTimers.current.push(timer);
         });
         pollUntilReady();
       } else if (result.status === 'running') {
@@ -187,7 +190,7 @@ export default function PreviewPage() {
       if (!mountedRef.current) return;
       setStatus('error');
       setProgressText('');
-      setErrorMsg(err?.response?.data?.error || err?.message || 'Failed to start preview');
+      setErrorMsg(err?.response?.data?.error || err?.message || t('errors.startFailed'));
     }
   }, [projectId, clearProgressTimers, pollUntilReady]);
 
@@ -214,8 +217,8 @@ export default function PreviewPage() {
           setPreviewId(existing.previewId);
           setStatus('starting');
           PROGRESS_MESSAGES.forEach(({ delay, text }) => {
-            const t = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
-            progressTimers.current.push(t);
+            const timer = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
+            progressTimers.current.push(timer);
           });
           pollUntilReady();
           return;
@@ -262,16 +265,16 @@ export default function PreviewPage() {
       try { await projectService.stopPreview(projectId); } catch { /* cleanup */ }
     } catch (err: any) {
       const raw = err?.response?.data instanceof Blob
-        ? await err.response.data.text().then((t: string) => { try { return JSON.parse(t).error; } catch { return t; } }).catch(() => '')
+        ? await err.response.data.text().then((text: string) => { try { return JSON.parse(text).error; } catch { return text; } }).catch(() => '')
         : (err?.response?.data?.error || err?.message || '');
-      setDownloadError(raw || 'Download failed. Please try again.');
+      setDownloadError(raw || t('errors.downloadFailed'));
       setDownloadPhase('error');
     }
   };
 
   const handleRequestChanges = async () => {
     if (!projectId || !changeText.trim()) return;
-    setGenPhase('Applying changes...'); setGenResult(null); setGenErrorMsg(''); setGenProgress(null);
+    setGenPhase(t('phase.applying')); setGenResult(null); setGenErrorMsg(''); setGenProgress(null);
     setQuestions([]); setAnswersById({});
 
     let progressCancelled = false;
@@ -293,12 +296,12 @@ export default function PreviewPage() {
 
       if (resQuestions.length > 0 && !res.sdf_complete) {
         setCurrentSdf(res.sdf); setQuestions(resQuestions); setAnswersById({});
-        setGenProgress({ step: 'clarifications', pct: 20, detail: 'Waiting for your answers' });
+        setGenProgress({ step: 'clarifications', pct: 20, detail: t('phase.waitingAnswers') });
         return;
       }
 
       setCurrentSdf(res.sdf);
-      setGenProgress({ step: 'done', pct: 100, detail: 'Complete' });
+      setGenProgress({ step: 'done', pct: 100, detail: t('phase.complete') });
       setGenResult('success');
       setChangeText('');
       setTimeout(async () => {
@@ -316,7 +319,7 @@ export default function PreviewPage() {
   const submitModalAnswers = async () => {
     if (!projectId || !currentSdf || questions.length === 0) return;
     setSubmittingAnswers(true);
-    setGenProgress({ step: 'generators', pct: 30, detail: 'Processing your answers...' });
+    setGenProgress({ step: 'generators', pct: 30, detail: t('phase.processingAnswers') });
 
     let progressCancelled = false;
     const pollProgress = async () => {
@@ -339,12 +342,12 @@ export default function PreviewPage() {
 
       if (resQuestions.length > 0 && !res.sdf_complete) {
         setCurrentSdf(res.sdf); setQuestions(resQuestions); setAnswersById({});
-        setGenProgress({ step: 'clarifications', pct: 20, detail: 'Waiting for your answers' });
+        setGenProgress({ step: 'clarifications', pct: 20, detail: t('phase.waitingAnswers') });
         return;
       }
 
       setCurrentSdf(res.sdf);
-      setGenProgress({ step: 'done', pct: 100, detail: 'Complete' });
+      setGenProgress({ step: 'done', pct: 100, detail: t('phase.complete') });
       setGenResult('success');
       setChangeText('');
       setTimeout(async () => {
@@ -378,8 +381,8 @@ export default function PreviewPage() {
               </svg>
             </Link>
             <div className="min-w-0">
-              <h1 className="text-base font-semibold text-gray-900 truncate">{project?.name || 'Preview'}</h1>
-              <p className="text-xs text-gray-500">Live Preview</p>
+              <h1 className="text-base font-semibold text-gray-900 truncate">{project?.name || t('livePreview')}</h1>
+              <p className="text-xs text-gray-500">{t('livePreview')}</p>
             </div>
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
               status === 'running' ? 'bg-green-100 text-green-800' :
@@ -394,7 +397,7 @@ export default function PreviewPage() {
                 status === 'queued' ? 'bg-blue-500 animate-pulse' :
                 status === 'error' ? 'bg-red-500' : 'bg-gray-400'
               }`} />
-              {status === 'running' ? 'Running' : status === 'queued' ? 'In Queue' : status === 'starting' ? 'Building...' : status === 'error' ? 'Error' : status === 'stopping' ? 'Stopping...' : 'Idle'}
+              {status === 'running' ? t('status.running') : status === 'queued' ? t('status.inQueue') : status === 'starting' ? t('status.building') : status === 'error' ? t('status.error') : status === 'stopping' ? t('status.stopping') : t('status.idle')}
             </span>
           </div>
 
@@ -405,7 +408,7 @@ export default function PreviewPage() {
               className="px-4 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-              Approve &amp; Download
+              {t('approveDownload')}
             </button>
           </div>
         </div>
@@ -435,11 +438,11 @@ export default function PreviewPage() {
                   )}
                 </div>
                 <div>
-                  <p className="text-lg font-medium text-gray-900">Your preview is queued</p>
+                  <p className="text-lg font-medium text-gray-900">{t('queue.title')}</p>
                   <p className="text-sm text-gray-500 mt-1">
                     {queuePosition > 0
-                      ? `Position ${queuePosition} in queue. Another build is in progress.`
-                      : 'Waiting for a build slot to open up.'}
+                      ? t('queue.position', { position: queuePosition })
+                      : t('queue.waiting')}
                   </p>
                 </div>
                 <div className="flex justify-center gap-1.5">
@@ -460,8 +463,8 @@ export default function PreviewPage() {
                   <div className="absolute inset-3 rounded-full border-4 border-indigo-300 border-b-transparent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
                 </div>
                 <div>
-                  <p className="text-lg font-medium text-gray-900">{progressText || 'Preparing preview...'}</p>
-                  <p className="text-sm text-gray-500 mt-1">This may take up to a minute</p>
+                  <p className="text-lg font-medium text-gray-900">{progressText || t('preparingPreview')}</p>
+                  <p className="text-sm text-gray-500 mt-1">{t('mayTake')}</p>
                 </div>
                 <div className="flex justify-center gap-1">
                   {[0, 1, 2].map(i => (
@@ -481,31 +484,31 @@ export default function PreviewPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.75h.007v.008H12v-.008z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Preview Failed</h3>
-                <p className="text-sm text-gray-600">{errorMsg || 'Something went wrong while generating the preview.'}</p>
+                <h3 className="text-lg font-semibold text-gray-900">{t('previewFailed')}</h3>
+                <p className="text-sm text-gray-600">{errorMsg || t('previewFailedGeneric')}</p>
                 <div className="flex justify-center gap-3">
-                  <button onClick={startPreviewFlow} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Try Again</button>
-                  <Link to={`/projects/${projectId}`} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Back to Project</Link>
+                  <button onClick={startPreviewFlow} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">{t('tryAgain')}</button>
+                  <Link to={`/projects/${projectId}`} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">{t('backToProject')}</Link>
                 </div>
               </div>
             </div>
           )}
 
           {status === 'running' && iframeSrc && (
-            <iframe ref={iframeRef} src={iframeSrc} title="ERP Preview" className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads" />
+            <iframe ref={iframeRef} src={iframeSrc} title={t('iframeTitle')} className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads" />
           )}
         </div>
 
         {/* Right: change panel */}
         <div className="w-[340px] flex-shrink-0 border-l border-gray-200 bg-white flex flex-col">
           <div className="p-5 flex-1 flex flex-col">
-            <h2 className="text-base font-semibold text-gray-900 mb-1">Request Changes</h2>
-            <p className="text-xs text-gray-500 mb-4">Describe what you'd like changed and we'll regenerate your ERP.</p>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">{t('changePanel.title')}</h2>
+            <p className="text-xs text-gray-500 mb-4">{t('changePanel.subtitle')}</p>
 
             <textarea
               value={changeText}
               onChange={(e) => setChangeText(e.target.value)}
-              placeholder="e.g. Add an expiry date field to products, change the invoice layout to show tax separately..."
+              placeholder={t('changePanel.placeholder')}
               className="flex-1 min-h-[200px] w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-3 text-sm resize-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
               disabled={!!genPhase}
             />
@@ -516,7 +519,7 @@ export default function PreviewPage() {
               disabled={!changeText.trim() || !!genPhase || status !== 'running'}
               className="mt-4 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Request Changes
+              {t('changePanel.button')}
             </button>
           </div>
         </div>
@@ -542,8 +545,8 @@ export default function PreviewPage() {
             {downloadPhase === 'pick' && (
               <div className="p-6 space-y-5">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Approve &amp; Download</h2>
-                  <p className="text-sm text-gray-500 mt-1">Choose the operating system you'll run this ERP on.</p>
+                  <h2 className="text-lg font-semibold text-gray-900">{t('approveDownload')}</h2>
+                  <p className="text-sm text-gray-500 mt-1">{t('downloadModal.choosePlatform')}</p>
                 </div>
                 <div className="space-y-2">
                   {Object.entries(PLATFORM_INFO).map(([key, info]) => (
@@ -563,7 +566,7 @@ export default function PreviewPage() {
                       />
                       <div>
                         <div className="text-sm font-medium text-gray-900">{info.label}</div>
-                        <div className="text-xs text-gray-500">Run with <code className="bg-gray-100 px-1 rounded">{info.startFile}</code></div>
+                        <div className="text-xs text-gray-500">{t('downloadModal.runWith')} <code className="bg-gray-100 px-1 rounded">{info.startFile}</code></div>
                       </div>
                     </label>
                   ))}
@@ -573,14 +576,14 @@ export default function PreviewPage() {
                     onClick={() => setShowDownloadModal(false)}
                     className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={() => { void startApproveAndDownload(); }}
                     disabled={!downloadPlatform}
                     className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
                   >
-                    Approve &amp; Download
+                    {t('approveDownload')}
                   </button>
                 </div>
               </div>
@@ -593,12 +596,12 @@ export default function PreviewPage() {
                   <div className="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900">Compiling your ERP</h3>
+                  <h3 className="text-base font-semibold text-gray-900">{t('downloadModal.compiling')}</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    Building for {PLATFORM_INFO[downloadPlatform]?.label || downloadPlatform}. This may take a few minutes.
+                    {t('downloadModal.buildingFor', { platform: PLATFORM_INFO[downloadPlatform]?.label || downloadPlatform })}
                   </p>
                 </div>
-                <p className="text-xs text-gray-400">Please don't close this page.</p>
+                <p className="text-xs text-gray-400">{t('downloadModal.dontClose')}</p>
               </div>
             )}
 
@@ -610,10 +613,8 @@ export default function PreviewPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900">Download started!</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Your ERP has been approved and the download should begin automatically.
-                  </p>
+                  <h3 className="text-base font-semibold text-gray-900">{t('downloadModal.startedTitle')}</h3>
+                  <p className="text-sm text-gray-500 mt-1">{t('downloadModal.startedBody')}</p>
                   <p className="text-xs text-gray-400 mt-2">
                     {PLATFORM_INFO[downloadPlatform]?.extractTip}
                   </p>
@@ -622,7 +623,7 @@ export default function PreviewPage() {
                   onClick={() => setShowDownloadModal(false)}
                   className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
                 >
-                  Close
+                  {t('common.close')}
                 </button>
               </div>
             )}
@@ -635,7 +636,7 @@ export default function PreviewPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900">Download failed</h3>
+                  <h3 className="text-base font-semibold text-gray-900">{t('downloadModal.failedTitle')}</h3>
                   <p className="text-sm text-gray-600 mt-1">{downloadError}</p>
                 </div>
                 <div className="flex gap-3 justify-center">
@@ -643,13 +644,13 @@ export default function PreviewPage() {
                     onClick={() => setShowDownloadModal(false)}
                     className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    Close
+                    {t('common.close')}
                   </button>
                   <button
                     onClick={() => { void startApproveAndDownload(); }}
                     className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
                   >
-                    Retry
+                    {t('downloadModal.retry')}
                   </button>
                 </div>
               </div>

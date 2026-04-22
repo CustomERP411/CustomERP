@@ -1,0 +1,39 @@
+{
+  "title": "Your Projects",
+  "subtitle": "Create and manage your custom ERPs.",
+  "newProject": "New Project",
+  "empty": {
+    "title": "No projects yet",
+    "subtitle": "Create your first project to start building your ERP.",
+    "cta": "Create project"
+  },
+  "card": {
+    "created": "Created",
+    "updated": "Updated",
+    "language": "Language",
+    "open": "Open",
+    "delete": "Delete",
+    "confirmDelete": "Delete this project? This cannot be undone.",
+    "deleting": "Deleting..."
+  },
+  "status": {
+    "Draft": "Draft",
+    "Analyzing": "Analyzing",
+    "Clarifying": "Clarifying",
+    "Ready": "Ready",
+    "Generated": "Generated",
+    "Approved": "Approved",
+    "Failed": "Failed"
+  },
+  "newModal": {
+    "title": "New Project",
+    "nameLabel": "Project name",
+    "namePlaceholder": "e.g. Acme ERP",
+    "languageNotice": "This project will be created in {{language}}. The language is locked once the project is created, including for the generated ERP. You can change the default for future projects from Settings.",
+    "create": "Create",
+    "creating": "Creating...",
+    "cancel": "Cancel",
+    "errorName": "Project name is required.",
+    "errorGeneric": "Could not create project. Please try again."
+  }
+}

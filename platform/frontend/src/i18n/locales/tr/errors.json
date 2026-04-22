@@ -1,0 +1,12 @@
+{
+  "generic": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
+  "network": "Ağ hatası. Lütfen bağlantınızı kontrol edin.",
+  "unauthorized": "Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.",
+  "forbidden": "Bu işlem için yetkiniz yok.",
+  "notFound": "Bulunamadı.",
+  "validation": "Lütfen formdaki hataları kontrol edin.",
+  "mobileBlocked": {
+    "title": "Masaüstü gereklidir",
+    "body": "CustomERP masaüstü tarayıcılar için tasarlanmıştır. Lütfen bu siteyi bir dizüstü veya masaüstü bilgisayarda açın."
+  }
+}

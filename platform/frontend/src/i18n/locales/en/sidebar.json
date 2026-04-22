@@ -1,0 +1,13 @@
+{
+  "projects": "Projects",
+  "myRequests": "My Requests",
+  "settings": "Settings",
+  "admin": "Admin",
+  "training": "Training Data",
+  "featureRequests": "Feature Requests",
+  "signOut": "Sign Out",
+  "signedInAs": "Signed in as",
+  "user": "User",
+  "expandSidebar": "Expand sidebar",
+  "collapseSidebar": "Collapse sidebar"
+}

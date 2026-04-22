@@ -9,6 +9,40 @@ PROMPT_DIR = pathlib.Path(__file__).parent
 # Cache for SDF schema reference
 _SDF_SCHEMA_CACHE: str = ""
 
+# Cache for per-language directive files, keyed by normalized language code.
+_LANGUAGE_DIRECTIVE_CACHE: dict[str, str] = {}
+
+# Supported languages — the system is pluggable: to add a new language, drop a
+# `language_directive_<code>.txt` file next to this module and extend this set.
+SUPPORTED_LANGUAGES = {"en", "tr"}
+DEFAULT_LANGUAGE = "en"
+
+
+def _normalize_language(language: str | None) -> str:
+    code = (language or "").strip().lower()
+    return code if code in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
+
+
+def load_language_directive(language: str | None) -> str:
+    """Return the language directive block to prepend to every LLM prompt.
+
+    Directives are read from `language_directive_<code>.txt` next to this
+    module and cached in-process.
+    """
+    code = _normalize_language(language)
+    if code in _LANGUAGE_DIRECTIVE_CACHE:
+        return _LANGUAGE_DIRECTIVE_CACHE[code]
+    directive_path = PROMPT_DIR / f"language_directive_{code}.txt"
+    if not directive_path.exists():
+        # Fall back to English if the directive file is missing.
+        directive_path = PROMPT_DIR / f"language_directive_{DEFAULT_LANGUAGE}.txt"
+    try:
+        text = directive_path.read_text()
+    except FileNotFoundError:
+        text = ""
+    _LANGUAGE_DIRECTIVE_CACHE[code] = text
+    return text
+
 
 def _get_sdf_schema_reference() -> str:
     """Load the condensed SDF schema reference (cached)."""
@@ -38,12 +72,29 @@ def _inject_placeholders(template: str, values: dict[str, str]) -> str:
     return out
 
 
-def get_sdf_prompt(business_description: str) -> str:
+def _with_language_directive(prompt_text: str, language: str | None) -> str:
+    """Prepend the language directive block to a rendered prompt.
+
+    Templates may optionally include a `{language_directive}` placeholder — if
+    present, we replace it. Otherwise we prepend the directive to the top of
+    the prompt so the LLM sees it before any other instruction.
+    """
+    directive = load_language_directive(language).strip()
+    if not directive:
+        return prompt_text
+    placeholder = "{language_directive}"
+    if placeholder in prompt_text:
+        return prompt_text.replace(placeholder, directive)
+    return f"{directive}\n\n{prompt_text}"
+
+
+def get_sdf_prompt(business_description: str, language: str = DEFAULT_LANGUAGE) -> str:
     """Loads the SDF prompt from a text file and injects the business description."""
     try:
         prompt_template_path = PROMPT_DIR / "analyze_prompt.txt"
         prompt_template = prompt_template_path.read_text()
-        return _inject_placeholders(prompt_template, {"business_description": business_description})
+        rendered = _inject_placeholders(prompt_template, {"business_description": business_description})
+        return _with_language_directive(rendered, language)
     except FileNotFoundError:
         # Handle case where the prompt file is missing
         print(f"Error: Prompt file not found at {prompt_template_path}")
@@ -51,12 +102,12 @@ def get_sdf_prompt(business_description: str) -> str:
         return "Error: Could not load prompt."
 
 
-def get_clarify_prompt(business_description: str, partial_sdf: str, answers: str) -> str:
+def get_clarify_prompt(business_description: str, partial_sdf: str, answers: str, language: str = DEFAULT_LANGUAGE) -> str:
     """Loads the clarify prompt and injects the context."""
     try:
         prompt_template_path = PROMPT_DIR / "clarify_prompt.txt"
         prompt_template = prompt_template_path.read_text()
-        return _inject_placeholders(
+        rendered = _inject_placeholders(
             prompt_template,
             {
                 "business_description": business_description,
@@ -64,13 +115,18 @@ def get_clarify_prompt(business_description: str, partial_sdf: str, answers: str
                 "answers": answers,
             },
         )
+        return _with_language_directive(rendered, language)
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."
 
 
 def get_fix_json_prompt(invalid_json: str) -> str:
-    """Loads the JSON fix prompt and injects the invalid JSON string."""
+    """Loads the JSON fix prompt and injects the invalid JSON string.
+
+    Note: This prompt is pure structural repair — it does not produce
+    user-facing content, so we do NOT inject a language directive.
+    """
     try:
         prompt_template_path = PROMPT_DIR / "fix_json_prompt.txt"
         prompt_template = prompt_template_path.read_text()
@@ -80,12 +136,12 @@ def get_fix_json_prompt(invalid_json: str) -> str:
         return "Error: Could not load prompt."
 
 
-def get_edit_prompt(business_description: str, current_sdf: str, instructions: str) -> str:
+def get_edit_prompt(business_description: str, current_sdf: str, instructions: str, language: str = DEFAULT_LANGUAGE) -> str:
     """Loads the edit prompt and injects the context."""
     try:
         prompt_template_path = PROMPT_DIR / "edit_prompt.txt"
         prompt_template = prompt_template_path.read_text()
-        return _inject_placeholders(
+        rendered = _inject_placeholders(
             prompt_template,
             {
                 "business_description": business_description or "",
@@ -93,17 +149,18 @@ def get_edit_prompt(business_description: str, current_sdf: str, instructions: s
                 "instructions": instructions,
             },
         )
+        return _with_language_directive(rendered, language)
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."
 
 
-def get_finalize_prompt(business_description: str, partial_sdf: str, answers: str) -> str:
+def get_finalize_prompt(business_description: str, partial_sdf: str, answers: str, language: str = DEFAULT_LANGUAGE) -> str:
     """Loads the finalize prompt and injects the context."""
     try:
         prompt_template_path = PROMPT_DIR / "finalize_prompt.txt"
         prompt_template = prompt_template_path.read_text()
-        return _inject_placeholders(
+        rendered = _inject_placeholders(
             prompt_template,
             {
                 "business_description": business_description or "",
@@ -111,6 +168,7 @@ def get_finalize_prompt(business_description: str, partial_sdf: str, answers: st
                 "answers": answers,
             },
         )
+        return _with_language_directive(rendered, language)
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."
@@ -124,6 +182,7 @@ def get_distributor_prompt(
     business_description: str,
     default_questions: str = "",
     existing_modules: str = "",
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Loads the distributor prompt for routing user input to modules.
     
@@ -131,11 +190,12 @@ def get_distributor_prompt(
         business_description: The user's natural language input.
         default_questions: Answers to mandatory pre-generation questions.
         existing_modules: Lightweight summary of enabled modules and entity slugs.
+        language: Project language code (en/tr) — controls directive injection.
     """
     try:
         prompt_template_path = PROMPT_DIR / "distributor_prompt.txt"
         prompt_template = prompt_template_path.read_text()
-        return _inject_placeholders(
+        rendered = _inject_placeholders(
             prompt_template,
             {
                 "business_description": business_description,
@@ -143,6 +203,7 @@ def get_distributor_prompt(
                 "existing_modules": existing_modules or "No existing ERP — this is a fresh generation.",
             },
         )
+        return _with_language_directive(rendered, language)
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."
@@ -156,12 +217,13 @@ def get_hr_generator_prompt(
     default_answers: str = "",
     prefilled_module_sdf: str = "",
     change_instructions: str = "",
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Loads the HR module generator prompt."""
     try:
         prompt_template_path = PROMPT_DIR / "hr_generator_prompt.txt"
         prompt_template = prompt_template_path.read_text()
-        return _inject_placeholders(
+        rendered = _inject_placeholders(
             prompt_template,
             {
                 "business_description": business_description,
@@ -174,6 +236,7 @@ def get_hr_generator_prompt(
                 "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
+        return _with_language_directive(rendered, language)
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."
@@ -187,12 +250,13 @@ def get_invoice_generator_prompt(
     default_answers: str = "",
     prefilled_module_sdf: str = "",
     change_instructions: str = "",
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Loads the Invoice module generator prompt."""
     try:
         prompt_template_path = PROMPT_DIR / "invoice_generator_prompt.txt"
         prompt_template = prompt_template_path.read_text()
-        return _inject_placeholders(
+        rendered = _inject_placeholders(
             prompt_template,
             {
                 "business_description": business_description,
@@ -205,6 +269,7 @@ def get_invoice_generator_prompt(
                 "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
+        return _with_language_directive(rendered, language)
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."
@@ -218,12 +283,13 @@ def get_inventory_generator_prompt(
     default_answers: str = "",
     prefilled_module_sdf: str = "",
     change_instructions: str = "",
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Loads the Inventory module generator prompt."""
     try:
         prompt_template_path = PROMPT_DIR / "inventory_generator_prompt.txt"
         prompt_template = prompt_template_path.read_text()
-        return _inject_placeholders(
+        rendered = _inject_placeholders(
             prompt_template,
             {
                 "business_description": business_description,
@@ -236,6 +302,7 @@ def get_inventory_generator_prompt(
                 "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
+        return _with_language_directive(rendered, language)
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."
@@ -249,12 +316,13 @@ def get_chat_prompt(
     conversation_history: str = "",
     current_step: str = "",
     sdf_status: str = "",
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Loads the chat mode prompt for conversational feature discussion."""
     try:
         prompt_template_path = PROMPT_DIR / "chat_prompt.txt"
         prompt_template = prompt_template_path.read_text()
-        return _inject_placeholders(
+        rendered = _inject_placeholders(
             prompt_template,
             {
                 "business_description": business_description or "",
@@ -266,6 +334,7 @@ def get_chat_prompt(
                 "sdf_status": sdf_status or "none",
             },
         )
+        return _with_language_directive(rendered, language)
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {PROMPT_DIR / 'chat_prompt.txt'}")
         return "Error: Could not load prompt."
@@ -280,12 +349,13 @@ def get_integrator_prompt(
     inventory_output: str,
     default_question_answers: str,
     prefilled_sdf: str,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Loads the Integrator prompt for combining module outputs."""
     try:
         prompt_template_path = PROMPT_DIR / "integrator_prompt.txt"
         prompt_template = prompt_template_path.read_text()
-        return _inject_placeholders(
+        rendered = _inject_placeholders(
             prompt_template,
             {
                 "project_name": project_name,
@@ -299,6 +369,7 @@ def get_integrator_prompt(
                 "sdf_schema_reference": _get_sdf_schema_reference(),
             },
         )
+        return _with_language_directive(rendered, language)
     except FileNotFoundError:
         print(f"Error: Prompt file not found at {prompt_template_path}")
         return "Error: Could not load prompt."

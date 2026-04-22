@@ -1,3 +1,5 @@
+const { tFor } = require('../../i18n/labels');
+
 function buildAuthContext() {
   return `import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import axios from 'axios';
@@ -102,7 +104,30 @@ export { API };
 `;
 }
 
-function buildLoginPage() {
+function buildLoginPage({ language } = {}) {
+  const isTr = String(language || '').toLowerCase() === 'tr';
+  const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const L = isTr
+    ? {
+        signIn: 'Giriş Yap',
+        subtitle: 'Devam etmek için kimlik bilgilerinizi girin',
+        loading: 'Yükleniyor...',
+        username: 'Kullanıcı adı',
+        password: 'Şifre',
+        signingIn: 'Giriş yapılıyor...',
+        loginFailed: 'Giriş başarısız',
+        defaultLogin: 'Varsayılan giriş:',
+      }
+    : {
+        signIn: 'Sign In',
+        subtitle: 'Enter your credentials to continue',
+        loading: 'Loading...',
+        username: 'Username',
+        password: 'Password',
+        signingIn: 'Signing in...',
+        loginFailed: 'Login failed',
+        defaultLogin: 'Default login:',
+      };
   return `import { useState, useEffect, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -125,7 +150,7 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <div className="text-sm text-slate-500">Loading...</div>
+        <div className="text-sm text-slate-500">${esc(L.loading)}</div>
       </div>
     );
   }
@@ -139,7 +164,7 @@ export default function LoginPage() {
     try {
       await login(username, password);
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Login failed');
+      setError(err?.response?.data?.error || '${esc(L.loginFailed)}');
     } finally {
       setSubmitting(false);
     }
@@ -152,8 +177,8 @@ export default function LoginPage() {
         className="w-full max-w-sm space-y-5 rounded-2xl border bg-white p-8 shadow-lg"
       >
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-900">Sign In</h1>
-          <p className="mt-1 text-sm text-slate-500">Enter your credentials to continue</p>
+          <h1 className="text-2xl font-bold text-slate-900">${esc(L.signIn)}</h1>
+          <p className="mt-1 text-sm text-slate-500">${esc(L.subtitle)}</p>
         </div>
 
         {error && (
@@ -161,7 +186,7 @@ export default function LoginPage() {
         )}
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Username</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">${esc(L.username)}</label>
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -172,7 +197,7 @@ export default function LoginPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">${esc(L.password)}</label>
           <input
             type="password"
             value={password}
@@ -187,13 +212,13 @@ export default function LoginPage() {
           disabled={submitting}
           className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
         >
-          {submitting ? 'Signing in...' : 'Sign In'}
+          {submitting ? '${esc(L.signingIn)}' : '${esc(L.signIn)}'}
         </button>
 
         {showDefaultHint && (
           <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-center">
             <p className="text-sm font-medium text-blue-800">
-              Default login: <strong>admin</strong> / <strong>admin</strong>
+              ${esc(L.defaultLogin)} <strong>admin</strong> / <strong>admin</strong>
             </p>
           </div>
         )}
@@ -218,7 +243,9 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
 `;
 }
 
-function buildUsersAdminPageConnected() {
+function buildUsersAdminPageConnected({ language } = {}) {
+  const t = tFor(language);
+  const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   return `import { useEffect, useState, useCallback } from 'react';
 import { API } from '../../contexts/AuthContext';
 
@@ -308,7 +335,7 @@ export default function UsersAdminPageConnected() {
       await API.put('/__erp_users/' + editingUser.id, payload);
       userId = editingUser.id;
     } else {
-      if (!form.password) { alert('Password is required for new users'); return; }
+      if (!form.password) { alert('${esc(t('rbac.passwordRequired'))}'); return; }
       const { data } = await API.post('/__erp_users', payload);
       userId = data.id;
     }
@@ -339,29 +366,29 @@ export default function UsersAdminPageConnected() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">User Management</h2>
-          <p className="mt-1 text-sm text-slate-500">Add, edit, or deactivate users and assign their roles.</p>
+          <h2 className="text-lg font-semibold text-slate-900">${t('rbac.usersTitle')}</h2>
+          <p className="mt-1 text-sm text-slate-500">${t('rbac.usersSubtitle')}</p>
         </div>
-        <button onClick={openCreate} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">Add User</button>
+        <button onClick={openCreate} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">${t('rbac.addUser')}</button>
       </div>
 
-      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search users..." className="w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500" />
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="${t('rbac.searchUsers')}" className="w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500" />
 
       {showForm && (
         <div className="rounded-xl border bg-white p-5 shadow-sm space-y-3">
-          <h3 className="font-semibold text-slate-900">{editingUser ? 'Edit User' : 'Create User'}</h3>
+          <h3 className="font-semibold text-slate-900">{editingUser ? '${esc(t('rbac.editUser'))}' : '${esc(t('rbac.createUser'))}'}</h3>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="Username" className="rounded-lg border px-3 py-2 text-sm" />
-            <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" className="rounded-lg border px-3 py-2 text-sm" />
-            <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="Display Name" className="rounded-lg border px-3 py-2 text-sm" />
-            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editingUser ? 'New password (leave blank to keep)' : 'Password'} className="rounded-lg border px-3 py-2 text-sm" />
+            <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="${t('rbac.username')}" className="rounded-lg border px-3 py-2 text-sm" />
+            <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="${t('rbac.email')}" className="rounded-lg border px-3 py-2 text-sm" />
+            <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="${t('rbac.displayName')}" className="rounded-lg border px-3 py-2 text-sm" />
+            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editingUser ? '${esc(t('rbac.passwordKeep'))}' : '${esc(t('rbac.password'))}'} className="rounded-lg border px-3 py-2 text-sm" />
           </div>
           <label className="inline-flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="h-4 w-4 rounded border-slate-300" />
-            Active
+            ${t('rbac.active')}
           </label>
           <div>
-            <div className="mb-1 text-sm font-medium text-slate-700">Roles</div>
+            <div className="mb-1 text-sm font-medium text-slate-700">${t('rbac.roles')}</div>
             <div className="flex flex-wrap gap-2">
               {groups.map((g) => (
                 <label key={g.id} className="inline-flex items-center gap-1 text-sm">
@@ -377,8 +404,8 @@ export default function UsersAdminPageConnected() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Save</button>
-            <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+            <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">${t('rbac.save')}</button>
+            <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">${t('rbac.cancel')}</button>
           </div>
         </div>
       )}
@@ -387,10 +414,10 @@ export default function UsersAdminPageConnected() {
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50">
             <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-3 py-2">User</th>
-              <th className="px-3 py-2">Roles</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2 text-right">Actions</th>
+              <th className="px-3 py-2">${t('rbac.user')}</th>
+              <th className="px-3 py-2">${t('rbac.roles')}</th>
+              <th className="px-3 py-2">${t('rbac.status')}</th>
+              <th className="px-3 py-2 text-right">${t('rbac.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -405,17 +432,17 @@ export default function UsersAdminPageConnected() {
                   </div>
                   <div className="text-xs text-slate-500">{user.email}</div>
                 </td>
-                <td className="px-3 py-2 text-slate-700">{userGroups(user.id).join(', ') || 'No roles'}</td>
+                <td className="px-3 py-2 text-slate-700">{userGroups(user.id).join(', ') || '${esc(t('rbac.noRoles'))}'}</td>
                 <td className="px-3 py-2">
                   <span className={\`rounded-full px-2 py-0.5 text-xs font-semibold \${Number(user.is_active) !== 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}\`}>
-                    {Number(user.is_active) !== 0 ? 'active' : 'disabled'}
+                    {Number(user.is_active) !== 0 ? '${esc(t('rbac.statusActive'))}' : '${esc(t('rbac.statusDisabled'))}'}
                   </span>
                 </td>
                 <td className="px-3 py-2 text-right">
                   <div className="inline-flex items-center gap-2">
-                    <button onClick={() => openEdit(user)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit</button>
+                    <button onClick={() => openEdit(user)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">${t('rbac.edit')}</button>
                     {!isProtected && (
-                      <button onClick={() => toggleStatus(user)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">{Number(user.is_active) !== 0 ? 'Disable' : 'Activate'}</button>
+                      <button onClick={() => toggleStatus(user)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">{Number(user.is_active) !== 0 ? '${esc(t('rbac.disable'))}' : '${esc(t('rbac.activate'))}'}</button>
                     )}
                   </div>
                 </td>
@@ -431,7 +458,23 @@ export default function UsersAdminPageConnected() {
 `;
 }
 
-function buildGroupsAdminPageConnected() {
+function buildGroupsAdminPageConnected({ language } = {}) {
+  const t = tFor(language);
+  const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const isTr = String(language || '').toLowerCase() === 'tr';
+  const actionLabels = isTr
+    ? { create: 'Ekle', read: 'Görüntüle', update: 'Düzenle', delete: 'Sil' }
+    : { create: 'Add', read: 'View', update: 'Edit', delete: 'Remove' };
+  const memberSingular = isTr ? 'üye' : 'member';
+  const memberPlural = isTr ? 'üye' : 'members';
+  const noDescription = isTr ? 'Açıklama yok' : 'No description';
+  const permissionsWord = isTr ? 'İzinler' : 'Permissions';
+  const searchRoles = isTr ? 'Rol ara...' : 'Search roles...';
+  const descriptionOptional = isTr ? 'Açıklama (opsiyonel)' : 'Description (optional)';
+  const whatCanThisRoleDo = isTr ? 'Bu rol neler yapabilir?' : 'What can this role do?';
+  const hideAdvanced = isTr ? 'Gelişmiş ayarları gizle' : 'Hide advanced settings';
+  const showAdvanced = isTr ? 'Gelişmiş ayarları göster' : 'Show advanced settings';
+  const manageRolesSub = isTr ? 'Rolleri ve her rolün neler yapabileceğini yönetin.' : 'Manage roles and what each role can do.';
   return `import { useEffect, useState, useCallback } from 'react';
 import { API } from '../../contexts/AuthContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -443,10 +486,10 @@ interface GPRow { id: string; group_id: string; permission_id: string; }
 interface PermissionRow { id: string; key: string; label: string; scope: string; }
 
 const ACTION_LABELS: Record<string, string> = {
-  create: 'Add',
-  read: 'View',
-  update: 'Edit',
-  delete: 'Remove',
+  create: '${esc(actionLabels.create)}',
+  read: '${esc(actionLabels.read)}',
+  update: '${esc(actionLabels.update)}',
+  delete: '${esc(actionLabels.delete)}',
 };
 
 const ENTITY_DISPLAY: Record<string, string> = Object.fromEntries(
@@ -538,7 +581,7 @@ export default function GroupsAdminPageConnected() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this role?')) return;
+    if (!confirm('${esc(t('rbac.confirmDeleteRole'))}')) return;
     await API.delete('/__erp_groups/' + id);
     await load();
   };
@@ -608,23 +651,23 @@ export default function GroupsAdminPageConnected() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Roles</h2>
-          <p className="mt-1 text-sm text-slate-500">Manage roles and what each role can do.</p>
+          <h2 className="text-lg font-semibold text-slate-900">${t('rbac.roles')}</h2>
+          <p className="mt-1 text-sm text-slate-500">${esc(manageRolesSub)}</p>
         </div>
-        <button onClick={openCreate} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">Add Role</button>
+        <button onClick={openCreate} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">${t('rbac.addRole')}</button>
       </div>
 
-      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search roles..." className="w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500" />
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="${esc(searchRoles)}" className="w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500" />
 
       {showForm && (
         <div className="rounded-xl border bg-white p-5 shadow-sm space-y-4">
-          <h3 className="font-semibold text-slate-900">{editing ? 'Edit Role' : 'Create Role'}</h3>
+          <h3 className="font-semibold text-slate-900">{editing ? '${esc(t('rbac.editRole'))}' : '${esc(t('rbac.createRole'))}'}</h3>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Role name" className="rounded-lg border px-3 py-2 text-sm" />
-            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" className="rounded-lg border px-3 py-2 text-sm" />
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="${esc(t('rbac.roleName'))}" className="rounded-lg border px-3 py-2 text-sm" />
+            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="${esc(descriptionOptional)}" className="rounded-lg border px-3 py-2 text-sm" />
           </div>
           <div>
-            <div className="mb-2 text-sm font-medium text-slate-700">What can this role do?</div>
+            <div className="mb-2 text-sm font-medium text-slate-700">${esc(whatCanThisRoleDo)}</div>
             <div className="max-h-80 overflow-y-auto space-y-2">
               {renderPermBlock(permsByEntity)}
             </div>
@@ -636,7 +679,7 @@ export default function GroupsAdminPageConnected() {
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="text-xs font-medium text-slate-500 hover:text-slate-700"
               >
-                {showAdvanced ? 'Hide advanced settings' : 'Show advanced settings'}
+                {showAdvanced ? '${esc(hideAdvanced)}' : '${esc(showAdvanced)}'}
               </button>
               {showAdvanced && (
                 <div className="mt-2 max-h-48 overflow-y-auto space-y-2 rounded-lg border border-dashed border-slate-300 p-3">
@@ -646,8 +689,8 @@ export default function GroupsAdminPageConnected() {
             </div>
           )}
           <div className="flex gap-2">
-            <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Save</button>
-            <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+            <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">${t('rbac.save')}</button>
+            <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">${t('rbac.cancel')}</button>
           </div>
         </div>
       )}
@@ -657,14 +700,14 @@ export default function GroupsAdminPageConnected() {
           <article key={group.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-slate-900">{group.name}</h3>
-              <div className="text-xs text-slate-500">{memberCount(group.id)} {memberCount(group.id) === 1 ? 'member' : 'members'}</div>
+              <div className="text-xs text-slate-500">{memberCount(group.id)} {memberCount(group.id) === 1 ? '${esc(memberSingular)}' : '${esc(memberPlural)}'}</div>
             </div>
-            <p className="mt-1 text-xs text-slate-500">{group.description || 'No description'}</p>
-            <div className="mt-2 text-xs text-slate-600">Permissions: <span className="font-semibold">{permCount(group.id)}</span></div>
+            <p className="mt-1 text-xs text-slate-500">{group.description || '${esc(noDescription)}'}</p>
+            <div className="mt-2 text-xs text-slate-600">${esc(permissionsWord)}: <span className="font-semibold">{permCount(group.id)}</span></div>
             <div className="mt-3 flex items-center justify-end gap-2">
-              <button onClick={() => openEdit(group)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit</button>
+              <button onClick={() => openEdit(group)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">${t('rbac.edit')}</button>
               {String(group.name).toLowerCase() !== 'superadmin' && String(group.name).toLowerCase() !== 'admin' && (
-                <button onClick={() => handleDelete(group.id)} className="rounded border border-rose-300 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">Delete</button>
+                <button onClick={() => handleDelete(group.id)} className="rounded border border-rose-300 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">${t('rbac.delete')}</button>
               )}
             </div>
           </article>
@@ -676,7 +719,50 @@ export default function GroupsAdminPageConnected() {
 `;
 }
 
-function buildPermissionsAdminPageConnected() {
+function buildPermissionsAdminPageConnected({ language } = {}) {
+  const isTr = String(language || '').toLowerCase() === 'tr';
+  const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const L = isTr
+    ? {
+        title: 'İzin Yönetimi',
+        subtitle: 'Mevcut izinleri inceleyin ve yönetin.',
+        addPermission: 'İzin Ekle',
+        showGlobalOnly: 'Yalnızca global izinleri göster',
+        editPermission: 'İzni Düzenle',
+        createPermission: 'İzin Oluştur',
+        permissionKey: 'İzin anahtarı',
+        label: 'Etiket',
+        description: 'Açıklama',
+        scopeModule: 'Modül',
+        scopeGlobal: 'Global',
+        save: 'Kaydet',
+        cancel: 'İptal',
+        permission: 'İzin',
+        scope: 'Kapsam',
+        usedByGroups: 'Kullanan roller',
+        actions: 'İşlemler',
+        edit: 'Düzenle',
+      }
+    : {
+        title: 'Permission Management',
+        subtitle: 'Review and manage available permissions.',
+        addPermission: 'Add Permission',
+        showGlobalOnly: 'Show global permissions only',
+        editPermission: 'Edit Permission',
+        createPermission: 'Create Permission',
+        permissionKey: 'Permission key',
+        label: 'Label',
+        description: 'Description',
+        scopeModule: 'Module',
+        scopeGlobal: 'Global',
+        save: 'Save',
+        cancel: 'Cancel',
+        permission: 'Permission',
+        scope: 'Scope',
+        usedByGroups: 'Used By Groups',
+        actions: 'Actions',
+        edit: 'Edit',
+      };
   return `import { useEffect, useState, useCallback } from 'react';
 import { API } from '../../contexts/AuthContext';
 
@@ -732,32 +818,32 @@ export default function PermissionsAdminPageConnected() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Permission Management</h2>
-          <p className="mt-1 text-sm text-slate-500">Review and manage available permissions.</p>
+          <h2 className="text-lg font-semibold text-slate-900">${esc(L.title)}</h2>
+          <p className="mt-1 text-sm text-slate-500">${esc(L.subtitle)}</p>
         </div>
-        <button onClick={openCreate} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">Add Permission</button>
+        <button onClick={openCreate} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">${esc(L.addPermission)}</button>
       </div>
 
       <label className="inline-flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" checked={showCritical} onChange={(e) => setShowCritical(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-        Show global permissions only
+        ${esc(L.showGlobalOnly)}
       </label>
 
       {showForm && (
         <div className="rounded-xl border bg-white p-5 shadow-sm space-y-3">
-          <h3 className="font-semibold text-slate-900">{editing ? 'Edit Permission' : 'Create Permission'}</h3>
+          <h3 className="font-semibold text-slate-900">{editing ? '${esc(L.editPermission)}' : '${esc(L.createPermission)}'}</h3>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} placeholder="Permission key" className="rounded-lg border px-3 py-2 text-sm" disabled={!!editing} />
-            <input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="Label" className="rounded-lg border px-3 py-2 text-sm" />
+            <input value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} placeholder="${esc(L.permissionKey)}" className="rounded-lg border px-3 py-2 text-sm" disabled={!!editing} />
+            <input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="${esc(L.label)}" className="rounded-lg border px-3 py-2 text-sm" />
             <select value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })} className="rounded-lg border px-3 py-2 text-sm">
-              <option value="module">Module</option>
-              <option value="global">Global</option>
+              <option value="module">${esc(L.scopeModule)}</option>
+              <option value="global">${esc(L.scopeGlobal)}</option>
             </select>
-            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className="rounded-lg border px-3 py-2 text-sm" />
+            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="${esc(L.description)}" className="rounded-lg border px-3 py-2 text-sm" />
           </div>
           <div className="flex gap-2">
-            <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Save</button>
-            <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+            <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">${esc(L.save)}</button>
+            <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">${esc(L.cancel)}</button>
           </div>
         </div>
       )}
@@ -766,10 +852,10 @@ export default function PermissionsAdminPageConnected() {
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50">
             <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-3 py-2">Permission</th>
-              <th className="px-3 py-2">Scope</th>
-              <th className="px-3 py-2">Used By Groups</th>
-              <th className="px-3 py-2 text-right">Actions</th>
+              <th className="px-3 py-2">${esc(L.permission)}</th>
+              <th className="px-3 py-2">${esc(L.scope)}</th>
+              <th className="px-3 py-2">${esc(L.usedByGroups)}</th>
+              <th className="px-3 py-2 text-right">${esc(L.actions)}</th>
             </tr>
           </thead>
           <tbody>
@@ -784,7 +870,7 @@ export default function PermissionsAdminPageConnected() {
                 </td>
                 <td className="px-3 py-2 text-slate-700">{groupCount(perm.id)}</td>
                 <td className="px-3 py-2 text-right">
-                  <button onClick={() => openEdit(perm)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit</button>
+                  <button onClick={() => openEdit(perm)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">${esc(L.edit)}</button>
                 </td>
               </tr>
             ))}

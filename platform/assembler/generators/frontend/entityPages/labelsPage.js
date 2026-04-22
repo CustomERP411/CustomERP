@@ -1,5 +1,9 @@
-function buildLabelsPage({ entity, entityName, labelsCfg, importBase }) {
+const { tFor } = require('../../../i18n/labels');
+
+function buildLabelsPage({ entity, entityName, labelsCfg, importBase, language }) {
   const base = importBase || '..';
+  const t = tFor(language);
+  const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   return `import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -78,9 +82,9 @@ export default function ${entityName}LabelsPage() {
     if (!LABELS.scan) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       toast({
-        title: 'Scanner not supported',
+        title: '${esc(t('labelsPage.scannerNotSupportedTitle'))}',
         description:
-          'Camera scanning is not available in this browser/environment. It usually requires a secure context (https or http://localhost) and camera permission. Try the latest Chrome/Edge (desktop or mobile) and open the app via http://localhost. You can still print labels without scanning.',
+          '${esc(t('labelsPage.scannerNotSupportedDesc'))}',
         variant: 'warning',
       });
       return;
@@ -136,7 +140,7 @@ export default function ${entityName}LabelsPage() {
 
       rafRef.current = requestAnimationFrame(tick);
     } catch (e: any) {
-      toast({ title: 'Camera error', description: e?.message || 'Could not access camera', variant: 'error' });
+      toast({ title: '${esc(t('labelsPage.cameraErrorTitle'))}', description: e?.message || '${esc(t('labelsPage.cameraErrorDesc'))}', variant: 'error' });
       stopScan();
     }
   };
@@ -155,28 +159,28 @@ export default function ${entityName}LabelsPage() {
     return () => stopScan();
   }, []);
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <div className="p-4">${t('labelsPage.loading')}</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">QR Labels</h1>
-          <p className="text-sm text-slate-600">Print-friendly label sheet. Field: <span className="font-semibold">{LABELS.value_field}</span></p>
+          <h1 className="text-2xl font-bold text-slate-900">${t('labelsPage.title')}</h1>
+          <p className="text-sm text-slate-600">${t('labelsPage.subtitle')} <span className="font-semibold">{LABELS.value_field}</span></p>
         </div>
         <div className="flex gap-2 no-print">
           <button type="button" onClick={() => window.print()} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-            Print
+            ${t('labelsPage.print')}
           </button>
           <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-            Back
+            ${t('labelsPage.back')}
           </Link>
         </div>
       </div>
 
       <div className="no-print rounded-lg bg-white p-6 shadow space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Select records</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">${t('labelsPage.selectRecords')}</label>
           <select
             multiple
             value={selectedIds}
@@ -187,30 +191,30 @@ export default function ${entityName}LabelsPage() {
               <option key={it.id} value={it.id}>{getEntityDisplay(ENTITY_SLUG, it)}</option>
             ))}
           </select>
-          <div className="mt-1 text-xs text-slate-500">Tip: use Ctrl/⌘ to select multiple.</div>
+          <div className="mt-1 text-xs text-slate-500">${t('labelsPage.tipMultiselect')}</div>
         </div>
 
         {LABELS.scan ? (
           <div className="rounded-lg border p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold text-slate-900">Scan (optional)</div>
-                <div className="text-xs text-slate-500">Uses your PC camera if supported.</div>
+                <div className="text-sm font-semibold text-slate-900">${t('labelsPage.scanHeading')}</div>
+                <div className="text-xs text-slate-500">${t('labelsPage.scanSubtitle')}</div>
               </div>
               {scanning ? (
                 <button type="button" onClick={stopScan} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-                  Stop
+                  ${t('labelsPage.stop')}
                 </button>
               ) : (
                 <button type="button" onClick={startScan} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-                  Start
+                  ${t('labelsPage.start')}
                 </button>
               )}
             </div>
             <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <video ref={videoRef} className="w-full rounded bg-black" playsInline muted />
               <div className="text-sm text-slate-700">
-                <div className="font-semibold text-slate-900">Scanned value</div>
+                <div className="font-semibold text-slate-900">${t('labelsPage.scannedValue')}</div>
                 <div className="mt-1 break-all rounded bg-slate-50 p-2 text-xs">{scannedValue || '—'}</div>
               </div>
             </div>
@@ -247,7 +251,7 @@ export default function ${entityName}LabelsPage() {
 
       {selected.length === 0 ? (
         <div className="rounded-xl border bg-white p-6 text-sm text-slate-600">
-          Select at least one record to generate labels.
+          ${t('labelsPage.emptyHint')}
         </div>
       ) : null}
     </div>

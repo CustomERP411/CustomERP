@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
+import i18n from '../i18n';
 import { projectService } from '../services/projectService';
 
 export interface ChatMessage {
@@ -127,7 +128,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     } catch {
       setChatHistory((prev) => [
         ...prev,
-        { role: 'assistant', content: 'Sorry, I could not process your message right now. Please try again.' },
+        { role: 'assistant', content: i18n.t('chatbot:errorFallback') },
       ]);
     } finally {
       setChatLoading(false);

@@ -1,0 +1,24 @@
+{
+  "section": {
+    "title": "ERP Kurulumunuz",
+    "entities": "Varlıklar",
+    "modules": "Modüller",
+    "warnings": "Uyarılar",
+    "unsupported": "Gelecek geliştirmeler için kaydedildi"
+  },
+  "entity": {
+    "tableColumns": "Tablo sütunları",
+    "availableActions": "Kullanılabilir işlemler",
+    "relations": "İlişkiler",
+    "importCsv": "CSV İçe Aktar",
+    "exportCsv": "CSV Dışa Aktar",
+    "noColumns": "Tanımlı sütun yok.",
+    "noRelations": "İlişki yok."
+  },
+  "actions": {
+    "create": "Oluştur",
+    "read": "Görüntüle",
+    "update": "Düzenle",
+    "delete": "Sil"
+  }
+}

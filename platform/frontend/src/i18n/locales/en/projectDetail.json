@@ -1,0 +1,461 @@
+{
+  "buildPreview": {
+    "listPage": "List page",
+    "createEditForm": "Create / Edit form",
+    "csvImportPage": "CSV import page",
+    "csvExportPage": "CSV export (download)",
+    "printPdf": "Print / PDF",
+    "receiveStock": "Receive stock",
+    "sellDefault": "Sell",
+    "adjustStock": "Adjust stock (corrections)",
+    "transferStock": "Transfer stock",
+    "qrLabels": "QR Labels",
+    "activityLog": "Activity log",
+    "activityLogDesc": "A feed of recent changes.",
+    "lowStockAlerts": "Low stock alerts",
+    "lowStockDesc": "Dashboard shows items running low.",
+    "expiryAlerts": "Expiry alerts",
+    "expiryDesc": "Dashboard shows items expiring soon.",
+    "reports": "Reports",
+    "reportsDesc": "Reports screen with inventory metrics."
+  },
+  "tabs": {
+    "modules": "Modules",
+    "questions": "Questions",
+    "description": "Description",
+    "preview": "Preview",
+    "download": "Download"
+  },
+  "modules": {
+    "title": "Choose modules",
+    "subtitle": "Select the modules your ERP should include.",
+    "hr": "HR & People",
+    "invoice": "Invoicing",
+    "inventory": "Inventory",
+    "selectAtLeastOne": "Please select at least one module.",
+    "inventory.label": "Inventory",
+    "inventory.desc": "Track products, stock levels, purchases, and shipments",
+    "invoice.label": "Invoice",
+    "invoice.desc": "Create invoices, record payments, issue credit notes",
+    "hr.label": "HR",
+    "hr.desc": "Manage employees, leave, attendance, and payroll prep"
+  },
+  "questions": {
+    "title": "Module questions",
+    "subtitle": "Answer these to tailor the modules to your business.",
+    "skip": "Skip for now",
+    "saveAnswers": "Save answers"
+  },
+  "description": {
+    "title": "Describe your business",
+    "subtitle": "The more detail you provide, the more accurate your ERP will be.",
+    "placeholder": "Tell us about your business, products, customers, and processes...",
+    "analyze": "Analyze & Generate",
+    "regenerate": "Regenerate"
+  },
+  "generation": {
+    "preparing": "Preparing your ERP...",
+    "analyzing": "Analyzing your business...",
+    "building": "Building modules...",
+    "finalizing": "Finalizing...",
+    "done": "Your ERP is ready!",
+    "failed": "Generation failed."
+  },
+  "clarify": {
+    "title": "A few clarifications",
+    "subtitle": "Help the AI get your business right.",
+    "answerPlaceholder": "Your answer...",
+    "submit": "Submit answers"
+  },
+  "download": {
+    "title": "Download your ERP",
+    "subtitle": "Download the full source code as a zip.",
+    "downloadBtn": "Download ZIP",
+    "standaloneBtn": "Download standalone build"
+  },
+  "language": {
+    "lockedLabel": "Project language:",
+    "lockedNote": "Locked to the language chosen at creation."
+  },
+  "steps": {
+    "chooseModules": "Choose Modules",
+    "answerQuestions": "Answer Questions",
+    "describeBusiness": "Describe Your Business",
+    "reviewGenerate": "Review & Generate",
+    "downloadRun": "Download & Run"
+  },
+  "businessQuestions": {
+    "what_business": {
+      "question": "What does your business do?",
+      "placeholder": "e.g. \"We sell clothing in two small shops\" or \"We run a bakery with home delivery\""
+    },
+    "products_services": {
+      "question": "What products or services do you offer?",
+      "placeholder": "e.g. \"T-shirts, jeans, and accessories\" or \"Cakes, bread, pastries\""
+    },
+    "user_count": {
+      "question": "How many people will use this system?",
+      "placeholder": "e.g. \"3 people\" or \"Just me\""
+    },
+    "main_problem": {
+      "question": "What is the main problem you want this system to solve?",
+      "placeholder": "e.g. \"I lose track of what I have in stock\" or \"Creating invoices takes too long\""
+    },
+    "special_rules": {
+      "question": "Are there any special rules for how things work in your business?",
+      "placeholder": "e.g. \"My manager must approve big orders\" or \"We give discounts to regular customers\"",
+      "hint": "Think about any approval steps, discount rules, or special processes you follow."
+    },
+    "anything_else": {
+      "question": "Anything else you'd like us to know?",
+      "placeholder": "Optional — anything that might help us build the right system for you"
+    }
+  },
+  "businessSection": {
+    "title": "3. Tell Us About Your Business",
+    "subtitle": "Answer a few simple questions so we can build the right system for you.",
+    "progress": "{{current}} of {{total}}",
+    "questionLabel": "Question {{n}}",
+    "needHelp": "Need help answering?",
+    "back": "Back",
+    "skip": "Skip",
+    "next": "Next",
+    "generate": "Generate ERP",
+    "yourAnswers": "Your Answers",
+    "edit": "edit"
+  },
+  "skipWarning": {
+    "title": "Some questions were skipped",
+    "body1": "Skipping too many questions may result in a less accurate ERP. The more we know about your business, the better we can customize your system.",
+    "body2": "If you need help answering, try our <strong>chatbot assistant</strong> — it's pulsing on the bottom-right of your screen right now.",
+    "goBack": "Go back & answer",
+    "generateAnyway": "Generate anyway"
+  },
+  "aiEditChips": {
+    "productCategory": "Add a product category field",
+    "stockTransfers": "Enable stock transfers between locations",
+    "invoiceCurrency": "Change invoice currency to EUR",
+    "employeeDocs": "Add employee document storage"
+  },
+  "preview": {
+    "caps": {
+      "transactionSafety": "Transaction safety",
+      "reservations": "Reservations",
+      "purchaseReceiving": "Purchase receiving",
+      "stockCounts": "Stock counts",
+      "batchTracking": "Batch tracking",
+      "serialTracking": "Serial tracking",
+      "expiryAlerts": "Expiry alerts",
+      "lowStockAlerts": "Low stock alerts",
+      "qrLabels": "QR labels",
+      "payments": "Payments",
+      "creditNotes": "Credit / debit notes",
+      "statusWorkflow": "Status workflow",
+      "lineDiscounts": "Line discounts",
+      "printPdf": "Print / PDF",
+      "leaveTracking": "Leave tracking",
+      "leaveApprovals": "Leave approvals",
+      "attendanceTime": "Attendance & time",
+      "payrollPrep": "Payroll prep"
+    },
+    "config": {
+      "currency": "Currency",
+      "taxRate": "Tax rate",
+      "workDays": "Work days",
+      "hoursPerDay": "Hours / day"
+    }
+  },
+  "platforms": {
+    "macosArm": "macOS (Apple Silicon)",
+    "macosX64": "macOS (Intel)",
+    "windows": "Windows",
+    "linux": "Linux",
+    "extractTip": {
+      "mac": "Double-click the .zip file in Finder to extract it.",
+      "windows": "Right-click the .zip file and choose \"Extract All...\"",
+      "linux": "Run: unzip your-erp.zip  (or use your file manager)"
+    }
+  },
+  "sdfPreview": {
+    "title": "4. Your ERP Setup",
+    "projectLabel": "Project",
+    "dataSections_one": "{{count}} data section",
+    "dataSections_other": "{{count}} data sections",
+    "dataSections": "{{count}} data sections",
+    "screens": "~{{count}} screens",
+    "saveConfig": "Save Configuration",
+    "warnings": "Warnings",
+    "moreItems": "+ {{count}} more",
+    "moduleCard": "{{label}} Module",
+    "extraFeatures": "Extra Features",
+    "whatYouCanDo": {
+      "title": "What You Can Do",
+      "item1Strong": "Add / edit records",
+      "item1Rest": "using simple forms",
+      "item2Strong": "Search & sort",
+      "item2Rest": "inside list tables",
+      "item3Strong": "Import / export CSV",
+      "item3Rest": "for bulk data",
+      "item4Strong": "Stock actions",
+      "item4Rest": "like Receive and Issue (if inventory is enabled)"
+    },
+    "askAi": {
+      "title": "Ask AI to Make Changes",
+      "subtitle": "Describe what you want to add, remove, or change and the AI will update your setup.",
+      "placeholder": "Describe the changes you want...",
+      "apply": "Apply Changes"
+    },
+    "jsonEditor": {
+      "title": "Advanced: Edit JSON Directly",
+      "hint": "Edit the raw JSON configuration. For advanced users only.",
+      "reset": "Reset"
+    },
+    "showRawJson": "Show raw JSON",
+    "hideRawJson": "Hide raw JSON",
+    "download": {
+      "title": "5. Download & Run Your ERP",
+      "subtitle": "Your ERP is ready. Download it, extract the ZIP, and double-click to start.",
+      "noExtras": "No extra software, no internet connection, and no technical knowledge required.",
+      "recommended": "Recommended for your computer",
+      "buildingYourErp": "Building your ERP...",
+      "downloadFor": "Download for {{platform}}",
+      "selfContained": "Self-contained bundle · includes everything needed to run",
+      "packaging": "Packaging your ERP with all dependencies. This may take a minute or two...",
+      "differentOs": "Download for a different operating system",
+      "building": "Building...",
+      "runtimeStatus": "ERP Runtime Status",
+      "runtimeStatusDesc": "Tracks startup and health for your generated ERP app.",
+      "checkHealth": "Check Health",
+      "checkingEllipsis": "Checking...",
+      "autoCheck": "Auto-check every 7 seconds",
+      "lastChecked": "Last checked: {{time}}",
+      "badgeRunning": "Running",
+      "badgeChecking": "Checking",
+      "badgeUnhealthy": "Unhealthy",
+      "badgeUnreachable": "Unreachable",
+      "badgeStarting": "Starting",
+      "badgeNotStarted": "Not Started",
+      "startThenCheck": "Start your ERP app, then click \"Check health\".",
+      "urlRequired": "Health URL is required.",
+      "urlInvalid": "Health URL must be a valid absolute URL (example: http://localhost:3000/health).",
+      "httpError": "Health endpoint responded with HTTP {{status}}.",
+      "healthy": "Service is healthy ({{service}}).",
+      "payloadUnrecognized": "Health endpoint responded, but payload is not recognized.",
+      "timeout": "Health check timed out after 5 seconds.",
+      "unreachable": "Browser could not reach the health URL. If platform and ERP run on different hosts, localhost checks may be blocked.",
+      "dockerAdvanced": "Advanced: Docker Setup (for developers)",
+      "dockerDesc": "This downloads a Docker-based version that requires Docker Desktop. Only for developers or IT professionals.",
+      "dockerZip": "Download Docker ZIP",
+      "whatIsTitle": "What is this download?",
+      "whatIsBody": "It is a complete, self-contained application that runs entirely on your computer. It includes its own server, database, and interface. No internet connection is needed after downloading."
+    },
+    "postDownload": {
+      "title": "How to start your ERP",
+      "step1Title": "Find and extract the downloaded ZIP file",
+      "step2Title": "Open the extracted folder and double-click",
+      "macOsTip": "If macOS shows a security warning, right-click the file and choose \"Open\" instead.",
+      "windowsTip": "If Windows shows a SmartScreen warning, click \"More info\" then \"Run anyway\".",
+      "linuxTip": "You may need to run: chmod +x start.sh first, then ./start.sh",
+      "step3Title": "Your browser will open automatically at",
+      "step3Desc": "That is your ERP. You can start adding data right away.",
+      "dataTitle": "About your data:",
+      "dataBody1": "Everything is stored locally on your computer in the",
+      "dataBody2": "folder. To back up, simply copy that folder to a safe location. No cloud account needed."
+    },
+    "entityDetails": {
+      "title": "What You Will See in Your ERP",
+      "columns": "Table columns",
+      "actions": "Available actions",
+      "importCsv": "Import CSV",
+      "exportCsv": "Export CSV",
+      "printPdf": "Print / PDF",
+      "add": "Add",
+      "edit": "Edit",
+      "delete": "Delete",
+      "bulk": "Bulk actions",
+      "qr": "QR labels",
+      "stock": "Stock actions",
+      "receive": "Receive",
+      "adjust": "Adjust",
+      "transfer": "Transfer",
+      "quickButtons": "Quick buttons on each row",
+      "links": "Links to other data",
+      "multiple": "multiple",
+      "choiceFields": "Pick-from-a-list fields",
+      "rules": "Data rules",
+      "required": "Required",
+      "unique": "Must be unique",
+      "moreCount": "+{{count}} more"
+    }
+  },
+  "review": {
+    "title": "5. Review & Approval",
+    "subtitle": "Check schema, modules, and relationships before final approval.",
+    "snapshot": "Current Build Snapshot",
+    "statusLabel": "Status: {{status}}",
+    "sdfVersion": "SDF v{{version}}",
+    "warningsPresent_one": "{{count}} warning is still present in this SDF. Review it before approval.",
+    "warningsPresent_other": "{{count}} warnings are still present in this SDF. Review them before approval.",
+    "warningsPresent": "{{count}} warnings are still present in this SDF. Review them before approval.",
+    "requestRevision": "Request Revision",
+    "revisionPlaceholder": "Describe what should be changed before approval...",
+    "reject": "Reject",
+    "requestAiRevision": "Request AI Revision",
+    "approve": "Approve",
+    "historyTitle": "Revision History",
+    "noHistory": "No revisions tracked yet.",
+    "versionStatus": "SDF v{{version}} | status: {{status}}",
+    "actions": {
+      "generated": "Generated",
+      "clarified": "Clarification Applied",
+      "manual_save": "Manual Save",
+      "ai_revision": "AI Revision",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "revision_requested": "Revision Requested"
+    }
+  },
+  "accessRequirements": {
+    "title": "4. Access Groups & Permissions",
+    "subtitle": "Define who will use this ERP and what each group should be allowed to do.",
+    "atLeastOne": "At least one group with a group name is required to generate your ERP.",
+    "group": "Group {{n}}",
+    "remove": "Remove",
+    "groupName": "Group Name",
+    "groupNamePlaceholder": "e.g. Warehouse Team, Finance, HR Managers",
+    "userCount": "Approx. User Count",
+    "userCountPlaceholder": "e.g. 5",
+    "responsibilities": "Main Responsibilities",
+    "responsibilitiesPlaceholder": "e.g. Receive stock, manage products, adjust inventory counts",
+    "requiredPermissions": "Required Permissions",
+    "customPermissions": "Custom Permissions (optional)",
+    "customPermissionsPlaceholder": "Comma-separated custom permissions",
+    "addGroup": "+ Add Access Group",
+    "permissions": {
+      "view_records": "view records",
+      "create_records": "create records",
+      "edit_records": "edit records",
+      "delete_records": "delete records",
+      "approve_transactions": "approve transactions",
+      "manage_users": "manage users",
+      "manage_groups": "manage groups",
+      "manage_permissions": "manage permissions"
+    }
+  },
+  "prefilledConfig": {
+    "title": "Your ERP Configuration",
+    "subtitle": "Auto-generated from your answers above. This is sent as a starting point for AI.",
+    "showJson": "Show JSON",
+    "hideJson": "Hide JSON"
+  },
+  "clarificationQuestions": {
+    "title": "Follow-up Questions",
+    "subtitle": "The AI needs a bit more information to finalize your setup.",
+    "round": "Round {{n}}",
+    "questionCount_one": "{{count}} question",
+    "questionCount_other": "{{count}} questions",
+    "questionCount": "{{count}} questions",
+    "skipAndFinalize": "Skip remaining and finalize",
+    "optional": "Optional"
+  },
+  "postGeneration": {
+    "readyTitle": "Your ERP is ready",
+    "readyBody": "Preview your ERP live, test it out, and request any changes you need.",
+    "moduleFallback": "Module",
+    "dataTypes_one": "{{count}} data type",
+    "dataTypes_other": "{{count}} data types",
+    "dataTypes": "{{count}} data types",
+    "previewBtn": "Preview My ERP",
+    "hideDevDetails": "Hide developer details",
+    "showDevDetails": "Show developer details"
+  },
+  "generationModal": {
+    "generating": "Generating Your ERP",
+    "percentComplete": "{{pct}}% complete",
+    "successTitle": "ERP Generated Successfully",
+    "successBody": "Your ERP configuration is ready.",
+    "errorTitle": "Generation Failed",
+    "close": "Close",
+    "needMoreInfoTitle": "We need a bit more information",
+    "needMoreInfoBody": "Please answer these questions so we can build the right ERP for you.",
+    "general": "General",
+    "submitAnswers": "Submit Answers",
+    "required": "Required",
+    "customAnswerPlaceholder": "Type your custom answer...",
+    "steps": {
+      "starting": "Saving your answers",
+      "distributor": "Analyzing your business requirements",
+      "clarifications": "Waiting for your answers",
+      "generators": "Generating module configurations",
+      "finalizing": "Checking for follow-up questions",
+      "normalizing": "Validating & normalizing your ERP",
+      "validating": "Finalizing your ERP",
+      "done": "Complete"
+    }
+  },
+  "moduleSelector": {
+    "title": "1. Choose Modules",
+    "subtitle": "Select which parts of the ERP you need. You can always change this later."
+  },
+  "defaultQuestions": {
+    "title": "2. Answer Questions",
+    "subtitle": "These answers directly configure your ERP. Answer all to continue.",
+    "answeredCount": "{{answered}}/{{total}} answered",
+    "loading": "Loading questions...",
+    "yes": "Yes",
+    "no": "No",
+    "custom": "Custom...",
+    "select": "Select...",
+    "customPlaceholder": "Type your custom value...",
+    "textPlaceholder": "Your answer...",
+    "continue": "Continue"
+  },
+  "header": {
+    "subtitle": "Set up your ERP step by step",
+    "backToProjects": "Back to Projects",
+    "projectFallback": "Project"
+  },
+  "loading": {
+    "project": "Loading project..."
+  },
+  "phases": {
+    "resuming": "Resuming — checking generation status...",
+    "savingAnswers": "Saving your answers..."
+  },
+  "progress": {
+    "complete": "Complete",
+    "waitingAnswers": "Waiting for your answers",
+    "processing": "Processing your answers..."
+  },
+  "history": {
+    "generated": "Generated a new SDF from build mode inputs.",
+    "clarified": "Applied clarification answers to the current SDF.",
+    "manualSave": "Saved manual JSON edits to the SDF.",
+    "aiRevision": "Applied AI edit instructions from SDF preview.",
+    "approved": "Approved current SDF for ERP generation.",
+    "rejected": "Rejected current SDF and moved project back to Draft.",
+    "aiRevisionFromReview": "Applied AI revision requested from review panel.",
+    "loadedBaseline": "Loaded latest saved SDF from project history."
+  },
+  "errors": {
+    "loadProject": "Failed to load project",
+    "loadDefaultQuestions": "Failed to load default module questions",
+    "notFound": "Project not found",
+    "answerRequired": "Please answer all required questions before generating.",
+    "saveAnswersFailed": "Failed to save answers",
+    "genTimeout": "Generation timed out. Your inputs are saved — please try again.",
+    "genSlow": "Generation is taking longer than expected. Your inputs are saved — please try again in a few minutes.",
+    "genNetwork": "Our AI service is temporarily unreachable. We're working on it — please try again in a few minutes.",
+    "genServer": "Our AI service encountered an issue. We're working on it — please try again in a few minutes.",
+    "genGeneric": "Something went wrong during generation. Please try again.",
+    "invalidJson": "Invalid JSON: {{message}}",
+    "parseError": "Parse error",
+    "saveFailed": "Save failed",
+    "aiEditFailed": "AI edit failed",
+    "approveFailed": "Approve action failed",
+    "rejectFailed": "Reject action failed",
+    "revisionFailed": "Revision request failed",
+    "generateFailed": "Generate failed",
+    "standaloneFailed": "Standalone generation failed"
+  }
+}

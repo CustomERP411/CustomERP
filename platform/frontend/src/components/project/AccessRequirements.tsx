@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 export interface AccessRequirementItem {
   id: string;
   groupName: string;
@@ -36,6 +38,7 @@ export function createDefaultAccessRequirement(idSeed = Date.now()): AccessRequi
 }
 
 export default function AccessRequirements({ items, disabled = false, onChange }: AccessRequirementsProps) {
+  const { t } = useTranslation('projectDetail');
   const updateItem = (id: string, patch: Partial<AccessRequirementItem>) => {
     onChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   };
@@ -64,68 +67,64 @@ export default function AccessRequirements({ items, disabled = false, onChange }
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">4. Access Groups & Permissions</h2>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Define who will use this ERP and what each group should be allowed to do.
-        </p>
-        <p className="mt-1 text-xs text-slate-500">
-          At least one group with a group name is required to generate your ERP.
-        </p>
+        <h2 className="text-lg font-semibold text-slate-900">{t('accessRequirements.title')}</h2>
+        <p className="mt-0.5 text-sm text-slate-500">{t('accessRequirements.subtitle')}</p>
+        <p className="mt-1 text-xs text-slate-500">{t('accessRequirements.atLeastOne')}</p>
       </div>
 
       <div className="space-y-3">
         {items.map((item, idx) => (
           <div key={item.id} className="rounded-xl border bg-white p-4">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold text-slate-900">Group {idx + 1}</div>
+              <div className="text-sm font-semibold text-slate-900">{t('accessRequirements.group', { n: idx + 1 })}</div>
               <button
                 type="button"
                 disabled={disabled || items.length <= 1}
                 onClick={() => removeItem(item.id)}
                 className="text-xs font-medium text-rose-600 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Remove
+                {t('accessRequirements.remove')}
               </button>
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-medium text-slate-500">Group Name</label>
+                <label className="text-xs font-medium text-slate-500">{t('accessRequirements.groupName')}</label>
                 <input
                   value={item.groupName}
                   disabled={disabled}
                   onChange={(event) => updateItem(item.id, { groupName: event.target.value })}
-                  placeholder="e.g. Warehouse Team, Finance, HR Managers"
+                  placeholder={t('accessRequirements.groupNamePlaceholder')}
                   className="mt-1 w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-500">Approx. User Count</label>
+                <label className="text-xs font-medium text-slate-500">{t('accessRequirements.userCount')}</label>
                 <input
                   value={item.userCount}
                   disabled={disabled}
                   onChange={(event) => updateItem(item.id, { userCount: event.target.value })}
-                  placeholder="e.g. 5"
+                  placeholder={t('accessRequirements.userCountPlaceholder')}
                   className="mt-1 w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
                 />
               </div>
             </div>
 
             <div className="mt-3">
-              <label className="text-xs font-medium text-slate-500">Main Responsibilities</label>
+              <label className="text-xs font-medium text-slate-500">{t('accessRequirements.responsibilities')}</label>
               <textarea
                 rows={2}
                 value={item.responsibilities}
                 disabled={disabled}
                 onChange={(event) => updateItem(item.id, { responsibilities: event.target.value })}
-                placeholder="e.g. Receive stock, manage products, adjust inventory counts"
+                placeholder={t('accessRequirements.responsibilitiesPlaceholder')}
                 className="mt-1 w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
               />
             </div>
 
             <div className="mt-3">
-              <div className="text-xs font-medium text-slate-500">Required Permissions</div>
+              <div className="text-xs font-medium text-slate-500">{t('accessRequirements.requiredPermissions')}</div>
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {PERMISSION_CHOICES.map((permission) => {
                   const checked = item.permissions.includes(permission);
@@ -138,7 +137,7 @@ export default function AccessRequirements({ items, disabled = false, onChange }
                         onChange={(event) => togglePermission(item.id, permission, event.target.checked)}
                         className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                       />
-                      {permission.replace(/_/g, ' ')}
+                      {t(`accessRequirements.permissions.${permission}`, { defaultValue: permission.replace(/_/g, ' ') })}
                     </label>
                   );
                 })}
@@ -146,12 +145,12 @@ export default function AccessRequirements({ items, disabled = false, onChange }
             </div>
 
             <div className="mt-3">
-              <label className="text-xs font-medium text-slate-500">Custom Permissions (optional)</label>
+              <label className="text-xs font-medium text-slate-500">{t('accessRequirements.customPermissions')}</label>
               <input
                 value={item.customPermissions}
                 disabled={disabled}
                 onChange={(event) => updateItem(item.id, { customPermissions: event.target.value })}
-                placeholder="Comma-separated custom permissions"
+                placeholder={t('accessRequirements.customPermissionsPlaceholder')}
                 className="mt-1 w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
               />
             </div>
@@ -165,7 +164,7 @@ export default function AccessRequirements({ items, disabled = false, onChange }
         onClick={addItem}
         className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        + Add Access Group
+        {t('accessRequirements.addGroup')}
       </button>
     </section>
   );

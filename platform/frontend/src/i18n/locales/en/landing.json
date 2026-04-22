@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "signIn": "Sign In",
+    "getStarted": "Get Started"
+  },
+  "hero": {
+    "titleLine1": "Build Your Custom ERP",
+    "titleLine2": "Without Writing Code",
+    "subtitle": "Transform your business processes into a fully functional ERP system using just natural language. Powered by AI.",
+    "ctaPrimary": "Start Building Free",
+    "ctaSecondary": "See How It Works"
+  },
+  "pills": {
+    "aiPowered": "AI-Powered",
+    "noCoding": "No Coding Required",
+    "deployFast": "Deploy in Hours",
+    "openSource": "Open Source"
+  },
+  "howItWorks": {
+    "heading": "Three Simple Steps",
+    "step1Title": "Describe Your Business",
+    "step1Body": "Tell us about your operations in plain language. No technical knowledge required.",
+    "step2Title": "AI Generates Your System",
+    "step2Body": "Our AI analyzes your needs and creates the perfect ERP structure automatically.",
+    "step3Title": "Download & Deploy",
+    "step3Body": "Get a ready-to-use container with your custom ERP system.",
+    "quote": "Transform your business processes into a custom ERP system using just natural language.",
+    "quoteAttribution": "— The Assembly Architecture"
+  },
+  "cta": {
+    "heading": "Ready to Build Your ERP?",
+    "body": "Join businesses already using CustomERP to streamline their operations.",
+    "button": "Get Started for Free"
+  },
+  "footer": {
+    "copyright": "© 2026 CustomERP. Bilkent University CTIS Project.",
+    "docs": "Documentation",
+    "github": "GitHub",
+    "contact": "Contact"
+  }
+}

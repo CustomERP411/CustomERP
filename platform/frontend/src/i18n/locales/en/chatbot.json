@@ -1,0 +1,20 @@
+{
+  "title": "AI Assistant",
+  "placeholder": "Ask me anything about your ERP...",
+  "send": "Send",
+  "sending": "Sending...",
+  "empty": {
+    "title": "How can I help?",
+    "subtitle": "Ask about modules, entities, or how to describe your business.",
+    "quickPrompts": {
+      "whatIsErp": "What is an ERP?",
+      "howToStart": "How should I start?",
+      "chooseModules": "How do I choose modules?",
+      "describeBusiness": "How do I describe my business?"
+    }
+  },
+  "errorFallback": "Sorry, I could not process your message. Please try again.",
+  "recordedForFuture": "Recorded for future development:",
+  "openChat": "Open AI assistant",
+  "closeChat": "Close AI assistant"
+}

@@ -1,7 +1,50 @@
 import type { AiGatewaySdf } from '../../types/aiGateway';
 import { summarizeModulesForPreview } from './projectConstants';
 
-export function buildPreview(sdf: AiGatewaySdf) {
+export interface BuildPreviewLabels {
+  listPage: string;
+  createEditForm: string;
+  csvImportPage: string;
+  csvExportPage: string;
+  printPdf: string;
+  receiveStock: string;
+  sellDefault: string;
+  adjustStock: string;
+  transferStock: string;
+  qrLabels: string;
+  activityLog: string;
+  activityLogDesc: string;
+  lowStockAlerts: string;
+  lowStockDesc: string;
+  expiryAlerts: string;
+  expiryDesc: string;
+  reports: string;
+  reportsDesc: string;
+}
+
+const DEFAULT_LABELS: BuildPreviewLabels = {
+  listPage: 'List page',
+  createEditForm: 'Create / Edit form',
+  csvImportPage: 'CSV import page',
+  csvExportPage: 'CSV export (download)',
+  printPdf: 'Print / PDF',
+  receiveStock: 'Receive stock',
+  sellDefault: 'Sell',
+  adjustStock: 'Adjust stock (corrections)',
+  transferStock: 'Transfer stock',
+  qrLabels: 'QR Labels',
+  activityLog: 'Activity log',
+  activityLogDesc: 'A feed of recent changes.',
+  lowStockAlerts: 'Low stock alerts',
+  lowStockDesc: 'Dashboard shows items running low.',
+  expiryAlerts: 'Expiry alerts',
+  expiryDesc: 'Dashboard shows items expiring soon.',
+  reports: 'Reports',
+  reportsDesc: 'Reports screen with inventory metrics.',
+};
+
+export function buildPreview(sdf: AiGatewaySdf, labels: Partial<BuildPreviewLabels> = {}) {
+  const L: BuildPreviewLabels = { ...DEFAULT_LABELS, ...labels };
   const formatLabel = (name: string) =>
     String(name || '').replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
@@ -77,7 +120,7 @@ export function buildPreview(sdf: AiGatewaySdf) {
     const adjustEnabled = invEnabled && inv?.adjust?.enabled !== false;
     const issueCfg = inv?.issue || inv?.sell || inv?.issue_stock || inv?.issueStock || {};
     const sellEnabled = invEnabled && issueCfg?.enabled === true;
-    const sellLabel = issueCfg?.label || issueCfg?.display_name || issueCfg?.displayName || issueCfg?.name || 'Sell';
+    const sellLabel = issueCfg?.label || issueCfg?.display_name || issueCfg?.displayName || issueCfg?.name || L.sellDefault;
     const features = entity?.features || {};
     const transferEnabled = invEnabled && (inv?.transfer?.enabled === true || (inv?.transfer?.enabled !== false && (features?.multi_location === true || fields.some((f: any) => f && String(f.name || '').includes('location')))));
     const labelsEnabled = (entity?.labels?.enabled === true && entity?.labels?.type === 'qrcode');
@@ -88,15 +131,15 @@ export function buildPreview(sdf: AiGatewaySdf) {
     const bulk = entity?.bulk_actions || entity?.bulkActions || {};
     const bulkEnabled = bulk?.enabled === true;
 
-    const screens: string[] = ['List page', 'Create / Edit form'];
-    if (csvImportEnabled) screens.push('CSV import page');
-    if (csvExportEnabled) screens.push('CSV export (download)');
-    if (printEnabled) screens.push('Print / PDF');
-    if (receiveEnabled) screens.push('Receive stock');
+    const screens: string[] = [L.listPage, L.createEditForm];
+    if (csvImportEnabled) screens.push(L.csvImportPage);
+    if (csvExportEnabled) screens.push(L.csvExportPage);
+    if (printEnabled) screens.push(L.printPdf);
+    if (receiveEnabled) screens.push(L.receiveStock);
     if (sellEnabled) screens.push(sellLabel);
-    if (adjustEnabled) screens.push('Adjust stock (corrections)');
-    if (transferEnabled) screens.push('Transfer stock');
-    if (labelsEnabled) screens.push('QR Labels');
+    if (adjustEnabled) screens.push(L.adjustStock);
+    if (transferEnabled) screens.push(L.transferStock);
+    if (labelsEnabled) screens.push(L.qrLabels);
 
     return {
       slug, name, mod, displayField: guessDisplayField(entity), csvImportEnabled, csvExportEnabled, printEnabled,
@@ -109,16 +152,16 @@ export function buildPreview(sdf: AiGatewaySdf) {
 
   const enabledModules: { title: string; description: string }[] = [];
   const activity = (modules as any).activity_log || (modules as any).activityLog || {};
-  if (activity?.enabled === true) enabledModules.push({ title: 'Activity log', description: 'A feed of recent changes.' });
+  if (activity?.enabled === true) enabledModules.push({ title: L.activityLog, description: L.activityLogDesc });
   const invDash = (modules as any).inventory_dashboard || (modules as any).inventoryDashboard || {};
-  if (invDash?.low_stock?.enabled) enabledModules.push({ title: 'Low stock alerts', description: 'Dashboard shows items running low.' });
-  if (invDash?.expiry?.enabled) enabledModules.push({ title: 'Expiry alerts', description: 'Dashboard shows items expiring soon.' });
+  if (invDash?.low_stock?.enabled) enabledModules.push({ title: L.lowStockAlerts, description: L.lowStockDesc });
+  if (invDash?.expiry?.enabled) enabledModules.push({ title: L.expiryAlerts, description: L.expiryDesc });
   const sched = (modules as any).scheduled_reports || (modules as any).scheduledReports || {};
-  if (sched?.enabled === true) enabledModules.push({ title: 'Reports', description: 'Reports screen with inventory metrics.' });
+  if (sched?.enabled === true) enabledModules.push({ title: L.reports, description: L.reportsDesc });
 
   const entitySummaries = entities.map(summarizeEntity).filter((e: any) => e && e.slug);
   const projectName = String((sdf as any).project_name || '');
-  const screensTotal = 1 + (enabledModules.some((m) => m.title === 'Activity log') ? 1 : 0) + (enabledModules.some((m) => m.title === 'Reports') ? 1 : 0) + entitySummaries.reduce((acc: number, e: any) => acc + e.screens.length, 0);
+  const screensTotal = 1 + (enabledModules.some((m) => m.title === L.activityLog) ? 1 : 0) + (enabledModules.some((m) => m.title === L.reports) ? 1 : 0) + entitySummaries.reduce((acc: number, e: any) => acc + e.screens.length, 0);
   const moduleSummaries = summarizeModulesForPreview(modules, entities);
 
   return { projectName, entityCount: entitySummaries.length, screensTotal, enabledModules, warnings, entities: entitySummaries, moduleSummaries };

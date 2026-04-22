@@ -1,0 +1,453 @@
+{
+  "buildPreview": {
+    "listPage": "Liste sayfası",
+    "createEditForm": "Oluştur / Düzenle formu",
+    "csvImportPage": "CSV içe aktarma sayfası",
+    "csvExportPage": "CSV dışa aktarma (indir)",
+    "printPdf": "Yazdır / PDF",
+    "receiveStock": "Stok girişi",
+    "sellDefault": "Sat",
+    "adjustStock": "Stok düzeltme",
+    "transferStock": "Stok transferi",
+    "qrLabels": "QR Etiketleri",
+    "activityLog": "Aktivite günlüğü",
+    "activityLogDesc": "Son değişikliklerin akışı.",
+    "lowStockAlerts": "Düşük stok uyarıları",
+    "lowStockDesc": "Panoda düşük seviyedeki ürünler gösterilir.",
+    "expiryAlerts": "Son kullanma uyarıları",
+    "expiryDesc": "Panoda süresi yaklaşan ürünler gösterilir.",
+    "reports": "Raporlar",
+    "reportsDesc": "Envanter metrikleriyle raporlar ekranı."
+  },
+  "tabs": {
+    "modules": "Modüller",
+    "questions": "Sorular",
+    "description": "Açıklama",
+    "preview": "Önizleme",
+    "download": "İndir"
+  },
+  "modules": {
+    "title": "Modülleri seçin",
+    "subtitle": "ERP'nizde yer alacak modülleri seçin.",
+    "hr": "İK ve Personel",
+    "invoice": "Faturalama",
+    "inventory": "Envanter",
+    "selectAtLeastOne": "Lütfen en az bir modül seçin.",
+    "inventory.label": "Envanter",
+    "inventory.desc": "Ürünleri, stok seviyelerini, alımları ve sevkiyatları takip edin",
+    "invoice.label": "Fatura",
+    "invoice.desc": "Fatura oluşturun, ödemeleri kaydedin, iade/kredi dekontu düzenleyin",
+    "hr.label": "İK",
+    "hr.desc": "Çalışanları, izinleri, devam kayıtlarını ve bordro hazırlığını yönetin"
+  },
+  "questions": {
+    "title": "Modül soruları",
+    "subtitle": "Modülleri işletmenize göre uyarlamak için bu soruları yanıtlayın.",
+    "skip": "Şimdilik atla",
+    "saveAnswers": "Cevapları kaydet"
+  },
+  "description": {
+    "title": "İşletmenizi anlatın",
+    "subtitle": "Ne kadar ayrıntı verirseniz ERP'niz o kadar isabetli olur.",
+    "placeholder": "İşletmeniz, ürünleriniz, müşterileriniz ve süreçleriniz hakkında bilgi verin...",
+    "analyze": "Analiz Et ve Oluştur",
+    "regenerate": "Yeniden Oluştur"
+  },
+  "generation": {
+    "preparing": "ERP'niz hazırlanıyor...",
+    "analyzing": "İşletmeniz analiz ediliyor...",
+    "building": "Modüller oluşturuluyor...",
+    "finalizing": "Son rötuşlar yapılıyor...",
+    "done": "ERP'niz hazır!",
+    "failed": "Oluşturma başarısız oldu."
+  },
+  "clarify": {
+    "title": "Birkaç açıklama",
+    "subtitle": "Yapay zekânın işletmenizi doğru anlamasına yardımcı olun.",
+    "answerPlaceholder": "Cevabınız...",
+    "submit": "Cevapları gönder"
+  },
+  "download": {
+    "title": "ERP'nizi indirin",
+    "subtitle": "Tam kaynak kodunu zip olarak indirin.",
+    "downloadBtn": "ZIP İndir",
+    "standaloneBtn": "Bağımsız sürümü indir"
+  },
+  "language": {
+    "lockedLabel": "Proje dili:",
+    "lockedNote": "Oluşturulma anındaki dile kilitlenmiştir."
+  },
+  "steps": {
+    "chooseModules": "Modülleri Seç",
+    "answerQuestions": "Soruları Yanıtla",
+    "describeBusiness": "İşletmenizi Anlatın",
+    "reviewGenerate": "Gözden Geçir ve Oluştur",
+    "downloadRun": "İndir ve Çalıştır"
+  },
+  "businessQuestions": {
+    "what_business": {
+      "question": "İşletmeniz ne yapıyor?",
+      "placeholder": "örn. \"İki küçük dükkânda giyim satıyoruz\" veya \"Eve teslim pastanemiz var\""
+    },
+    "products_services": {
+      "question": "Hangi ürün veya hizmetleri sunuyorsunuz?",
+      "placeholder": "örn. \"Tişört, kot pantolon ve aksesuar\" veya \"Pasta, ekmek, hamur işi\""
+    },
+    "user_count": {
+      "question": "Bu sistemi kaç kişi kullanacak?",
+      "placeholder": "örn. \"3 kişi\" veya \"Sadece ben\""
+    },
+    "main_problem": {
+      "question": "Bu sistemin çözmesini istediğiniz en önemli sorun nedir?",
+      "placeholder": "örn. \"Stoktaki ürünleri takip edemiyorum\" veya \"Fatura kesmek çok uzun sürüyor\""
+    },
+    "special_rules": {
+      "question": "İşletmenizde işlerin yürüyüşüne dair özel kurallar var mı?",
+      "placeholder": "örn. \"Büyük siparişleri müdürüm onaylamalı\" veya \"Sürekli müşterilere indirim yapıyoruz\"",
+      "hint": "Onay adımları, indirim kuralları veya izlediğiniz özel süreçleri düşünün."
+    },
+    "anything_else": {
+      "question": "Bize bilmemiz gereken başka bir şey söylemek ister misiniz?",
+      "placeholder": "İsteğe bağlı — size doğru sistemi kurmamıza yardımcı olacak her şey"
+    }
+  },
+  "businessSection": {
+    "title": "3. Bize İşletmenizden Bahsedin",
+    "subtitle": "Size en uygun sistemi kurabilmemiz için birkaç basit soruyu yanıtlayın.",
+    "progress": "{{total}} sorudan {{current}}.",
+    "questionLabel": "Soru {{n}}",
+    "needHelp": "Yanıtlarken yardım ister misiniz?",
+    "back": "Geri",
+    "skip": "Atla",
+    "next": "İleri",
+    "generate": "ERP Oluştur",
+    "yourAnswers": "Cevaplarınız",
+    "edit": "düzenle"
+  },
+  "skipWarning": {
+    "title": "Bazı sorular atlandı",
+    "body1": "Çok fazla soruyu atlamak daha isabetsiz bir ERP ile sonuçlanabilir. İşletmenizi ne kadar iyi tanırsak sistemi o kadar iyi özelleştirebiliriz.",
+    "body2": "Yanıtlamakta zorlanıyorsanız sağ altta ışıldayan <strong>sohbet asistanımızı</strong> deneyin.",
+    "goBack": "Geri dön ve yanıtla",
+    "generateAnyway": "Yine de oluştur"
+  },
+  "aiEditChips": {
+    "productCategory": "Ürün kategorisi alanı ekle",
+    "stockTransfers": "Lokasyonlar arası stok transferini etkinleştir",
+    "invoiceCurrency": "Fatura para birimini EUR olarak değiştir",
+    "employeeDocs": "Çalışan belge saklama alanı ekle"
+  },
+  "preview": {
+    "caps": {
+      "transactionSafety": "İşlem güvenliği",
+      "reservations": "Rezervasyonlar",
+      "purchaseReceiving": "Satın alma girişleri",
+      "stockCounts": "Stok sayımları",
+      "batchTracking": "Parti takibi",
+      "serialTracking": "Seri numarası takibi",
+      "expiryAlerts": "Son kullanma uyarıları",
+      "lowStockAlerts": "Düşük stok uyarıları",
+      "qrLabels": "QR etiketleri",
+      "payments": "Ödemeler",
+      "creditNotes": "İade / borç dekontu",
+      "statusWorkflow": "Durum akışı",
+      "lineDiscounts": "Kalem indirimleri",
+      "printPdf": "Yazdır / PDF",
+      "leaveTracking": "İzin takibi",
+      "leaveApprovals": "İzin onayları",
+      "attendanceTime": "Devam ve mesai",
+      "payrollPrep": "Bordro hazırlığı"
+    },
+    "config": {
+      "currency": "Para birimi",
+      "taxRate": "Vergi oranı",
+      "workDays": "Çalışma günleri",
+      "hoursPerDay": "Saat / gün"
+    }
+  },
+  "platforms": {
+    "macosArm": "macOS (Apple Silicon)",
+    "macosX64": "macOS (Intel)",
+    "windows": "Windows",
+    "linux": "Linux",
+    "extractTip": {
+      "mac": "Finder içinde .zip dosyasına çift tıklayarak açın.",
+      "windows": ".zip dosyasına sağ tıklayıp \"Tümünü Ayıkla...\" seçin",
+      "linux": "Çalıştırın: unzip your-erp.zip  (veya dosya yöneticinizi kullanın)"
+    }
+  },
+  "sdfPreview": {
+    "title": "4. ERP Kurulumunuz",
+    "projectLabel": "Proje",
+    "dataSections": "{{count}} veri bölümü",
+    "screens": "~{{count}} ekran",
+    "saveConfig": "Yapılandırmayı Kaydet",
+    "warnings": "Uyarılar",
+    "moreItems": "+ {{count}} daha",
+    "moduleCard": "{{label}} Modülü",
+    "extraFeatures": "Ek Özellikler",
+    "whatYouCanDo": {
+      "title": "Neler Yapabilirsiniz",
+      "item1Strong": "Kayıt ekleyip düzenleyin",
+      "item1Rest": "basit formları kullanarak",
+      "item2Strong": "Arayın ve sıralayın",
+      "item2Rest": "liste tablolarında",
+      "item3Strong": "CSV içe/dışa aktarın",
+      "item3Rest": "toplu veriler için",
+      "item4Strong": "Stok işlemleri",
+      "item4Rest": "envanter etkinse Teslim Al ve Çıkış gibi"
+    },
+    "askAi": {
+      "title": "Yapay Zekâdan Değişiklik İste",
+      "subtitle": "Eklemek, kaldırmak veya değiştirmek istediklerinizi açıklayın; yapay zekâ kurulumunuzu güncelleyecek.",
+      "placeholder": "İstediğiniz değişiklikleri açıklayın...",
+      "apply": "Değişiklikleri Uygula"
+    },
+    "jsonEditor": {
+      "title": "Gelişmiş: JSON'u Doğrudan Düzenle",
+      "hint": "Ham JSON yapılandırmasını düzenleyin. Yalnızca ileri düzey kullanıcılar için.",
+      "reset": "Sıfırla"
+    },
+    "showRawJson": "Ham JSON'u göster",
+    "hideRawJson": "Ham JSON'u gizle",
+    "download": {
+      "title": "5. ERP'nizi İndirin ve Çalıştırın",
+      "subtitle": "ERP'niz hazır. İndirin, ZIP'i çıkarın ve başlatmak için çift tıklayın.",
+      "noExtras": "Ek yazılım, internet bağlantısı veya teknik bilgi gerekmez.",
+      "recommended": "Bilgisayarınız için önerilen",
+      "buildingYourErp": "ERP'niz oluşturuluyor...",
+      "downloadFor": "{{platform}} için indir",
+      "selfContained": "Bağımsız paket · çalıştırmak için gereken her şeyi içerir",
+      "packaging": "ERP'niz tüm bağımlılıklarla paketleniyor. Bu bir iki dakika sürebilir...",
+      "differentOs": "Farklı bir işletim sistemi için indir",
+      "building": "Oluşturuluyor...",
+      "runtimeStatus": "ERP Çalışma Durumu",
+      "runtimeStatusDesc": "Oluşturulan ERP uygulamanızın başlangıç ve sağlık durumunu izler.",
+      "checkHealth": "Sağlık Kontrolü",
+      "checkingEllipsis": "Kontrol ediliyor...",
+      "autoCheck": "Her 7 saniyede bir otomatik kontrol",
+      "lastChecked": "Son kontrol: {{time}}",
+      "badgeRunning": "Çalışıyor",
+      "badgeChecking": "Kontrol Ediliyor",
+      "badgeUnhealthy": "Sağlıksız",
+      "badgeUnreachable": "Ulaşılamıyor",
+      "badgeStarting": "Başlatılıyor",
+      "badgeNotStarted": "Başlatılmadı",
+      "startThenCheck": "ERP uygulamanızı başlatın, ardından \"Sağlık Kontrolü\"ne tıklayın.",
+      "urlRequired": "Sağlık URL'si gereklidir.",
+      "urlInvalid": "Sağlık URL'si geçerli bir mutlak URL olmalıdır (örnek: http://localhost:3000/health).",
+      "httpError": "Sağlık uç noktası HTTP {{status}} yanıtı verdi.",
+      "healthy": "Servis sağlıklı ({{service}}).",
+      "payloadUnrecognized": "Sağlık uç noktası yanıt verdi ancak yanıt tanınmadı.",
+      "timeout": "Sağlık kontrolü 5 saniye sonra zaman aşımına uğradı.",
+      "unreachable": "Tarayıcı sağlık URL'sine ulaşamadı. Platform ve ERP farklı ana bilgisayarlarda çalışıyorsa localhost kontrolleri engellenmiş olabilir.",
+      "dockerAdvanced": "Gelişmiş: Docker Kurulumu (geliştiriciler için)",
+      "dockerDesc": "Bu, Docker Desktop gerektiren Docker tabanlı bir sürümü indirir. Yalnızca geliştiriciler veya BT profesyonelleri içindir.",
+      "dockerZip": "Docker ZIP İndir",
+      "whatIsTitle": "Bu indirme nedir?",
+      "whatIsBody": "Tamamen bilgisayarınızda çalışan, kendi içinde tam bir uygulamadır. Kendi sunucusunu, veritabanını ve arayüzünü içerir. İndirildikten sonra internet bağlantısı gerekmez."
+    },
+    "postDownload": {
+      "title": "ERP'nizi nasıl başlatacaksınız",
+      "step1Title": "İndirilen ZIP dosyasını bulun ve çıkarın",
+      "step2Title": "Çıkarılan klasörü açın ve çift tıklayın",
+      "macOsTip": "macOS bir güvenlik uyarısı gösterirse dosyaya sağ tıklayıp \"Aç\"ı seçin.",
+      "windowsTip": "Windows SmartScreen uyarısı gösterirse \"Daha fazla bilgi\"ye tıklayın ardından \"Yine de çalıştır\"ı seçin.",
+      "linuxTip": "Önce şunu çalıştırmanız gerekebilir: chmod +x start.sh ardından ./start.sh",
+      "step3Title": "Tarayıcınız otomatik olarak şu adreste açılır:",
+      "step3Desc": "Bu sizin ERP'niz. Hemen veri eklemeye başlayabilirsiniz.",
+      "dataTitle": "Verileriniz hakkında:",
+      "dataBody1": "Her şey bilgisayarınızda yerel olarak",
+      "dataBody2": "klasöründe saklanır. Yedeklemek için bu klasörü güvenli bir konuma kopyalayın. Bulut hesabı gerekmez."
+    },
+    "entityDetails": {
+      "title": "ERP'nizde Göreceğiniz Şeyler",
+      "columns": "Tablo sütunları",
+      "actions": "Kullanılabilir işlemler",
+      "importCsv": "CSV İçe Aktar",
+      "exportCsv": "CSV Dışa Aktar",
+      "printPdf": "Yazdır / PDF",
+      "add": "Ekle",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "bulk": "Toplu işlemler",
+      "qr": "QR etiketleri",
+      "stock": "Stok işlemleri",
+      "receive": "Teslim Al",
+      "adjust": "Düzelt",
+      "transfer": "Transfer",
+      "quickButtons": "Her satırda hızlı düğmeler",
+      "links": "Diğer verilere bağlantılar",
+      "multiple": "birden fazla",
+      "choiceFields": "Listeden seçilen alanlar",
+      "rules": "Veri kuralları",
+      "required": "Zorunlu",
+      "unique": "Benzersiz olmalı",
+      "moreCount": "+{{count}} daha"
+    }
+  },
+  "review": {
+    "title": "5. İnceleme ve Onay",
+    "subtitle": "Son onaydan önce şemayı, modülleri ve ilişkileri kontrol edin.",
+    "snapshot": "Mevcut Yapı Anlık Görüntüsü",
+    "statusLabel": "Durum: {{status}}",
+    "sdfVersion": "SDF v{{version}}",
+    "warningsPresent": "Bu SDF'te {{count}} uyarı hâlâ mevcut. Onaylamadan önce gözden geçirin.",
+    "requestRevision": "Revizyon Talep Et",
+    "revisionPlaceholder": "Onaydan önce neyin değişmesi gerektiğini açıklayın...",
+    "reject": "Reddet",
+    "requestAiRevision": "Yapay Zekâ Revizyonu Talep Et",
+    "approve": "Onayla",
+    "historyTitle": "Revizyon Geçmişi",
+    "noHistory": "Henüz izlenen bir revizyon yok.",
+    "versionStatus": "SDF v{{version}} | durum: {{status}}",
+    "actions": {
+      "generated": "Oluşturuldu",
+      "clarified": "Açıklama Uygulandı",
+      "manual_save": "Manuel Kayıt",
+      "ai_revision": "Yapay Zekâ Revizyonu",
+      "approved": "Onaylandı",
+      "rejected": "Reddedildi",
+      "revision_requested": "Revizyon Talep Edildi"
+    }
+  },
+  "accessRequirements": {
+    "title": "4. Erişim Grupları ve İzinler",
+    "subtitle": "Bu ERP'yi kimlerin kullanacağını ve her grubun neler yapabileceğini tanımlayın.",
+    "atLeastOne": "ERP'nizi oluşturmak için grup adı girilmiş en az bir grup gereklidir.",
+    "group": "Grup {{n}}",
+    "remove": "Kaldır",
+    "groupName": "Grup Adı",
+    "groupNamePlaceholder": "örn. Depo Ekibi, Finans, İK Yöneticileri",
+    "userCount": "Yaklaşık Kullanıcı Sayısı",
+    "userCountPlaceholder": "örn. 5",
+    "responsibilities": "Ana Sorumluluklar",
+    "responsibilitiesPlaceholder": "örn. Stok kabulü, ürün yönetimi, envanter sayımı",
+    "requiredPermissions": "Gerekli İzinler",
+    "customPermissions": "Özel İzinler (isteğe bağlı)",
+    "customPermissionsPlaceholder": "Virgülle ayrılmış özel izinler",
+    "addGroup": "+ Erişim Grubu Ekle",
+    "permissions": {
+      "view_records": "kayıtları görüntüle",
+      "create_records": "kayıt oluştur",
+      "edit_records": "kayıt düzenle",
+      "delete_records": "kayıt sil",
+      "approve_transactions": "işlemleri onayla",
+      "manage_users": "kullanıcıları yönet",
+      "manage_groups": "grupları yönet",
+      "manage_permissions": "izinleri yönet"
+    }
+  },
+  "prefilledConfig": {
+    "title": "ERP Yapılandırmanız",
+    "subtitle": "Yukarıdaki cevaplarınızdan otomatik olarak oluşturuldu. Bu bilgi, yapay zekâya başlangıç noktası olarak iletilir.",
+    "showJson": "JSON'u Göster",
+    "hideJson": "JSON'u Gizle"
+  },
+  "clarificationQuestions": {
+    "title": "Takip Soruları",
+    "subtitle": "Kurulumunuzu tamamlamak için yapay zekânın biraz daha bilgiye ihtiyacı var.",
+    "round": "Tur {{n}}",
+    "questionCount": "{{count}} soru",
+    "skipAndFinalize": "Kalanları atla ve tamamla",
+    "optional": "İsteğe bağlı"
+  },
+  "postGeneration": {
+    "readyTitle": "ERP'niz hazır",
+    "readyBody": "ERP'nizi canlı önizleyin, deneyin ve ihtiyaç duyduğunuz değişiklikleri talep edin.",
+    "moduleFallback": "Modül",
+    "dataTypes": "{{count}} veri tipi",
+    "previewBtn": "ERP'mi Önizle",
+    "hideDevDetails": "Geliştirici ayrıntılarını gizle",
+    "showDevDetails": "Geliştirici ayrıntılarını göster"
+  },
+  "generationModal": {
+    "generating": "ERP'niz Oluşturuluyor",
+    "percentComplete": "%{{pct}} tamamlandı",
+    "successTitle": "ERP Başarıyla Oluşturuldu",
+    "successBody": "ERP yapılandırmanız hazır.",
+    "errorTitle": "Oluşturma Başarısız",
+    "close": "Kapat",
+    "needMoreInfoTitle": "Biraz daha bilgiye ihtiyacımız var",
+    "needMoreInfoBody": "Size doğru ERP'yi kurabilmemiz için lütfen bu soruları yanıtlayın.",
+    "general": "Genel",
+    "submitAnswers": "Cevapları Gönder",
+    "required": "Zorunlu",
+    "customAnswerPlaceholder": "Özel cevabınızı yazın...",
+    "steps": {
+      "starting": "Cevaplarınız kaydediliyor",
+      "distributor": "İşletme gereksinimleriniz analiz ediliyor",
+      "clarifications": "Yanıtlarınız bekleniyor",
+      "generators": "Modül yapılandırmaları oluşturuluyor",
+      "finalizing": "Takip soruları kontrol ediliyor",
+      "normalizing": "ERP'niz doğrulanıyor ve normalize ediliyor",
+      "validating": "ERP'niz tamamlanıyor",
+      "done": "Tamamlandı"
+    }
+  },
+  "moduleSelector": {
+    "title": "1. Modülleri Seç",
+    "subtitle": "ERP'nizde hangi bölümlerin olacağını seçin. Bunu daha sonra her zaman değiştirebilirsiniz."
+  },
+  "defaultQuestions": {
+    "title": "2. Soruları Yanıtla",
+    "subtitle": "Bu cevaplar ERP'nizi doğrudan yapılandırır. Devam etmek için hepsini yanıtlayın.",
+    "answeredCount": "{{answered}}/{{total}} yanıtlandı",
+    "loading": "Sorular yükleniyor...",
+    "yes": "Evet",
+    "no": "Hayır",
+    "custom": "Özel...",
+    "select": "Seçin...",
+    "customPlaceholder": "Özel değerinizi yazın...",
+    "textPlaceholder": "Cevabınız...",
+    "continue": "Devam Et"
+  },
+  "header": {
+    "subtitle": "ERP'nizi adım adım kurun",
+    "backToProjects": "Projelere Dön",
+    "projectFallback": "Proje"
+  },
+  "loading": {
+    "project": "Proje yükleniyor..."
+  },
+  "phases": {
+    "resuming": "Devam ediliyor — oluşturma durumu kontrol ediliyor...",
+    "savingAnswers": "Cevaplarınız kaydediliyor..."
+  },
+  "progress": {
+    "complete": "Tamamlandı",
+    "waitingAnswers": "Yanıtlarınız bekleniyor",
+    "processing": "Cevaplarınız işleniyor..."
+  },
+  "history": {
+    "generated": "Oluşturma modu girdilerinden yeni bir SDF üretildi.",
+    "clarified": "Açıklama yanıtları mevcut SDF'e uygulandı.",
+    "manualSave": "SDF üzerindeki manuel JSON düzenlemeleri kaydedildi.",
+    "aiRevision": "SDF önizlemesinden gelen yapay zekâ düzenlemesi uygulandı.",
+    "approved": "Geçerli SDF, ERP üretimi için onaylandı.",
+    "rejected": "Geçerli SDF reddedildi ve proje Taslak durumuna alındı.",
+    "aiRevisionFromReview": "İnceleme panelinden istenen yapay zekâ revizyonu uygulandı.",
+    "loadedBaseline": "Proje geçmişinden en son kaydedilmiş SDF yüklendi."
+  },
+  "errors": {
+    "loadProject": "Proje yüklenemedi",
+    "loadDefaultQuestions": "Varsayılan modül soruları yüklenemedi",
+    "notFound": "Proje bulunamadı",
+    "answerRequired": "Oluşturmadan önce lütfen tüm zorunlu soruları yanıtlayın.",
+    "saveAnswersFailed": "Yanıtlar kaydedilemedi",
+    "genTimeout": "Oluşturma zaman aşımına uğradı. Girdileriniz kaydedildi — lütfen tekrar deneyin.",
+    "genSlow": "Oluşturma beklenenden uzun sürüyor. Girdileriniz kaydedildi — lütfen birkaç dakika sonra tekrar deneyin.",
+    "genNetwork": "Yapay zekâ servisimize geçici olarak ulaşılamıyor. Üzerinde çalışıyoruz — lütfen birkaç dakika sonra tekrar deneyin.",
+    "genServer": "Yapay zekâ servisimizde bir sorun oluştu. Üzerinde çalışıyoruz — lütfen birkaç dakika sonra tekrar deneyin.",
+    "genGeneric": "Oluşturma sırasında bir şeyler ters gitti. Lütfen tekrar deneyin.",
+    "invalidJson": "Geçersiz JSON: {{message}}",
+    "parseError": "Ayrıştırma hatası",
+    "saveFailed": "Kaydedilemedi",
+    "aiEditFailed": "Yapay zekâ düzenlemesi başarısız oldu",
+    "approveFailed": "Onaylama işlemi başarısız oldu",
+    "rejectFailed": "Reddetme işlemi başarısız oldu",
+    "revisionFailed": "Revizyon isteği başarısız oldu",
+    "generateFailed": "Oluşturma başarısız oldu",
+    "standaloneFailed": "Bağımsız sürüm oluşturma başarısız oldu"
+  }
+}

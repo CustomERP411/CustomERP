@@ -23,22 +23,6 @@ exports.listAllProjects = async (req, res) => {
   }
 };
 
-exports.updateUser = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { name, email } = req.body;
-    if (!name && !email) {
-      return res.status(400).json({ error: 'At least one of name or email is required' });
-    }
-    const user = await adminService.updateUser(userId, { name, email });
-    res.json({ user });
-  } catch (err) {
-    logger.error('Admin updateUser error:', err);
-    const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;
-    res.status(status).json({ error: err.message || 'Internal server error' });
-  }
-};
-
 exports.setAdminStatus = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -58,16 +42,29 @@ exports.setAdminStatus = async (req, res) => {
   }
 };
 
-exports.deleteUser = async (req, res) => {
+exports.blockUser = async (req, res) => {
   try {
     const { userId } = req.params;
+    const { reason } = req.body;
     if (userId === req.user.userId) {
-      return res.status(400).json({ error: 'You cannot delete your own account from the admin panel' });
+      return res.status(400).json({ error: 'You cannot block your own account' });
     }
-    await adminService.deleteUser(userId);
-    res.json({ message: 'User deleted' });
+    const user = await adminService.blockUser(userId, reason || null);
+    res.json({ user });
   } catch (err) {
-    logger.error('Admin deleteUser error:', err);
+    logger.error('Admin blockUser error:', err);
+    const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;
+    res.status(status).json({ error: err.message || 'Internal server error' });
+  }
+};
+
+exports.unblockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await adminService.unblockUser(userId);
+    res.json({ user });
+  } catch (err) {
+    logger.error('Admin unblockUser error:', err);
     const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;
     res.status(status).json({ error: err.message || 'Internal server error' });
   }

@@ -8,6 +8,8 @@ export interface AdminUser {
   created_at: string;
   updated_at: string;
   deleted: boolean;
+  blocked: boolean;
+  block_reason: string | null;
 }
 
 export interface AdminProject {
@@ -35,17 +37,18 @@ export const adminService = {
     return res.data.projects;
   },
 
-  updateUser: async (userId: string, data: { name?: string; email?: string }): Promise<AdminUser> => {
-    const res = await api.put<{ user: AdminUser }>(`/admin/${userId}`, data);
-    return res.data.user;
-  },
-
   setAdminStatus: async (userId: string, is_admin: boolean): Promise<AdminUser> => {
     const res = await api.put<{ user: AdminUser }>(`/admin/${userId}/admin`, { is_admin });
     return res.data.user;
   },
 
-  deleteUser: async (userId: string): Promise<void> => {
-    await api.delete(`/admin/${userId}`);
+  blockUser: async (userId: string, reason?: string): Promise<AdminUser> => {
+    const res = await api.put<{ user: AdminUser }>(`/admin/${userId}/block`, { reason });
+    return res.data.user;
+  },
+
+  unblockUser: async (userId: string): Promise<AdminUser> => {
+    const res = await api.put<{ user: AdminUser }>(`/admin/${userId}/unblock`);
+    return res.data.user;
   },
 };

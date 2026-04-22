@@ -79,6 +79,15 @@ class AuthService {
       throw error;
     }
 
+    if (user.blocked_at) {
+      const contactEmail = process.env.CONTACT_EMAIL || 'support@example.com';
+      const reason = user.block_reason || 'suspicious activity';
+      const error = new Error(`Your account has been suspended due to ${reason}. Contact ${contactEmail} for assistance.`);
+      error.statusCode = 403;
+      error.code = 'ACCOUNT_BLOCKED';
+      throw error;
+    }
+
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       logger.warn(`Failed login attempt for: ${email}`);
@@ -139,7 +148,7 @@ class AuthService {
    */
   async findByEmail(email) {
     const result = await query(
-      'SELECT user_id, name, email, password_hash, is_admin, deleted_at, created_at, updated_at FROM users WHERE email = $1',
+      'SELECT user_id, name, email, password_hash, is_admin, deleted_at, blocked_at, block_reason, created_at, updated_at FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
     );
     return result.rows[0] || null;

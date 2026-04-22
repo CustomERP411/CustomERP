@@ -227,8 +227,8 @@ export const projectService = {
     return response.data;
   },
 
-  getPreviewStatus: async (id: string): Promise<{ previewId?: string; status: string }> => {
-    const response = await api.get<{ previewId?: string; status: string }>(`/projects/${id}/preview/status`);
+  getPreviewStatus: async (id: string): Promise<{ previewId?: string; status: string; queuePosition?: number }> => {
+    const response = await api.get<{ previewId?: string; status: string; queuePosition?: number }>(`/projects/${id}/preview/status`);
     return response.data;
   },
 

@@ -10,12 +10,13 @@ const logger = require('../utils/logger');
 const erpGenerationService = require('./erpGenerationService');
 
 const MAX_CONCURRENT_PREVIEWS = Number(process.env.MAX_PREVIEW_INSTANCES) || 3;
+const MAX_QUEUED_BUILDS = 3;
 const PREVIEW_TTL_MS = 30 * 60 * 1000; // 30 minutes
-const HEALTH_POLL_INTERVAL = 500;
 const HEALTH_POLL_TIMEOUT = 60_000;
 
 const _previews = new Map();
-
+const _buildQueue = []; // { previewId, projectId, sdf }
+let _buildRunning = false;
 let _cleanupTimer = null;
 
 function _startCleanupTimer() {
@@ -43,9 +44,18 @@ function getPreviewForProject(projectId) {
   return null;
 }
 
+function getQueuePosition(previewId) {
+  const idx = _buildQueue.findIndex((j) => j.previewId === previewId);
+  return idx === -1 ? -1 : idx + 1; // 1-based for display
+}
+
 async function stopPreview(previewId) {
   const preview = _previews.get(previewId);
   if (!preview) return;
+
+  // Remove from build queue if still queued
+  const qIdx = _buildQueue.findIndex((j) => j.previewId === previewId);
+  if (qIdx !== -1) _buildQueue.splice(qIdx, 1);
 
   if (preview.process && !preview.process.killed) {
     try { preview.process.kill('SIGTERM'); } catch (_) {}
@@ -75,14 +85,20 @@ async function startPreview(projectId, sdf) {
     throw err;
   }
 
+  const queuedBuilds = _buildQueue.length + (_buildRunning ? 1 : 0);
+  if (queuedBuilds >= MAX_QUEUED_BUILDS) {
+    const err = new Error('Build queue is full. Please wait for a current build to finish.');
+    err.statusCode = 503;
+    throw err;
+  }
+
   await stopAllForProject(projectId);
 
   const previewId = crypto.randomBytes(8).toString('hex');
-  const basePath = `/preview/${previewId}`;
 
   _previews.set(previewId, {
     projectId,
-    status: 'building',
+    status: 'queued',
     port: null,
     process: null,
     outputDir: null,
@@ -91,20 +107,60 @@ async function startPreview(projectId, sdf) {
 
   _startCleanupTimer();
 
+  _buildQueue.push({ previewId, projectId, sdf });
+  logger.info(`[PreviewManager] Preview ${previewId} queued (position ${_buildQueue.length})`);
+
+  _drainQueue();
+
+  const preview = _previews.get(previewId);
+  return { previewId, status: preview ? preview.status : 'queued' };
+}
+
+function _drainQueue() {
+  if (_buildRunning || _buildQueue.length === 0) return;
+
+  const job = _buildQueue.shift();
+  if (!job) return;
+
+  const preview = _previews.get(job.previewId);
+  if (!preview) {
+    _drainQueue();
+    return;
+  }
+
+  preview.status = 'building';
+  _buildRunning = true;
+  logger.info(`[PreviewManager] Starting build for preview ${job.previewId}`);
+
+  _executeBuild(job.previewId, job.projectId, job.sdf)
+    .then(() => {
+      _buildRunning = false;
+      _drainQueue();
+    })
+    .catch(() => {
+      _buildRunning = false;
+      _drainQueue();
+    });
+}
+
+async function _executeBuild(previewId, projectId, sdf) {
+  const basePath = `/preview/${previewId}`;
+
   try {
-    // 1. Assemble the ERP code (standalone = SQLite mode)
     logger.info(`[PreviewManager] Generating ERP code for preview ${previewId}...`);
     const { outputDir } = await erpGenerationService.generateProjectDir({
       projectId,
       sdf,
       standalone: true,
     });
-    _previews.get(previewId).outputDir = outputDir;
+
+    const preview = _previews.get(previewId);
+    if (!preview) return; // stopped while building
+    preview.outputDir = outputDir;
 
     const appDir = path.join(outputDir, 'app');
     const frontendDir = path.join(outputDir, 'frontend');
 
-    // 2. npm install backend
     logger.info(`[PreviewManager] Installing backend dependencies...`);
     try {
       await execAsync('npm install --production --no-optional', {
@@ -119,7 +175,6 @@ async function startPreview(projectId, sdf) {
       throw installErr;
     }
 
-    // 3. npm install + vite build frontend with preview base path
     if (fs.existsSync(path.join(frontendDir, 'package.json'))) {
       logger.info(`[PreviewManager] Installing frontend dependencies...`);
       try {
@@ -153,7 +208,6 @@ async function startPreview(projectId, sdf) {
         throw buildErr;
       }
 
-      // Copy dist -> app/public
       const distDir = path.join(frontendDir, 'dist');
       const publicDir = path.join(appDir, 'public');
       if (fs.existsSync(distDir)) {
@@ -162,25 +216,21 @@ async function startPreview(projectId, sdf) {
       await fsp.rm(frontendDir, { recursive: true, force: true }).catch(() => {});
     }
 
-    // 4. Write .env with PORT=0 (OS picks a free port)
     await fsp.writeFile(path.join(appDir, '.env'), 'PORT=0\n');
 
-    // 5. Start the Express server
     logger.info(`[PreviewManager] Starting preview server...`);
     const port = await _startServer(previewId, appDir);
 
-    const preview = _previews.get(previewId);
-    if (preview) {
-      preview.status = 'running';
-      preview.port = port;
+    const finalPreview = _previews.get(previewId);
+    if (finalPreview) {
+      finalPreview.status = 'running';
+      finalPreview.port = port;
     }
 
     logger.info(`[PreviewManager] Preview ${previewId} running on port ${port}`);
-    return { previewId, port, status: 'running' };
   } catch (err) {
     logger.error(`[PreviewManager] Failed to start preview ${previewId}: ${err.message}`);
     await stopPreview(previewId);
-    throw err;
   }
 }
 
@@ -206,7 +256,6 @@ function _startServer(previewId, appDir) {
 
     const onData = (chunk) => {
       output += chunk.toString();
-      // The generated server prints "Server running on port XXXX"
       const match = output.match(/(?:running on port|listening on port|port)\s+(\d+)/i);
       if (match && !portResolved) {
         portResolved = true;
@@ -232,10 +281,8 @@ function _startServer(previewId, appDir) {
       }
     });
 
-    // Timeout fallback: if we can't detect the port from stdout, poll /health
-    setTimeout(async () => {
+    setTimeout(() => {
       if (portResolved) return;
-      // If we couldn't parse port from output, try a range of common ports
       portResolved = true;
       reject(new Error(`Could not determine preview port within timeout. Output: ${output.slice(-500)}`));
     }, HEALTH_POLL_TIMEOUT);
@@ -256,9 +303,6 @@ async function _copyRecursive(src, dest) {
   }
 }
 
-// Wipe orphaned preview dirs left behind by a crash/restart.
-// The in-memory _previews map is empty on a fresh boot, so anything on disk
-// is leftover from a previous lifecycle and safe to delete.
 function cleanupOrphanedDirs() {
   const os = require('os');
   const outputRoot =
@@ -282,4 +326,5 @@ module.exports = {
   stopAllForProject,
   getPreview,
   getPreviewForProject,
+  getQueuePosition,
 };

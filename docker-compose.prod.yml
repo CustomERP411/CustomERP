@@ -50,6 +50,7 @@ services:
       PGDATABASE: ${POSTGRES_DB:-customwerp}
       JWT_SECRET: ${JWT_SECRET}
       AI_GATEWAY_URL: ${AI_GATEWAY_URL:-http://ai-gateway:8000}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-support@example.com}
       ASSEMBLER_PATH: /app/assembler
       BRICK_LIBRARY_PATH: /app/brick-library
     expose:

@@ -29,7 +29,11 @@ async function getPreviewStatus(req, res) {
     if (!preview) {
       return res.json({ status: 'none' });
     }
-    res.json({ previewId: preview.previewId, status: preview.status });
+    const response = { previewId: preview.previewId, status: preview.status };
+    if (preview.status === 'queued') {
+      response.queuePosition = previewManager.getQueuePosition(preview.previewId);
+    }
+    res.json(response);
   } catch (err) {
     logger.error(`[previewController] getPreviewStatus error: ${err.message}`);
     res.status(500).json({ error: err.message });

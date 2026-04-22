@@ -21,12 +21,9 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
 
-  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editSaving, setEditSaving] = useState(false);
-
-  const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
+  const [blockingUser, setBlockingUser] = useState<AdminUser | null>(null);
+  const [blockReason, setBlockReason] = useState('');
+  const [blockSaving, setBlockSaving] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'users' | 'projects'>('users');
 
@@ -58,35 +55,32 @@ export default function AdminPage() {
     }
   }
 
-  function openEdit(target: AdminUser) {
-    setEditingUser(target);
-    setEditName(target.name);
-    setEditEmail(target.email);
+  function openBlock(target: AdminUser) {
+    setBlockingUser(target);
+    setBlockReason('');
     setActionError('');
   }
 
-  async function handleEditSave() {
-    if (!editingUser) return;
-    setEditSaving(true);
+  async function handleBlock() {
+    if (!blockingUser) return;
+    setBlockSaving(true);
     setActionError('');
     try {
-      const updated = await adminService.updateUser(editingUser.id, { name: editName.trim(), email: editEmail.trim() });
+      const updated = await adminService.blockUser(blockingUser.id, blockReason.trim() || undefined);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-      setEditingUser(null);
+      setBlockingUser(null);
     } catch (err) {
       setActionError(getErrorMessage(err));
     } finally {
-      setEditSaving(false);
+      setBlockSaving(false);
     }
   }
 
-  async function handleDelete() {
-    if (!deletingUser) return;
+  async function handleUnblock(target: AdminUser) {
     setActionError('');
     try {
-      await adminService.deleteUser(deletingUser.id);
-      setUsers((prev) => prev.map((u) => (u.id === deletingUser.id ? { ...u, deleted: true } : u)));
-      setDeletingUser(null);
+      const updated = await adminService.unblockUser(target.id);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
     } catch (err) {
       setActionError(getErrorMessage(err));
     }
@@ -111,7 +105,6 @@ export default function AdminPage() {
   }
 
   const activeUsers = users.filter((u) => !u.deleted);
-  const deletedUsers = users.filter((u) => u.deleted);
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 pb-16">
@@ -158,55 +151,63 @@ export default function AdminPage() {
                 <tr className="border-b bg-slate-50 text-left">
                   <th className="px-4 py-3 font-medium text-slate-600">Name</th>
                   <th className="px-4 py-3 font-medium text-slate-600">Email</th>
-                  <th className="px-4 py-3 font-medium text-slate-600">Role</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">Status</th>
                   <th className="px-4 py-3 font-medium text-slate-600">Joined</th>
                   <th className="px-4 py-3 font-medium text-slate-600 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {activeUsers.map((u) => (
-                  <tr key={u.id} className="border-b last:border-b-0 hover:bg-slate-50/50">
+                  <tr key={u.id} className={`border-b last:border-b-0 hover:bg-slate-50/50 ${u.blocked ? 'bg-red-50/30' : ''}`}>
                     <td className="px-4 py-3 font-medium text-slate-900">
                       {u.name}
                       {u.id === user.id && <span className="ml-1.5 text-xs text-slate-400">(you)</span>}
                     </td>
                     <td className="px-4 py-3 text-slate-600">{u.email}</td>
                     <td className="px-4 py-3">
-                      {u.is_admin ? (
-                        <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">Admin</span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">User</span>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {u.is_admin ? (
+                          <span className="inline-flex w-fit items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">Admin</span>
+                        ) : (
+                          <span className="inline-flex w-fit items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">User</span>
+                        )}
+                        {u.blocked && (
+                          <span className="inline-flex w-fit items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700" title={u.block_reason || ''}>
+                            Blocked
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-slate-500">{new Date(u.created_at).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(u)}
-                          className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        {u.id !== user.id && (
-                          <>
+                      {u.id !== user.id && (
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAdmin(u)}
+                            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
+                          >
+                            {u.is_admin ? 'Remove Admin' : 'Make Admin'}
+                          </button>
+                          {u.blocked ? (
                             <button
                               type="button"
-                              onClick={() => handleToggleAdmin(u)}
-                              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
+                              onClick={() => void handleUnblock(u)}
+                              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 transition-colors"
                             >
-                              {u.is_admin ? 'Remove Admin' : 'Make Admin'}
+                              Unblock
                             </button>
+                          ) : (
                             <button
                               type="button"
-                              onClick={() => setDeletingUser(u)}
+                              onClick={() => openBlock(u)}
                               className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
                             >
-                              Delete
+                              Block
                             </button>
-                          </>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -216,11 +217,6 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
-          {deletedUsers.length > 0 && (
-            <div className="border-t bg-slate-50/50 px-4 py-3">
-              <p className="text-xs text-slate-400">{deletedUsers.length} deactivated user{deletedUsers.length > 1 ? 's' : ''} hidden</p>
-            </div>
-          )}
         </section>
       )}
 
@@ -267,79 +263,41 @@ export default function AdminPage() {
         </section>
       )}
 
-      {/* Edit User Modal */}
-      {editingUser && createPortal(
+      {/* Block User Modal */}
+      {blockingUser && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 px-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-slate-900">Edit User</h3>
-            <p className="mt-1 text-sm text-slate-500">Update details for {editingUser.name}</p>
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-            {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => { setEditingUser(null); setActionError(''); }}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleEditSave()}
-                disabled={editSaving || !editName.trim() || !editEmail.trim()}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {editSaving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deletingUser && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-slate-900">Delete User</h3>
+            <h3 className="text-base font-semibold text-slate-900">Block User</h3>
             <p className="mt-2 text-sm text-slate-600">
-              Are you sure you want to deactivate <strong>{deletingUser.name}</strong> ({deletingUser.email})?
-              Their account will be soft-deleted and they will no longer be able to log in.
+              Block <strong>{blockingUser.name}</strong> ({blockingUser.email}) from accessing the platform.
+              They will see a suspension message when they try to log in.
             </p>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Reason (optional)</label>
+              <input
+                type="text"
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                placeholder="e.g. suspicious activity, policy violation..."
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
             {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => { setDeletingUser(null); setActionError(''); }}
+                onClick={() => { setBlockingUser(null); setActionError(''); }}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => void handleDelete()}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                onClick={() => void handleBlock()}
+                disabled={blockSaving}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
               >
-                Delete User
+                {blockSaving ? 'Blocking...' : 'Block User'}
               </button>
             </div>
           </div>

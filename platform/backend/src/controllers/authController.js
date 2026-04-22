@@ -80,7 +80,9 @@ async function login(req, res, next) {
     logger.error('Login error:', error.message);
     
     if (error.statusCode) {
-      return res.status(error.statusCode).json({ error: error.message });
+      const body = { error: error.message };
+      if (error.code) body.code = error.code;
+      return res.status(error.statusCode).json(body);
     }
     
     next(error);

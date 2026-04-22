@@ -6,8 +6,8 @@ router.use(authenticateToken, requireAdmin);
 
 router.get('/', adminController.listUsers);
 router.get('/projects', adminController.listAllProjects);
-router.put('/:userId', adminController.updateUser);
 router.put('/:userId/admin', adminController.setAdminStatus);
-router.delete('/:userId', adminController.deleteUser);
+router.put('/:userId/block', adminController.blockUser);
+router.put('/:userId/unblock', adminController.unblockUser);
 
 module.exports = router;

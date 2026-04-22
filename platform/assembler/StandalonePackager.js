@@ -2,7 +2,10 @@ const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
 const os = require('os');
-const { execSync } = require('child_process');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+
+const execAsync = promisify(exec);
 
 const NODE_VERSION = '20.18.1';
 
@@ -58,7 +61,7 @@ async function downloadNodeBinary(platform) {
   console.log(`[STANDALONE] Downloading Node.js for ${platform} from ${url}`);
 
   try {
-    execSync(`curl -fsSL -o "${archivePath}" "${url}"`, { stdio: 'pipe', timeout: 120000 });
+    await execAsync(`curl -fsSL -o "${archivePath}" "${url}"`, { timeout: 120000 });
   } catch (err) {
     throw new Error(`Failed to download Node.js binary: ${err.message}`);
   }
@@ -68,11 +71,11 @@ async function downloadNodeBinary(platform) {
 
   console.log(`[STANDALONE] Extracting Node.js binary...`);
   if (info.ext === 'tar.gz') {
-    execSync(`tar -xzf "${archivePath}" -C "${extractDir}" --strip-components=1`, { stdio: 'pipe' });
+    await execAsync(`tar -xzf "${archivePath}" -C "${extractDir}" --strip-components=1`);
   } else if (info.ext === 'tar.xz') {
-    execSync(`tar -xJf "${archivePath}" -C "${extractDir}" --strip-components=1`, { stdio: 'pipe' });
+    await execAsync(`tar -xJf "${archivePath}" -C "${extractDir}" --strip-components=1`);
   } else {
-    execSync(`unzip -qo "${archivePath}" -d "${cacheDir}"`, { stdio: 'pipe' });
+    await execAsync(`unzip -qo "${archivePath}" -d "${cacheDir}"`);
     const unzippedDir = path.join(cacheDir, info.nodeDir);
     if (fs.existsSync(unzippedDir) && unzippedDir !== extractDir) {
       const entries = await fsp.readdir(unzippedDir);
@@ -126,8 +129,8 @@ async function replaceBetterSqlitePrebuilt(appDir, targetOs, targetArch) {
 
   try {
     console.log(`[STANDALONE] Downloading ${tarName}...`);
-    execSync(`curl -fsSL -o "${tmpFile}" "${url}"`, { stdio: 'pipe', timeout: 60000 });
-    execSync(`tar -xzf "${tmpFile}" -C "${pkgDir}"`, { stdio: 'pipe' });
+    await execAsync(`curl -fsSL -o "${tmpFile}" "${url}"`, { timeout: 60000 });
+    await execAsync(`tar -xzf "${tmpFile}" -C "${pkgDir}"`);
     await fsp.unlink(tmpFile).catch(() => {});
 
     if (fs.existsSync(targetFile)) {
@@ -156,11 +159,11 @@ async function buildStandaloneBundle({ assembledDir, platform, projectName }) {
   if (!fs.existsSync(path.join(appDir, 'package.json'))) {
     throw new Error('Backend package.json not found in assembled output');
   }
-  execSync('npm install --production --no-optional 2>&1', {
+  await execAsync('npm install --production --no-optional', {
     cwd: appDir,
-    stdio: 'pipe',
     timeout: 180000,
     env: { ...process.env, NODE_ENV: 'production' },
+    maxBuffer: 10 * 1024 * 1024,
   });
 
   // 1b. Replace native addons with correct prebuilt binaries for the target platform
@@ -172,18 +175,18 @@ async function buildStandaloneBundle({ assembledDir, platform, projectName }) {
   // 2. npm install + build frontend
   if (fs.existsSync(path.join(frontendDir, 'package.json'))) {
     console.log('[STANDALONE] Installing frontend dependencies...');
-    execSync('npm install 2>&1', {
+    await execAsync('npm install --include=dev', {
       cwd: frontendDir,
-      stdio: 'pipe',
       timeout: 180000,
+      maxBuffer: 10 * 1024 * 1024,
     });
 
     console.log('[STANDALONE] Building frontend...');
-    execSync('npx vite build 2>&1', {
+    await execAsync('npx vite build', {
       cwd: frontendDir,
-      stdio: 'pipe',
       timeout: 120000,
       env: { ...process.env, VITE_API_URL: '/api' },
+      maxBuffer: 10 * 1024 * 1024,
     });
 
     // 3. Copy frontend dist to app/public

@@ -15,7 +15,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Don't redirect if it's a login attempt failure
+    if (error.response?.status === 403 && error.response?.data?.code === 'ACCOUNT_BLOCKED') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
     if (error.response?.status === 401 && !error.config.url?.includes('/auth/login')) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');

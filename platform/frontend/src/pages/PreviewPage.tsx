@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { projectService } from '../services/projectService';
-import { detectUserPlatform } from '../components/project/projectConstants';
+import { detectUserPlatform, PLATFORM_INFO } from '../components/project/projectConstants';
 import GenerationModal from '../components/project/GenerationModal';
 import { useChatContext } from '../context/ChatContext';
 import type { Project } from '../types/project';
 import type { ClarificationQuestion, ClarificationAnswer } from '../types/aiGateway';
 
-type PreviewStatus = 'idle' | 'starting' | 'running' | 'error' | 'stopping';
+type PreviewStatus = 'idle' | 'queued' | 'starting' | 'running' | 'error' | 'stopping';
 
 const SIDEBAR_KEY = 'sidebar_collapsed';
 
@@ -37,8 +37,11 @@ export default function PreviewPage() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [progressText, setProgressText] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [approving, setApproving] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  const [queuePosition, setQueuePosition] = useState(0);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadPlatform, setDownloadPlatform] = useState('');
+  const [downloadPhase, setDownloadPhase] = useState<'pick' | 'building' | 'done' | 'error'>('pick');
+  const [downloadError, setDownloadError] = useState('');
 
   // Change request state
   const [changeText, setChangeText] = useState('');
@@ -104,12 +107,6 @@ export default function PreviewPage() {
   }, [projectId, project, setProjectContext]);
 
   const pollUntilReady = useCallback(() => {
-    setProgressText('Building your ERP...');
-    PROGRESS_MESSAGES.forEach(({ delay, text }) => {
-      const t = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
-      progressTimers.current.push(t);
-    });
-
     const poll = async () => {
       if (!mountedRef.current || !projectId) return;
       try {
@@ -120,9 +117,26 @@ export default function PreviewPage() {
           setPreviewId(res.previewId);
           setStatus('running');
           setProgressText('');
+          setQueuePosition(0);
+          return;
+        }
+        if (res.status === 'queued') {
+          setStatus('queued');
+          setQueuePosition(res.queuePosition || 0);
+          setProgressText('');
+          const t = setTimeout(poll, 3000);
+          progressTimers.current.push(t);
           return;
         }
         if (res.status === 'building') {
+          if (status === 'queued') {
+            setStatus('starting');
+            PROGRESS_MESSAGES.forEach(({ delay, text }) => {
+              const t = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
+              progressTimers.current.push(t);
+            });
+          }
+          setQueuePosition(0);
           const t = setTimeout(poll, 3000);
           progressTimers.current.push(t);
           return;
@@ -132,32 +146,42 @@ export default function PreviewPage() {
       if (mountedRef.current) {
         setStatus('error');
         setProgressText('');
+        setQueuePosition(0);
         setErrorMsg('Preview build failed. Please try again.');
       }
     };
 
     const t = setTimeout(poll, 3000);
     progressTimers.current.push(t);
-  }, [projectId, clearProgressTimers]);
+  }, [projectId, clearProgressTimers, status]);
 
   const startPreviewFlow = useCallback(async () => {
     if (!projectId) return;
     setStatus('starting');
     setErrorMsg('');
     setPreviewId(null);
-
-    PROGRESS_MESSAGES.forEach(({ delay, text }) => {
-      const t = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
-      progressTimers.current.push(t);
-    });
+    setQueuePosition(0);
 
     try {
       const result = await projectService.startPreview(projectId);
-      clearProgressTimers();
       if (!mountedRef.current) return;
       setPreviewId(result.previewId);
-      setStatus('running');
-      setProgressText('');
+
+      if (result.status === 'queued') {
+        setStatus('queued');
+        pollUntilReady();
+      } else if (result.status === 'building') {
+        setStatus('starting');
+        PROGRESS_MESSAGES.forEach(({ delay, text }) => {
+          const t = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
+          progressTimers.current.push(t);
+        });
+        pollUntilReady();
+      } else if (result.status === 'running') {
+        setStatus('running');
+      } else {
+        pollUntilReady();
+      }
     } catch (err: any) {
       clearProgressTimers();
       if (!mountedRef.current) return;
@@ -165,7 +189,7 @@ export default function PreviewPage() {
       setProgressText('');
       setErrorMsg(err?.response?.data?.error || err?.message || 'Failed to start preview');
     }
-  }, [projectId, clearProgressTimers]);
+  }, [projectId, clearProgressTimers, pollUntilReady]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -180,9 +204,19 @@ export default function PreviewPage() {
           setStatus('running');
           return;
         }
+        if (existing.status === 'queued' && existing.previewId) {
+          setPreviewId(existing.previewId);
+          setStatus('queued');
+          pollUntilReady();
+          return;
+        }
         if (existing.status === 'building' && existing.previewId) {
           setPreviewId(existing.previewId);
           setStatus('starting');
+          PROGRESS_MESSAGES.forEach(({ delay, text }) => {
+            const t = setTimeout(() => { if (mountedRef.current) setProgressText(text); }, delay);
+            progressTimers.current.push(t);
+          });
           pollUntilReady();
           return;
         }
@@ -201,26 +235,38 @@ export default function PreviewPage() {
     }).catch(() => {});
   }, [projectId]);
 
-  const handleApproveAndDownload = async () => {
-    if (!projectId) return;
-    setApproving(true);
+  const openDownloadModal = () => {
+    setDownloadPlatform(detectedPlatform);
+    setDownloadPhase('pick');
+    setDownloadError('');
+    setShowDownloadModal(true);
+  };
+
+  const startApproveAndDownload = async () => {
+    if (!projectId || !downloadPlatform) return;
+    setDownloadPhase('building');
+    setDownloadError('');
     try {
       await projectService.approveReview(projectId);
-      setDownloading(true);
-      const blob = await projectService.generateStandaloneErpZip(projectId, detectedPlatform);
+      const blob = await projectService.generateStandaloneErpZip(projectId, downloadPlatform);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${project?.name || 'custom-erp'}-${detectedPlatform}.zip`;
+      a.download = `${project?.name || 'custom-erp'}-${downloadPlatform}.zip`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      setDownloadPhase('done');
+      try { await projectService.stopPreview(projectId); } catch { /* cleanup */ }
     } catch (err: any) {
-      setErrorMsg(err?.response?.data?.error || err?.message || 'Download failed');
-    } finally {
-      setApproving(false);
-      setDownloading(false);
+      const raw = err?.response?.data instanceof Blob
+        ? await err.response.data.text().then((t: string) => { try { return JSON.parse(t).error; } catch { return t; } }).catch(() => '')
+        : (err?.response?.data?.error || err?.message || '');
+      setDownloadError(raw || 'Download failed. Please try again.');
+      setDownloadPhase('error');
     }
-    try { await projectService.stopPreview(projectId); } catch { /* cleanup */ }
   };
 
   const handleRequestChanges = async () => {
@@ -338,31 +384,28 @@ export default function PreviewPage() {
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
               status === 'running' ? 'bg-green-100 text-green-800' :
               status === 'starting' ? 'bg-amber-100 text-amber-800' :
+              status === 'queued' ? 'bg-blue-100 text-blue-800' :
               status === 'error' ? 'bg-red-100 text-red-800' :
               'bg-gray-100 text-gray-800'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${
                 status === 'running' ? 'bg-green-500 animate-pulse' :
                 status === 'starting' ? 'bg-amber-500 animate-pulse' :
+                status === 'queued' ? 'bg-blue-500 animate-pulse' :
                 status === 'error' ? 'bg-red-500' : 'bg-gray-400'
               }`} />
-              {status === 'running' ? 'Running' : status === 'starting' ? 'Building...' : status === 'error' ? 'Error' : status === 'stopping' ? 'Stopping...' : 'Idle'}
+              {status === 'running' ? 'Running' : status === 'queued' ? 'In Queue' : status === 'starting' ? 'Building...' : status === 'error' ? 'Error' : status === 'stopping' ? 'Stopping...' : 'Idle'}
             </span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleApproveAndDownload}
-              disabled={status !== 'running' || approving}
+              onClick={openDownloadModal}
+              disabled={(status !== 'running') || showDownloadModal}
               className="px-4 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
-              {downloading ? (
-                <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Downloading...</>
-              ) : approving ? (
-                <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Approving...</>
-              ) : (
-                <><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Approve &amp; Download</>
-              )}
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+              Approve &amp; Download
             </button>
           </div>
         </div>
@@ -379,6 +422,35 @@ export default function PreviewPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left: iframe / loading / error */}
         <div className="flex-1 relative overflow-hidden">
+          {status === 'queued' && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+              <div className="text-center space-y-6 max-w-sm">
+                <div className="relative mx-auto w-20 h-20">
+                  <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
+                  <div className="absolute inset-0 rounded-full border-4 border-blue-400 border-t-transparent animate-spin" style={{ animationDuration: '3s' }} />
+                  {queuePosition > 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-blue-600">{queuePosition}</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-lg font-medium text-gray-900">Your preview is queued</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {queuePosition > 0
+                      ? `Position ${queuePosition} in queue. Another build is in progress.`
+                      : 'Waiting for a build slot to open up.'}
+                  </p>
+                </div>
+                <div className="flex justify-center gap-1.5">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: `${i * 200}ms` }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {status === 'starting' && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
               <div className="text-center space-y-6">
@@ -463,6 +535,128 @@ export default function PreviewPage() {
         canSubmitAnswers={canSubmitAnswers}
         submittingAnswers={submittingAnswers}
       />
+
+      {showDownloadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            {downloadPhase === 'pick' && (
+              <div className="p-6 space-y-5">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Approve &amp; Download</h2>
+                  <p className="text-sm text-gray-500 mt-1">Choose the operating system you'll run this ERP on.</p>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(PLATFORM_INFO).map(([key, info]) => (
+                    <label
+                      key={key}
+                      className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 cursor-pointer transition-colors ${
+                        downloadPlatform === key ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="platform"
+                        value={key}
+                        checked={downloadPlatform === key}
+                        onChange={() => setDownloadPlatform(key)}
+                        className="accent-indigo-600"
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{info.label}</div>
+                        <div className="text-xs text-gray-500">Run with <code className="bg-gray-100 px-1 rounded">{info.startFile}</code></div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={() => setShowDownloadModal(false)}
+                    className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => { void startApproveAndDownload(); }}
+                    disabled={!downloadPlatform}
+                    className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    Approve &amp; Download
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {downloadPhase === 'building' && (
+              <div className="p-8 text-center space-y-5">
+                <div className="relative mx-auto w-16 h-16">
+                  <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
+                  <div className="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">Compiling your ERP</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Building for {PLATFORM_INFO[downloadPlatform]?.label || downloadPlatform}. This may take a few minutes.
+                  </p>
+                </div>
+                <p className="text-xs text-gray-400">Please don't close this page.</p>
+              </div>
+            )}
+
+            {downloadPhase === 'done' && (
+              <div className="p-8 text-center space-y-5">
+                <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">Download started!</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Your ERP has been approved and the download should begin automatically.
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    {PLATFORM_INFO[downloadPlatform]?.extractTip}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDownloadModal(false)}
+                  className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+
+            {downloadPhase === 'error' && (
+              <div className="p-8 text-center space-y-5">
+                <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">Download failed</h3>
+                  <p className="text-sm text-gray-600 mt-1">{downloadError}</p>
+                </div>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => setShowDownloadModal(false)}
+                    className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => { void startApproveAndDownload(); }}
+                    className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

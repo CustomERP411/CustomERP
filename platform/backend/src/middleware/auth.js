@@ -1,11 +1,13 @@
 const { verifyToken, generateToken } = require('../utils/jwt');
+const { query } = require('../config/database');
 const logger = require('../utils/logger');
 
 /**
  * Middleware to authenticate JWT token
  * Sets req.user with decoded token payload
+ * Also rejects blocked users even if they hold a valid token
  */
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
@@ -16,6 +18,15 @@ function authenticateToken(req, res, next) {
   try {
     const decoded = verifyToken(token);
     req.user = decoded;
+
+    const result = await query(
+      'SELECT blocked_at FROM users WHERE user_id = $1',
+      [decoded.userId]
+    );
+    if (result.rows[0]?.blocked_at) {
+      return res.status(403).json({ error: 'Account suspended', code: 'ACCOUNT_BLOCKED' });
+    }
+
     next();
   } catch (error) {
     logger.warn('Invalid token attempt:', error.message);

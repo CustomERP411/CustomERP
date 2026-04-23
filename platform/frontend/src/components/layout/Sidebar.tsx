@@ -141,7 +141,7 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
     <>
       {/* Desktop rail: md+ only */}
       <div
-        className={`hidden md:flex flex-col border-r bg-slate-900 text-white transition-all duration-200 ease-in-out ${
+        className={`hidden md:flex flex-col border-r border-app-border bg-app-surface transition-all duration-200 ease-in-out ${
           collapsed ? 'w-16' : 'w-56'
         }`}
       >
@@ -160,7 +160,7 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
           </Link>
           <button
             onClick={() => setCollapsed((p) => !p)}
-            className="flex shrink-0 items-center justify-center rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+            className="flex shrink-0 items-center justify-center rounded-md p-1.5 text-app-text-muted hover:bg-app-surface-hover hover:text-app-accent-blue"
             title={collapsed ? t('expandSidebar') : t('collapseSidebar')}
             aria-label={collapsed ? t('expandSidebar') : t('collapseSidebar')}
           >
@@ -184,26 +184,26 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
         </nav>
 
         {/* Footer: user info + logout */}
-        <div className="border-t border-slate-800 px-2 py-3 space-y-1">
+        <div className="border-t border-app-border px-2 py-3 space-y-1">
           <div
             className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
               collapsed ? 'justify-center' : ''
             }`}
             title={collapsed ? (user?.name || user?.email || t('user')) : undefined}
           >
-            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold text-blue-400">
+            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-app-accent-blue/10 text-xs font-bold text-app-accent-blue">
               {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-slate-200">{user?.name || t('user')}</div>
-                <div className="truncate text-xs text-slate-500">{user?.email}</div>
+                <div className="truncate text-sm font-medium text-app-text">{user?.name || t('user')}</div>
+                <div className="truncate text-xs text-app-text-muted">{user?.email}</div>
               </div>
             )}
           </div>
           <button
             onClick={handleLogout}
-            className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white ${
+            className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-app-text-muted hover:bg-app-surface-hover hover:text-app-accent-blue ${
               collapsed ? 'justify-center' : ''
             }`}
             title={t('signOut')}
@@ -220,19 +220,19 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
         {/* Overlay */}
         <div
           onClick={onCloseDrawer}
-          className={`fixed inset-0 bg-black/40 z-40 transition-opacity ${
+          className={`fixed inset-0 bg-app-overlay z-40 transition-opacity ${
             drawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
         />
         {/* Slide-over panel */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-slate-900 text-white shadow-xl transition-transform duration-200 ease-in-out ${
+          className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-app-surface text-app-text shadow-xl transition-transform duration-200 ease-in-out border-r border-app-border ${
             drawerOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           role="dialog"
           aria-modal="true"
         >
-          <div className="flex min-h-[4.5rem] items-center justify-between px-3 py-2 border-b border-slate-800">
+          <div className="flex min-h-[4.5rem] items-center justify-between px-3 py-2 border-b border-app-border">
             <Link to="/projects" className="min-w-0 flex-1 pr-2" onClick={onCloseDrawer}>
               <BrandMark variant="wordmark" className="h-12 w-auto max-w-full object-contain object-left sm:h-14" />
             </Link>
@@ -240,7 +240,7 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
               type="button"
               onClick={onCloseDrawer}
               aria-label={t('closeMenu')}
-              className="flex h-10 w-10 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white"
+              className="flex h-10 w-10 items-center justify-center rounded-md text-app-text-muted hover:bg-app-surface-hover hover:text-app-accent-blue"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -256,8 +256,8 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
                 onClick={onCloseDrawer}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   item.active
-                    ? 'bg-slate-800 text-white'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-app-surface-hover text-app-accent-blue'
+                    : 'text-app-text-muted hover:bg-app-surface-hover hover:text-app-accent-blue'
                 }`}
               >
                 {item.icon}
@@ -266,19 +266,19 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
             ))}
           </nav>
 
-          <div className="border-t border-slate-800 px-2 py-3 space-y-1">
+          <div className="border-t border-app-border px-2 py-3 space-y-1">
             <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-              <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold text-blue-400">
+              <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-app-accent-blue/10 text-xs font-bold text-app-accent-blue">
                 {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-slate-200">{user?.name || t('user')}</div>
-                <div className="truncate text-xs text-slate-500">{user?.email}</div>
+                <div className="truncate text-sm font-medium text-app-text">{user?.name || t('user')}</div>
+                <div className="truncate text-xs text-app-text-muted">{user?.email}</div>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-app-text-muted hover:bg-app-surface-hover hover:text-app-accent-blue"
             >
               {logoutIcon}
               <span className="text-sm">{t('signOut')}</span>
@@ -298,8 +298,8 @@ function RailNavItem({ item, collapsed }: { item: NavEntry; collapsed: boolean }
         collapsed ? 'justify-center' : ''
       } ${
         item.active
-          ? 'bg-slate-800 text-white'
-          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+          ? 'bg-app-surface-hover text-app-accent-blue'
+          : 'text-app-text-muted hover:bg-app-surface-hover hover:text-app-accent-blue'
       }`}
       title={collapsed ? item.label : undefined}
     >
@@ -312,7 +312,7 @@ function RailNavItem({ item, collapsed }: { item: NavEntry; collapsed: boolean }
 
 function Tooltip({ label }: { label: string }) {
   return (
-    <span className="pointer-events-none absolute left-full ml-2 hidden whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-xs text-white shadow-lg group-hover:block z-50">
+    <span className="pointer-events-none absolute left-full ml-2 hidden whitespace-nowrap rounded-md bg-app-surface-elevated px-2 py-1 text-xs text-app-text shadow-lg group-hover:block z-50 border border-app-border">
       {label}
     </span>
   );

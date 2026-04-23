@@ -10,12 +10,12 @@ export default function MobileTopbar({ onOpenMenu }: Props) {
   const { t } = useTranslation('sidebar');
 
   return (
-    <div className="md:hidden sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-slate-900 px-3 text-white shadow">
+    <div className="md:hidden sticky top-0 z-30 flex h-16 items-center justify-between border-b border-app-border bg-app-surface px-3 text-app-text shadow transition-colors duration-200">
       <button
         type="button"
         onClick={onOpenMenu}
         aria-label={t('openMenu')}
-        className="flex h-10 w-10 items-center justify-center rounded-md text-slate-200 hover:bg-slate-800"
+        className="flex h-10 w-10 items-center justify-center rounded-md text-app-text-muted hover:bg-app-surface-hover"
       >
         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />

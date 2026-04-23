@@ -24,10 +24,10 @@ export default function PrefilledConfigSummary({
     <section className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-slate-900">{t('prefilledConfig.title')}</h3>
-          <p className="mt-0.5 text-xs text-slate-500">{t('prefilledConfig.subtitle')}</p>
+          <h3 className="text-base font-semibold text-app-text">{t('prefilledConfig.title')}</h3>
+          <p className="mt-0.5 text-xs text-app-text-muted">{t('prefilledConfig.subtitle')}</p>
         </div>
-        <button type="button" onClick={onToggleJson} className="shrink-0 text-xs text-slate-500 underline hover:text-slate-700">
+        <button type="button" onClick={onToggleJson} className="shrink-0 text-xs text-app-text-muted underline hover:text-app-text">
           {showJson ? t('prefilledConfig.hideJson') : t('prefilledConfig.showJson')}
         </button>
       </div>
@@ -35,19 +35,19 @@ export default function PrefilledConfigSummary({
         {moduleSummary.map((ms) => {
           const styles = MOD_STYLES[ms.key] || MOD_STYLES.shared;
           return (
-            <div key={ms.key} className={`rounded-xl border bg-white p-4 ${styles.left}`}>
-              <div className="text-sm font-semibold text-slate-900">{ms.label}</div>
+            <div key={ms.key} className={`rounded-xl border bg-app-surface p-4 ${styles.left}`}>
+              <div className="text-sm font-semibold text-app-text">{ms.label}</div>
               {Object.entries(ms.config).length > 0 && (
-                <div className="mt-2 space-y-1">{Object.entries(ms.config).map(([k, v]) => <div key={k} className="text-xs text-slate-600"><span className="font-medium">{k}:</span> {v}</div>)}</div>
+                <div className="mt-2 space-y-1">{Object.entries(ms.config).map(([k, v]) => <div key={k} className="text-xs text-app-text-muted"><span className="font-medium">{k}:</span> {v}</div>)}</div>
               )}
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {ms.caps.map((c) => <span key={c.label} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>{c.label}</span>)}
+                {ms.caps.map((c) => <span key={c.label} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.enabled ? 'bg-app-success-soft text-app-success' : 'bg-app-surface-hover text-app-text-subtle'}`}>{c.label}</span>)}
               </div>
             </div>
           );
         })}
       </div>
-      {showJson && <pre className="max-h-64 overflow-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-700">{JSON.stringify(prefilledSdf, null, 2)}</pre>}
+      {showJson && <pre className="max-h-64 overflow-auto rounded-lg bg-app-surface-muted p-3 text-xs text-app-text">{JSON.stringify(prefilledSdf, null, 2)}</pre>}
     </section>
   );
 }

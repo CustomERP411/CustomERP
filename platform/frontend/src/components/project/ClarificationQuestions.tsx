@@ -51,14 +51,14 @@ export default function ClarificationQuestions({
   if (questions.length === 0) return null;
 
   return (
-    <section className="rounded-xl border bg-white p-4 sm:p-6 space-y-5">
+    <section className="rounded-xl border bg-app-surface p-4 sm:p-6 space-y-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold text-slate-900">{t('clarificationQuestions.title')}</h2>
-          <p className="mt-0.5 text-sm text-slate-500">{t('clarificationQuestions.subtitle')}</p>
+          <h2 className="text-lg font-semibold text-app-text">{t('clarificationQuestions.title')}</h2>
+          <p className="mt-0.5 text-sm text-app-text-muted">{t('clarificationQuestions.subtitle')}</p>
         </div>
         {clarifyRound > 0 && (
-          <span className="self-start rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+          <span className="self-start rounded-full bg-app-info-soft px-3 py-1 text-xs font-semibold text-app-accent-dark-blue">
             {t('clarificationQuestions.round', { n: clarifyRound })}
           </span>
         )}
@@ -71,10 +71,10 @@ export default function ClarificationQuestions({
           const label = moduleLabels[mod] || (mod === 'general' ? t('generationModal.general') : mod);
           return (
             <div key={mod} className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                {Ico && <span className="text-slate-400"><Ico /></span>}
+              <div className="flex items-center gap-2 text-sm font-semibold text-app-text">
+                {Ico && <span className="text-app-text-subtle"><Ico /></span>}
                 <span>{label}</span>
-                <span className="text-xs font-normal text-slate-400">({t('clarificationQuestions.questionCount', { count: qs.length })})</span>
+                <span className="text-xs font-normal text-app-text-subtle">({t('clarificationQuestions.questionCount', { count: qs.length })})</span>
               </div>
               <div className="space-y-3 pl-1">
                 {qs.map((q) => (
@@ -96,7 +96,7 @@ export default function ClarificationQuestions({
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         {!sdfComplete && (
           <button type="button" onClick={onFinalize}
-            className="text-xs font-medium text-slate-500 underline hover:text-slate-700">
+            className="text-xs font-medium text-app-text-muted underline hover:text-app-text">
             {t('clarificationQuestions.skipAndFinalize')}
           </button>
         )}
@@ -117,15 +117,15 @@ function QuestionRow({ q, answer, isCustomActive, onAnswer, onToggleCustom }: {
 }) {
   const { t } = useTranslation('projectDetail');
   const priorityBadge = q.priority === 'high'
-    ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">{t('generationModal.required')}</span>
+    ? <span className="rounded bg-app-danger-soft px-1.5 py-0.5 text-[10px] font-semibold text-app-danger">{t('generationModal.required')}</span>
     : q.priority === 'low'
-    ? <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">{t('clarificationQuestions.optional')}</span>
+    ? <span className="rounded bg-app-surface-hover px-1.5 py-0.5 text-[10px] font-semibold text-app-text-subtle">{t('clarificationQuestions.optional')}</span>
     : null;
 
   return (
-    <div className="rounded-lg border bg-slate-50 p-4 space-y-2">
+    <div className="rounded-lg border bg-app-surface-muted p-4 space-y-2">
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-slate-800">{q.question}</span>
+        <span className="text-sm font-medium text-app-text">{q.question}</span>
         {priorityBadge}
       </div>
       {q.type === 'yes_no' ? (
@@ -134,8 +134,8 @@ function QuestionRow({ q, answer, isCustomActive, onAnswer, onToggleCustom }: {
             <button key={val} type="button" onClick={() => onAnswer(val)}
               className={`rounded-lg border px-5 py-2 text-sm font-medium transition-colors ${
                 answer === val
-                  ? val === 'yes' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-red-400 bg-red-50 text-red-700'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  ? val === 'yes' ? 'border-app-success bg-app-success-soft text-app-success' : 'border-app-danger bg-app-danger-soft text-app-danger'
+                  : 'border-app-border bg-app-surface text-app-text-muted hover:bg-app-surface-muted'
               }`}>{val === 'yes' ? t('defaultQuestions.yes') : t('defaultQuestions.no')}</button>
           ))}
         </div>
@@ -148,25 +148,25 @@ function QuestionRow({ q, answer, isCustomActive, onAnswer, onToggleCustom }: {
                 <button key={opt} type="button"
                   onClick={() => { onAnswer(opt); onToggleCustom(false); }}
                   className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                    answer === opt && !isCustom ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    answer === opt && !isCustom ? 'border-app-accent-blue bg-app-info-soft text-app-accent-dark-blue' : 'border-app-border bg-app-surface text-app-text-muted hover:bg-app-surface-muted'
                   }`}>{opt}</button>
               ))}
               <button type="button" onClick={() => onToggleCustom(true)}
                 className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                  isCustom ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-dashed border-slate-300 bg-white text-slate-500 hover:bg-slate-50'
+                  isCustom ? 'border-app-accent-blue bg-app-info-soft text-app-accent-dark-blue' : 'border-dashed border-app-border-strong bg-app-surface text-app-text-muted hover:bg-app-surface-muted'
                 }`}>{t('defaultQuestions.custom')}</button>
             </div>
             {isCustom && (
               <textarea value={q.options!.includes(answer) ? '' : answer}
                 onChange={(e) => onAnswer(e.target.value)}
-                rows={2} className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                rows={2} className="w-full rounded-lg border bg-app-surface px-3 py-2 text-sm"
                 placeholder={t('generationModal.customAnswerPlaceholder')} autoFocus />
             )}
           </div>
         );
       })() : (
         <input value={answer} onChange={(e) => onAnswer(e.target.value)}
-          className="w-full rounded-lg border bg-white px-3 py-2 text-sm" placeholder={t('defaultQuestions.textPlaceholder')} />
+          className="w-full rounded-lg border bg-app-surface px-3 py-2 text-sm" placeholder={t('defaultQuestions.textPlaceholder')} />
       )}
     </div>
   );

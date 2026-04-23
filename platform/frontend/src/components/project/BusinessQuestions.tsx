@@ -76,8 +76,8 @@ export default function BusinessQuestions({
     <>
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">{t('businessSection.title')}</h2>
-          <p className="mt-0.5 text-sm text-slate-500">
+          <h2 className="text-lg font-semibold text-app-text">{t('businessSection.title')}</h2>
+          <p className="mt-0.5 text-sm text-app-text-muted">
             {t('businessSection.subtitle')}
           </p>
         </div>
@@ -90,26 +90,26 @@ export default function BusinessQuestions({
             return (
               <button key={bq.id} type="button" onClick={() => onSetStep(i)}
                 className={`h-2 rounded-full transition-all duration-300 ${
-                  active ? 'w-8 bg-indigo-500' : answered ? 'w-2.5 bg-indigo-300 hover:bg-indigo-400' : 'w-2.5 bg-slate-200 hover:bg-slate-300'
+                  active ? 'w-8 bg-app-accent-blue' : answered ? 'w-2.5 bg-app-accent-blue/40 hover:bg-app-accent-blue' : 'w-2.5 bg-app-surface-hover hover:bg-app-border-strong'
                 }`}
               />
             );
           })}
-          <span className="ml-2 text-xs text-slate-400">{t('businessSection.progress', { current: step + 1, total: questions.length })}</span>
+          <span className="ml-2 text-xs text-app-text-subtle">{t('businessSection.progress', { current: step + 1, total: questions.length })}</span>
         </div>
 
         {/* Current question card */}
-        <div className="rounded-xl border bg-white p-4 sm:p-5 space-y-3">
+        <div className="rounded-xl border bg-app-surface p-4 sm:p-5 space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
             <div className="min-w-0">
-              <span className="text-xs font-medium text-indigo-500 uppercase tracking-wide">{t('businessSection.questionLabel', { n: step + 1 })}</span>
-              <div className="mt-1 text-sm font-semibold text-slate-800 break-words">{q.question}</div>
-              {q.hint && <div className="mt-1 text-xs text-slate-400">{q.hint}</div>}
+              <span className="text-xs font-medium text-app-accent-blue uppercase tracking-wide">{t('businessSection.questionLabel', { n: step + 1 })}</span>
+              <div className="mt-1 text-sm font-semibold text-app-text break-words">{q.question}</div>
+              {q.hint && <div className="mt-1 text-xs text-app-text-subtle">{q.hint}</div>}
             </div>
             <button
               type="button"
               onClick={() => onHelpWithQuestion(q.question, (answers[q.id] || '').trim())}
-              className="self-start shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 transition-colors"
+              className="self-start shrink-0 rounded-lg border border-app-info-border bg-app-info-soft px-3 py-1.5 text-xs font-semibold text-app-accent-blue hover:bg-app-info-soft transition-colors"
             >
               {t('businessSection.needHelp')}
             </button>
@@ -119,7 +119,7 @@ export default function BusinessQuestions({
             value={answers[q.id] || ''}
             onChange={(e) => { const id = q.id; onSetAnswers((prev) => ({ ...prev, [id]: e.target.value })); }}
             rows={3}
-            className="w-full rounded-lg border bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
+            className="w-full rounded-lg border bg-app-surface-muted px-4 py-3 text-sm text-app-text outline-none focus:ring-2 focus:ring-app-focus transition-shadow"
             placeholder={q.placeholder}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && step < questions.length - 1) {
@@ -131,18 +131,18 @@ export default function BusinessQuestions({
           />
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
             <button type="button" onClick={() => onSetStep((s) => Math.max(0, s - 1))} disabled={step === 0}
-              className="text-sm font-medium text-slate-500 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity">
+              className="text-sm font-medium text-app-text-muted hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed transition-opacity">
               &larr; {t('businessSection.back')}
             </button>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={handleSkip}
                 disabled={!!(answers[q.id] || '').trim()}
-                className="rounded-lg border border-slate-200 px-3 sm:px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                className="rounded-lg border border-app-border px-3 sm:px-4 py-2 text-sm font-medium text-app-text-muted hover:bg-app-surface-muted hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                 {t('businessSection.skip')}
               </button>
               {step < questions.length - 1 ? (
                 <button type="button" onClick={advance}
-                  className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-colors">
+                  className="rounded-lg bg-app-accent-blue px-5 py-2 text-sm font-semibold text-white hover:bg-app-accent-dark-blue shadow-sm transition-colors">
                   {t('businessSection.next')} &rarr;
                 </button>
               ) : (
@@ -156,20 +156,20 @@ export default function BusinessQuestions({
 
         {/* Summary of answered questions */}
         {Object.values(answers).some((v) => v.trim()) && (
-          <div className="rounded-xl border bg-slate-50/70 p-4 space-y-1.5">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('businessSection.yourAnswers')}</div>
+          <div className="rounded-xl border bg-app-surface-muted/70 p-4 space-y-1.5">
+            <div className="text-xs font-semibold text-app-text-muted uppercase tracking-wide mb-2">{t('businessSection.yourAnswers')}</div>
             {questions.map((bq, i) => {
               const answer = (answers[bq.id] || '').trim();
               if (!answer) return null;
               return (
                 <button key={bq.id} type="button" onClick={() => onSetStep(i)}
-                  className="flex w-full items-start gap-2.5 rounded-lg p-2 text-left hover:bg-white transition-colors group">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-600">{i + 1}</span>
+                  className="flex w-full items-start gap-2.5 rounded-lg p-2 text-left hover:bg-app-surface transition-colors group">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-app-info-soft text-[10px] font-bold text-app-accent-blue">{i + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs text-slate-400">{bq.question}</div>
-                    <div className="mt-0.5 text-sm text-slate-700 truncate">{answer}</div>
+                    <div className="text-xs text-app-text-subtle">{bq.question}</div>
+                    <div className="mt-0.5 text-sm text-app-text truncate">{answer}</div>
                   </div>
-                  <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1">{t('businessSection.edit')}</span>
+                  <span className="text-[10px] text-app-text-subtle opacity-0 group-hover:opacity-100 transition-opacity mt-1">{t('businessSection.edit')}</span>
                 </button>
               );
             })}
@@ -179,25 +179,25 @@ export default function BusinessQuestions({
 
       {/* Skip warning modal */}
       {skipWarningOpen && createPortal(
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-app-overlay">
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-app-surface p-6 shadow-xl space-y-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
-                <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-app-warning-soft">
+                <svg className="h-5 w-5 text-app-warning" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900">{t('skipWarning.title')}</h3>
+              <h3 className="text-lg font-semibold text-app-text">{t('skipWarning.title')}</h3>
             </div>
-            <p className="text-sm text-slate-600">{t('skipWarning.body1')}</p>
-            <p className="text-sm text-slate-600" dangerouslySetInnerHTML={{ __html: t('skipWarning.body2') }} />
+            <p className="text-sm text-app-text-muted">{t('skipWarning.body1')}</p>
+            <p className="text-sm text-app-text-muted" dangerouslySetInnerHTML={{ __html: t('skipWarning.body2') }} />
             <div className="flex items-center justify-end gap-3 pt-2">
               <button type="button" onClick={goBackAndAnswer}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                className="rounded-lg border border-app-border px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-muted transition-colors">
                 {t('skipWarning.goBack')}
               </button>
               <button type="button" onClick={confirmGenerate} disabled={!canAnalyze || running}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                className="rounded-lg bg-app-accent-blue px-4 py-2 text-sm font-semibold text-white hover:bg-app-accent-dark-blue disabled:opacity-50 transition-colors">
                 {t('skipWarning.generateAnyway')}
               </button>
             </div>

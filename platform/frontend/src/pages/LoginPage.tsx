@@ -6,6 +6,7 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import LanguageSelector from '../components/common/LanguageSelector';
 import BrandMark from '../components/brand/BrandMark';
+import ThemeToggle from '../components/common/ThemeToggle';
 import type { LoginFormData, FormErrors } from '../types/auth';
 import { AxiosError } from 'axios';
 
@@ -81,30 +82,31 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-app-bg transition-colors duration-200">
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 p-12 flex-col justify-between relative">
+      <div className="hidden lg:flex lg:w-1/2 bg-app-surface p-12 flex-col justify-between relative border-r border-app-border">
         <Link
           to="/"
-          className="absolute top-8 right-8 flex items-center text-indigo-100 hover:text-white transition-colors"
+          className="absolute top-8 right-8 flex items-center text-app-text-subtle hover:text-app-accent-blue transition-colors"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          {t('landing:nav.signIn') /* fallback in layout; not critical */}
+          {t('common:back')}
         </Link>
 
         <div>
           <BrandMark variant="wordmark" className="h-16 sm:h-20 md:h-24 w-auto max-w-lg object-left object-contain" />
-          <p className="text-indigo-200 mt-4">{t('landing:hero.subtitle')}</p>
+          <p className="text-app-text-subtle mt-4">{t('landing:hero.subtitle')}</p>
         </div>
 
-        <p className="text-indigo-300 text-sm">{t('landing:footer.copyright')}</p>
+        <p className="text-app-text-muted-muted text-sm">{t('landing:footer.copyright')}</p>
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8 bg-gray-50 relative">
-        <div className="absolute top-4 right-4">
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8 bg-app-bg relative">
+        <div className="absolute top-4 right-4 flex items-center gap-4">
+          <ThemeToggle />
           <LanguageSelector compact />
         </div>
         <div className="w-full max-w-md">
@@ -113,22 +115,19 @@ export default function LoginPage() {
             <BrandMark variant="wordmark" className="h-14 w-auto max-w-[min(100%,380px)] sm:h-16 object-contain" />
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900">{t('auth:login.title')}</h2>
-              <p className="text-gray-600 mt-2">{t('auth:login.subtitle')}</p>
+          <div className="bg-app-surface/50 backdrop-blur-sm rounded-2xl shadow-xl p-6 sm:p-8 border border-app-border">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-app-text">{t('auth:login.title')}</h2>
+              <p className="text-app-text-subtle mt-1">{t('auth:login.subtitle')}</p>
             </div>
 
             {apiError && (
-              <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 flex items-start gap-3">
-                <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-red-700 text-sm font-medium">{apiError}</p>
+              <div className="bg-app-danger-soft border border-app-danger-border text-app-danger p-3 rounded-lg text-sm">
+                {apiError}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <Input
                 label={t('auth:login.emailLabel')}
                 type="email"
@@ -138,6 +137,7 @@ export default function LoginPage() {
                 onChange={handleChange}
                 error={errors.email}
                 autoComplete="email"
+                className="w-full px-4 py-2 rounded-lg border border-app-border-strong bg-app-surface/50 text-app-text focus:ring-2 focus:ring-app-accent-blue outline-none transition-all"
               />
 
               <Input
@@ -149,18 +149,24 @@ export default function LoginPage() {
                 onChange={handleChange}
                 error={errors.password}
                 autoComplete="current-password"
+                className="w-full px-4 py-2 rounded-lg border border-app-border-strong bg-app-surface/50 text-app-text focus:ring-2 focus:ring-app-accent-blue outline-none transition-all"
               />
 
-              <Button type="submit" loading={loading} className="w-full" size="lg">
+              <Button
+                type="submit"
+                loading={loading}
+                className="w-full bg-app-accent-blue hover:bg-app-accent-dark-blue text-white py-2.5 rounded-lg font-semibold transition-all shadow-lg mt-2"
+                size="lg"
+              >
                 {loading ? t('auth:login.submitting') : t('auth:login.submit')}
               </Button>
             </form>
 
-            <div className="mt-8 text-center">
-              <p className="text-gray-600">
+            <div className="mt-6 text-center">
+              <p className="text-sm text-app-text-subtle">
                 {t('auth:login.noAccount')}{' '}
-                <Link to="/register" className="text-indigo-600 font-semibold hover:text-indigo-500">
-                  {t('auth:login.createOne')}
+                <Link to="/register" className="text-app-accent-blue font-semibold hover:text-app-accent-dark-blue">
+                  {t('auth:login.signUpLink')}
                 </Link>
               </p>
             </div>

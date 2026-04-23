@@ -469,32 +469,32 @@ export default function PreviewPage() {
   })();
 
   return (
-    <div className="flex flex-col min-h-[calc(100svh-64px)] bg-gray-50">
+    <div className="flex flex-col min-h-[calc(100svh-64px)] bg-app-surface-muted">
       {/* Toolbar */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 shadow-sm px-4 sm:px-6 py-3">
+      <div className="flex-shrink-0 bg-app-surface border-b border-app-border shadow-sm px-4 sm:px-6 py-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Link to={`/projects/${projectId}`} className="text-gray-500 hover:text-gray-700 transition-colors">
+            <Link to={`/projects/${projectId}`} className="text-app-text-muted hover:text-app-text transition-colors">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
             </Link>
             <div className="min-w-0">
-              <h1 className="text-base font-semibold text-gray-900 truncate">{project?.name || t('livePreview')}</h1>
-              <p className="text-xs text-gray-500">{t('livePreview')}</p>
+              <h1 className="text-base font-semibold text-app-text truncate">{project?.name || t('livePreview')}</h1>
+              <p className="text-xs text-app-text-muted">{t('livePreview')}</p>
             </div>
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              status === 'running' ? 'bg-green-100 text-green-800' :
-              status === 'building' ? 'bg-amber-100 text-amber-800' :
-              status === 'queued' ? 'bg-blue-100 text-blue-800' :
-              status === 'error' ? 'bg-red-100 text-red-800' :
-              'bg-gray-100 text-gray-800'
+              status === 'running' ? 'bg-app-success-soft text-app-success' :
+              status === 'building' ? 'bg-app-warning-soft text-app-warning' :
+              status === 'queued' ? 'bg-app-info-soft text-app-info' :
+              status === 'error' ? 'bg-app-danger-soft text-app-danger' :
+              'bg-app-surface-hover text-app-text'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${
-                status === 'running' ? 'bg-green-500 animate-pulse' :
-                status === 'building' ? 'bg-amber-500 animate-pulse' :
-                status === 'queued' ? 'bg-blue-500 animate-pulse' :
-                status === 'error' ? 'bg-red-500' : 'bg-gray-400'
+                status === 'running' ? 'bg-app-success animate-pulse' :
+                status === 'building' ? 'bg-app-warning animate-pulse' :
+                status === 'queued' ? 'bg-app-accent-blue animate-pulse' :
+                status === 'error' ? 'bg-app-danger' : 'bg-app-text-subtle'
               }`} />
               {status === 'running' ? t('status.running') : status === 'queued' ? t('status.inQueue') : status === 'building' ? t('status.building') : status === 'error' ? t('status.error') : status === 'stopping' ? t('status.stopping') : t('status.idle')}
             </span>
@@ -504,7 +504,7 @@ export default function PreviewPage() {
             <button
               onClick={openDownloadModal}
               disabled={(status !== 'running') || showDownloadModal}
-              className="px-4 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className="px-4 py-1.5 text-sm font-medium text-white bg-app-accent-blue rounded-lg hover:bg-app-accent-dark-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
               {t('approveDownload')}
@@ -515,23 +515,23 @@ export default function PreviewPage() {
 
       {/* Main: split layout (side-by-side on md+, stacked with bottom-sheet on <md) */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-        <div className="flex-1 relative overflow-hidden bg-slate-50 min-h-[50vh] md:min-h-0">
+        <div className="flex-1 relative overflow-hidden bg-app-surface-muted min-h-[50vh] md:min-h-0">
           {status === 'running' && iframeSrc && (
             <iframe ref={iframeRef} src={iframeSrc} title={t('iframeTitle')} className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads" />
           )}
         </div>
 
         {/* Right (md+): change panel as side rail */}
-        <div className="hidden md:flex w-[340px] flex-shrink-0 border-l border-gray-200 bg-white flex-col">
+        <div className="hidden md:flex w-[340px] flex-shrink-0 border-l border-app-border bg-app-surface flex-col">
           <div className="p-5 flex-1 flex flex-col">
-            <h2 className="text-base font-semibold text-gray-900 mb-1">{t('changePanel.title')}</h2>
-            <p className="text-xs text-gray-500 mb-4">{t('changePanel.subtitle')}</p>
+            <h2 className="text-base font-semibold text-app-text mb-1">{t('changePanel.title')}</h2>
+            <p className="text-xs text-app-text-muted mb-4">{t('changePanel.subtitle')}</p>
 
             <textarea
               value={changeText}
               onChange={(e) => setChangeText(e.target.value)}
               placeholder={t('changePanel.placeholder')}
-              className="flex-1 min-h-[200px] w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-3 text-sm resize-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
+              className="flex-1 min-h-[200px] w-full rounded-lg border border-app-border-strong bg-app-surface-muted px-3 py-3 text-sm resize-none focus:ring-2 focus:ring-app-focus focus:border-app-accent-blue outline-none"
               disabled={!!genPhase}
             />
 
@@ -539,7 +539,7 @@ export default function PreviewPage() {
               type="button"
               onClick={handleRequestChanges}
               disabled={!changeText.trim() || !!genPhase || status !== 'running'}
-              className="mt-4 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="mt-4 w-full rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-app-accent-dark-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {t('changePanel.button')}
             </button>
@@ -547,34 +547,34 @@ export default function PreviewPage() {
         </div>
 
         {/* Below md: change panel as collapsible bottom sheet */}
-        <div className="md:hidden border-t border-gray-200 bg-white flex-shrink-0">
+        <div className="md:hidden border-t border-app-border bg-app-surface flex-shrink-0">
           <button
             type="button"
             onClick={() => setChangePanelOpen((v) => !v)}
             aria-expanded={changePanelOpen}
             className="flex w-full items-center justify-between px-4 py-3 text-left"
           >
-            <span className="text-sm font-semibold text-gray-900">{t('changePanel.title')}</span>
-            <svg className={`h-4 w-4 text-gray-500 transition-transform ${changePanelOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span className="text-sm font-semibold text-app-text">{t('changePanel.title')}</span>
+            <svg className={`h-4 w-4 text-app-text-muted transition-transform ${changePanelOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
           {changePanelOpen && (
             <div className="px-4 pb-4 space-y-3">
-              <p className="text-xs text-gray-500">{t('changePanel.subtitle')}</p>
+              <p className="text-xs text-app-text-muted">{t('changePanel.subtitle')}</p>
               <textarea
                 value={changeText}
                 onChange={(e) => setChangeText(e.target.value)}
                 placeholder={t('changePanel.placeholder')}
                 rows={4}
-                className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm resize-y focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
+                className="w-full rounded-lg border border-app-border-strong bg-app-surface-muted px-3 py-2 text-sm resize-y focus:ring-2 focus:ring-app-focus focus:border-app-accent-blue outline-none"
                 disabled={!!genPhase}
               />
               <button
                 type="button"
                 onClick={handleRequestChanges}
                 disabled={!changeText.trim() || !!genPhase || status !== 'running'}
-                className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-app-accent-dark-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {t('changePanel.button')}
               </button>
@@ -605,20 +605,20 @@ export default function PreviewPage() {
       />
 
       {showDownloadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay backdrop-blur-sm">
+          <div className="bg-app-surface rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
             {downloadPhase === 'pick' && (
               <div className="p-6 space-y-5">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">{t('approveDownload')}</h2>
-                  <p className="text-sm text-gray-500 mt-1">{t('downloadModal.choosePlatform')}</p>
+                  <h2 className="text-lg font-semibold text-app-text">{t('approveDownload')}</h2>
+                  <p className="text-sm text-app-text-muted mt-1">{t('downloadModal.choosePlatform')}</p>
                 </div>
                 <div className="space-y-2">
                   {Object.entries(PLATFORM_INFO).map(([key, info]) => (
                     <label
                       key={key}
                       className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 cursor-pointer transition-colors ${
-                        downloadPlatform === key ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
+                        downloadPlatform === key ? 'border-app-accent-blue bg-app-info-soft' : 'border-app-border hover:border-app-border-strong'
                       }`}
                     >
                       <input
@@ -630,8 +630,8 @@ export default function PreviewPage() {
                         className="accent-indigo-600"
                       />
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{info.label}</div>
-                        <div className="text-xs text-gray-500">{t('downloadModal.runWith')} <code className="bg-gray-100 px-1 rounded">{info.startFile}</code></div>
+                        <div className="text-sm font-medium text-app-text">{info.label}</div>
+                        <div className="text-xs text-app-text-muted">{t('downloadModal.runWith')} <code className="bg-app-surface-hover px-1 rounded">{info.startFile}</code></div>
                       </div>
                     </label>
                   ))}
@@ -639,14 +639,14 @@ export default function PreviewPage() {
                 <div className="flex gap-3 pt-1">
                   <button
                     onClick={() => setShowDownloadModal(false)}
-                    className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="flex-1 rounded-lg border border-app-border-strong px-4 py-2.5 text-sm font-medium text-app-text hover:bg-app-surface-muted"
                   >
                     {t('common.cancel')}
                   </button>
                   <button
                     onClick={() => { void startApproveAndDownload(); }}
                     disabled={!downloadPlatform}
-                    className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="flex-1 rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white hover:bg-app-accent-dark-blue disabled:opacity-50"
                   >
                     {t('approveDownload')}
                   </button>
@@ -657,36 +657,36 @@ export default function PreviewPage() {
             {downloadPhase === 'building' && (
               <div className="p-8 text-center space-y-5">
                 <div className="relative mx-auto w-16 h-16">
-                  <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
-                  <div className="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
+                  <div className="absolute inset-0 rounded-full border-4 border-app-border" />
+                  <div className="absolute inset-0 rounded-full border-4 border-app-accent-blue border-t-transparent animate-spin" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900">{t('downloadModal.compiling')}</h3>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <h3 className="text-base font-semibold text-app-text">{t('downloadModal.compiling')}</h3>
+                  <p className="text-sm text-app-text-muted mt-1">
                     {t('downloadModal.buildingFor', { platform: PLATFORM_INFO[downloadPlatform]?.label || downloadPlatform })}
                   </p>
                 </div>
-                <p className="text-xs text-gray-400">{t('downloadModal.dontClose')}</p>
+                <p className="text-xs text-app-text-subtle">{t('downloadModal.dontClose')}</p>
               </div>
             )}
 
             {downloadPhase === 'done' && (
               <div className="p-8 text-center space-y-5">
-                <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <div className="mx-auto w-16 h-16 bg-app-success-soft rounded-full flex items-center justify-center">
+                  <svg className="h-8 w-8 text-app-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900">{t('downloadModal.startedTitle')}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{t('downloadModal.startedBody')}</p>
-                  <p className="text-xs text-gray-400 mt-2">
+                  <h3 className="text-base font-semibold text-app-text">{t('downloadModal.startedTitle')}</h3>
+                  <p className="text-sm text-app-text-muted mt-1">{t('downloadModal.startedBody')}</p>
+                  <p className="text-xs text-app-text-subtle mt-2">
                     {PLATFORM_INFO[downloadPlatform]?.extractTip}
                   </p>
                 </div>
                 <button
                   onClick={() => setShowDownloadModal(false)}
-                  className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                  className="rounded-lg bg-app-accent-blue px-6 py-2.5 text-sm font-semibold text-white hover:bg-app-accent-dark-blue"
                 >
                   {t('common.close')}
                 </button>
@@ -695,25 +695,25 @@ export default function PreviewPage() {
 
             {downloadPhase === 'error' && (
               <div className="p-8 text-center space-y-5">
-                <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                  <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <div className="mx-auto w-16 h-16 bg-app-danger-soft rounded-full flex items-center justify-center">
+                  <svg className="h-8 w-8 text-app-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900">{t('downloadModal.failedTitle')}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{downloadError}</p>
+                  <h3 className="text-base font-semibold text-app-text">{t('downloadModal.failedTitle')}</h3>
+                  <p className="text-sm text-app-text-muted mt-1">{downloadError}</p>
                 </div>
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={() => setShowDownloadModal(false)}
-                    className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="rounded-lg border border-app-border-strong px-4 py-2.5 text-sm font-medium text-app-text hover:bg-app-surface-muted"
                   >
                     {t('common.close')}
                   </button>
                   <button
                     onClick={() => { void startApproveAndDownload(); }}
-                    className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                    className="rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white hover:bg-app-accent-dark-blue"
                   >
                     {t('downloadModal.retry')}
                   </button>

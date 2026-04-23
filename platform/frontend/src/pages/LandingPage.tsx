@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../components/common/LanguageSelector';
+import ThemeToggle from '../components/common/ThemeToggle';
 import BrandMark from '../components/brand/BrandMark';
 
 /**
@@ -23,7 +24,7 @@ export default function LandingPage() {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800">
+    <div className="min-h-screen bg-app-bg transition-colors duration-200">
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
@@ -36,15 +37,16 @@ export default function LandingPage() {
           </Link>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <LanguageSelector variant="landing" />
+            <ThemeToggle />
             <Link
               to="/login"
-              className="px-3 sm:px-6 py-2 text-xs sm:text-sm text-white hover:text-emerald-400 transition-colors font-medium"
+              className="px-3 sm:px-6 py-2 text-xs sm:text-sm text-app-text-subtle hover:text-app-accent-blue transition-colors font-medium"
             >
               {t('nav.signIn')}
             </Link>
             <Link
               to="/register"
-              className="px-3 sm:px-6 py-2 sm:py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all font-semibold shadow-lg text-xs sm:text-sm"
+              className="px-3 sm:px-6 py-2 sm:py-2.5 bg-app-accent-blue text-white rounded-lg hover:bg-app-accent-dark-blue transition-all font-semibold shadow-lg text-xs sm:text-sm"
             >
               {t('nav.getStarted')}
             </Link>
@@ -53,36 +55,30 @@ export default function LandingPage() {
 
         {/* Hero Content */}
         <div className="text-center space-y-6 sm:space-y-8 py-6 sm:py-12">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-app-text leading-tight">
             {t('hero.titleLine1')}
             <br />
-            <span className="text-emerald-400">{t('hero.titleLine2')}</span>
+            <span className="text-app-accent-blue">{t('hero.titleLine2')}</span>
           </h1>
 
-          <p className="text-lg sm:text-xl md:text-2xl text-indigo-200 max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl md:text-2xl text-app-text-subtle max-w-3xl mx-auto">
             {t('hero.subtitle')}
           </p>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 pt-6 sm:pt-8">
             <Link
               to="/register"
-              className="px-6 sm:px-8 py-3 sm:py-4 bg-emerald-500 text-white text-base sm:text-lg rounded-lg hover:bg-emerald-600 transition-all font-semibold shadow-xl text-center"
+              className="px-6 sm:px-8 py-3 sm:py-4 bg-app-accent-blue text-white text-base sm:text-lg rounded-lg hover:bg-app-accent-dark-blue transition-all font-semibold shadow-xl text-center"
             >
               {t('hero.ctaPrimary')}
             </Link>
-            <a
-              href="#how-it-works"
-              className="px-6 sm:px-8 py-3 sm:py-4 bg-white/10 backdrop-blur-sm text-white text-base sm:text-lg rounded-lg hover:bg-white/20 transition-all font-semibold text-center"
-            >
-              {t('hero.ctaSecondary')}
-            </a>
           </div>
 
           {/* Feature Pills */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-8 text-white/80 text-sm">
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-8 text-app-text-subtle text-sm">
             {(['aiPowered', 'noCoding', 'deployFast', 'openSource'] as const).map((pill) => (
-              <div key={pill} className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
-                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div key={pill} className="flex items-center gap-2 bg-app-surface-muted backdrop-blur-sm rounded-full px-4 py-2 border border-app-border">
+                <svg className="w-5 h-5 text-app-accent-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
                 <span>{t(`pills.${pill}`)}</span>
@@ -93,32 +89,24 @@ export default function LandingPage() {
       </div>
 
       {/* How It Works Section */}
-      <div id="how-it-works" className="bg-white/5 backdrop-blur-sm py-20">
+      <div id="how-it-works" className="bg-app-surface backdrop-blur-sm py-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-white text-center mb-12">
+          <h2 className="text-4xl font-bold text-app-text text-center mb-12">
             {t('howItWorks.heading')}
           </h2>
 
           <div className="grid md:grid-cols-3 gap-8">
             {[1, 2, 3].map((n) => (
-              <div key={n} className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 space-y-4">
-                <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
+              <div key={n} className="bg-app-surface/10 backdrop-blur-sm rounded-2xl p-8 space-y-4 border border-app-border">
+                <div className="w-12 h-12 bg-app-accent-blue rounded-xl flex items-center justify-center">
                   <span className="text-white font-bold text-2xl">{n}</span>
                 </div>
-                <h3 className="text-2xl font-bold text-white">
+                <h3 className="text-2xl font-bold text-app-text">
                   {t(`howItWorks.step${n}Title` as const)}
                 </h3>
-                <p className="text-indigo-200">{t(`howItWorks.step${n}Body` as const)}</p>
+                <p className="text-app-text-subtle">{t(`howItWorks.step${n}Body` as const)}</p>
               </div>
             ))}
-          </div>
-
-          {/* Quote */}
-          <div className="mt-16 bg-white/10 backdrop-blur-sm rounded-xl p-8 text-center">
-            <p className="text-white text-xl font-medium italic">
-              "{t('howItWorks.quote')}"
-            </p>
-            <p className="text-emerald-400 mt-4 font-semibold">{t('howItWorks.quoteAttribution')}</p>
           </div>
         </div>
       </div>
@@ -126,13 +114,13 @@ export default function LandingPage() {
       {/* CTA Section */}
       <div className="py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-white">
+          <h2 className="text-4xl md:text-5xl font-bold text-app-text">
             {t('cta.heading')}
           </h2>
-          <p className="text-xl text-indigo-200">{t('cta.body')}</p>
+          <p className="text-xl text-app-text-subtle">{t('cta.body')}</p>
           <Link
             to="/register"
-            className="inline-block px-10 py-4 bg-emerald-500 text-white text-lg rounded-lg hover:bg-emerald-600 transition-all font-semibold shadow-xl"
+            className="inline-block px-10 py-4 bg-app-accent-blue text-white text-lg rounded-lg hover:bg-app-accent-dark-blue transition-all font-semibold shadow-xl"
           >
             {t('cta.button')}
           </Link>
@@ -140,17 +128,17 @@ export default function LandingPage() {
       </div>
 
       {/* Contact Section */}
-      <section id="contact" className="py-20 bg-indigo-900/50">
+      <section id="contact" className="py-20 bg-app-surface/20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-white">
+          <h2 className="text-3xl md:text-4xl font-bold text-app-text">
             {t('footer.contact')}
           </h2>
-          <p className="text-xl text-indigo-200">
+          <p className="text-xl text-app-text-subtle">
             Have questions or need support? Reach out to us at:
           </p>
           <a
             href="mailto:salpkirisci@gmail.com"
-            className="inline-block px-8 py-3 bg-white/10 hover:bg-white/20 text-white text-xl font-semibold rounded-lg transition-all border border-white/20"
+            className="inline-block px-8 py-3 bg-app-surface hover:bg-app-surface-hover text-app-text text-xl font-semibold rounded-lg transition-all border border-app-border"
           >
             salpkirisci@gmail.com
           </a>
@@ -158,13 +146,13 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 py-8">
+      <footer className="border-t border-app-border py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-indigo-300 text-sm">{t('footer.copyright')}</p>
-            <div className="flex items-center gap-6 text-indigo-300 text-sm">
-              <a href="https://github.com/CustomERP411/CustomERP" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">{t('footer.github')}</a>
-              <a href="#contact" className="hover:text-white transition-colors">{t('footer.contact')}</a>
+            <p className="text-app-text-subtle text-sm">{t('footer.copyright')}</p>
+            <div className="flex items-center gap-6 text-app-text-subtle text-sm">
+              <a href="https://github.com/CustomERP411/CustomERP" target="_blank" rel="noopener noreferrer" className="hover:text-app-accent-blue transition-colors">{t('footer.github')}</a>
+              <a href="#contact" className="hover:text-app-accent-blue transition-colors">{t('footer.contact')}</a>
             </div>
           </div>
         </div>

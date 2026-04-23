@@ -85,17 +85,17 @@ export default function ExportModal({ stats, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+        className="w-full max-w-md rounded-xl bg-app-surface p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-bold text-slate-800 mb-4">{t('exportModal.title')}</h2>
-        <p className="text-xs text-slate-500 mb-4">{t('exportModal.subtitle')}</p>
+        <h2 className="text-lg font-bold text-app-text mb-4">{t('exportModal.title')}</h2>
+        <p className="text-xs text-app-text-muted mb-4">{t('exportModal.subtitle')}</p>
 
         {/* Quality filter */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-slate-700 mb-2">{t('exportModal.qualityFilter')}</label>
+          <label className="block text-sm font-medium text-app-text mb-2">{t('exportModal.qualityFilter')}</label>
           <div className="flex gap-3">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -103,7 +103,7 @@ export default function ExportModal({ stats, onClose }: Props) {
                 name="quality_filter"
                 checked={qualityFilter === 'good'}
                 onChange={() => setQualityFilter('good')}
-                className="text-blue-600 focus:ring-blue-500"
+                className="text-app-accent-blue focus:ring-app-focus"
               />
               {t('exportModal.goodOnly')}
             </label>
@@ -113,7 +113,7 @@ export default function ExportModal({ stats, onClose }: Props) {
                 name="quality_filter"
                 checked={qualityFilter === 'good_and_edited'}
                 onChange={() => setQualityFilter('good_and_edited')}
-                className="text-blue-600 focus:ring-blue-500"
+                className="text-app-accent-blue focus:ring-app-focus"
               />
               {t('exportModal.goodAndEdited')}
             </label>
@@ -122,23 +122,23 @@ export default function ExportModal({ stats, onClose }: Props) {
 
         {/* Per-agent export */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-slate-700 mb-2">{t('exportModal.exportPerAgent')}</label>
+          <label className="block text-sm font-medium text-app-text mb-2">{t('exportModal.exportPerAgent')}</label>
           <div className="space-y-1.5">
             {AGENT_TYPES.map((a) => (
-              <div key={a.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
+              <div key={a.id} className="flex items-center justify-between rounded-lg border border-app-border px-3 py-2">
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={selectedAgents.has(a.id)}
                     onChange={() => toggleAgent(a.id)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-app-border-strong text-app-accent-blue focus:ring-app-focus"
                   />
-                  <span className="text-sm text-slate-700">{t(a.labelKey)}</span>
+                  <span className="text-sm text-app-text">{t(a.labelKey)}</span>
                 </div>
                 <button
                   onClick={() => handleExportSingle(a.id)}
                   disabled={exporting}
-                  className="rounded border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                  className="rounded border border-app-border-strong px-2.5 py-1 text-xs font-medium text-app-text-muted hover:bg-app-surface-muted disabled:opacity-40 transition-colors"
                 >
                   {a.id}.jsonl
                 </button>
@@ -148,22 +148,22 @@ export default function ExportModal({ stats, onClose }: Props) {
         </div>
 
         {/* Preview count */}
-        <div className="mb-5 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-          {t('exportModal.estimatedSessions')}: <span className="font-bold text-slate-800">{previewCount}</span>
+        <div className="mb-5 rounded-lg bg-app-surface-muted p-3 text-sm text-app-text-muted">
+          {t('exportModal.estimatedSessions')}: <span className="font-bold text-app-text">{previewCount}</span>
         </div>
 
         {/* Actions */}
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+            className="rounded-lg border border-app-border-strong px-4 py-2 text-sm font-medium text-app-text-muted hover:bg-app-surface-muted transition-colors"
           >
             {t('exportModal.cancel')}
           </button>
           <button
             onClick={handleExportAll}
             disabled={selectedAgents.size === 0 || exporting || previewCount === 0}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="rounded-lg bg-app-accent-blue px-4 py-2 text-sm font-medium text-white hover:bg-app-accent-dark-blue disabled:opacity-50 transition-colors"
           >
             {exporting ? t('exportModal.exporting') : selectedAgents.size > 1 ? t('exportModal.downloadZip') : t('exportModal.download')}
           </button>

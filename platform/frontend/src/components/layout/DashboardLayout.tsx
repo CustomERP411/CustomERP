@@ -15,7 +15,7 @@ export default function DashboardLayout() {
 
   return (
     <ChatProvider>
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex min-h-screen bg-app-bg transition-colors duration-200">
         <Sidebar drawerOpen={drawerOpen} onCloseDrawer={() => setDrawerOpen(false)} />
         <div className="flex flex-1 flex-col min-w-0">
           <MobileTopbar onOpenMenu={() => setDrawerOpen(true)} />

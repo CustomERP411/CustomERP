@@ -13,15 +13,15 @@ const STATUSES: FeatureStatus[] = ['recorded', 'denied', 'in_progress', 'complet
 const SOURCES = ['chatbot', 'sdf_generation'];
 
 function statusColor(s: string) {
-  if (s === 'recorded') return 'bg-slate-100 text-slate-700';
-  if (s === 'denied') return 'bg-red-100 text-red-700';
-  if (s === 'in_progress') return 'bg-blue-100 text-blue-700';
-  if (s === 'completed') return 'bg-emerald-100 text-emerald-700';
-  return 'bg-slate-100 text-slate-600';
+  if (s === 'recorded') return 'bg-app-surface-hover text-app-text';
+  if (s === 'denied') return 'bg-app-danger-soft text-app-danger';
+  if (s === 'in_progress') return 'bg-app-info-soft text-app-info';
+  if (s === 'completed') return 'bg-app-success-soft text-app-success';
+  return 'bg-app-surface-hover text-app-text-muted';
 }
 
 function sourceBadge(s: string) {
-  return s === 'chatbot' ? 'bg-teal-100 text-teal-700' : 'bg-violet-100 text-violet-700';
+  return s === 'chatbot' ? 'bg-app-info-soft text-app-info' : 'bg-app-mod-hr-soft text-app-mod-hr';
 }
 
 export default function FeatureRequestsAdminPage() {
@@ -114,7 +114,7 @@ export default function FeatureRequestsAdminPage() {
   if (!user?.is_admin) {
     return (
       <div className="mx-auto max-w-2xl py-20 text-center">
-        <h1 className="text-xl font-bold text-slate-900">{t('featureRequests.accessDenied')}</h1>
+        <h1 className="text-xl font-bold text-app-text">{t('featureRequests.accessDenied')}</h1>
       </div>
     );
   }
@@ -122,8 +122,8 @@ export default function FeatureRequestsAdminPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Stats bar */}
-      <div className="flex flex-wrap items-center gap-4 border-b bg-white px-5 py-3">
-        <h1 className="text-lg font-bold text-slate-800">{t('featureRequests.title')}</h1>
+      <div className="flex flex-wrap items-center gap-4 border-b bg-app-surface px-5 py-3">
+        <h1 className="text-lg font-bold text-app-text">{t('featureRequests.title')}</h1>
         {stats && (
           <>
             <Pill label={t('featureRequests.stats.total')} value={stats.total} />
@@ -137,9 +137,9 @@ export default function FeatureRequestsAdminPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left: list */}
-        <div className={`${detail ? 'hidden md:flex' : 'flex'} w-full md:w-[420px] flex-shrink-0 flex-col border-r bg-slate-50 overflow-hidden`}>
+        <div className={`${detail ? 'hidden md:flex' : 'flex'} w-full md:w-[420px] flex-shrink-0 flex-col border-r bg-app-surface-muted overflow-hidden`}>
           {/* Filters */}
-          <div className="flex flex-wrap gap-2 border-b px-3 py-2 bg-white">
+          <div className="flex flex-wrap gap-2 border-b px-3 py-2 bg-app-surface">
             <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setOffset(0); }} className="rounded border px-2 py-1 text-xs">
               <option value="">{t('featureRequests.filters.allStatuses')}</option>
               {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
@@ -153,16 +153,16 @@ export default function FeatureRequestsAdminPage() {
           {/* List */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-6 text-center text-sm text-slate-400">{t('featureRequests.list.loading')}</div>
+              <div className="p-6 text-center text-sm text-app-text-subtle">{t('featureRequests.list.loading')}</div>
             ) : requests.length === 0 ? (
-              <div className="p-6 text-center text-sm text-slate-400">{t('featureRequests.list.empty')}</div>
+              <div className="p-6 text-center text-sm text-app-text-subtle">{t('featureRequests.list.empty')}</div>
             ) : (
               requests.map((r) => (
                 <button
                   key={r.id}
                   onClick={() => openDetail(r.id)}
-                  className={`w-full text-left border-b px-3 py-3 transition-colors hover:bg-slate-100 ${
-                    detail?.id === r.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''
+                  className={`w-full text-left border-b px-3 py-3 transition-colors hover:bg-app-surface-hover ${
+                    detail?.id === r.id ? 'bg-app-info-soft border-l-2 border-l-blue-500' : ''
                   }`}
                 >
                   <div className="flex items-center gap-1.5 text-xs">
@@ -172,41 +172,41 @@ export default function FeatureRequestsAdminPage() {
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusColor(r.status)}`}>
                       {STATUS_LABELS[r.status] || r.status}
                     </span>
-                    <span className="ml-auto text-slate-400">{new Date(r.created_at).toLocaleDateString(i18n.language)}</span>
+                    <span className="ml-auto text-app-text-subtle">{new Date(r.created_at).toLocaleDateString(i18n.language)}</span>
                   </div>
-                  <p className="mt-1 text-sm font-medium text-slate-800 line-clamp-2">{r.feature_name}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">{r.user_name || r.user_email || '—'} {r.project_name ? `· ${r.project_name}` : ''}</p>
+                  <p className="mt-1 text-sm font-medium text-app-text line-clamp-2">{r.feature_name}</p>
+                  <p className="mt-0.5 text-[11px] text-app-text-muted">{r.user_name || r.user_email || '—'} {r.project_name ? `· ${r.project_name}` : ''}</p>
                 </button>
               ))
             )}
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between border-t bg-white px-3 py-2 text-xs text-slate-500">
+          <div className="flex items-center justify-between border-t bg-app-surface px-3 py-2 text-xs text-app-text-muted">
             <span>{t('featureRequests.list.total', { count: total })}</span>
             <div className="flex gap-1">
-              <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))} className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-slate-100">{t('featureRequests.list.prev')}</button>
-              <button disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)} className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-slate-100">{t('featureRequests.list.next')}</button>
+              <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))} className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-app-surface-hover">{t('featureRequests.list.prev')}</button>
+              <button disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)} className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-app-surface-hover">{t('featureRequests.list.next')}</button>
             </div>
           </div>
         </div>
 
         {/* Right: detail */}
-        <div className={`${detail || detailLoading ? 'flex' : 'hidden md:flex'} flex-1 flex-col overflow-y-auto bg-white min-w-0`}>
+        <div className={`${detail || detailLoading ? 'flex' : 'hidden md:flex'} flex-1 flex-col overflow-y-auto bg-app-surface min-w-0`}>
           {!detail && !detailLoading ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            <div className="flex h-full items-center justify-center text-sm text-app-text-subtle">
               {t('featureRequests.detail.empty')}
             </div>
           ) : detailLoading ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">{t('featureRequests.list.loading')}</div>
+            <div className="flex h-full items-center justify-center text-sm text-app-text-subtle">{t('featureRequests.list.loading')}</div>
           ) : detail ? (
             <div className="flex flex-col h-full min-w-0">
               {/* Header */}
-              <div className="border-b bg-slate-50 px-4 sm:px-6 py-4">
+              <div className="border-b bg-app-surface-muted px-4 sm:px-6 py-4">
                 <button
                   type="button"
                   onClick={() => setDetail(null)}
-                  className="md:hidden mb-2 flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900"
+                  className="md:hidden mb-2 flex items-center gap-1 text-xs font-medium text-app-text-muted hover:text-app-text"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -214,12 +214,12 @@ export default function FeatureRequestsAdminPage() {
                   <span>{t('training.backToList')}</span>
                 </button>
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-lg font-bold text-slate-900 min-w-0 break-words">{detail.feature_name}</h2>
+                  <h2 className="text-lg font-bold text-app-text min-w-0 break-words">{detail.feature_name}</h2>
                   <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusColor(detail.status)}`}>
                     {STATUS_LABELS[detail.status]}
                   </span>
                 </div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-app-text-muted">
                   <span className={`rounded px-1.5 py-0.5 font-medium ${sourceBadge(detail.source)}`}>
                     {detail.source === 'chatbot' ? t('featureRequests.sources.chatbot') : t('featureRequests.sources.sdfGeneration')}
                   </span>
@@ -233,14 +233,14 @@ export default function FeatureRequestsAdminPage() {
                 {/* User prompt */}
                 {detail.user_prompt && (
                   <Section title={t('featureRequests.detail.userPrompt')}>
-                    <p className="whitespace-pre-wrap text-sm text-slate-700 leading-relaxed">{detail.user_prompt}</p>
+                    <p className="whitespace-pre-wrap text-sm text-app-text leading-relaxed">{detail.user_prompt}</p>
                   </Section>
                 )}
 
                 {/* Source detail */}
                 {detail.source_detail && (
                   <Section title={t('featureRequests.detail.sourceDetail')}>
-                    <p className="whitespace-pre-wrap text-xs text-slate-600">{detail.source_detail}</p>
+                    <p className="whitespace-pre-wrap text-xs text-app-text-muted">{detail.source_detail}</p>
                   </Section>
                 )}
 
@@ -248,37 +248,37 @@ export default function FeatureRequestsAdminPage() {
                 <Section title={t('featureRequests.detail.statusAndNotes')}>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">{t('featureRequests.detail.status')}</label>
+                      <label className="block text-xs font-medium text-app-text-muted mb-1">{t('featureRequests.detail.status')}</label>
                       <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as FeatureStatus)} className="w-full rounded border px-3 py-2 text-sm">
                         {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">{t('featureRequests.detail.adminNotes')}</label>
+                      <label className="block text-xs font-medium text-app-text-muted mb-1">{t('featureRequests.detail.adminNotes')}</label>
                       <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} className="w-full rounded border px-3 py-2 text-sm" placeholder={t('featureRequests.detail.notesPlaceholder')} />
                     </div>
                   </div>
-                  <button onClick={handleSave} disabled={saving} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  <button onClick={handleSave} disabled={saving} className="mt-3 rounded-lg bg-app-accent-blue px-4 py-2 text-sm font-medium text-white hover:bg-app-accent-dark-blue disabled:opacity-50 transition-colors">
                     {saving ? t('featureRequests.detail.saving') : t('featureRequests.detail.saveChanges')}
                   </button>
                 </Section>
 
                 {/* Chat thread */}
                 <Section title={t('featureRequests.detail.conversation')}>
-                  <div className="rounded-lg border bg-slate-50 max-h-80 overflow-y-auto">
+                  <div className="rounded-lg border bg-app-surface-muted max-h-80 overflow-y-auto">
                     {detail.messages.length === 0 ? (
-                      <p className="p-4 text-xs text-slate-400 text-center">{t('featureRequests.detail.noMessages')}</p>
+                      <p className="p-4 text-xs text-app-text-subtle text-center">{t('featureRequests.detail.noMessages')}</p>
                     ) : (
                       <div className="p-3 space-y-2.5">
                         {detail.messages.map((m) => (
                           <div key={m.id} className={`flex ${m.sender_role === 'admin' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[80%] rounded-xl px-3 py-2 ${
                               m.sender_role === 'admin'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white border text-slate-800'
+                                ? 'bg-app-accent-blue text-white'
+                                : 'bg-app-surface border text-app-text'
                             }`}>
                               <p className="text-[13px] whitespace-pre-wrap">{m.body}</p>
-                              <p className={`mt-1 text-[10px] ${m.sender_role === 'admin' ? 'text-blue-200' : 'text-slate-400'}`}>
+                              <p className={`mt-1 text-[10px] ${m.sender_role === 'admin' ? 'text-app-text-inverse/70' : 'text-app-text-subtle'}`}>
                                 {m.sender_name || m.sender_email} · {new Date(m.created_at).toLocaleString(i18n.language)}
                               </p>
                             </div>
@@ -295,12 +295,12 @@ export default function FeatureRequestsAdminPage() {
                       onChange={(e) => setMsgText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                       placeholder={t('featureRequests.detail.messagePlaceholder')}
-                      className="flex-1 rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="flex-1 rounded-lg border px-3 py-2 text-sm focus:border-app-accent-blue focus:outline-none focus:ring-1 focus:ring-app-focus"
                     />
                     <button
                       onClick={handleSendMessage}
                       disabled={!msgText.trim() || msgSending}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      className="rounded-lg bg-app-accent-blue px-4 py-2 text-sm font-medium text-white hover:bg-app-accent-dark-blue disabled:opacity-50 transition-colors"
                     >
                       {msgSending ? '...' : t('featureRequests.detail.send')}
                     </button>
@@ -318,17 +318,17 @@ export default function FeatureRequestsAdminPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-sm font-semibold text-slate-700 mb-2">{title}</h3>
-      <div className="rounded-lg border bg-white p-4">{children}</div>
+      <h3 className="text-sm font-semibold text-app-text mb-2">{title}</h3>
+      <div className="rounded-lg border bg-app-surface p-4">{children}</div>
     </div>
   );
 }
 
 function Pill({ label, value, color }: { label: string; value: number; color?: string }) {
-  const bg = color === 'green' ? 'bg-emerald-100 text-emerald-800'
-    : color === 'red' ? 'bg-red-100 text-red-800'
-    : color === 'blue' ? 'bg-blue-100 text-blue-800'
-    : 'bg-slate-100 text-slate-700';
+  const bg = color === 'green' ? 'bg-app-success-soft text-app-success'
+    : color === 'red' ? 'bg-app-danger-soft text-app-danger'
+    : color === 'blue' ? 'bg-app-info-soft text-app-info'
+    : 'bg-app-surface-hover text-app-text';
   return (
     <div className={`rounded-full px-3 py-0.5 text-xs font-medium ${bg}`}>
       {label}: <span className="font-bold">{value}</span>

@@ -32,18 +32,18 @@ export default function DefaultQuestions({
     <section className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold text-slate-900">{t('defaultQuestions.title')}</h2>
-          <p className="mt-0.5 text-sm text-slate-500">{t('defaultQuestions.subtitle')}</p>
+          <h2 className="text-lg font-semibold text-app-text">{t('defaultQuestions.title')}</h2>
+          <p className="mt-0.5 text-sm text-app-text-muted">{t('defaultQuestions.subtitle')}</p>
         </div>
         {completion && (
-          <span className={`self-start shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${completion.is_complete ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+          <span className={`self-start shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${completion.is_complete ? 'bg-app-success-soft text-app-success' : 'bg-app-warning-soft text-app-warning'}`}>
             {t('defaultQuestions.answeredCount', { answered: completion.answered_required_visible, total: completion.total_required_visible })}
           </span>
         )}
       </div>
 
       {loading ? (
-        <div className="rounded-xl border bg-slate-50 p-6 text-center text-sm text-slate-500">{t('defaultQuestions.loading')}</div>
+        <div className="rounded-xl border bg-app-surface-muted p-6 text-center text-sm text-app-text-muted">{t('defaultQuestions.loading')}</div>
       ) : (
         <div className="space-y-6">
           {MODULE_KEYS.filter((mod) => questionsByModule[mod]?.length).map((mod) => {
@@ -54,13 +54,13 @@ export default function DefaultQuestions({
             const allDone = counts.total > 0 && counts.answered === counts.total;
 
             return (
-              <div key={mod} className={`rounded-xl border bg-white overflow-hidden ${styles.left}`}>
-                <div className="flex items-center justify-between gap-3 border-b bg-slate-50/60 px-4 py-3 sm:px-5">
+              <div key={mod} className={`rounded-xl border bg-app-surface overflow-hidden ${styles.left}`}>
+                <div className="flex items-center justify-between gap-3 border-b bg-app-surface-muted/60 px-4 py-3 sm:px-5">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`inline-block h-2.5 w-2.5 rounded-full ${styles.dot}`} />
-                    <span className="text-sm font-semibold text-slate-900 truncate">{meta.label}</span>
+                    <span className="text-sm font-semibold text-app-text truncate">{meta.label}</span>
                   </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${allDone ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${allDone ? 'bg-app-success-soft text-app-success' : 'bg-app-surface-hover text-app-text-muted'}`}>
                     {counts.answered}/{counts.total}
                   </span>
                 </div>
@@ -81,14 +81,14 @@ export default function DefaultQuestions({
                     return (
                       <div key={q.id} id={`dq-${q.id}`} className="scroll-mt-6 px-4 py-4 sm:px-5">
                         <div className="flex items-start gap-3">
-                          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">
+                          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-app-surface-hover text-[11px] font-bold text-app-text-muted">
                             {qi + 1}
                           </span>
                           <div className="flex-1 min-w-0 space-y-2.5">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                              <div className="text-sm font-medium text-slate-800 min-w-0 break-words">
+                              <div className="text-sm font-medium text-app-text min-w-0 break-words">
                                 {q.question}
-                                {q.required && <span className="ml-1 text-red-500">*</span>}
+                                {q.required && <span className="ml-1 text-app-danger">*</span>}
                               </div>
                               {onHelpWithQuestion && (
                                 <button
@@ -110,7 +110,7 @@ export default function DefaultQuestions({
                                     }
                                     onHelpWithQuestion(q.question, currentAnswer);
                                   }}
-                                  className="self-start shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 transition-colors"
+                                  className="self-start shrink-0 rounded-lg border border-app-info-border bg-app-info-soft px-3 py-1.5 text-xs font-semibold text-app-accent-blue hover:bg-app-info-soft transition-colors"
                                 >
                                   {t('defaultQuestions.needHelp')}
                                 </button>
@@ -123,8 +123,8 @@ export default function DefaultQuestions({
                                   <button key={val} type="button" onClick={() => onUpdateAnswer(q.id, val)}
                                     className={`rounded-lg border px-5 py-2 text-sm font-medium transition-colors ${
                                       answerString === val
-                                        ? val === 'yes' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-red-400 bg-red-50 text-red-700'
-                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                        ? val === 'yes' ? 'border-app-success bg-app-success-soft text-app-success' : 'border-app-danger bg-app-danger-soft text-app-danger'
+                                        : 'border-app-border bg-app-surface text-app-text-muted hover:bg-app-surface-muted'
                                     }`}
                                   >
                                     {val === 'yes' ? t('defaultQuestions.yes') : t('defaultQuestions.no')}
@@ -140,7 +140,7 @@ export default function DefaultQuestions({
                                   return (
                                     <button key={opt} type="button" onClick={() => onToggleMultiChoice(q.id, opt, !checked)}
                                       className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                                        checked ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                        checked ? 'border-app-accent-blue bg-app-info-soft text-app-accent-dark-blue' : 'border-app-border bg-app-surface text-app-text-muted hover:bg-app-surface-muted'
                                       }`}
                                     >
                                       {labelFor(opt)}
@@ -163,7 +163,7 @@ export default function DefaultQuestions({
                                           setCustomActiveFor((prev) => { const n = new Set(prev); n.delete(q.id); return n; });
                                         }}
                                         className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                                          selectedKnownOption === opt && !isCustomActive ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                          selectedKnownOption === opt && !isCustomActive ? 'border-app-accent-blue bg-app-info-soft text-app-accent-dark-blue' : 'border-app-border bg-app-surface text-app-text-muted hover:bg-app-surface-muted'
                                         }`}
                                       >
                                         {labelFor(opt)}
@@ -176,7 +176,7 @@ export default function DefaultQuestions({
                                           onUpdateAnswer(q.id, customValue || '');
                                         }}
                                         className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                                          isCustomActive ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-dashed border-slate-300 bg-white text-slate-500 hover:bg-slate-50'
+                                          isCustomActive ? 'border-app-accent-blue bg-app-info-soft text-app-accent-dark-blue' : 'border-dashed border-app-border-strong bg-app-surface text-app-text-muted hover:bg-app-surface-muted'
                                         }`}
                                       >
                                         {t('defaultQuestions.custom')}
@@ -195,7 +195,7 @@ export default function DefaultQuestions({
                                         onUpdateAnswer(q.id, e.target.value);
                                       }
                                     }}
-                                    className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                                    className="w-full rounded-lg border bg-app-surface px-3 py-2 text-sm"
                                   >
                                     <option value="">{t('defaultQuestions.select')}</option>
                                     {options.map((opt) => <option key={opt} value={opt}>{labelFor(opt)}</option>)}
@@ -204,7 +204,7 @@ export default function DefaultQuestions({
                                 )}
                                 {q.allow_custom && isCustomActive && (
                                   <input value={customValue} onChange={(e) => onUpdateAnswer(q.id, e.target.value)}
-                                    className="w-full rounded-lg border bg-white px-3 py-2 text-sm" placeholder={t('defaultQuestions.customPlaceholder')} autoFocus />
+                                    className="w-full rounded-lg border bg-app-surface px-3 py-2 text-sm" placeholder={t('defaultQuestions.customPlaceholder')} autoFocus />
                                 )}
                               </div>
                               );
@@ -212,7 +212,7 @@ export default function DefaultQuestions({
 
                             {q.type === 'text' && (
                               <input value={answerString} onChange={(e) => onUpdateAnswer(q.id, e.target.value)}
-                                className="w-full rounded-lg border bg-white px-3 py-2 text-sm" placeholder={t('defaultQuestions.textPlaceholder')} />
+                                className="w-full rounded-lg border bg-app-surface px-3 py-2 text-sm" placeholder={t('defaultQuestions.textPlaceholder')} />
                             )}
                           </div>
                         </div>
@@ -231,10 +231,10 @@ export default function DefaultQuestions({
           type="button"
           onClick={onSave}
           disabled={!canSave || saving}
-          className={`inline-flex items-center justify-center rounded-lg border-2 px-5 py-2 text-sm font-semibold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+          className={`inline-flex items-center justify-center rounded-lg border-2 px-5 py-2 text-sm font-semibold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-focus ${
             canSave && !saving
-              ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 hover:border-indigo-700'
-              : 'border-slate-300 bg-white text-slate-400 cursor-not-allowed opacity-60'
+              ? 'border-app-accent-blue bg-app-accent-blue text-white shadow-sm hover:bg-app-accent-dark-blue hover:border-app-accent-dark-blue'
+              : 'border-app-border-strong bg-app-surface text-app-text-subtle cursor-not-allowed opacity-60'
           }`}
         >
           {saving && (

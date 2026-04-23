@@ -5,6 +5,7 @@
     "profile": "Profile",
     "password": "Change password",
     "language": "Language",
+    "theme": "Theme",
     "danger": "Danger zone"
   },
   "profile": {

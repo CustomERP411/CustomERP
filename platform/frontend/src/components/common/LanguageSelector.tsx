@@ -98,13 +98,13 @@ export default function LanguageSelector({
 
   const buttonCls =
     resolvedVariant === 'landing'
-      ? 'inline-flex items-center gap-2 rounded-full border border-white/20 bg-transparent px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40'
+      ? 'inline-flex items-center gap-2 rounded-full border border-white/20 bg-transparent px-3 py-1.5 text-sm font-medium text-white hover:bg-app-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40'
       : resolvedVariant === 'compact'
-      ? 'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500'
-      : 'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500';
+      ? 'inline-flex items-center gap-1.5 rounded-md border border-app-border bg-app-surface-muted px-2 py-1 text-xs font-medium text-app-text shadow-sm hover:bg-app-surface-hover focus:outline-none focus:ring-2 focus:ring-app-focus'
+      : 'inline-flex items-center gap-1.5 rounded-md border border-app-border bg-app-surface-muted px-3 py-1.5 text-sm font-medium text-app-text shadow-sm hover:bg-app-surface-hover focus:outline-none focus:ring-2 focus:ring-app-focus';
 
   const chevronCls =
-    resolvedVariant === 'landing' ? 'h-3 w-3 text-white/80' : 'h-3 w-3 text-slate-500';
+    resolvedVariant === 'landing' ? 'h-3 w-3 text-white/80' : 'h-3 w-3 text-app-text-subtle';
 
   return (
     <div ref={wrapperRef} className={`relative inline-block ${className}`}>
@@ -135,7 +135,7 @@ export default function LanguageSelector({
       {open && (
         <ul
           role="listbox"
-          className="absolute right-0 z-50 mt-1 w-40 overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg"
+          className="absolute right-0 z-50 mt-1 w-40 overflow-hidden rounded-md border border-app-border bg-app-surface-elevated shadow-lg"
         >
           {SUPPORTED_LANGUAGES.map((lang) => (
             <li key={lang}>
@@ -144,15 +144,15 @@ export default function LanguageSelector({
                 role="option"
                 aria-selected={lang === current}
                 onClick={() => handleSelect(lang)}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                  lang === current ? 'bg-blue-50 font-medium text-blue-700' : 'text-slate-700'
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-app-surface-hover ${
+                  lang === current ? 'bg-app-info-soft font-medium text-app-info' : 'text-app-text'
                 }`}
               >
                 <span aria-hidden="true">{FLAGS[lang]}</span>
                 <span>{LANGUAGE_LABELS[lang]}</span>
                 {lang === current && (
                   <svg
-                    className="ml-auto h-4 w-4 text-blue-600"
+                    className="ml-auto h-4 w-4 text-app-info"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                     aria-hidden="true"
@@ -171,7 +171,7 @@ export default function LanguageSelector({
       )}
 
       {showAccountSyncFeedback && syncing && (
-        <span className="ml-2 text-xs text-slate-500">{t('saving')}</span>
+        <span className="ml-2 text-xs text-app-text-muted">{t('saving')}</span>
       )}
     </div>
   );

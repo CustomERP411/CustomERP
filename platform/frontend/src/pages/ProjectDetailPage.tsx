@@ -866,16 +866,16 @@ export default function ProjectDetailPage() {
 
   /* ── Render ─────────────────────────────────────────────── */
 
-  if (loading) return <div className="flex items-center justify-center py-20 text-slate-500">{t('projectDetail:loading.project')}</div>;
+  if (loading) return <div className="flex items-center justify-center py-20 text-app-text-muted">{t('projectDetail:loading.project')}</div>;
 
   if (!project) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-900">{t('projectDetail:header.projectFallback')}</h1>
-          <Link to="/" className="text-sm font-semibold text-indigo-600 hover:underline">{t('common:back')}</Link>
+          <h1 className="text-xl font-bold text-app-text">{t('projectDetail:header.projectFallback')}</h1>
+          <Link to="/" className="text-sm font-semibold text-app-accent-blue hover:underline">{t('common:back')}</Link>
         </div>
-        <div className="rounded-lg border bg-white p-4 text-sm text-red-600">{error || t('projectDetail:errors.notFound')}</div>
+        <div className="rounded-lg border bg-app-surface p-4 text-sm text-app-danger">{error || t('projectDetail:errors.notFound')}</div>
       </div>
     );
   }
@@ -885,10 +885,10 @@ export default function ProjectDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-900 break-words">{project.name}</h1>
-          <p className="mt-1 text-sm text-slate-500">{t('projectDetail:header.subtitle')}</p>
+          <h1 className="text-2xl font-bold text-app-text break-words">{project.name}</h1>
+          <p className="mt-1 text-sm text-app-text-muted">{t('projectDetail:header.subtitle')}</p>
         </div>
-        <Link to="/" className="self-start rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">{t('projectDetail:header.backToProjects')}</Link>
+        <Link to="/" className="self-start rounded-lg border bg-app-surface px-3 py-2 text-sm font-semibold text-app-text shadow-sm hover:bg-app-surface-muted">{t('projectDetail:header.backToProjects')}</Link>
       </div>
 
       {/* Step Progress Bar — hidden after generation */}
@@ -907,12 +907,12 @@ export default function ProjectDetailPage() {
                     onClick={() => stepRefs[i]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                     className={`flex items-center gap-2 ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
                   >
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${done ? 'bg-indigo-600 text-white' : active ? 'border-2 border-indigo-600 text-indigo-600' : 'border-2 border-slate-300 text-slate-400'}`}>
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${done ? 'bg-app-accent-blue text-white' : active ? 'border-2 border-app-accent-blue text-app-accent-blue' : 'border-2 border-app-border-strong text-app-text-subtle'}`}>
                       {done ? <IconCheck className="h-4 w-4" /> : i + 1}
                     </div>
-                    <span className={`hidden text-xs font-medium sm:block ${done ? 'text-indigo-600' : active ? 'text-slate-900' : 'text-slate-400'}`}>{label}</span>
+                    <span className={`hidden text-xs font-medium sm:block ${done ? 'text-app-accent-blue' : active ? 'text-app-text' : 'text-app-text-subtle'}`}>{label}</span>
                   </button>
-                  {i < STEPS.length - 1 && <div className={`mx-2 h-0.5 flex-1 rounded ${done ? 'bg-indigo-600' : 'bg-slate-200'} min-w-[24px] sm:min-w-0`} />}
+                  {i < STEPS.length - 1 && <div className={`mx-2 h-0.5 flex-1 rounded ${done ? 'bg-app-accent-blue' : 'bg-app-surface-hover'} min-w-[24px] sm:min-w-0`} />}
                 </div>
               );
             })}
@@ -920,7 +920,7 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="rounded-lg border border-app-danger-border bg-app-danger-soft px-4 py-3 text-sm text-app-danger">{error}</div>}
 
       <GenerationModal
         phase={analyzePhase}

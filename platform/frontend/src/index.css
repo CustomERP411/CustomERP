@@ -172,88 +172,32 @@
 }
 
 /* ============================================================================
- * Puzzle piece primitives (used by the landing page). A piece is any box with
- * the `puzzle-piece` class; interlocking knobs are absolutely-positioned
- * `<span class="puzzle-knob …">` children whose colour is inherited from
- * component-supplied Tailwind classes (tabs share the piece bg, sockets share
- * the section bg). Orientation switches at the `md` breakpoint.
+ * Puzzle board theme — maps the SVG-based puzzle module
+ * (`src/components/puzzle/`) onto the app's semantic tokens. The module
+ * itself is a drop-in set of SVG `<path>` pieces in one root `<svg>`; these
+ * variables re-colour its fills, strokes and labels for light/dark. The
+ * landing page scopes them further via `.landing-board` so other pages can
+ * theme their own boards independently if we ever drop the module elsewhere.
  * ========================================================================= */
 
-:root {
-  --knob-size:   32px;
-  --knob-half:   16px;
-}
-@media (max-width: 768px) {
-  :root {
-    --knob-size: 26px;
-    --knob-half: 13px;
-  }
-}
-
-/* The overall vertical column of grid rows. Rows are stacked with zero gap
- * so a bottom-tab on one row and a top-socket on the next row meet cleanly
- * at the shared edge. */
-.puzzle-stack > * + * { margin-top: 0; }
-
-.puzzle-piece {
-  position: relative;
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  will-change: transform;
+.landing-board {
+  --puzzle-fill:            var(--app-surface);
+  --puzzle-fill-hover:      var(--app-surface-hover);
+  --puzzle-fill-selected:   var(--app-surface-elevated);
+  --puzzle-stroke:          var(--app-border);
+  --puzzle-stroke-hover:    var(--app-accent-blue);
+  --puzzle-stroke-width:        1.5;
+  --puzzle-stroke-width-active: 3;
+  --puzzle-label:           var(--app-text-muted);
+  --puzzle-label-selected:  var(--app-text);
+  --puzzle-knob-hit-hover:  var(--app-focus-ring);
 }
 
-.puzzle-piece.interactive { cursor: pointer; }
-
-.puzzle-piece.interactive:hover {
-  transform: scale(1.05);
-  z-index: 20;
-}
-
-.puzzle-piece.interactive:hover {
-  box-shadow: 0 14px 28px -14px rgba(15, 23, 42, 0.35);
-}
-
-.dark .puzzle-piece.interactive:hover {
-  box-shadow:
-    0 0 8px var(--app-accent-blue),
-    0 0 20px var(--app-accent-blue);
-}
-
-.puzzle-knob {
-  position: absolute;
-  width: var(--knob-size);
-  height: var(--knob-size);
-  border-radius: 9999px;
-  pointer-events: none;
-}
-
-/* Tabs sit above sockets so a neighbouring tab covers its adjacent piece's
- * socket and the jigsaw reads as a single continuous shape. */
-.puzzle-knob--tab    { z-index: 2; }
-.puzzle-knob--socket { z-index: 1; }
-
-/* Horizontal (desktop) — left / right edges. Centered vertically, half
- * outside the piece (tab) or half inside (socket). */
-.puzzle-knob--left   { top: 50%; left:  calc(var(--knob-half) * -1); transform: translateY(-50%); }
-.puzzle-knob--right  { top: 50%; right: calc(var(--knob-half) * -1); transform: translateY(-50%); }
-
-/* Vertical (mobile) — top / bottom edges. Centered horizontally. */
-.puzzle-knob--top    { left: 50%; top:    calc(var(--knob-half) * -1); transform: translateX(-50%); }
-.puzzle-knob--bottom { left: 50%; bottom: calc(var(--knob-half) * -1); transform: translateX(-50%); }
-
-/* Sockets sit INSIDE the piece (overlapping the body) to erase a semicircle
- * of its surface. They are offset from the same edge but pushed INWARD by
- * half a knob so their centre aligns with the edge. */
-.puzzle-knob--left.puzzle-knob--socket   { left:   calc(var(--knob-half) * -1); }
-.puzzle-knob--right.puzzle-knob--socket  { right:  calc(var(--knob-half) * -1); }
-.puzzle-knob--top.puzzle-knob--socket    { top:    calc(var(--knob-half) * -1); }
-.puzzle-knob--bottom.puzzle-knob--socket { bottom: calc(var(--knob-half) * -1); }
-
-/* Glow extension — let the neon-glow hover on dark mode spill across knobs
- * so the whole jigsaw outline lights up, not just the rectangular body. */
-.dark .puzzle-piece.interactive:hover .puzzle-knob--tab {
-  box-shadow:
-    0 0 8px var(--app-accent-blue),
-    0 0 20px var(--app-accent-blue);
+/* In dark mode the hover fill is kept subtle so the accent-blue outline is the
+ * dominant signal on the piece that's being hovered. */
+.dark .landing-board {
+  --puzzle-fill-hover:    var(--app-surface-hover);
+  --puzzle-fill-selected: var(--app-surface-elevated);
 }
 
 @keyframes chatPulse {

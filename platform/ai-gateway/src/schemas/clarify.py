@@ -55,6 +55,14 @@ class ClarifyRequest(BaseModel):
         default="en",
         description="Project language code ('en' or 'tr'). Controls the language of the generated SDF text and clarification questions."
     )
+    selected_modules: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Authoritative list of modules the user selected in the UI. When provided, "
+            "re-analysis will only keep entities inside this set."
+        ),
+        validation_alias=AliasChoices("selected_modules", "selectedModules"),
+    )
     
     def get_merged_context(self) -> Dict[str, Any]:
         """Merge original wizard answers + clarification answers into one dict.

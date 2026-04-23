@@ -7,6 +7,7 @@ const routes = require('./routes');
 const { pool, testConnection } = require('./config/database');
 const logger = require('./utils/logger');
 const previewManager = require('./services/previewManager');
+const { verifyIframeToken, cookieNameFor, DEFAULT_TTL_MS: PREVIEW_COOKIE_TTL_MS } = require('./utils/previewToken');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,11 +15,62 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 
+function parseCookie(header, name) {
+  if (!header) return null;
+  const parts = header.split(';');
+  for (const part of parts) {
+    const [k, ...rest] = part.trim().split('=');
+    if (k === name) return rest.join('=');
+  }
+  return null;
+}
+
 // Preview proxy -- MUST be before body parsers so the raw stream can be piped
 app.use('/preview/:previewId', (req, res) => {
-  const preview = previewManager.getPreview(req.params.previewId);
+  const previewId = req.params.previewId;
+  const preview = previewManager.getPreview(previewId);
   if (!preview || preview.status !== 'running') {
-    return res.status(404).json({ error: 'Preview not found or not ready' });
+    return res.status(404).json({ error: 'Preview not found or not ready', code: 'NOT_FOUND' });
+  }
+
+  // --- Auth gate: either a valid cookie is already set, or ?token= lets us ---
+  // --- set the cookie now and redirect to a clean URL.
+  const cookieName = cookieNameFor(previewId);
+  const cookieToken = parseCookie(req.headers.cookie, cookieName);
+  const cookieValid = cookieToken && verifyIframeToken(cookieToken, { previewId });
+
+  if (!cookieValid) {
+    const queryIdx = req.url.indexOf('?');
+    const queryString = queryIdx === -1 ? '' : req.url.slice(queryIdx + 1);
+    const queryToken = new URLSearchParams(queryString).get('token');
+    const queryValid = queryToken && verifyIframeToken(queryToken, { previewId });
+
+    if (!queryValid) {
+      return res.status(401).json({ error: 'Preview access unauthorized', code: 'UNAUTHORIZED' });
+    }
+
+    // Set an httpOnly cookie scoped to this preview's path and redirect so the
+    // token disappears from the URL bar + future asset requests are authed.
+    const cookieAttrs = [
+      `${cookieName}=${queryToken}`,
+      `Path=/preview/${previewId}/`,
+      'HttpOnly',
+      'SameSite=Strict',
+      `Max-Age=${Math.floor(PREVIEW_COOKIE_TTL_MS / 1000)}`,
+    ];
+    if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
+      cookieAttrs.push('Secure');
+    }
+    res.setHeader('Set-Cookie', cookieAttrs.join('; '));
+
+    // Rebuild clean URL without the token param.
+    const params = new URLSearchParams(queryString);
+    params.delete('token');
+    const qs = params.toString();
+    const cleanPath = (queryIdx === -1 ? req.url : req.url.slice(0, queryIdx)) + (qs ? `?${qs}` : '');
+    res.setHeader('Location', `/preview/${previewId}${cleanPath}`);
+    res.status(302).end();
+    return;
   }
 
   const proxyReq = http.request(
@@ -38,7 +90,7 @@ app.use('/preview/:previewId', (req, res) => {
   proxyReq.on('error', (err) => {
     logger.error(`[PreviewProxy] ${err.message}`);
     if (!res.headersSent) {
-      res.status(502).json({ error: 'Preview proxy error: ' + err.message });
+      res.status(502).json({ error: 'Preview proxy error: ' + err.message, code: 'PROXY_ERROR' });
     }
   });
 

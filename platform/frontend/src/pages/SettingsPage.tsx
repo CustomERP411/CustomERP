@@ -121,7 +121,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Profile */}
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-slate-900">{t('settings:sections.profile')}</h2>
 
         <form onSubmit={handleProfileSave} className="mt-5 space-y-4">
@@ -162,7 +162,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Language */}
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-slate-900">{t('settings:sections.language')}</h2>
         <p className="mt-1 text-sm text-slate-500">{t('settings:language.info')}</p>
 
@@ -175,7 +175,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Password */}
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-slate-900">{t('settings:sections.password')}</h2>
 
         <form onSubmit={handlePasswordChange} className="mt-5 space-y-4">
@@ -229,7 +229,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Danger Zone */}
-      <section className="rounded-xl border border-red-200 bg-white p-6">
+      <section className="rounded-xl border border-red-200 bg-white p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-red-700">{t('settings:sections.danger')}</h2>
         <p className="mt-1 text-sm text-slate-500">{t('settings:danger.description')}</p>
 

@@ -139,7 +139,13 @@
   "warnings": []
 }}
 
-# MODULE DETECTION RULES:
+{selected_modules_block}
+
+# FALLBACK DETECTION (ONLY WHEN selected_modules IS EMPTY):
+# If the USER-SELECTED MODULES block above says a non-empty set was provided,
+# ignore the per-module keyword lists in this section — `modules_needed` MUST
+# exactly equal the selected set.  Only use these keyword rules to infer
+# `modules_needed` when the selection is empty.
 
 ## HR Module - Enable when user mentions:
 - employees, staff, personnel, workforce

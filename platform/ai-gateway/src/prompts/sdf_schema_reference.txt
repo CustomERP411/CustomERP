@@ -72,8 +72,23 @@
   "unique": boolean,
   "reference_entity": "string (when type=reference)",
   "options": ["array of strings (when type=choice or string with options)"],
-  "multiple": boolean
+  "multiple": boolean,
+  "computed": "boolean (optional, default false)"
 }
+
+## Computed fields
+Set `"computed": true` on any field that is MAINTAINED BY SERVER-SIDE LOGIC and MUST NOT
+be accepted from the UI or API payloads. Examples include derived quantity fields
+(`reserved_quantity`, `committed_quantity`, `available_quantity`) and running totals
+(`line_total`, `total_amount`, `shipped_qty`).
+
+Rules for computed fields:
+- They are persisted as normal columns in the DB (with a numeric default of 0 where applicable).
+- They appear in list/table views but NEVER in create or edit form inputs.
+- The generated backend validator strips them from inbound payloads; clients cannot set them.
+- When you add a computed field you MUST also ensure the server has a mechanism to maintain
+  it (mixin, hook, or explicit recompute endpoint) — do not mark a field computed if nothing
+  is maintaining it.
 
 ## Common Field Types
 - string: Short text (names, codes)

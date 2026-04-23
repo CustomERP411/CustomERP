@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import LanguageSelector from '../components/common/LanguageSelector';
+import BrandMark from '../components/brand/BrandMark';
 import type { LoginFormData, FormErrors } from '../types/auth';
 import { AxiosError } from 'axios';
 
@@ -94,8 +95,8 @@ export default function LoginPage() {
         </Link>
 
         <div>
-          <h1 className="text-4xl font-bold text-white">CustomERP</h1>
-          <p className="text-indigo-200 mt-2">{t('landing:hero.subtitle')}</p>
+          <BrandMark variant="wordmark" className="h-11 sm:h-12 w-auto max-w-sm object-left object-contain" />
+          <p className="text-indigo-200 mt-4">{t('landing:hero.subtitle')}</p>
         </div>
 
         <div className="space-y-6">
@@ -109,17 +110,17 @@ export default function LoginPage() {
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50 relative">
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8 bg-gray-50 relative">
         <div className="absolute top-4 right-4">
           <LanguageSelector compact />
         </div>
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
-          <div className="lg:hidden text-center mb-8">
-            <h1 className="text-3xl font-bold text-indigo-600">CustomERP</h1>
+          <div className="lg:hidden flex justify-center mb-6 sm:mb-8">
+            <BrandMark variant="wordmark" className="h-9 w-auto max-w-[min(100%,280px)] object-contain" />
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-gray-900">{t('auth:login.title')}</h2>
               <p className="text-gray-600 mt-2">{t('auth:login.subtitle')}</p>

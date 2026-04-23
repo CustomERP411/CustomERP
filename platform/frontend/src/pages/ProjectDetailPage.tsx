@@ -69,6 +69,17 @@ export default function ProjectDetailPage() {
   const [bizSkipWarningOpen, setBizSkipWarningOpen] = useState(false);
 
   const { setProjectContext, openChat, sendMessage, setPulsing } = useChatContext();
+
+  const handleHelpWithQuestion = (questionText: string, currentAnswer: string | string[]) => {
+    const ans = Array.isArray(currentAnswer)
+      ? currentAnswer.filter((v) => String(v || '').trim()).join(', ')
+      : String(currentAnswer ?? '').trim();
+    const prompt = ans
+      ? `I need help with this question: "${questionText}"\nMy current answer is: "${ans}"\nCan you help me improve or expand this answer?`
+      : `I need help answering this question: "${questionText}"\nCan you explain what this means and give me guidance on how to answer it for my business?`;
+    openChat();
+    void sendMessage(prompt);
+  };
   const stepRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
   const hasScrolledRef = useRef(false);
   const expectQuestionFetchRef = useRef(false);
@@ -872,39 +883,41 @@ export default function ProjectDetailPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8 pb-16">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{project.name}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-slate-900 break-words">{project.name}</h1>
           <p className="mt-1 text-sm text-slate-500">{t('projectDetail:header.subtitle')}</p>
         </div>
-        <Link to="/" className="rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">{t('projectDetail:header.backToProjects')}</Link>
+        <Link to="/" className="self-start rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">{t('projectDetail:header.backToProjects')}</Link>
       </div>
 
       {/* Step Progress Bar — hidden after generation */}
       {!sdf && (
-        <nav className="flex items-center gap-1">
-          {STEPS.map((label, i) => {
-            const done = i < currentStep;
-            const active = i === currentStep;
-            const clickable = done || active;
-            return (
-              <div key={label} className="flex flex-1 items-center">
-                <button
-                  type="button"
-                  disabled={!clickable}
-                  onClick={() => stepRefs[i]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  className={`flex items-center gap-2 ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
-                >
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${done ? 'bg-indigo-600 text-white' : active ? 'border-2 border-indigo-600 text-indigo-600' : 'border-2 border-slate-300 text-slate-400'}`}>
-                    {done ? <IconCheck className="h-4 w-4" /> : i + 1}
-                  </div>
-                  <span className={`hidden text-xs font-medium sm:block ${done ? 'text-indigo-600' : active ? 'text-slate-900' : 'text-slate-400'}`}>{label}</span>
-                </button>
-                {i < STEPS.length - 1 && <div className={`mx-2 h-0.5 flex-1 rounded ${done ? 'bg-indigo-600' : 'bg-slate-200'}`} />}
-              </div>
-            );
-          })}
-        </nav>
+        <div className="-mx-2 overflow-x-auto px-2 sm:mx-0 sm:px-0">
+          <nav className="flex items-center gap-1 min-w-max sm:min-w-0">
+            {STEPS.map((label, i) => {
+              const done = i < currentStep;
+              const active = i === currentStep;
+              const clickable = done || active;
+              return (
+                <div key={label} className="flex flex-1 items-center min-w-max sm:min-w-0">
+                  <button
+                    type="button"
+                    disabled={!clickable}
+                    onClick={() => stepRefs[i]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    className={`flex items-center gap-2 ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
+                  >
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${done ? 'bg-indigo-600 text-white' : active ? 'border-2 border-indigo-600 text-indigo-600' : 'border-2 border-slate-300 text-slate-400'}`}>
+                      {done ? <IconCheck className="h-4 w-4" /> : i + 1}
+                    </div>
+                    <span className={`hidden text-xs font-medium sm:block ${done ? 'text-indigo-600' : active ? 'text-slate-900' : 'text-slate-400'}`}>{label}</span>
+                  </button>
+                  {i < STEPS.length - 1 && <div className={`mx-2 h-0.5 flex-1 rounded ${done ? 'bg-indigo-600' : 'bg-slate-200'} min-w-[24px] sm:min-w-0`} />}
+                </div>
+              );
+            })}
+          </nav>
+        </div>
       )}
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -941,6 +954,7 @@ export default function ProjectDetailPage() {
                 saving={savingDefaultAnswers} canSave={canSaveDefaultAnswers}
                 onUpdateAnswer={updateDefaultAnswer} onToggleMultiChoice={toggleMultiChoiceAnswer}
                 onSave={saveDefaultAnswers}
+                onHelpWithQuestion={handleHelpWithQuestion}
               />
             </SlideIn>
           </div>
@@ -953,13 +967,7 @@ export default function ProjectDetailPage() {
                 skipWarningOpen={bizSkipWarningOpen}
                 onSetAnswers={setBusinessAnswers} onSetStep={setBusinessStep}
                 onAnalyze={() => { void analyze(); }}
-                onHelpWithQuestion={(questionText, currentAnswer) => {
-                  const prompt = currentAnswer
-                    ? `I need help with this question: "${questionText}"\nMy current answer is: "${currentAnswer}"\nCan you help me improve or expand this answer?`
-                    : `I need help answering this question: "${questionText}"\nCan you explain what this means and give me guidance on how to answer it for my business?`;
-                  openChat();
-                  void sendMessage(prompt);
-                }}
+                onHelpWithQuestion={handleHelpWithQuestion}
                 onSkipWarningChange={setBizSkipWarningOpen}
               />
             </SlideIn>

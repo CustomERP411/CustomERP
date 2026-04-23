@@ -99,17 +99,17 @@ export default function BusinessQuestions({
         </div>
 
         {/* Current question card */}
-        <div className="rounded-xl border bg-white p-5 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+        <div className="rounded-xl border bg-white p-4 sm:p-5 space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+            <div className="min-w-0">
               <span className="text-xs font-medium text-indigo-500 uppercase tracking-wide">{t('businessSection.questionLabel', { n: step + 1 })}</span>
-              <div className="mt-1 text-sm font-semibold text-slate-800">{q.question}</div>
+              <div className="mt-1 text-sm font-semibold text-slate-800 break-words">{q.question}</div>
               {q.hint && <div className="mt-1 text-xs text-slate-400">{q.hint}</div>}
             </div>
             <button
               type="button"
               onClick={() => onHelpWithQuestion(q.question, (answers[q.id] || '').trim())}
-              className="shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 transition-colors"
+              className="self-start shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 transition-colors"
             >
               {t('businessSection.needHelp')}
             </button>
@@ -129,15 +129,15 @@ export default function BusinessQuestions({
             }}
             autoFocus
           />
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
             <button type="button" onClick={() => onSetStep((s) => Math.max(0, s - 1))} disabled={step === 0}
               className="text-sm font-medium text-slate-500 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity">
               &larr; {t('businessSection.back')}
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={handleSkip}
                 disabled={!!(answers[q.id] || '').trim()}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                className="rounded-lg border border-slate-200 px-3 sm:px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                 {t('businessSection.skip')}
               </button>
               {step < questions.length - 1 ? (

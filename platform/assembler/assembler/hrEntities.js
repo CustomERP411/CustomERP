@@ -73,6 +73,15 @@ module.exports = {
       required: true,
       options: ['Active', 'On Leave', 'Terminated'],
     });
+    ensureField(employeeEntity, {
+      name: 'user_id',
+      type: 'reference',
+      label: 'Linked User',
+      reference_entity: '__erp_users',
+      required: false,
+      computed: true,
+      default: null,
+    });
 
     const departmentsEntity = ensureEntity(cfg.departmentEntity, 'hr', () => ({
       slug: cfg.departmentEntity,

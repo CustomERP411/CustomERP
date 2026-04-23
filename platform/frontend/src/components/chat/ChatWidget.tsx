@@ -46,7 +46,7 @@ export default function ChatWidget() {
         <button
           type="button"
           onClick={toggleChat}
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 hover:scale-105 active:scale-95"
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 hover:scale-105 active:scale-95"
           style={pulsing ? { animation: 'chatPulse 1s ease-in-out infinite' } : undefined}
           aria-label={t('openChat')}
         >
@@ -58,7 +58,7 @@ export default function ChatWidget() {
 
       {/* Chat panel */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 flex w-[400px] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
+        <div className="fixed bottom-6 right-3 sm:right-6 z-40 flex w-[calc(100vw-1.5rem)] sm:w-[400px] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
           style={{ height: '520px', maxHeight: 'calc(100vh - 48px)' }}
         >
           {/* Header */}

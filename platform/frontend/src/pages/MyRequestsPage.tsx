@@ -91,7 +91,7 @@ export default function MyRequestsPage() {
       const d = await featureRequestService.getMyDetail(detail.id);
       setDetail(d);
       setMsgText('');
-    } catch (e: any) { alert(e?.message || t('sendFailed')); }
+    } catch (e: any) { alert(e?.response?.data?.error || e?.message || t('sendFailed')); }
     finally { setMsgSending(false); }
   };
 
@@ -121,11 +121,11 @@ export default function MyRequestsPage() {
               <button
                 type="button"
                 onClick={() => toggleExpand(r.id)}
-                className="flex w-full items-start justify-between gap-3 px-5 py-4 text-left"
+                className="flex w-full items-start justify-between gap-3 px-4 sm:px-5 py-4 text-left"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   {statusIcon(r.status)}
-                  <span className="font-medium text-slate-800">{r.feature_name}</span>
+                  <span className="font-medium text-slate-800 truncate">{r.feature_name}</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${statusColor(r.status)}`}>
@@ -138,7 +138,7 @@ export default function MyRequestsPage() {
               </button>
 
               {expandedId === r.id && (
-                <div className="border-t px-5 py-4 bg-slate-50 space-y-4">
+                <div className="border-t px-4 sm:px-5 py-4 bg-slate-50 space-y-4">
                   {detailLoading ? (
                     <p className="text-sm text-slate-400 text-center py-4">{t('loading')}</p>
                   ) : detail ? (
@@ -186,19 +186,19 @@ export default function MyRequestsPage() {
                             </div>
                           )}
                         </div>
-                        <div className="mt-2 flex gap-2">
+                        <div className="mt-2 flex flex-col sm:flex-row gap-2">
                           <input
                             type="text"
                             value={msgText}
                             onChange={(e) => setMsgText(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                             placeholder={t('replyPlaceholder')}
-                            className="flex-1 rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                           <button
                             onClick={handleSendMessage}
                             disabled={!msgText.trim() || msgSending}
-                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors sm:w-auto"
                           >
                             {msgSending ? '...' : t('send')}
                           </button>

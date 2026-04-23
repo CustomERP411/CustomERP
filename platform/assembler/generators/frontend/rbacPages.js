@@ -174,6 +174,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
       <form
         onSubmit={handleSubmit}
+        name="erp-login"
+        autoComplete="off"
         className="w-full max-w-sm space-y-5 rounded-2xl border bg-white p-8 shadow-lg"
       >
         <div className="text-center">
@@ -188,6 +190,8 @@ export default function LoginPage() {
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">${esc(L.username)}</label>
           <input
+            name="erp-username"
+            autoComplete="off"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
@@ -200,6 +204,8 @@ export default function LoginPage() {
           <label className="mb-1 block text-sm font-medium text-slate-700">${esc(L.password)}</label>
           <input
             type="password"
+            name="erp-password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -243,11 +249,64 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
 `;
 }
 
+function buildRequirePermission({ language } = {}) {
+  const isTr = String(language || '').toLowerCase() === 'tr';
+  const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const L = isTr
+    ? {
+        loading: 'Yükleniyor...',
+        forbiddenTitle: 'Erişim reddedildi',
+        forbiddenBody: 'Bu sayfayı görüntüleme izniniz yok.',
+        missing: 'Eksik izin',
+        back: 'Geri dön',
+      }
+    : {
+        loading: 'Loading...',
+        forbiddenTitle: 'Access denied',
+        forbiddenBody: 'You do not have permission to view this page.',
+        missing: 'Missing permission',
+        back: 'Go back',
+      };
+  return `import { useAuth } from '../contexts/AuthContext';
+import { Link } from 'react-router-dom';
+import type { ReactNode } from 'react';
+
+export function ForbiddenPage({ missing }: { missing?: string }) {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-xl border border-rose-200 bg-rose-50 p-6 text-center shadow-sm">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+        </div>
+        <h2 className="text-lg font-semibold text-rose-900">${esc(L.forbiddenTitle)}</h2>
+        <p className="mt-1 text-sm text-rose-800">${esc(L.forbiddenBody)}</p>
+        {missing && (
+          <p className="mt-2 text-xs text-rose-700">
+            <span className="font-semibold">${esc(L.missing)}:</span> <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[11px]">{missing}</code>
+          </p>
+        )}
+        <div className="mt-4">
+          <Link to="/" className="inline-block rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100">${esc(L.back)}</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function RequirePermission({ permission, children }: { permission: string; children: ReactNode }) {
+  const { isSuperadmin, hasPermission, loading } = useAuth();
+  if (loading) return <div className="flex h-screen items-center justify-center text-sm text-slate-500">${esc(L.loading)}</div>;
+  if (!(isSuperadmin || hasPermission(permission))) return <ForbiddenPage missing={permission} />;
+  return <>{children}</>;
+}
+`;
+}
+
 function buildUsersAdminPageConnected({ language } = {}) {
   const t = tFor(language);
   const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   return `import { useEffect, useState, useCallback } from 'react';
-import { API } from '../../contexts/AuthContext';
+import { API, useAuth } from '../../contexts/AuthContext';
 
 interface UserRow {
   id: string;
@@ -269,6 +328,7 @@ interface MembershipRow {
 }
 
 export default function UsersAdminPageConnected() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [memberships, setMemberships] = useState<MembershipRow[]>([]);
@@ -322,45 +382,65 @@ export default function UsersAdminPageConnected() {
   };
 
   const handleSubmit = async () => {
-    const payload: Record<string, any> = {
-      username: form.username,
-      email: form.email,
-      display_name: form.display_name,
-      is_active: form.is_active ? 1 : 0,
-    };
-    if (form.password) payload.password_hash = form.password;
+    try {
+      const payload: Record<string, any> = {
+        username: form.username,
+        email: form.email,
+        display_name: form.display_name,
+        is_active: form.is_active ? 1 : 0,
+      };
+      if (form.password) payload.password_hash = form.password;
 
-    let userId: string;
-    if (editingUser) {
-      await API.put('/__erp_users/' + editingUser.id, payload);
-      userId = editingUser.id;
-    } else {
-      if (!form.password) { alert('${esc(t('rbac.passwordRequired'))}'); return; }
-      const { data } = await API.post('/__erp_users', payload);
-      userId = data.id;
-    }
-
-    const existingMemberships = memberships.filter((m) => m.user_id === userId);
-    for (const m of existingMemberships) {
-      if (!form.group_ids.includes(m.group_id)) {
-        await API.delete('/__erp_user_groups/' + m.id);
+      let userId: string;
+      if (editingUser) {
+        await API.put('/__erp_users/' + editingUser.id, payload);
+        userId = editingUser.id;
+      } else {
+        if (!form.password) { alert('${esc(t('rbac.passwordRequired'))}'); return; }
+        const { data } = await API.post('/__erp_users', payload);
+        userId = data.id;
       }
-    }
-    const existingGids = new Set(existingMemberships.map((m) => m.group_id));
-    for (const gid of form.group_ids) {
-      if (!existingGids.has(gid)) {
-        await API.post('/__erp_user_groups', { user_id: userId, group_id: gid });
-      }
-    }
 
-    setShowForm(false);
-    await load();
+      const existingMemberships = memberships.filter((m) => m.user_id === userId);
+      for (const m of existingMemberships) {
+        if (!form.group_ids.includes(m.group_id)) {
+          await API.delete('/__erp_user_groups/' + m.id);
+        }
+      }
+      const existingGids = new Set(existingMemberships.map((m) => m.group_id));
+      for (const gid of form.group_ids) {
+        if (!existingGids.has(gid)) {
+          await API.post('/__erp_user_groups', { user_id: userId, group_id: gid });
+        }
+      }
+
+      setShowForm(false);
+      await load();
+    } catch (e: any) {
+      alert(e?.response?.data?.error || e?.message || 'Request failed');
+    }
   };
 
   const toggleStatus = async (user: UserRow) => {
-    await API.put('/__erp_users/' + user.id, { is_active: Number(user.is_active) === 0 ? 1 : 0 });
-    await load();
+    try {
+      await API.put('/__erp_users/' + user.id, { is_active: Number(user.is_active) === 0 ? 1 : 0 });
+      await load();
+    } catch (e: any) {
+      alert(e?.response?.data?.error || e?.message || 'Request failed');
+    }
   };
+
+  const superadminGroup = groups.find((g) => String(g.name).toLowerCase() === 'superadmin');
+  const superadminUserIds = superadminGroup
+    ? [...new Set(memberships.filter((m) => m.group_id === superadminGroup.id).map((m) => m.user_id))]
+    : [];
+  const activeSuperadminIds = superadminUserIds.filter((uid) => {
+    const u = users.find((x) => x.id === uid);
+    return u && Number(u.is_active) !== 0;
+  });
+  const isEditingSelf = !!(editingUser && currentUser && editingUser.id === currentUser.id);
+  const isLastActiveSuperadmin = !!(editingUser && activeSuperadminIds.length === 1 && activeSuperadminIds[0] === editingUser.id);
+  const superadminGroupId = superadminGroup ? superadminGroup.id : null;
 
   return (
     <div className="space-y-4">
@@ -381,26 +461,61 @@ export default function UsersAdminPageConnected() {
             <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="${t('rbac.username')}" className="rounded-lg border px-3 py-2 text-sm" />
             <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="${t('rbac.email')}" className="rounded-lg border px-3 py-2 text-sm" />
             <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="${t('rbac.displayName')}" className="rounded-lg border px-3 py-2 text-sm" />
-            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editingUser ? '${esc(t('rbac.passwordKeep'))}' : '${esc(t('rbac.password'))}'} className="rounded-lg border px-3 py-2 text-sm" />
+            <input type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editingUser ? '${esc(t('rbac.passwordKeep'))}' : '${esc(t('rbac.password'))}'} className="rounded-lg border px-3 py-2 text-sm" />
           </div>
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="h-4 w-4 rounded border-slate-300" />
-            ${t('rbac.active')}
-          </label>
+          <div className="space-y-1">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                disabled={(isEditingSelf && form.is_active) || (isLastActiveSuperadmin && form.is_active)}
+                onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                className="h-4 w-4 rounded border-slate-300 disabled:opacity-50"
+              />
+              ${t('rbac.active')}
+            </label>
+            {isEditingSelf && form.is_active && (
+              <p className="text-xs italic text-slate-500">${esc(t('rbac.cannotDeactivateSelf'))}</p>
+            )}
+            {!isEditingSelf && isLastActiveSuperadmin && form.is_active && (
+              <p className="text-xs italic text-slate-500">${esc(t('rbac.lastSuperadmin'))}</p>
+            )}
+          </div>
           <div>
             <div className="mb-1 text-sm font-medium text-slate-700">${t('rbac.roles')}</div>
             <div className="flex flex-wrap gap-2">
-              {groups.map((g) => (
-                <label key={g.id} className="inline-flex items-center gap-1 text-sm">
-                  <input type="checkbox" checked={form.group_ids.includes(g.id)} onChange={(e) => {
-                    setForm((f) => ({
-                      ...f,
-                      group_ids: e.target.checked ? [...f.group_ids, g.id] : f.group_ids.filter((id) => id !== g.id),
-                    }));
-                  }} className="h-4 w-4 rounded border-slate-300" />
-                  {g.name}
-                </label>
-              ))}
+              {groups.map((g) => {
+                const isSuperGroup = superadminGroupId !== null && g.id === superadminGroupId;
+                const isChecked = form.group_ids.includes(g.id);
+                const lockSelf = isEditingSelf && isSuperGroup && isChecked;
+                const lockLast = isSuperGroup && isChecked && isLastActiveSuperadmin;
+                const disabled = lockSelf || lockLast;
+                return (
+                  <label key={g.id} className="inline-flex flex-col text-sm">
+                    <span className="inline-flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={disabled}
+                        onChange={(e) => {
+                          setForm((f) => ({
+                            ...f,
+                            group_ids: e.target.checked ? [...f.group_ids, g.id] : f.group_ids.filter((id) => id !== g.id),
+                          }));
+                        }}
+                        className="h-4 w-4 rounded border-slate-300 disabled:opacity-50"
+                      />
+                      {g.name}
+                    </span>
+                    {lockSelf && (
+                      <span className="ml-5 text-[11px] italic text-slate-500">${esc(t('rbac.cannotDemoteSelf'))}</span>
+                    )}
+                    {!lockSelf && lockLast && (
+                      <span className="ml-5 text-[11px] italic text-slate-500">${esc(t('rbac.lastSuperadmin'))}</span>
+                    )}
+                  </label>
+                );
+              })}
             </div>
           </div>
           <div className="flex gap-2">
@@ -423,6 +538,9 @@ export default function UsersAdminPageConnected() {
           <tbody>
             {filtered.map((user) => {
               const isProtected = isSuperadminUser(user.id);
+              const isSelf = !!(currentUser && user.id === currentUser.id);
+              const isLastActive = activeSuperadminIds.length === 1 && activeSuperadminIds[0] === user.id;
+              const canToggleStatus = !isProtected && !isSelf && !(isLastActive && Number(user.is_active) !== 0);
               return (
               <tr key={user.id} className="border-t border-slate-100">
                 <td className="px-3 py-2">
@@ -441,7 +559,7 @@ export default function UsersAdminPageConnected() {
                 <td className="px-3 py-2 text-right">
                   <div className="inline-flex items-center gap-2">
                     <button onClick={() => openEdit(user)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">${t('rbac.edit')}</button>
-                    {!isProtected && (
+                    {canToggleStatus && (
                       <button onClick={() => toggleStatus(user)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">{Number(user.is_active) !== 0 ? '${esc(t('rbac.disable'))}' : '${esc(t('rbac.activate'))}'}</button>
                     )}
                   </div>
@@ -473,9 +591,10 @@ function buildGroupsAdminPageConnected({ language } = {}) {
   const descriptionOptional = isTr ? 'Açıklama (opsiyonel)' : 'Description (optional)';
   const whatCanThisRoleDo = isTr ? 'Bu rol neler yapabilir?' : 'What can this role do?';
   const hideAdvanced = isTr ? 'Gelişmiş ayarları gizle' : 'Hide advanced settings';
-  const showAdvanced = isTr ? 'Gelişmiş ayarları göster' : 'Show advanced settings';
+  const showAdvancedLbl = isTr ? 'Gelişmiş ayarları göster' : 'Show advanced settings';
   const manageRolesSub = isTr ? 'Rolleri ve her rolün neler yapabileceğini yönetin.' : 'Manage roles and what each role can do.';
-  return `import { useEffect, useState, useCallback } from 'react';
+  const closeLbl = isTr ? 'Kapat' : 'Close';
+  return `import { useEffect, useState, useCallback, useRef } from 'react';
 import { API } from '../../contexts/AuthContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { ENTITIES } from '../../config/entities';
@@ -515,6 +634,21 @@ export default function GroupsAdminPageConnected() {
   const [form, setForm] = useState({ name: '', description: '', permission_ids: [] as string[] });
   const [query, setQuery] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const firstInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowForm(false); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusTimer = window.setTimeout(() => { firstInputRef.current?.focus(); }, 30);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+      window.clearTimeout(focusTimer);
+    };
+  }, [showForm]);
 
   const load = useCallback(async () => {
     const [g, m, gp, p] = await Promise.all([
@@ -660,37 +794,56 @@ export default function GroupsAdminPageConnected() {
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="${esc(searchRoles)}" className="w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500" />
 
       {showForm && (
-        <div className="rounded-xl border bg-white p-5 shadow-sm space-y-4">
-          <h3 className="font-semibold text-slate-900">{editing ? '${esc(t('rbac.editRole'))}' : '${esc(t('rbac.createRole'))}'}</h3>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="${esc(t('rbac.roleName'))}" className="rounded-lg border px-3 py-2 text-sm" />
-            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="${esc(descriptionOptional)}" className="rounded-lg border px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <div className="mb-2 text-sm font-medium text-slate-700">${esc(whatCanThisRoleDo)}</div>
-            <div className="max-h-80 overflow-y-auto space-y-2">
-              {renderPermBlock(permsByEntity)}
-            </div>
-          </div>
-          {isSuperadmin && Object.keys(systemPermsByEntity).length > 0 && (
-            <div>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowForm(false); }}
+        >
+          <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <h3 className="font-semibold text-slate-900">{editing ? '${esc(t('rbac.editRole'))}' : '${esc(t('rbac.createRole'))}'}</h3>
               <button
                 type="button"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                aria-label="${esc(closeLbl)}"
+                onClick={() => setShowForm(false)}
+                className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
               >
-                {showAdvanced ? '${esc(hideAdvanced)}' : '${esc(showAdvanced)}'}
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
               </button>
-              {showAdvanced && (
-                <div className="mt-2 max-h-48 overflow-y-auto space-y-2 rounded-lg border border-dashed border-slate-300 p-3">
-                  {renderPermBlock(systemPermsByEntity)}
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto px-5 py-4 space-y-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <input ref={firstInputRef} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="${esc(t('rbac.roleName'))}" className="rounded-lg border px-3 py-2 text-sm" />
+                <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="${esc(descriptionOptional)}" className="rounded-lg border px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <div className="mb-2 text-sm font-medium text-slate-700">${esc(whatCanThisRoleDo)}</div>
+                <div className="space-y-2">
+                  {renderPermBlock(permsByEntity)}
+                </div>
+              </div>
+              {isSuperadmin && Object.keys(systemPermsByEntity).length > 0 && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                  >
+                    {showAdvanced ? '${esc(hideAdvanced)}' : '${esc(showAdvancedLbl)}'}
+                  </button>
+                  {showAdvanced && (
+                    <div className="mt-2 space-y-2 rounded-lg border border-dashed border-slate-300 p-3">
+                      {renderPermBlock(systemPermsByEntity)}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-          <div className="flex gap-2">
-            <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">${t('rbac.save')}</button>
-            <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">${t('rbac.cancel')}</button>
+            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+              <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white">${t('rbac.cancel')}</button>
+              <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">${t('rbac.save')}</button>
+            </div>
           </div>
         </div>
       )}
@@ -887,6 +1040,7 @@ module.exports = {
   buildAuthContext,
   buildLoginPage,
   buildRequireAuth,
+  buildRequirePermission,
   buildUsersAdminPageConnected,
   buildGroupsAdminPageConnected,
   buildPermissionsAdminPageConnected,

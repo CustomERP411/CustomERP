@@ -120,11 +120,11 @@ export default function AdminPage() {
       {actionError && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">{actionError}</div>}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex gap-1 border-b border-slate-200 overflow-x-auto -mx-2 px-2">
         <button
           type="button"
           onClick={() => setActiveTab('users')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'users'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -135,7 +135,7 @@ export default function AdminPage() {
         <button
           type="button"
           onClick={() => setActiveTab('projects')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'projects'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -148,7 +148,7 @@ export default function AdminPage() {
       {/* Users Tab */}
       {activeTab === 'users' && (
         <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-slate-50 text-left">
@@ -220,13 +220,74 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile: stacked cards */}
+          <ul className="sm:hidden divide-y divide-slate-100">
+            {activeUsers.map((u) => (
+              <li key={u.id} className={`p-4 space-y-3 ${u.blocked ? 'bg-red-50/30' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-slate-900">
+                      {u.name}
+                      {u.id === user.id && <span className="ml-1.5 text-xs font-normal text-slate-400">{t('users.youLabel')}</span>}
+                    </div>
+                    <div className="truncate text-xs text-slate-500">{u.email}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    {u.is_admin ? (
+                      <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">{t('users.adminBadge')}</span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{t('users.userBadge')}</span>
+                    )}
+                    {u.blocked && (
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                        {t('users.blocked')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-xs text-slate-500">{new Date(u.created_at).toLocaleDateString(i18n.language)}</div>
+                {u.id !== user.id && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleAdmin(u)}
+                      className="rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50"
+                    >
+                      {u.is_admin ? t('users.revokeAdmin') : t('users.makeAdmin')}
+                    </button>
+                    {u.blocked ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleUnblock(u)}
+                        className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50"
+                      >
+                        {t('users.unblock')}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openBlock(u)}
+                        className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                      >
+                        {t('users.block')}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+            {activeUsers.length === 0 && (
+              <li className="px-4 py-8 text-center text-sm text-slate-400">{t('users.noUsers')}</li>
+            )}
+          </ul>
         </section>
       )}
 
       {/* Projects Tab */}
       {activeTab === 'projects' && (
         <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-slate-50 text-left">
@@ -263,6 +324,33 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile: stacked cards */}
+          <ul className="sm:hidden divide-y divide-slate-100">
+            {projects.map((p) => (
+              <li key={p.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-slate-900">{p.name}</div>
+                    <div className="truncate text-xs text-slate-600">{p.owner.name}</div>
+                    <div className="truncate text-xs text-slate-400">{p.owner.email}</div>
+                  </div>
+                  <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                    p.status === 'Approved' ? 'bg-emerald-100 text-emerald-700'
+                      : p.status === 'Ready' ? 'bg-blue-100 text-blue-700'
+                      : p.status === 'Generated' ? 'bg-violet-100 text-violet-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {tProjects(`status.${p.status}`, { defaultValue: p.status })}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-500">{new Date(p.created_at).toLocaleDateString(i18n.language)}</div>
+              </li>
+            ))}
+            {projects.length === 0 && (
+              <li className="px-4 py-8 text-center text-sm text-slate-400">{t('projects.noProjects')}</li>
+            )}
+          </ul>
         </section>
       )}
 

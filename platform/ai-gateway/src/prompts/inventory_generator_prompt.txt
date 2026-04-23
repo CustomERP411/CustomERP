@@ -109,8 +109,60 @@
 # Entity object: slug, module ("inventory" or "shared"), fields[], display_name?,
 #   display_field?, ui?, features?, inventory_ops?, labels?
 # Field object: name, type (string|text|integer|decimal|boolean|date|datetime|reference),
-#   label?, required?, reference_entity?, options?, unique?, min?, max?
+#   label?, required?, reference_entity?, options?, unique?, min?, max?, computed?
 # System fields (id, created_at, updated_at) are auto-generated and should not be included.
+
+# IMPORTANT — computed fields on the stock entity:
+# When the module_config enables reservations (module_config.reservations.enabled=true),
+# the stock/product entity MUST include `reserved_quantity`, `committed_quantity`, and
+# `available_quantity` as COMPUTED numeric fields. Server-side logic maintains them; they
+# must never be user-editable inputs.
+#
+# Emit each of them like this:
+#   { "name": "reserved_quantity", "type": "decimal", "label": "Reserved",
+#     "required": false, "computed": true, "min": 0 }
+#   { "name": "committed_quantity", "type": "decimal", "label": "Committed",
+#     "required": false, "computed": true, "min": 0 }
+#   { "name": "available_quantity", "type": "decimal", "label": "Available",
+#     "required": false, "computed": true }
+# Do NOT mark `quantity` / `on_hand` as computed — that is the raw input the user edits.
+
+# REQUIRED — sales orders pack:
+# Whenever the inventory module is enabled (which it is any time you are running),
+# your output MUST include the following two entities unless change instructions
+# explicitly remove them. These entities drive `committed_quantity` on the stock entity:
+#
+# sales_orders (module: "inventory"):
+#   fields:
+#     order_number   string, required, unique
+#     customer       reference (reference_entity: "customers" if a customers entity exists,
+#                    otherwise string)
+#     order_date     date, required
+#     status         choice, required, options: ["draft","approved","shipped","cancelled","closed"]
+#     notes          text, required: false
+#     total_amount   decimal, computed: true    # summed from lines; never editable
+#   features: { "audit_trail": true }
+#   ui: { "search": true }
+#   children: [ { "entity": "sales_order_lines", "foreign_key": "sales_order_id",
+#                 "label": "Order Lines", "columns": ["product","ordered_qty","shipped_qty","unit_price","line_total"] } ]
+#
+# sales_order_lines (module: "inventory"):
+#   fields:
+#     sales_order    reference to sales_orders, required
+#     product        reference to the stock entity (e.g. "products" / "tires" / whatever
+#                    slug the inventory stock entity uses), required
+#     ordered_qty    decimal, required, min: 0
+#     shipped_qty    decimal, computed: true, min: 0   # maintained by shipments
+#     unit_price     decimal, required, min: 0
+#     line_total     decimal, computed: true           # ordered_qty * unit_price
+#
+# Rules:
+# - Do NOT treat shipped_qty, line_total, or total_amount as user inputs; they MUST be
+#   marked `"computed": true` so they are kept out of create/edit forms.
+# - The parent `sales_orders` MUST list sales_order_lines under its `children` config so
+#   the lines are rendered inline and NOT as a separate top-level page.
+# - If the prefilled SDF already contains these entities, keep them; only add the missing
+#   pieces (computed flags, children config, missing fields) to match this spec.
 #
 # inventory_ops example:
 # { "enabled": true, "quantity_field": "on_hand",

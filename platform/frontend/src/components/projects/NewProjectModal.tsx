@@ -5,7 +5,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { projectService } from '../../services/projectService';
 import { useAuth } from '../../context/AuthContext';
-import { LANGUAGE_LABELS, normalizeLanguage } from '../../i18n';
+import { normalizeLanguage } from '../../i18n';
 import type { Project, ProjectLanguage } from '../../types/project';
 
 interface NewProjectModalProps {
@@ -26,7 +26,7 @@ export default function NewProjectModal({ isOpen, onClose, onProjectCreated }: N
   // Silently inherit the user's preferred language, but show a notice so they know
   // which language the project (and its generated ERP) will be locked to.
   const projectLanguage: ProjectLanguage = normalizeLanguage(user?.preferred_language);
-  const languageLabel = LANGUAGE_LABELS[projectLanguage];
+  const languageLabel = t(`projects:card.languages.${projectLanguage}`);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

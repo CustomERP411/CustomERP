@@ -256,6 +256,10 @@
       "macOsTip": "If macOS shows a security warning, right-click the file and choose \"Open\" instead.",
       "windowsTip": "If Windows shows a SmartScreen warning, click \"More info\" then \"Run anyway\".",
       "linuxTip": "You may need to run: chmod +x start.sh first, then ./start.sh",
+      "linuxSupportedTitle": "Tested on:",
+      "linuxSupported": "Any glibc-based x86_64 distribution -- Ubuntu, Debian, Fedora, Arch, Manjaro, openSUSE, Mint, Pop!_OS.",
+      "linuxUnsupportedTitle": "Not supported:",
+      "linuxUnsupported": "Alpine / musl, ARM64 (Raspberry Pi, Apple Silicon Linux), 32-bit, NixOS (without nix-ld).",
       "step3Title": "Your browser will open automatically at",
       "step3Desc": "That is your ERP. You can start adding data right away.",
       "dataTitle": "About your data:",
@@ -408,7 +412,8 @@
     "select": "Select...",
     "customPlaceholder": "Type your custom value...",
     "textPlaceholder": "Your answer...",
-    "continue": "Continue"
+    "continue": "Continue",
+    "needHelp": "Need help?"
   },
   "header": {
     "subtitle": "Set up your ERP step by step",

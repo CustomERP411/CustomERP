@@ -4,6 +4,7 @@
     "settings": "Settings",
     "users": "Users",
     "roles": "Roles",
+    "permissions": "Permissions",
     "signOut": "Sign out",
     "modules": {
       "inventory": "Inventory",
@@ -71,10 +72,36 @@
     "permissionsSubtitle": "Review every permission in the system.",
     "permissionKey": "Key",
     "permissionLabel": "Label",
-    "permissionModule": "Module"
+    "permissionModule": "Module",
+    "cannotDeactivateSelf": "You cannot deactivate your own account",
+    "cannotDemoteSelf": "You cannot remove your own superadmin role",
+    "lastSuperadmin": "This is the last remaining superadmin"
+  },
+  "companionUser": {
+    "title": "Login for this employee",
+    "createLogin": "Create login for this employee",
+    "username": "Username",
+    "password": "Password",
+    "roles": "Roles",
+    "active": "Active",
+    "linkedUser": "Linked user",
+    "linkedUserAlready": "This employee already has a linked user account.",
+    "openInUsers": "Open in Users",
+    "usernameRequired": "Username is required",
+    "passwordTooShort": "Password must be at least 4 characters"
   },
   "topbar": {
     "welcome": "Welcome",
     "logout": "Log out"
+  },
+  "stockAvailability": {
+    "title": "Stock Availability",
+    "onHand": "On Hand",
+    "reserved": "Reserved",
+    "committed": "Committed",
+    "available": "Available",
+    "reservedTooltip": "Quantity held by open sales reservations. Not yet shipped or committed to a confirmed order.",
+    "committedTooltip": "Quantity on approved sales orders that have not been shipped yet.",
+    "infoIconAria": "More information"
   }
 }

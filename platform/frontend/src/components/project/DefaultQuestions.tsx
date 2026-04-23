@@ -15,12 +15,14 @@ interface Props {
   onUpdateAnswer: (questionId: string, value: string | string[]) => void;
   onToggleMultiChoice: (questionId: string, option: string, enabled: boolean) => void;
   onSave: () => void;
+  onHelpWithQuestion?: (questionText: string, currentAnswer: string | string[]) => void;
 }
 
 export default function DefaultQuestions({
   answersById, completion, questionsByModule, moduleCompletionCounts,
   loading, saving, canSave,
   onUpdateAnswer, onToggleMultiChoice, onSave,
+  onHelpWithQuestion,
 }: Props) {
   const [customActiveFor, setCustomActiveFor] = useState<Set<string>>(new Set());
   const { t } = useTranslation('projectDetail');
@@ -28,13 +30,13 @@ export default function DefaultQuestions({
 
   return (
     <section className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-slate-900">{t('defaultQuestions.title')}</h2>
           <p className="mt-0.5 text-sm text-slate-500">{t('defaultQuestions.subtitle')}</p>
         </div>
         {completion && (
-          <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${completion.is_complete ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+          <span className={`self-start shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${completion.is_complete ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
             {t('defaultQuestions.answeredCount', { answered: completion.answered_required_visible, total: completion.total_required_visible })}
           </span>
         )}
@@ -53,10 +55,10 @@ export default function DefaultQuestions({
 
             return (
               <div key={mod} className={`rounded-xl border bg-white overflow-hidden ${styles.left}`}>
-                <div className="flex items-center justify-between gap-3 border-b bg-slate-50/60 px-5 py-3">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-3 border-b bg-slate-50/60 px-4 py-3 sm:px-5">
+                  <div className="flex items-center gap-2 min-w-0">
                     <span className={`inline-block h-2.5 w-2.5 rounded-full ${styles.dot}`} />
-                    <span className="text-sm font-semibold text-slate-900">{meta.label}</span>
+                    <span className="text-sm font-semibold text-slate-900 truncate">{meta.label}</span>
                   </div>
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${allDone ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                     {counts.answered}/{counts.total}
@@ -71,17 +73,48 @@ export default function DefaultQuestions({
                     const multiValues = Array.isArray(rawAnswer) ? rawAnswer : [];
                     const selectedKnownOption = options.includes(answerString) ? answerString : '';
                     const customValue = options.includes(answerString) ? '' : answerString;
+                    // Option VALUES stay language-neutral (stored slugs). `option_labels`
+                    // provides locale-specific display strings; fall back to the raw value
+                    // when no translation is registered.
+                    const labelFor = (opt: string) => q.option_labels?.[opt] ?? opt;
 
                     return (
-                      <div key={q.id} id={`dq-${q.id}`} className="scroll-mt-6 px-5 py-4">
+                      <div key={q.id} id={`dq-${q.id}`} className="scroll-mt-6 px-4 py-4 sm:px-5">
                         <div className="flex items-start gap-3">
                           <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">
                             {qi + 1}
                           </span>
-                          <div className="flex-1 space-y-2.5">
-                            <div className="text-sm font-medium text-slate-800">
-                              {q.question}
-                              {q.required && <span className="ml-1 text-red-500">*</span>}
+                          <div className="flex-1 min-w-0 space-y-2.5">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                              <div className="text-sm font-medium text-slate-800 min-w-0 break-words">
+                                {q.question}
+                                {q.required && <span className="ml-1 text-red-500">*</span>}
+                              </div>
+                              {onHelpWithQuestion && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    let currentAnswer: string | string[] = '';
+                                    if (Array.isArray(rawAnswer)) {
+                                      currentAnswer = rawAnswer.map((v) => labelFor(v));
+                                    } else if (q.type === 'yes_no') {
+                                      currentAnswer = answerString === 'yes'
+                                        ? t('defaultQuestions.yes')
+                                        : answerString === 'no'
+                                          ? t('defaultQuestions.no')
+                                          : '';
+                                    } else if (q.type === 'choice' || q.type === 'multi_choice') {
+                                      currentAnswer = answerString ? labelFor(answerString) : '';
+                                    } else {
+                                      currentAnswer = answerString;
+                                    }
+                                    onHelpWithQuestion(q.question, currentAnswer);
+                                  }}
+                                  className="self-start shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 transition-colors"
+                                >
+                                  {t('defaultQuestions.needHelp')}
+                                </button>
+                              )}
                             </div>
 
                             {q.type === 'yes_no' && (
@@ -110,7 +143,7 @@ export default function DefaultQuestions({
                                         checked ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                                       }`}
                                     >
-                                      {opt}
+                                      {labelFor(opt)}
                                     </button>
                                   );
                                 })}
@@ -133,7 +166,7 @@ export default function DefaultQuestions({
                                           selectedKnownOption === opt && !isCustomActive ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                                         }`}
                                       >
-                                        {opt}
+                                        {labelFor(opt)}
                                       </button>
                                     ))}
                                     {q.allow_custom && (
@@ -165,7 +198,7 @@ export default function DefaultQuestions({
                                     className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
                                   >
                                     <option value="">{t('defaultQuestions.select')}</option>
-                                    {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                                    {options.map((opt) => <option key={opt} value={opt}>{labelFor(opt)}</option>)}
                                     {q.allow_custom && <option value="__custom__">{t('defaultQuestions.custom')}</option>}
                                   </select>
                                 )}

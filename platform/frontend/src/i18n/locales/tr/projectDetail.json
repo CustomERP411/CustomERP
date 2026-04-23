@@ -254,6 +254,10 @@
       "macOsTip": "macOS bir güvenlik uyarısı gösterirse dosyaya sağ tıklayıp \"Aç\"ı seçin.",
       "windowsTip": "Windows SmartScreen uyarısı gösterirse \"Daha fazla bilgi\"ye tıklayın ardından \"Yine de çalıştır\"ı seçin.",
       "linuxTip": "Önce şunu çalıştırmanız gerekebilir: chmod +x start.sh ardından ./start.sh",
+      "linuxSupportedTitle": "Test edildiği dağıtımlar:",
+      "linuxSupported": "glibc tabanlı her x86_64 dağıtımı -- Ubuntu, Debian, Fedora, Arch, Manjaro, openSUSE, Mint, Pop!_OS.",
+      "linuxUnsupportedTitle": "Desteklenmeyenler:",
+      "linuxUnsupported": "Alpine / musl, ARM64 (Raspberry Pi, Apple Silicon Linux), 32-bit, NixOS (nix-ld olmadan).",
       "step3Title": "Tarayıcınız otomatik olarak şu adreste açılır:",
       "step3Desc": "Bu sizin ERP'niz. Hemen veri eklemeye başlayabilirsiniz.",
       "dataTitle": "Verileriniz hakkında:",
@@ -400,7 +404,8 @@
     "select": "Seçin...",
     "customPlaceholder": "Özel değerinizi yazın...",
     "textPlaceholder": "Cevabınız...",
-    "continue": "Devam Et"
+    "continue": "Devam Et",
+    "needHelp": "Yardım ister misin?"
   },
   "header": {
     "subtitle": "ERP'nizi adım adım kurun",

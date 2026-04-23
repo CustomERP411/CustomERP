@@ -42,7 +42,7 @@ export default function GenerationModal({
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4 !m-0">
       <div className={`w-full rounded-2xl border border-slate-200 bg-white shadow-2xl text-center transition-all duration-500 ease-in-out ${
-        hasQuestions ? 'max-w-2xl p-6' : 'max-w-md p-8'
+        hasQuestions ? 'max-w-2xl p-4 sm:p-6' : 'max-w-md p-6 sm:p-8'
       }`}>
 
         {/* Progress mode */}

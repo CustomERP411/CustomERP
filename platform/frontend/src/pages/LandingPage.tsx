@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../components/common/LanguageSelector';
+import BrandMark from '../components/brand/BrandMark';
 
 /**
  * Landing Page Component
@@ -26,26 +27,24 @@ export default function LandingPage() {
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
-        <header className="flex items-center justify-between mb-16">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-indigo-600 font-bold text-xl">C</span>
-            </div>
-            <div className="text-2xl font-bold text-white">
-              <span className="text-emerald-400">Custom</span>ERP
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <LanguageSelector compact />
+        <header className="flex flex-wrap items-center justify-between gap-3 mb-12 sm:mb-16">
+          <Link to="/" className="flex items-center min-w-0">
+            <BrandMark
+              variant="wordmark"
+              className="h-8 sm:h-9 w-auto max-w-[min(100%,220px)] object-contain object-left"
+            />
+          </Link>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <LanguageSelector variant="landing" />
             <Link
               to="/login"
-              className="px-6 py-2 text-white hover:text-emerald-400 transition-colors font-medium"
+              className="px-3 sm:px-6 py-2 text-xs sm:text-sm text-white hover:text-emerald-400 transition-colors font-medium"
             >
               {t('nav.signIn')}
             </Link>
             <Link
               to="/register"
-              className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all font-semibold shadow-lg"
+              className="px-3 sm:px-6 py-2 sm:py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all font-semibold shadow-lg text-xs sm:text-sm"
             >
               {t('nav.getStarted')}
             </Link>
@@ -53,27 +52,27 @@ export default function LandingPage() {
         </header>
 
         {/* Hero Content */}
-        <div className="text-center space-y-8 py-12">
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight">
+        <div className="text-center space-y-6 sm:space-y-8 py-6 sm:py-12">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight">
             {t('hero.titleLine1')}
             <br />
             <span className="text-emerald-400">{t('hero.titleLine2')}</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-indigo-200 max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl md:text-2xl text-indigo-200 max-w-3xl mx-auto">
             {t('hero.subtitle')}
           </p>
 
-          <div className="flex items-center justify-center gap-4 pt-8">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 pt-6 sm:pt-8">
             <Link
               to="/register"
-              className="px-8 py-4 bg-emerald-500 text-white text-lg rounded-lg hover:bg-emerald-600 transition-all font-semibold shadow-xl"
+              className="px-6 sm:px-8 py-3 sm:py-4 bg-emerald-500 text-white text-base sm:text-lg rounded-lg hover:bg-emerald-600 transition-all font-semibold shadow-xl text-center"
             >
               {t('hero.ctaPrimary')}
             </Link>
             <a
               href="#how-it-works"
-              className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white text-lg rounded-lg hover:bg-white/20 transition-all font-semibold"
+              className="px-6 sm:px-8 py-3 sm:py-4 bg-white/10 backdrop-blur-sm text-white text-base sm:text-lg rounded-lg hover:bg-white/20 transition-all font-semibold text-center"
             >
               {t('hero.ctaSecondary')}
             </a>

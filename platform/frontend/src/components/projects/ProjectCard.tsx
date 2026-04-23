@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Project } from '../../types/project';
-import { LANGUAGE_LABELS, normalizeLanguage } from '../../i18n';
+import { normalizeLanguage } from '../../i18n';
 
 interface ProjectCardProps {
   project: Project;
@@ -29,17 +29,17 @@ export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
             {t(`projects:status.${project.status}`, { defaultValue: project.status })}
           </span>
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600">
-            {LANGUAGE_LABELS[projectLang]}
+            {t(`projects:card.languages.${projectLang}`)}
           </span>
         </div>
 
-        <h3 className="mt-3 text-lg font-semibold text-slate-900 group-hover:text-blue-600">
-          <Link to={`/projects/${project.id}`} className="focus:outline-none hover:underline">
+        <h3 className="mt-3 text-lg font-semibold text-slate-900 group-hover:text-blue-600 truncate">
+          <Link to={`/projects/${project.id}`} className="focus:outline-none hover:underline block truncate" title={project.name}>
             {project.name}
           </Link>
         </h3>
 
-        <div className="mt-4 flex items-center gap-4 text-xs text-slate-500">
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
           <div className="flex items-center gap-1">
             <span>{new Date(project.created_at).toLocaleDateString(i18n.language)}</span>
           </div>
@@ -54,7 +54,7 @@ export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t pt-3 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="mt-4 flex items-center justify-between border-t pt-3 transition-opacity opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
         <button
           type="button"
           onClick={() => onDelete?.(project)}

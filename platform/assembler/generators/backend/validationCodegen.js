@@ -10,14 +10,44 @@ module.exports = {
     if (deleteSnippet) weaver.inject('BEFORE_DELETE_VALIDATION', deleteSnippet);
   },
 
+  _getComputedFieldNames(entity) {
+    const fields = Array.isArray(entity && entity.fields) ? entity.fields : [];
+    return fields
+      .filter((f) => f && f.computed === true && f.name && !['id', 'created_at', 'updated_at'].includes(f.name))
+      .map((f) => String(f.name));
+  },
+
+  _buildComputedStripSnippet(entity) {
+    const computed = this._getComputedFieldNames(entity);
+    if (!computed.length) return '';
+    const literal = JSON.stringify(computed);
+    return `
+      // Strip server-maintained (computed) fields from inbound payload.
+      // These are derived by server-side logic (reservations, sales-order
+      // commitments, totals) and MUST NOT be accepted from clients.
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const __computedFields = ${literal};
+        for (const __cf of __computedFields) {
+          if (Object.prototype.hasOwnProperty.call(data, __cf)) {
+            delete data[__cf];
+          }
+        }
+      }
+`;
+  },
+
   _buildCreateValidationSnippet(entity, allEntities) {
     const rules = this._getFieldRules(entity, allEntities);
-    if (rules.length === 0) return '';
+    const computedStrip = this._buildComputedStripSnippet(entity);
+    if (rules.length === 0 && !computedStrip) return '';
+
+    let code = computedStrip;
+    if (rules.length === 0) return code;
 
     const uniqueFields = rules.filter((r) => r.unique);
     const referenceFields = rules.filter((r) => r.referenceEntity);
 
-    let code = `
+    code += `
       // Schema-driven validation (generated)
       const fieldErrors = {};
       const isMissing = (v) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
@@ -174,12 +204,25 @@ module.exports = {
 
   _buildUpdateValidationSnippet(entity, allEntities) {
     const rules = this._getFieldRules(entity, allEntities);
-    if (rules.length === 0) return '';
+    const computedStrip = this._buildComputedStripSnippet(entity);
+    if (rules.length === 0 && !computedStrip) return '';
+
+    let code = computedStrip;
+    if (rules.length === 0) {
+      // Even with no other rules, we still need to load the existing row and
+      // merge the stripped payload so the update path itself remains valid.
+      code += `
+      const existing = await this.repository.findById(this.slug, id);
+      if (!existing) return null;
+      const merged = { ...existing, ...data };
+`;
+      return code;
+    }
 
     const uniqueFields = rules.filter((r) => r.unique);
     const referenceFields = rules.filter((r) => r.referenceEntity);
 
-    let code = `
+    code += `
       // Schema-driven validation (generated)
       const existing = await this.repository.findById(this.slug, id);
       if (!existing) return null;
@@ -418,6 +461,10 @@ module.exports = {
 
     return fields
       .filter((f) => f && !['id', 'created_at', 'updated_at'].includes(f.name))
+      // Computed fields are maintained entirely by server-side logic and MUST
+      // NOT be validated against user-supplied payloads. They are also stripped
+      // from incoming data by the service-layer sanitizer (see below).
+      .filter((f) => f.computed !== true)
       .map((f) => {
         const type = String(f.type || 'string');
         const label = f.label ? String(f.label) : this._formatLabel(f.name);

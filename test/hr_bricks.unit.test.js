@@ -21,7 +21,7 @@ function runTest(name, fn) {
 }
 
 runTest('HREmployeeMixin exposes normalization and validation hooks', () => {
-  const mixin = HREmployeeMixin;
+  const mixin = typeof HREmployeeMixin === 'function' ? HREmployeeMixin({}) : HREmployeeMixin;
   assert.ok(mixin);
   assert.ok(Array.isArray(mixin.dependencies));
   assert.ok(mixin.hooks.BEFORE_CREATE_TRANSFORMATION);
@@ -33,6 +33,12 @@ runTest('HREmployeeMixin exposes normalization and validation hooks', () => {
   assert.ok(
     createHook.includes('email') && updateHook.includes('Email cannot be empty'),
     'Employee mixin should normalize and validate email'
+  );
+
+  assert.ok(typeof mixin.methods === 'string', 'Employee mixin should expose companion methods');
+  assert.ok(
+    mixin.methods.includes('createWithCompanionUser') && mixin.methods.includes('linkUser'),
+    'Employee mixin should expose createWithCompanionUser and linkUser methods'
   );
 });
 

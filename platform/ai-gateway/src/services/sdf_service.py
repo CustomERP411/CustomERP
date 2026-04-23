@@ -14,7 +14,7 @@ The multi-agent mode uses separate AI agents for:
 """
 
 import json
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Any, Callable, List
 from pydantic import ValidationError
 
 from .gemini_client import GeminiClient
@@ -81,6 +81,7 @@ class SDFService:
         prefilled_sdf: Optional[Dict[str, Any]] = None,
         on_progress: Optional[Callable] = None,
         language: str = "en",
+        selected_modules: Optional[List[str]] = None,
     ) -> tuple["SystemDefinitionFile", "PipelineResult"]:
         """
         Generates an SDF using the multi-agent pipeline.
@@ -96,12 +97,25 @@ class SDFService:
         """
         print("[SDFService] Generating SDF using multi-agent pipeline...")
 
+        # Normalize selected_modules -> a clean set of lowercase strings (or empty = no clamp)
+        normalized_selected: List[str] = []
+        if selected_modules:
+            seen = set()
+            for m in selected_modules:
+                if not isinstance(m, str):
+                    continue
+                key = m.strip().lower()
+                if key and key not in seen:
+                    seen.add(key)
+                    normalized_selected.append(key)
+
         result: PipelineResult = await self.multi_agent_service.generate_sdf(
             business_description=business_description,
             default_question_answers=default_question_answers,
             prefilled_sdf=prefilled_sdf,
             on_progress=on_progress,
             language=language,
+            selected_modules=normalized_selected,
         )
 
         if not result.success:
@@ -159,6 +173,62 @@ class SDFService:
         data["sdf_complete"] = result.sdf_complete
         if result.token_usage:
             data["token_usage"] = result.token_usage
+
+        # Final safety net: drop any modules or entities outside the user-selected
+        # allowlist even if the orchestration clamp missed them or the LLM snuck
+        # them past downstream agents. "shared" module entries are always allowed.
+        if normalized_selected:
+            allowed = set(normalized_selected) | {"shared"}
+            modules_block = data.get("modules")
+            dropped_module_keys: List[str] = []
+            if isinstance(modules_block, dict):
+                for key in list(modules_block.keys()):
+                    if not isinstance(key, str):
+                        continue
+                    if key.lower() not in allowed:
+                        dropped_module_keys.append(key)
+                        modules_block.pop(key, None)
+
+            entities = data.get("entities")
+            dropped_entity_names: set[str] = set()
+            if isinstance(entities, list):
+                kept_entities = []
+                for ent in entities:
+                    if not isinstance(ent, dict):
+                        kept_entities.append(ent)
+                        continue
+                    mod_val = ent.get("module")
+                    mod_key = mod_val.strip().lower() if isinstance(mod_val, str) else None
+                    if mod_key is not None and mod_key not in allowed:
+                        name = ent.get("name") or ent.get("slug") or ent.get("display_name")
+                        if isinstance(name, str) and name:
+                            dropped_entity_names.add(name)
+                        continue
+                    kept_entities.append(ent)
+
+                # Prune dangling `reference_entity` values that pointed at dropped entities.
+                if dropped_entity_names:
+                    for ent in kept_entities:
+                        if not isinstance(ent, dict):
+                            continue
+                        fields = ent.get("fields")
+                        if not isinstance(fields, list):
+                            continue
+                        for f in fields:
+                            if not isinstance(f, dict):
+                                continue
+                            ref = f.get("reference_entity")
+                            if isinstance(ref, str) and ref in dropped_entity_names:
+                                f["reference_entity"] = None
+
+                data["entities"] = kept_entities
+
+            if dropped_module_keys or dropped_entity_names:
+                print(
+                    "[SDFService] Postfilter dropped "
+                    f"modules={dropped_module_keys} entities={sorted(dropped_entity_names)} "
+                    f"(not in selected_modules={sorted(normalized_selected)})"
+                )
 
         if on_progress:
             on_progress("validating", 95, "Finalizing your ERP")

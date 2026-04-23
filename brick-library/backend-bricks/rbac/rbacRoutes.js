@@ -132,7 +132,38 @@ router.post('/change-password', rbacLoader, async (req, res) => {
 
 /* ── User entity guards ─────────────────────────────────────
    Mounted by the generated routes index as middleware on /__erp_users
-   to hash passwords and protect the superadmin account.            */
+   and /__erp_user_groups to hash passwords and prevent
+   self-lockout / last-superadmin scenarios.                         */
+
+async function getSuperadminGroup() {
+  try {
+    const repo = getProvider();
+    const groups = await repo.findAll('__erp_groups');
+    return groups.find((g) => String(g.name).toLowerCase() === 'superadmin') || null;
+  } catch { return null; }
+}
+
+async function getActiveSuperadminUserIds() {
+  try {
+    const repo = getProvider();
+    const superGroup = await getSuperadminGroup();
+    if (!superGroup) return [];
+    const memberships = await repo.findAll('__erp_user_groups', { group_id: superGroup.id });
+    const ids = [...new Set(memberships.map((m) => m.user_id))];
+    if (!ids.length) return [];
+    const users = await repo.findAll('__erp_users');
+    const byId = new Map(users.map((u) => [u.id, u]));
+    return ids.filter((id) => {
+      const u = byId.get(id);
+      return u && Number(u.is_active) !== 0;
+    });
+  } catch { return []; }
+}
+
+async function isUserSuperadmin(userId) {
+  const ids = await getActiveSuperadminUserIds();
+  return ids.includes(userId);
+}
 
 function userEntityGuard() {
   const guardRouter = express.Router();
@@ -157,19 +188,85 @@ function userEntityGuard() {
     if (req.body && req.body.password_hash && typeof req.body.password_hash === 'string' && req.body.password_hash.length > 0) {
       req.body.password_hash = hashPassword(req.body.password_hash);
     }
-    if (await isSeedAdmin(req.params.id)) {
-      if (req.body.is_active !== undefined && Number(req.body.is_active) === 0) {
+
+    const targetId = String(req.params.id);
+    const selfId = req.erpUser && req.erpUser.userId ? String(req.erpUser.userId) : null;
+    const deactivating = req.body && req.body.is_active !== undefined && Number(req.body.is_active) === 0;
+
+    if (await isSeedAdmin(targetId)) {
+      if (deactivating) {
         return res.status(403).json({ error: 'The default admin account cannot be deactivated' });
       }
     }
+
+    if (deactivating && selfId && selfId === targetId) {
+      return res.status(403).json({ error: 'You cannot deactivate your own account' });
+    }
+
+    if (deactivating) {
+      const supers = await getActiveSuperadminUserIds();
+      if (supers.length && supers.includes(targetId) && supers.length === 1) {
+        return res.status(403).json({ error: 'Cannot deactivate the last remaining superadmin' });
+      }
+    }
+
     next();
   });
 
   guardRouter.delete('/:id', async (req, res, next) => {
-    if (await isSeedAdmin(req.params.id)) {
+    const targetId = String(req.params.id);
+    const selfId = req.erpUser && req.erpUser.userId ? String(req.erpUser.userId) : null;
+
+    if (await isSeedAdmin(targetId)) {
       return res.status(403).json({ error: 'The default admin account cannot be deleted' });
     }
+
+    if (selfId && selfId === targetId) {
+      return res.status(403).json({ error: 'You cannot delete your own account' });
+    }
+
+    const supers = await getActiveSuperadminUserIds();
+    if (supers.length && supers.includes(targetId) && supers.length === 1) {
+      return res.status(403).json({ error: 'Cannot delete the last remaining superadmin' });
+    }
+
     next();
+  });
+
+  return guardRouter;
+}
+
+function userGroupGuard() {
+  const guardRouter = express.Router();
+
+  guardRouter.delete('/:id', async (req, res, next) => {
+    try {
+      const repo = getProvider();
+      const membership = await repo.findById('__erp_user_groups', req.params.id);
+      if (!membership) return next();
+
+      const superGroup = await getSuperadminGroup();
+      if (!superGroup || String(membership.group_id) !== String(superGroup.id)) {
+        return next();
+      }
+
+      const selfId = req.erpUser && req.erpUser.userId ? String(req.erpUser.userId) : null;
+      const targetId = String(membership.user_id);
+
+      if (selfId && selfId === targetId) {
+        return res.status(403).json({ error: 'You cannot remove your own superadmin role' });
+      }
+
+      const supers = await getActiveSuperadminUserIds();
+      if (supers.length && supers.includes(targetId) && supers.length === 1) {
+        return res.status(403).json({ error: 'Cannot remove the last remaining superadmin' });
+      }
+
+      next();
+    } catch (err) {
+      console.error('[RBAC] userGroupGuard error:', err.message || err);
+      next();
+    }
   });
 
   return guardRouter;
@@ -177,3 +274,6 @@ function userEntityGuard() {
 
 module.exports = router;
 module.exports.userEntityGuard = userEntityGuard;
+module.exports.userGroupGuard = userGroupGuard;
+module.exports.getActiveSuperadminUserIds = getActiveSuperadminUserIds;
+module.exports.isUserSuperadmin = isUserSuperadmin;

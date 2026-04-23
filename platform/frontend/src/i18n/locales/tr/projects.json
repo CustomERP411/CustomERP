@@ -11,6 +11,10 @@
     "created": "Oluşturuldu",
     "updated": "Güncellendi",
     "language": "Dil",
+    "languages": {
+      "en": "İngilizce",
+      "tr": "Türkçe"
+    },
     "open": "Aç",
     "delete": "Sil",
     "confirmDelete": "Bu proje silinsin mi? Bu işlem geri alınamaz.",

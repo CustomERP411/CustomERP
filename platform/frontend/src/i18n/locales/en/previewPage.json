@@ -28,6 +28,30 @@
     "buildingInterface": "Building interface...",
     "starting": "Starting your ERP..."
   },
+  "modal": {
+    "title": "Building your preview",
+    "subtitle": "Hang tight — we're assembling a live ERP just for you.",
+    "queuePosition": "You are #{{position}} in the queue",
+    "queueEta": "Builds usually take ~45s each",
+    "queueWaiting": "Waiting for a build slot to open up...",
+    "elapsed": "Elapsed: {{seconds}}s",
+    "cancel": "Cancel",
+    "cancelConfirm": "Cancel this preview build?",
+    "errorTitle": "Preview failed",
+    "errorSubtitle": "We couldn't finish building your ERP.",
+    "retry": "Retry",
+    "back": "Back to project",
+    "errorDetails": "Error details"
+  },
+  "phases": {
+    "queued": "Waiting in queue",
+    "assembling": "Assembling code",
+    "installing_backend": "Installing backend",
+    "installing_frontend": "Installing frontend",
+    "building_frontend": "Building interface",
+    "starting": "Starting server",
+    "running": "Ready"
+  },
   "errors": {
     "previewBuildFailed": "Preview build failed. Please try again.",
     "startFailed": "Failed to start preview",
@@ -36,7 +60,19 @@
     "unreachable": "Our AI service is temporarily unreachable. Please try again in a few minutes.",
     "highDemand": "We're experiencing high demand. Please wait a moment and try again.",
     "unexpectedFormat": "The AI produced an unexpected format. Please try generating again.",
-    "generic": "Something went wrong during generation. Please try again."
+    "generic": "Something went wrong during generation. Please try again.",
+    "queueFull": "Too many previews are being built right now. Please try again in a minute.",
+    "capacity": "The preview server is at full capacity. Please close an existing preview or try again shortly.",
+    "noSdf": "No ERP structure found for this project yet. Generate one before previewing.",
+    "assembleFailed": "Couldn't assemble the ERP code. Please try again — if this keeps happening, tweak the project and regenerate.",
+    "npmInstallFailed": "Failed to install dependencies for the preview. Please try again in a few minutes.",
+    "frontendBuildFailed": "Couldn't build the preview interface. Try regenerating the ERP or tweaking the structure.",
+    "portTimeout": "The preview server didn't start in time. Please try again.",
+    "crashed": "The preview server crashed unexpectedly. Please try again.",
+    "stale": "This preview expired. Start a new preview to continue.",
+    "notFound": "Preview not found. Please start a new preview.",
+    "unauthorized": "You're not authorized to view this preview.",
+    "spawnFailed": "The preview server couldn't start. Please try again."
   },
   "phase": {
     "applying": "Applying changes...",
@@ -48,7 +84,9 @@
     "title": "Request Changes",
     "subtitle": "Describe what you'd like changed and we'll regenerate your ERP.",
     "placeholder": "e.g. Add an expiry date field to products, change the invoice layout to show tax separately...",
-    "button": "Request Changes"
+    "button": "Request Changes",
+    "openSheet": "Request changes",
+    "closeSheet": "Close"
   },
   "downloadModal": {
     "choosePlatform": "Choose the operating system you'll run this ERP on.",
@@ -60,6 +98,13 @@
     "startedBody": "Your ERP has been approved and the download should begin automatically.",
     "failedTitle": "Download failed",
     "retry": "Retry"
+  },
+  "leaveConfirm": {
+    "title": "Leave preview?",
+    "buildingMessage": "Leaving now will cancel this build. Are you sure?",
+    "runningMessage": "Leaving will shut down the preview to free up server resources.",
+    "stay": "Stay",
+    "leave": "Leave anyway"
   },
   "common": {
     "cancel": "Cancel",

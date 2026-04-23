@@ -11,6 +11,10 @@
     "created": "Created",
     "updated": "Updated",
     "language": "Language",
+    "languages": {
+      "en": "English",
+      "tr": "Turkish"
+    },
     "open": "Open",
     "delete": "Delete",
     "confirmDelete": "Delete this project? This cannot be undone.",

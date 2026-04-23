@@ -222,7 +222,7 @@ export default function TrainingDataPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel: session list */}
-        <div className="flex w-96 flex-shrink-0 flex-col border-r bg-slate-50 overflow-hidden">
+        <div className={`${selectedId ? 'hidden md:flex' : 'flex'} w-full md:w-96 flex-shrink-0 flex-col border-r bg-slate-50 overflow-hidden`}>
           {/* Filters */}
           <div className="flex flex-wrap gap-2 border-b px-3 py-2 bg-white">
             <select
@@ -306,7 +306,7 @@ export default function TrainingDataPage() {
         </div>
 
         {/* Right panel: detail */}
-        <div className="flex-1 overflow-y-auto bg-white">
+        <div className={`${selectedId ? 'flex' : 'hidden md:flex'} flex-1 flex-col overflow-y-auto bg-white min-w-0`}>
           {!selectedId ? (
             <div className="flex h-full items-center justify-center text-sm text-slate-400">
               {t('training.selectSession')}
@@ -314,9 +314,20 @@ export default function TrainingDataPage() {
           ) : detailLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-slate-400">{t('training.loadingSession')}</div>
           ) : detail ? (
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full min-w-0">
               {/* Tabs */}
-              <div className="flex border-b bg-slate-50 px-4">
+              <div className="flex items-center border-b bg-slate-50 px-2 sm:px-4 overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(null)}
+                  className="md:hidden mr-1 flex items-center gap-1 px-2 py-2 text-xs font-medium text-slate-600 hover:text-slate-900"
+                  aria-label={t('training.backToList')}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span className="whitespace-nowrap">{t('training.backToList')}</span>
+                </button>
                 {(['overview', 'agents'] as const).map((tab) => (
                   <button
                     key={tab}

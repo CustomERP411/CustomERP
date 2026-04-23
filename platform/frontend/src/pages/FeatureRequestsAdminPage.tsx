@@ -107,7 +107,7 @@ export default function FeatureRequestsAdminPage() {
       const d = await featureRequestService.getDetail(detail.id);
       setDetail(d);
       setMsgText('');
-    } catch (e: any) { alert(e?.message || t('featureRequests.detail.sendFailed')); }
+    } catch (e: any) { alert(e?.response?.data?.error || e?.message || t('featureRequests.detail.sendFailed')); }
     finally { setMsgSending(false); }
   };
 
@@ -137,7 +137,7 @@ export default function FeatureRequestsAdminPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left: list */}
-        <div className="flex w-[420px] flex-shrink-0 flex-col border-r bg-slate-50 overflow-hidden">
+        <div className={`${detail ? 'hidden md:flex' : 'flex'} w-full md:w-[420px] flex-shrink-0 flex-col border-r bg-slate-50 overflow-hidden`}>
           {/* Filters */}
           <div className="flex flex-wrap gap-2 border-b px-3 py-2 bg-white">
             <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setOffset(0); }} className="rounded border px-2 py-1 text-xs">
@@ -192,7 +192,7 @@ export default function FeatureRequestsAdminPage() {
         </div>
 
         {/* Right: detail */}
-        <div className="flex-1 overflow-y-auto bg-white">
+        <div className={`${detail || detailLoading ? 'flex' : 'hidden md:flex'} flex-1 flex-col overflow-y-auto bg-white min-w-0`}>
           {!detail && !detailLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-slate-400">
               {t('featureRequests.detail.empty')}
@@ -200,11 +200,21 @@ export default function FeatureRequestsAdminPage() {
           ) : detailLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-slate-400">{t('featureRequests.list.loading')}</div>
           ) : detail ? (
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full min-w-0">
               {/* Header */}
-              <div className="border-b bg-slate-50 px-6 py-4">
+              <div className="border-b bg-slate-50 px-4 sm:px-6 py-4">
+                <button
+                  type="button"
+                  onClick={() => setDetail(null)}
+                  className="md:hidden mb-2 flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span>{t('training.backToList')}</span>
+                </button>
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-lg font-bold text-slate-900">{detail.feature_name}</h2>
+                  <h2 className="text-lg font-bold text-slate-900 min-w-0 break-words">{detail.feature_name}</h2>
                   <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusColor(detail.status)}`}>
                     {STATUS_LABELS[detail.status]}
                   </span>

@@ -416,10 +416,11 @@ function PostDownloadInstructions({ platform }: { platform: string }) {
   const { t } = useTranslation('projectDetail');
   const PLATFORM_INFO = usePlatformInfo();
   const dlInfo = PLATFORM_INFO[platform] || PLATFORM_INFO['windows-x64'];
+  const isLinux = platform.startsWith('linux');
   const platformTip =
     platform.startsWith('macos') ? t('sdfPreview.postDownload.macOsTip')
     : platform.startsWith('windows') ? t('sdfPreview.postDownload.windowsTip')
-    : platform.startsWith('linux') ? t('sdfPreview.postDownload.linuxTip')
+    : isLinux ? t('sdfPreview.postDownload.linuxTip')
     : '';
   return (
     <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 space-y-4">
@@ -451,6 +452,18 @@ function PostDownloadInstructions({ platform }: { platform: string }) {
           </div>
         </li>
       </ol>
+      {isLinux && (
+        <div className="rounded-lg border border-blue-100 bg-white/60 p-3 text-xs text-blue-700 space-y-1">
+          <div>
+            <span className="font-semibold">{t('sdfPreview.postDownload.linuxSupportedTitle')}</span>{' '}
+            {t('sdfPreview.postDownload.linuxSupported')}
+          </div>
+          <div>
+            <span className="font-semibold">{t('sdfPreview.postDownload.linuxUnsupportedTitle')}</span>{' '}
+            {t('sdfPreview.postDownload.linuxUnsupported')}
+          </div>
+        </div>
+      )}
       <div className="rounded-lg border border-blue-100 bg-white/60 p-3 text-xs text-blue-700">
         <span className="font-semibold">{t('sdfPreview.postDownload.dataTitle')}</span> {t('sdfPreview.postDownload.dataBody1')} <code className="rounded bg-blue-100 px-1 py-0.5 font-mono">app/data</code> {t('sdfPreview.postDownload.dataBody2')}
       </div>

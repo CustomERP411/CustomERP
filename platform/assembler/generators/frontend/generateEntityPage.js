@@ -315,6 +315,38 @@ module.exports = {
       }
     }
 
+    const availabilityLabels = hasReservationFields
+      ? {
+          title: this._t('stockAvailability.title'),
+          onHand: this._t('stockAvailability.onHand'),
+          reserved: this._t('stockAvailability.reserved'),
+          committed: this._t('stockAvailability.committed'),
+          available: this._t('stockAvailability.available'),
+          reservedTooltip: this._t('stockAvailability.reservedTooltip'),
+          committedTooltip: this._t('stockAvailability.committedTooltip'),
+          infoIconAria: this._t('stockAvailability.infoIconAria'),
+        }
+      : null;
+
+    const companionUserConfig =
+      isEmployeeEntity && this._accessControlEnabled
+        ? {
+            labels: {
+              title: this._t('companionUser.title'),
+              createLogin: this._t('companionUser.createLogin'),
+              username: this._t('companionUser.username'),
+              password: this._t('companionUser.password'),
+              roles: this._t('companionUser.roles'),
+              active: this._t('companionUser.active'),
+              linkedUser: this._t('companionUser.linkedUser'),
+              linkedUserAlready: this._t('companionUser.linkedUserAlready'),
+              openInUsers: this._t('companionUser.openInUsers'),
+              usernameRequired: this._t('companionUser.usernameRequired'),
+              passwordTooShort: this._t('companionUser.passwordTooShort'),
+            },
+          }
+        : null;
+
     const formPageContent = buildEntityFormPage({
       entity,
       entityName,
@@ -327,6 +359,8 @@ module.exports = {
       statusTransitions,
       hasReservationFields,
       approvalConfig,
+      availabilityLabels,
+      companionUserConfig,
     });
 
     await fs.writeFile(path.join(modulePagesDir, `${entityName}Page.tsx`), listPageContent);

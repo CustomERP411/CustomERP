@@ -3,6 +3,7 @@ Main prompt for generating the System Definition File (SDF)
 """
 
 import pathlib
+from typing import Optional
 
 PROMPT_DIR = pathlib.Path(__file__).parent
 
@@ -183,6 +184,7 @@ def get_distributor_prompt(
     default_questions: str = "",
     existing_modules: str = "",
     language: str = DEFAULT_LANGUAGE,
+    selected_modules: Optional[list] = None,
 ) -> str:
     """Loads the distributor prompt for routing user input to modules.
     
@@ -191,16 +193,54 @@ def get_distributor_prompt(
         default_questions: Answers to mandatory pre-generation questions.
         existing_modules: Lightweight summary of enabled modules and entity slugs.
         language: Project language code (en/tr) — controls directive injection.
+        selected_modules: Authoritative allowlist of modules the user picked in the UI.
+            When present and non-empty, the template's USER-SELECTED MODULES block
+            forces ``modules_needed`` to this exact set; fallback detection rules
+            only fire when this list is empty.
     """
     try:
         prompt_template_path = PROMPT_DIR / "distributor_prompt.txt"
         prompt_template = prompt_template_path.read_text()
+
+        cleaned_selected: list[str] = []
+        if selected_modules:
+            seen: set[str] = set()
+            for m in selected_modules:
+                if not isinstance(m, str):
+                    continue
+                key = m.strip().lower()
+                if key and key not in seen:
+                    seen.add(key)
+                    cleaned_selected.append(key)
+
+        if cleaned_selected:
+            selected_modules_block = (
+                "# USER-SELECTED MODULES (AUTHORITATIVE)\n"
+                "\n"
+                "The user has already selected the following modules in the UI. This selection is AUTHORITATIVE and MUST be respected.\n"
+                f"SELECTED MODULES: {cleaned_selected}\n"
+                "\n"
+                "CRITICAL RULES:\n"
+                "- `modules_needed` in your output MUST equal this exact set (order does not matter).\n"
+                "- DO NOT add any module not in this list, even if the business description strongly implies it "
+                "(e.g., mentions of employees must NOT force HR if HR is not in the selected set).\n"
+                "- DO NOT remove any module in this list, even if the description is silent about it.\n"
+                "- The FALLBACK DETECTION rules below are IGNORED whenever this list is non-empty.\n"
+            )
+        else:
+            selected_modules_block = (
+                "# USER-SELECTED MODULES (AUTHORITATIVE)\n"
+                "\n"
+                "No explicit selection was provided by the UI — fall back to inference using the detection rules below.\n"
+            )
+
         rendered = _inject_placeholders(
             prompt_template,
             {
                 "business_description": business_description,
                 "default_questions": default_questions or "",
                 "existing_modules": existing_modules or "No existing ERP — this is a fresh generation.",
+                "selected_modules_block": selected_modules_block,
             },
         )
         return _with_language_directive(rendered, language)

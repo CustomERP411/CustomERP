@@ -71,8 +71,23 @@ module.exports = {
         seen.add(fieldName);
 
         const pgType = this._toPostgresType(field);
-        const notNull = field.required ? ' NOT NULL' : '';
-        const defaultClause = this._isFieldMultiple(field) ? ` DEFAULT '[]'::jsonb` : '';
+        const fieldTypeLc = String(field.type || '').toLowerCase();
+        const isNumericComputed =
+          field.computed === true &&
+          (fieldTypeLc === 'integer' || fieldTypeLc === 'decimal' || fieldTypeLc === 'number');
+        // Computed numeric fields are server-maintained; inserts MUST NOT be
+        // required to supply them, so we force NOT NULL DEFAULT 0 regardless
+        // of the `required` flag. Non-numeric computed fields fall back to
+        // the "nullable unless required" behaviour.
+        let notNull;
+        let defaultClause;
+        if (isNumericComputed) {
+          notNull = ' NOT NULL';
+          defaultClause = ' DEFAULT 0';
+        } else {
+          notNull = field.required ? ' NOT NULL' : '';
+          defaultClause = this._isFieldMultiple(field) ? ` DEFAULT '[]'::jsonb` : '';
+        }
         columns.push(`${this._quoteSqlIdentifier(fieldName)} ${pgType}${notNull}${defaultClause}`);
 
         const fieldType = String(field.type || '').toLowerCase();
@@ -372,8 +387,19 @@ module.exports = {
         seen.add(fieldName);
 
         const sqliteType = this._toSqliteType(field);
-        const notNull = field.required ? ' NOT NULL' : '';
-        const defaultClause = this._isFieldMultiple(field) ? ` DEFAULT '[]'` : '';
+        const fieldTypeLc = String(field.type || '').toLowerCase();
+        const isNumericComputed =
+          field.computed === true &&
+          (fieldTypeLc === 'integer' || fieldTypeLc === 'decimal' || fieldTypeLc === 'number');
+        let notNull;
+        let defaultClause;
+        if (isNumericComputed) {
+          notNull = ' NOT NULL';
+          defaultClause = ' DEFAULT 0';
+        } else {
+          notNull = field.required ? ' NOT NULL' : '';
+          defaultClause = this._isFieldMultiple(field) ? ` DEFAULT '[]'` : '';
+        }
 
         const fieldType = String(field.type || '').toLowerCase();
         const referenceEntity = this._pickFirstString(field.reference_entity, field.referenceEntity);

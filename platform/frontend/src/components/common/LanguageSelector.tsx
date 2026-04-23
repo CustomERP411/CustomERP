@@ -10,12 +10,16 @@ import {
   type SupportedLanguage,
 } from '../../i18n';
 
+type LanguageSelectorVariant = 'default' | 'compact' | 'landing';
+
 interface LanguageSelectorProps {
   /** When provided, the selector is controlled: does not write to i18n/localStorage on change. */
   value?: SupportedLanguage;
   onChange?: (lang: SupportedLanguage) => void;
-  /** Visual compactness for tight spots (header bars). */
+  /** Visual compactness for tight spots (header bars). Kept for backwards compatibility. */
   compact?: boolean;
+  /** Visual variant. Overrides `compact` when set. */
+  variant?: LanguageSelectorVariant;
   /** Optional className for the wrapper button. */
   className?: string;
   /** If true, persist to backend for logged-in users (default: true). */
@@ -33,10 +37,13 @@ export default function LanguageSelector({
   value,
   onChange,
   compact = false,
+  variant,
   className = '',
   syncToAccount = true,
   showAccountSyncFeedback = false,
 }: LanguageSelectorProps) {
+  const resolvedVariant: LanguageSelectorVariant =
+    variant ?? (compact ? 'compact' : 'default');
   const { i18n, t } = useTranslation('common');
   const { user, isAuthenticated, updateUser } = useAuth();
   const [open, setOpen] = useState(false);
@@ -89,9 +96,15 @@ export default function LanguageSelector({
     }
   }
 
-  const sizeCls = compact
-    ? 'px-2 py-1 text-xs'
-    : 'px-3 py-1.5 text-sm';
+  const buttonCls =
+    resolvedVariant === 'landing'
+      ? 'inline-flex items-center gap-2 rounded-full border border-white/20 bg-transparent px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40'
+      : resolvedVariant === 'compact'
+      ? 'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500'
+      : 'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+  const chevronCls =
+    resolvedVariant === 'landing' ? 'h-3 w-3 text-white/80' : 'h-3 w-3 text-slate-500';
 
   return (
     <div ref={wrapperRef} className={`relative inline-block ${className}`}>
@@ -101,12 +114,12 @@ export default function LanguageSelector({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={t('language')}
-        className={`inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white ${sizeCls} font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        className={buttonCls}
       >
         <span aria-hidden="true">{FLAGS[current]}</span>
         <span>{LANGUAGE_LABELS[current]}</span>
         <svg
-          className="h-3 w-3 text-slate-500"
+          className={chevronCls}
           viewBox="0 0 20 20"
           fill="currentColor"
           aria-hidden="true"

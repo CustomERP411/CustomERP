@@ -4,6 +4,7 @@
     "settings": "Ayarlar",
     "users": "Kullanıcılar",
     "roles": "Roller",
+    "permissions": "İzinler",
     "signOut": "Çıkış Yap",
     "modules": {
       "inventory": "Envanter",
@@ -71,10 +72,36 @@
     "permissionsSubtitle": "Sistemdeki tüm izinleri görüntüleyin.",
     "permissionKey": "Anahtar",
     "permissionLabel": "Etiket",
-    "permissionModule": "Modül"
+    "permissionModule": "Modül",
+    "cannotDeactivateSelf": "Kendi hesabınızı devre dışı bırakamazsınız",
+    "cannotDemoteSelf": "Kendi superadmin rolünüzü kaldıramazsınız",
+    "lastSuperadmin": "Sistemde kalan tek superadmin bu"
+  },
+  "companionUser": {
+    "title": "Bu çalışan için giriş hesabı",
+    "createLogin": "Bu çalışan için giriş oluştur",
+    "username": "Kullanıcı adı",
+    "password": "Şifre",
+    "roles": "Roller",
+    "active": "Aktif",
+    "linkedUser": "Bağlı kullanıcı",
+    "linkedUserAlready": "Bu çalışanın zaten bağlı bir kullanıcı hesabı var.",
+    "openInUsers": "Kullanıcılar sayfasında aç",
+    "usernameRequired": "Kullanıcı adı gereklidir",
+    "passwordTooShort": "Şifre en az 4 karakter olmalı"
   },
   "topbar": {
     "welcome": "Hoş geldiniz",
     "logout": "Çıkış yap"
+  },
+  "stockAvailability": {
+    "title": "Stok Durumu",
+    "onHand": "Mevcut",
+    "reserved": "Rezerve",
+    "committed": "Taahhüt Edilen",
+    "available": "Kullanılabilir",
+    "reservedTooltip": "Açık satış rezervasyonları tarafından tutulan miktar. Henüz sevk edilmemiş veya onaylanmış bir siparişe bağlanmamıştır.",
+    "committedTooltip": "Henüz sevk edilmemiş, onaylanmış satış siparişlerindeki miktar.",
+    "infoIconAria": "Daha fazla bilgi"
   }
 }

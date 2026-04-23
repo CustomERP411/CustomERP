@@ -12,6 +12,14 @@ function hashPassword(plain) {
 
 const CRUD_ACTIONS = ['create', 'read', 'update', 'delete'];
 
+const SYSTEM_ENTITY_SLUGS = [
+  '__erp_users',
+  '__erp_groups',
+  '__erp_permissions',
+  '__erp_user_groups',
+  '__erp_group_permissions',
+];
+
 const MODULE_DISPLAY_NAMES = {
   inventory: 'Inventory',
   invoice: 'Invoice',
@@ -117,7 +125,9 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
     console.log('[RBAC-SEED] Assigned admin to superadmin group');
   }
 
-  const slugsToSeed = entitySlugs.length ? entitySlugs : [];
+  const seedSet = new Set(Array.isArray(entitySlugs) ? entitySlugs : []);
+  for (const sys of SYSTEM_ENTITY_SLUGS) seedSet.add(sys);
+  const slugsToSeed = [...seedSet];
 
   const permByKey = new Map();
   if (slugsToSeed.length) {

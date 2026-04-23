@@ -15,6 +15,11 @@ module.exports = {
 
     for (const field of fields) {
       if (!field || ['id', 'created_at', 'updated_at'].includes(field.name)) continue;
+      // Server-maintained (computed) fields must never appear as editable
+      // inputs in create/edit forms. They are still persisted, shown in
+      // list views, and (where applicable) rendered in dedicated read-only
+      // bands such as the inventory "Stock Availability" band.
+      if (field.computed === true) continue;
 
       const rawOptions = field.options ?? field.enum ?? field.allowed_values ?? field.allowedValues;
       const options = Array.isArray(rawOptions)

@@ -5,8 +5,9 @@ function buildSidebar({ toolsBlock, moduleMap, rbac, language }) {
   const modLabels = moduleDisplayNames(language);
 
   const adminBlock = rbac ? `
-        {(isSuperadmin || hasPermission('__erp_users.read')) && (<>
+        {(isSuperadmin || hasPermission('__erp_users.read') || hasPermission('__erp_groups.read') || hasPermission('__erp_permissions.read')) && (<>
         <div className="mt-4 px-3 mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">${t('sidebar.settings')}</div>
+        {(isSuperadmin || hasPermission('__erp_users.read')) && (
         <Link
           to="/admin/users"
           className={[
@@ -15,7 +16,8 @@ function buildSidebar({ toolsBlock, moduleMap, rbac, language }) {
           ].join(' ')}
         >
           ${t('sidebar.users')}
-        </Link>
+        </Link>)}
+        {(isSuperadmin || hasPermission('__erp_groups.read')) && (
         <Link
           to="/admin/groups"
           className={[
@@ -24,7 +26,17 @@ function buildSidebar({ toolsBlock, moduleMap, rbac, language }) {
           ].join(' ')}
         >
           ${t('sidebar.roles')}
-        </Link>
+        </Link>)}
+        {(isSuperadmin || hasPermission('__erp_permissions.read')) && (
+        <Link
+          to="/admin/permissions"
+          className={[
+            'mb-1 block rounded-lg px-3 py-2 text-sm font-medium',
+            location.pathname.startsWith('/admin/permissions') ? 'bg-amber-600 text-white' : 'text-slate-700 hover:bg-slate-100',
+          ].join(' ')}
+        >
+          ${t('sidebar.permissions')}
+        </Link>)}
         </>)}` : '';
 
   const hasMultipleModules = moduleMap && moduleMap.enabled && moduleMap.enabled.length > 1;

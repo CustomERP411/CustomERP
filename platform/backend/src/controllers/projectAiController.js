@@ -73,6 +73,7 @@ exports.analyzeProject = async (req, res) => {
       prefilledSdf,
       projectId,
       language: project.language,
+      selectedModules: requestedModules,
     });
     const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
     const persistedQuestions = await clarificationService.persistQuestions({
@@ -293,6 +294,7 @@ exports.regenerateProject = async (req, res) => {
       prefilledSdf: existingSdf,
       projectId,
       language: project.language,
+      selectedModules: requestedModules,
     });
 
     const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];

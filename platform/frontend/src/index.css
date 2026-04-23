@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* True PNG transparency: avoid UAs or layers painting an accidental backdrop behind <img> */
+@layer base {
+  img.brand-mark {
+    background: transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 @keyframes chatPulse {
   0%, 100% {
     transform: scale(1);

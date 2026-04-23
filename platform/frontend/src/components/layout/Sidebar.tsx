@@ -146,16 +146,16 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
         }`}
       >
         {/* Header: logo + toggle */}
-        <div className="flex h-14 items-center justify-between gap-2 px-3">
+        <div className="flex min-h-[4.5rem] items-center justify-between gap-2 px-3 py-2">
           <Link
             to="/projects"
             className={`flex min-w-0 items-center ${collapsed ? 'justify-center' : 'flex-1'}`}
             title="CustomERP"
           >
             {collapsed ? (
-              <BrandMark variant="icon" className="h-8 w-8 shrink-0 object-contain" alt="" />
+              <BrandMark variant="icon" className="h-12 w-12 shrink-0 object-contain" alt="" />
             ) : (
-              <BrandMark variant="wordmark" className="h-7 w-auto max-w-[9.5rem] object-contain object-left" />
+              <BrandMark variant="wordmark" className="h-11 w-auto max-w-[14rem] object-contain object-left sm:max-w-[16rem] sm:h-12" />
             )}
           </Link>
           <button
@@ -232,9 +232,9 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
           role="dialog"
           aria-modal="true"
         >
-          <div className="flex h-14 items-center justify-between px-3 border-b border-slate-800">
+          <div className="flex min-h-[4.5rem] items-center justify-between px-3 py-2 border-b border-slate-800">
             <Link to="/projects" className="min-w-0 flex-1 pr-2" onClick={onCloseDrawer}>
-              <BrandMark variant="wordmark" className="h-8 w-auto max-w-full object-contain object-left" />
+              <BrandMark variant="wordmark" className="h-12 w-auto max-w-full object-contain object-left sm:h-14" />
             </Link>
             <button
               type="button"

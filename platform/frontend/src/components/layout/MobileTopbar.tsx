@@ -10,7 +10,7 @@ export default function MobileTopbar({ onOpenMenu }: Props) {
   const { t } = useTranslation('sidebar');
 
   return (
-    <div className="md:hidden sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-slate-900 px-3 text-white shadow">
+    <div className="md:hidden sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-slate-900 px-3 text-white shadow">
       <button
         type="button"
         onClick={onOpenMenu}
@@ -22,7 +22,7 @@ export default function MobileTopbar({ onOpenMenu }: Props) {
         </svg>
       </button>
       <Link to="/projects" className="flex items-center justify-center" title="CustomERP">
-        <BrandMark variant="icon" className="h-9 w-9 object-contain" alt="" />
+        <BrandMark variant="icon" className="h-12 w-12 sm:h-14 sm:w-14 object-contain" alt="" />
       </Link>
       <div className="w-10" aria-hidden="true" />
     </div>

@@ -31,7 +31,7 @@ export default function LandingPage() {
           <Link to="/" className="flex items-center min-w-0">
             <BrandMark
               variant="wordmark"
-              className="h-8 sm:h-9 w-auto max-w-[min(100%,220px)] object-contain object-left"
+              className="h-14 sm:h-16 md:h-[4.5rem] w-auto max-w-[min(100%,420px)] object-contain object-left"
             />
           </Link>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">

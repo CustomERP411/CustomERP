@@ -122,7 +122,7 @@ export default function RegisterPage() {
         </Link>
 
         <div>
-          <BrandMark variant="wordmark" className="h-11 sm:h-12 w-auto max-w-sm object-left object-contain" />
+          <BrandMark variant="wordmark" className="h-16 sm:h-20 md:h-24 w-auto max-w-lg object-left object-contain" />
           <p className="text-emerald-200 mt-4">{t('landing:hero.subtitle')}</p>
         </div>
 
@@ -156,7 +156,7 @@ export default function RegisterPage() {
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden flex justify-center mb-6 sm:mb-8">
-            <BrandMark variant="wordmark" className="h-9 w-auto max-w-[min(100%,280px)] object-contain" />
+            <BrandMark variant="wordmark" className="h-14 w-auto max-w-[min(100%,380px)] sm:h-16 object-contain" />
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">

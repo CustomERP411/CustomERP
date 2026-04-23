@@ -28,6 +28,8 @@
   stroke-width: var(--puzzle-stroke-width, 1.25);
   stroke-linejoin: round;
   transition: stroke 150ms ease, stroke-width 150ms ease, fill 150ms ease;
+  /* Let HTML inside foreignObject receive clicks; path is decorative for hit-testing. */
+  pointer-events: none;
 }
 
 .piece--hover .piece__path {
@@ -81,6 +83,7 @@
   fill: transparent;
   cursor: pointer;
   transition: fill 120ms ease;
+  pointer-events: auto;
 }
 
 .piece__knob-hit:hover {

@@ -3,14 +3,27 @@ import { useTheme } from '../../context/ThemeContext';
 /**
  * Theme toggle. All colours come from theme tokens (see `src/index.css`).
  * Uses inline SVGs (no external icon dep).
+ *
+ * `embedInPuzzle` — borderless, full-bleed button for the SVG puzzle board on
+ * the landing page so the whole piece is the click target. Omit everywhere else.
  */
-export default function ThemeToggle() {
+export default function ThemeToggle({
+  className = '',
+  embedInPuzzle = false,
+}: {
+  className?: string;
+  embedInPuzzle?: boolean;
+}) {
   const { theme, toggleTheme } = useTheme();
+
+  const base = embedInPuzzle
+    ? 'inline-flex h-full w-full min-h-0 min-w-0 items-center justify-center border-0 bg-transparent text-app-accent-blue shadow-none rounded-none transition-colors hover:bg-app-surface-hover/40 focus:outline-none focus-visible:ring-0'
+    : 'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-app-border bg-app-surface-muted text-app-accent-blue hover:bg-app-surface-hover transition-colors';
 
   return (
     <button
       onClick={toggleTheme}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-app-border bg-app-surface-muted text-app-accent-blue hover:bg-app-surface-hover transition-colors"
+      className={`${base} ${className}`.trim()}
       title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
       aria-label={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
     >

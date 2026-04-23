@@ -25,10 +25,11 @@ import type { Piece } from '../components/puzzle';
  *   Rows 4-6 (contact block) — ContactForm(4×3) + Heading / GitHub / CTIS stacked in right col
  *   Row 7 — Copyright(6)
  *
- * Side knob types follow the simple convention: the left / top neighbour
- * owns the tab, the right / bottom neighbour owns the socket. Where a wide
- * piece meets several narrow pieces, the wide piece's side is an explicit
- * `[{ pos, type }]` array with one entry per narrow neighbour.
+ * Side knob types mostly follow: the left / top neighbour often carries the
+ * protruding tab into a socket on the right / bottom neighbour. Header
+ * theme | lang | signup is an exception: lang has a left tab and right socket
+ * (theme/signup adjust so edges still mate). Wide pieces use explicit
+ * `[{ pos, type }]` arrays where one edge meets several neighbours.
  */
 
 const COLS = 6;
@@ -73,7 +74,7 @@ export default function LandingPage() {
         x: 2 * CELL_W, y: Y_HEADER, w: CELL_W, h: ROW_H_HEADER,
         sides: {
           left: { count: 1, type: 'socket' },
-          right: { count: 1, type: 'tab' },
+          right: { count: 1, type: 'socket' },
           bottom: { count: 1, type: 'tab' },
         },
       },
@@ -81,8 +82,8 @@ export default function LandingPage() {
         id: 'lang',
         x: 3 * CELL_W, y: Y_HEADER, w: CELL_W, h: ROW_H_HEADER,
         sides: {
-          left: { count: 1, type: 'socket' },
-          right: { count: 1, type: 'tab' },
+          left: { count: 1, type: 'tab' },
+          right: { count: 1, type: 'socket' },
           bottom: { count: 1, type: 'tab' },
         },
       },
@@ -90,7 +91,7 @@ export default function LandingPage() {
         id: 'signup',
         x: 4 * CELL_W, y: Y_HEADER, w: CELL_W, h: ROW_H_HEADER,
         sides: {
-          left: { count: 1, type: 'socket' },
+          left: { count: 1, type: 'tab' },
           right: { count: 1, type: 'tab' },
           bottom: { count: 1, type: 'tab' },
         },
@@ -251,13 +252,13 @@ export default function LandingPage() {
       </Link>
     ),
     theme: (
-      <div className="flex h-full w-full items-center justify-center">
-        <ThemeToggle />
+      <div className="flex h-full w-full min-h-0 min-w-0 self-stretch">
+        <ThemeToggle embedInPuzzle />
       </div>
     ),
     lang: (
-      <div className="flex h-full w-full items-center justify-center">
-        <LanguageSelector variant="landing" />
+      <div className="flex h-full w-full min-h-0 min-w-0 self-stretch">
+        <LanguageSelector variant="landing" embedInPuzzle />
       </div>
     ),
     signup: (
@@ -297,14 +298,12 @@ export default function LandingPage() {
       </div>
     ),
     trynow: (
-      <div className="flex h-full w-full items-center justify-center p-10">
-        <Link
-          to="/register"
-          className="rounded-xl bg-app-accent-orange px-10 py-5 text-[26px] font-bold text-white shadow-xl transition-transform hover:scale-105"
-        >
-          {t('hero.ctaPrimary')}
-        </Link>
-      </div>
+      <Link
+        to="/register"
+        className="flex h-full w-full min-h-0 min-w-0 self-stretch items-center justify-center bg-transparent px-4 text-center text-[26px] font-bold text-app-accent-orange transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-0"
+      >
+        {t('hero.ctaPrimary')}
+      </Link>
     ),
     step1: <StepCard step={1} t={t} accent="inventory" />,
     step2: <StepCard step={2} t={t} accent="invoice" />,

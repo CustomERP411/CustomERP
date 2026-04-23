@@ -56,11 +56,7 @@ export default function PuzzlePiece({
 
       {content != null && (
         <foreignObject x={x} y={y} width={w} height={h} className="piece__content">
-          <div
-            xmlns="http://www.w3.org/1999/xhtml"
-            className="piece__content-inner"
-            style={{ width: '100%', height: '100%' }}
-          >
+          <div className="piece__content-inner" style={{ width: '100%', height: '100%' }}>
             {content}
           </div>
         </foreignObject>

@@ -99,13 +99,6 @@ export default function LoginPage() {
           <p className="text-indigo-200 mt-4">{t('landing:hero.subtitle')}</p>
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-            <p className="text-white text-lg font-medium">"{t('landing:howItWorks.quote')}"</p>
-            <p className="text-indigo-200 mt-4">{t('landing:howItWorks.quoteAttribution')}</p>
-          </div>
-        </div>
-
         <p className="text-indigo-300 text-sm">{t('landing:footer.copyright')}</p>
       </div>
 

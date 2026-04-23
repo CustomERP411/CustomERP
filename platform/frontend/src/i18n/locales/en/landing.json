@@ -23,9 +23,7 @@
     "step2Title": "AI Generates Your System",
     "step2Body": "Our AI analyzes your needs and creates the perfect ERP structure automatically.",
     "step3Title": "Download & Deploy",
-    "step3Body": "Get a ready-to-use container with your custom ERP system.",
-    "quote": "Transform your business processes into a custom ERP system using just natural language.",
-    "quoteAttribution": "— The Assembly Architecture"
+    "step3Body": "Get a ready-to-use container with your custom ERP system."
   },
   "cta": {
     "heading": "Ready to Build Your ERP?",
@@ -34,7 +32,6 @@
   },
   "footer": {
     "copyright": "© 2026 CustomERP. Bilkent University CTIS Project.",
-    "docs": "Documentation",
     "github": "GitHub",
     "contact": "Contact"
   }

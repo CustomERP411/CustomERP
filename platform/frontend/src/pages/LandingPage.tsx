@@ -139,15 +139,32 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* Contact Section */}
+      <section id="contact" className="py-20 bg-indigo-900/50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
+          <h2 className="text-3xl md:text-4xl font-bold text-white">
+            {t('footer.contact')}
+          </h2>
+          <p className="text-xl text-indigo-200">
+            Have questions or need support? Reach out to us at:
+          </p>
+          <a
+            href="mailto:salpkirisci@gmail.com"
+            className="inline-block px-8 py-3 bg-white/10 hover:bg-white/20 text-white text-xl font-semibold rounded-lg transition-all border border-white/20"
+          >
+            salpkirisci@gmail.com
+          </a>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="border-t border-white/10 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-indigo-300 text-sm">{t('footer.copyright')}</p>
             <div className="flex items-center gap-6 text-indigo-300 text-sm">
-              <a href="#" className="hover:text-white transition-colors">{t('footer.docs')}</a>
-              <a href="#" className="hover:text-white transition-colors">{t('footer.github')}</a>
-              <a href="#" className="hover:text-white transition-colors">{t('footer.contact')}</a>
+              <a href="https://github.com/CustomERP411/CustomERP" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">{t('footer.github')}</a>
+              <a href="#contact" className="hover:text-white transition-colors">{t('footer.contact')}</a>
             </div>
           </div>
         </div>

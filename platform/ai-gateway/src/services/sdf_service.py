@@ -33,6 +33,7 @@ from .sdf.filtering import (
 )
 from .sdf.merge import parse_and_clean_json, merge_edit_patch
 from .sdf.normalization import normalize_generator_sdf
+from .sdf.inventory_backfill import backfill_inventory_entities_from_prefilled
 
 
 class SDFService:
@@ -147,6 +148,11 @@ class SDFService:
         if on_progress:
             on_progress("normalizing", 85, "Validating & normalizing your ERP")
         data = self._normalize_generator_sdf(result.sdf, request_text=business_description)
+
+        # Restore inventory pack entities (PO/GRN/cycle count, etc.) if the generator
+        # dropped them while leaving module_config packs enabled — required for assembler.
+        if prefilled_sdf:
+            data = backfill_inventory_entities_from_prefilled(data, prefilled_sdf)
 
         # STRUCTURAL GUARANTEE 1: Enforce prefilled SDF
         # In change mode the pipeline's changed/unchanged module logic already

@@ -19,6 +19,11 @@
     "reports": "Raporlar",
     "reportsDesc": "Envanter metrikleriyle raporlar ekranı."
   },
+  "languageGate": {
+    "title": "Uygulama dili bu proje ile uyuşmuyor",
+    "body": "Bu proje {{language}} diline kilitlidir. İş soruları ve yapay zekâ çıktıları bu dilde kalır. Ayarlar bölümünden uygulama dilini {{language}} yapıp buraya dönün.",
+    "openSettings": "Dil ayarlarını aç"
+  },
   "tabs": {
     "modules": "Modüller",
     "questions": "Sorular",
@@ -383,10 +388,23 @@
       "distributor": "İşletme gereksinimleriniz analiz ediliyor",
       "clarifications": "Yanıtlarınız bekleniyor",
       "generators": "Modül yapılandırmaları oluşturuluyor",
+      "integrator": "Modüller birleştiriliyor",
       "finalizing": "Takip soruları kontrol ediliyor",
       "normalizing": "ERP'niz doğrulanıyor ve normalize ediliyor",
       "validating": "ERP'niz tamamlanıyor",
       "done": "Tamamlandı"
+    },
+    "stepDetails": {
+      "starting": "Oluşturma başlamadan önce cevaplarınız kaydediliyor.",
+      "distributor": "İşletme açıklamanız ve modül seçimleriniz yorumlanıyor.",
+      "clarifications": "Devam edebilmemiz için birkaç soruya yanıtınız gerekiyor.",
+      "generators": "Yapay zekâ, seçtiğiniz her ERP modülü için yapılandırma üretiyor.",
+      "integrator": "Modül çıktıları tek bir tutarlı ERP tanımında birleştiriliyor.",
+      "finalizing": "Başka takip sorusu gerekip gerekmediği kontrol ediliyor.",
+      "normalizing": "Yapı doğrulanıyor ve son normalizasyon uygulanıyor.",
+      "validating": "Üretilen tanım üzerinde şema doğrulaması çalıştırılıyor.",
+      "done": "Oluşturma tamamlandı.",
+      "idle": "Hazırlanıyor…"
     }
   },
   "moduleSelector": {

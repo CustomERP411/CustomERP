@@ -24,11 +24,12 @@ import ModuleSelector from '../components/project/ModuleSelector';
 import PostGenerationPanel from '../components/project/PostGenerationPanel';
 import GenerationModal from '../components/project/GenerationModal';
 import { useChatContext } from '../context/ChatContext';
+import { normalizeLanguage } from '../i18n';
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
-  const { t } = useTranslation(['projectDetail', 'common', 'errors']);
+  const { t, i18n } = useTranslation(['projectDetail', 'common', 'errors', 'projects']);
   const STEPS = useSteps();
   const BUSINESS_QUESTIONS = useBusinessQuestions();
   const projectId = String(params.id || '');
@@ -86,6 +87,13 @@ export default function ProjectDetailPage() {
   const savedDefaultAnswersRef = useRef<Record<string, string | string[]> | null>(null);
   const detectedPlatform = useMemo(() => detectUserPlatform(), []);
   const running = analyzing || clarifying || saving || reviewActionRunning;
+
+  const languageBlocked = useMemo(
+    () =>
+      !!project &&
+      normalizeLanguage(i18n.language) !== normalizeLanguage(project.language || 'en'),
+    [project, i18n.language],
+  );
   const selectedModulesStorageKey = useMemo(
     () => (projectId ? `project_selected_modules:${projectId}` : ''),
     [projectId],
@@ -880,8 +888,30 @@ export default function ProjectDetailPage() {
     );
   }
 
+  const lockedLangLabel = project
+    ? t(`projects:card.languages.${normalizeLanguage(project.language || 'en')}`)
+    : '';
+
   return (
     <div className="mx-auto max-w-4xl space-y-8 pb-16">
+      {languageBlocked && (
+        <div
+          role="alert"
+          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm"
+        >
+          <p className="font-semibold text-amber-950">{t('projectDetail:languageGate.title')}</p>
+          <p className="mt-1 text-amber-900/90">
+            {t('projectDetail:languageGate.body', { language: lockedLangLabel })}
+          </p>
+          <Link
+            to="/settings"
+            className="mt-3 inline-flex items-center rounded-lg bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-900"
+          >
+            {t('projectDetail:languageGate.openSettings')}
+          </Link>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
@@ -891,6 +921,7 @@ export default function ProjectDetailPage() {
         <Link to="/" className="self-start rounded-lg border bg-app-surface px-3 py-2 text-sm font-semibold text-app-text shadow-sm hover:bg-app-surface-muted">{t('projectDetail:header.backToProjects')}</Link>
       </div>
 
+      <div className={languageBlocked ? 'pointer-events-none select-none opacity-[0.55]' : ''}>
       {/* Step Progress Bar — hidden after generation */}
       {!sdf && (
         <div className="-mx-2 overflow-x-auto px-2 sm:mx-0 sm:px-0">
@@ -921,20 +952,6 @@ export default function ProjectDetailPage() {
       )}
 
       {error && <div className="rounded-lg border border-app-danger-border bg-app-danger-soft px-4 py-3 text-sm text-app-danger">{error}</div>}
-
-      <GenerationModal
-        phase={analyzePhase}
-        result={genResult}
-        errorMessage={genErrorMsg}
-        onClose={closeGenerationModal}
-        progress={genProgress}
-        questions={questions}
-        answersById={answersById}
-        onSetAnswers={setAnswersById}
-        onSubmitAnswers={() => { void submitModalAnswers(); }}
-        canSubmitAnswers={canSubmitAnswers}
-        submittingAnswers={clarifying}
-      />
 
       {/* Steps 0-2 and generation area — hidden after SDF is generated */}
       {!sdf && (
@@ -1000,6 +1017,21 @@ export default function ProjectDetailPage() {
         )}
         </SlideIn>
       </div>
+      </div>
+
+      <GenerationModal
+        phase={analyzePhase}
+        result={genResult}
+        errorMessage={genErrorMsg}
+        onClose={closeGenerationModal}
+        progress={genProgress}
+        questions={questions}
+        answersById={answersById}
+        onSetAnswers={setAnswersById}
+        onSubmitAnswers={() => { void submitModalAnswers(); }}
+        canSubmitAnswers={canSubmitAnswers}
+        submittingAnswers={clarifying}
+      />
     </div>
   );
 }

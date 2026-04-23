@@ -110,7 +110,7 @@ export default function DefaultQuestions({
                                     }
                                     onHelpWithQuestion(q.question, currentAnswer);
                                   }}
-                                  className="self-start shrink-0 rounded-lg border border-app-info-border bg-app-info-soft px-3 py-1.5 text-xs font-semibold text-app-accent-blue hover:bg-app-info-soft transition-colors"
+                                  className="self-start shrink-0 text-xs font-medium text-app-text-muted underline decoration-app-border underline-offset-2 hover:text-app-accent-blue hover:decoration-app-accent-blue/40 transition-colors"
                                 >
                                   {t('defaultQuestions.needHelp')}
                                 </button>

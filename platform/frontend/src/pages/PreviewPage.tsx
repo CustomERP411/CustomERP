@@ -7,6 +7,7 @@ import GenerationModal from '../components/project/GenerationModal';
 import PreviewBuildModal, { type PreviewModalState, type PreviewPhase } from '../components/project/PreviewBuildModal';
 import { usePreviewHeartbeat } from '../hooks/usePreviewHeartbeat';
 import { useChatContext } from '../context/ChatContext';
+import { normalizeLanguage } from '../i18n';
 import type { Project } from '../types/project';
 import type { ClarificationQuestion, ClarificationAnswer } from '../types/aiGateway';
 
@@ -37,7 +38,7 @@ export default function PreviewPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { setProjectContext } = useChatContext();
-  const { t } = useTranslation('previewPage');
+  const { t, i18n } = useTranslation(['previewPage', 'projectDetail', 'projects']);
   const PLATFORM_INFO = usePlatformInfo();
 
   const mapGenerationError = useCallback((err: any): { code?: string; message: string } => {
@@ -87,6 +88,17 @@ export default function PreviewPage() {
   );
 
   const detectedPlatform = useMemo(() => detectUserPlatform(), []);
+
+  const languageBlocked = useMemo(
+    () =>
+      !!project &&
+      normalizeLanguage(i18n.language) !== normalizeLanguage(project.language || 'en'),
+    [project, i18n.language],
+  );
+
+  const lockedLangLabel = project
+    ? t(`projects:card.languages.${normalizeLanguage(project.language || 'en')}`)
+    : '';
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
@@ -194,7 +206,7 @@ export default function PreviewPage() {
   }, [projectId, applyStatusResponse, clearPoll, t]);
 
   const startPreviewFlow = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId || languageBlocked) return;
     clearPoll();
     setStatus('queued');
     setPhase('queued');
@@ -223,11 +235,11 @@ export default function PreviewPage() {
       setStatus('error');
       setErrorState(mapped);
     }
-  }, [projectId, clearPoll, pollUntilReady, mapGenerationError]);
+  }, [projectId, clearPoll, pollUntilReady, mapGenerationError, languageBlocked]);
 
-  // Initial load: pick up existing preview or start a fresh one
+  // Initial load: pick up existing preview or start a fresh one (after project is known)
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || !project || languageBlocked) return;
     let cancelled = false;
 
     (async () => {
@@ -249,8 +261,7 @@ export default function PreviewPage() {
       cancelled = true;
       clearPoll();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [projectId, project, languageBlocked, startPreviewFlow, applyStatusResponse, clearPoll, pollUntilReady]);
 
   // --- Heartbeat + cleanup ------------------------------------------------
   const heartbeatActive = status === 'queued' || status === 'building' || status === 'running';
@@ -470,8 +481,26 @@ export default function PreviewPage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100svh-64px)] bg-app-surface-muted">
+      {languageBlocked && (
+        <div
+          role="alert"
+          className="flex-shrink-0 border-b border-app-warning-border bg-app-warning-soft px-4 py-3 text-sm text-app-warning"
+        >
+          <p className="font-semibold">{t('projectDetail:languageGate.title')}</p>
+          <p className="mt-1 opacity-90">
+            {t('projectDetail:languageGate.body', { language: lockedLangLabel })}
+          </p>
+          <Link
+            to="/settings"
+            className="mt-2 inline-flex rounded-lg bg-app-warning px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+          >
+            {t('projectDetail:languageGate.openSettings')}
+          </Link>
+        </div>
+      )}
+
       {/* Toolbar */}
-      <div className="flex-shrink-0 bg-app-surface border-b border-app-border shadow-sm px-4 sm:px-6 py-3">
+      <div className={`flex-shrink-0 bg-app-surface border-b border-app-border shadow-sm px-4 sm:px-6 py-3 ${languageBlocked ? 'pointer-events-none opacity-50' : ''}`}>
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <Link to={`/projects/${projectId}`} className="text-app-text-muted hover:text-app-text transition-colors">
@@ -514,7 +543,7 @@ export default function PreviewPage() {
       </div>
 
       {/* Main: split layout (side-by-side on md+, stacked with bottom-sheet on <md) */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+      <div className={`flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 ${languageBlocked ? 'pointer-events-none opacity-50' : ''}`}>
         <div className="flex-1 relative overflow-hidden bg-app-surface-muted min-h-[50vh] md:min-h-0">
           {status === 'running' && iframeSrc && (
             <iframe ref={iframeRef} src={iframeSrc} title={t('iframeTitle')} className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads" />

@@ -111,10 +111,10 @@ export default function PreviewBuildModal({ state, onCancel, onRetry, onBack }: 
               {state.message}
             </div>
 
-            {state.code && (
+            {import.meta.env.DEV && state.code && (
               <details className="text-xs text-app-text-muted">
                 <summary className="cursor-pointer hover:text-app-text">{t('modal.errorDetails')}</summary>
-                <div className="mt-2 font-mono text-app-text-muted">
+                <div className="mt-2 font-mono text-app-text-subtle">
                   code: {state.code}
                 </div>
               </details>

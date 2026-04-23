@@ -3,7 +3,17 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { ClarificationQuestion } from '../../types/aiGateway';
 
-const STEP_KEYS = ['starting', 'distributor', 'clarifications', 'generators', 'finalizing', 'normalizing', 'validating', 'done'];
+const STEP_KEYS = [
+  'starting',
+  'distributor',
+  'clarifications',
+  'generators',
+  'integrator',
+  'finalizing',
+  'normalizing',
+  'validating',
+  'done',
+];
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
@@ -32,9 +42,12 @@ export default function GenerationModal({
   const stepOrder = STEP_KEYS.map((key) => ({ key, label: t(`generationModal.steps.${key}`) }));
 
   const hasQuestions = questions.length > 0 && !result;
-  const step = progress?.step || 'starting';
+  const rawStep = progress?.step || '';
+  const step = STEP_KEYS.includes(rawStep) ? rawStep : 'starting';
   const pct = result === 'success' ? 100 : (progress?.pct ?? 5);
-  const detail = progress?.detail || phase;
+  const headlineDetail = progress
+    ? t(`generationModal.stepDetails.${step}`)
+    : (phase || t('generationModal.stepDetails.idle'));
 
   const activeIdx = stepOrder.findIndex((s) => s.key === step);
   const currentIdx = activeIdx >= 0 ? activeIdx : 0;
@@ -55,7 +68,7 @@ export default function GenerationModal({
               </svg>
             </div>
             <h3 className="text-base font-semibold text-app-text mb-1">{t('generationModal.generating')}</h3>
-            <p className="text-sm text-app-text-muted mb-5">{detail}</p>
+            <p className="text-sm text-app-text-muted mb-5">{headlineDetail}</p>
 
             <div className="w-full rounded-full bg-app-surface-hover h-2.5 mb-3 overflow-hidden">
               <div
@@ -84,7 +97,7 @@ export default function GenerationModal({
                       </div>
                     )}
                     <span className={`${active ? 'text-app-text font-medium' : 'text-app-text-muted'}`}>
-                      {active && progress?.detail ? progress.detail : s.label}
+                      {active ? t(`generationModal.stepDetails.${s.key}`) : s.label}
                     </span>
                   </div>
                 );

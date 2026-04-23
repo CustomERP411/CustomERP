@@ -19,6 +19,11 @@
     "reports": "Reports",
     "reportsDesc": "Reports screen with inventory metrics."
   },
+  "languageGate": {
+    "title": "App language does not match this project",
+    "body": "This project is locked to {{language}}. Business questions and AI output stay in that language. Switch your app language to {{language}} in Settings, then return here.",
+    "openSettings": "Open language settings"
+  },
   "tabs": {
     "modules": "Modules",
     "questions": "Questions",
@@ -391,10 +396,23 @@
       "distributor": "Analyzing your business requirements",
       "clarifications": "Waiting for your answers",
       "generators": "Generating module configurations",
+      "integrator": "Merging modules",
       "finalizing": "Checking for follow-up questions",
       "normalizing": "Validating & normalizing your ERP",
       "validating": "Finalizing your ERP",
       "done": "Complete"
+    },
+    "stepDetails": {
+      "starting": "Your answers are being saved before generation starts.",
+      "distributor": "We are interpreting your business description and module choices.",
+      "clarifications": "We need your answers to a few questions before we can continue.",
+      "generators": "AI is building configuration for each selected ERP module.",
+      "integrator": "Module outputs are being combined into one coherent ERP definition.",
+      "finalizing": "Checking whether any follow-up questions are still needed.",
+      "normalizing": "Validating structure and applying final normalization.",
+      "validating": "Running schema validation on the generated definition.",
+      "done": "Generation finished.",
+      "idle": "Preparing…"
     }
   },
   "moduleSelector": {

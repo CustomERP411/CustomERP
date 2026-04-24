@@ -72,7 +72,7 @@ export default function SdfPreviewSection({
           {preview.moduleSummaries.map((ms: any) => {
             const styles = MOD_STYLES[ms.key] || MOD_STYLES.shared;
             return (
-              <div key={ms.key} className={`rounded-xl border bg-app-surface p-4 ${styles.left}`}>
+              <div key={ms.key} className={`rounded-xl border p-4 ${styles.panel}`}>
                 <div className="text-sm font-semibold text-app-text">{t('sdfPreview.moduleCard', { label: ms.label })}</div>
                 {Object.entries(ms.config).length > 0 && (
                   <div className="mt-2 space-y-1">

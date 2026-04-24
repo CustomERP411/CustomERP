@@ -73,11 +73,15 @@ export const BUSINESS_QUESTIONS: BusinessQuestion[] = [
   { id: 'anything_else', question: 'Anything else you\'d like us to know?', placeholder: 'Optional — anything that might help us build the right system for you', optional: true },
 ];
 
-export const MOD_STYLES: Record<string, { sel: string; unsel: string; left: string; badge: string; dot: string; icon: string }> = {
+export const MOD_STYLES: Record<
+  string,
+  { sel: string; unsel: string; left: string; panel: string; badge: string; dot: string; icon: string }
+> = {
   inventory: {
     sel:   'border-app-mod-inventory bg-app-mod-inventory-soft ring-2 ring-app-mod-inventory-ring',
     unsel: 'border-app-border bg-app-surface hover:border-app-mod-inventory-border hover:bg-app-mod-inventory-soft/40',
     left:  'border-l-4 border-l-app-mod-inventory',
+    panel: 'border-app-mod-inventory-border bg-app-mod-inventory-soft',
     badge: 'bg-app-mod-inventory-soft text-app-mod-inventory',
     dot:   'bg-app-mod-inventory',
     icon:  'text-app-mod-inventory',
@@ -86,6 +90,7 @@ export const MOD_STYLES: Record<string, { sel: string; unsel: string; left: stri
     sel:   'border-app-mod-invoice bg-app-mod-invoice-soft ring-2 ring-app-mod-invoice-ring',
     unsel: 'border-app-border bg-app-surface hover:border-app-mod-invoice-border hover:bg-app-mod-invoice-soft/40',
     left:  'border-l-4 border-l-app-mod-invoice',
+    panel: 'border-app-mod-invoice-border bg-app-mod-invoice-soft',
     badge: 'bg-app-mod-invoice-soft text-app-mod-invoice',
     dot:   'bg-app-mod-invoice',
     icon:  'text-app-mod-invoice',
@@ -94,13 +99,16 @@ export const MOD_STYLES: Record<string, { sel: string; unsel: string; left: stri
     sel:   'border-app-mod-hr bg-app-mod-hr-soft ring-2 ring-app-mod-hr-ring',
     unsel: 'border-app-border bg-app-surface hover:border-app-mod-hr-border hover:bg-app-mod-hr-soft/40',
     left:  'border-l-4 border-l-app-mod-hr',
+    panel: 'border-app-mod-hr-border bg-app-mod-hr-soft',
     badge: 'bg-app-mod-hr-soft text-app-mod-hr',
     dot:   'bg-app-mod-hr',
     icon:  'text-app-mod-hr',
   },
   shared: {
-    sel: '', unsel: '',
+    sel: '',
+    unsel: '',
     left:  'border-l-4 border-l-app-border-strong',
+    panel: 'border-app-border bg-app-surface',
     badge: 'bg-app-surface-hover text-app-text',
     dot:   'bg-app-text-subtle',
     icon:  'text-app-text-muted',

@@ -54,8 +54,8 @@ export default function DefaultQuestions({
             const allDone = counts.total > 0 && counts.answered === counts.total;
 
             return (
-              <div key={mod} className={`rounded-xl border bg-app-surface overflow-hidden ${styles.left}`}>
-                <div className="flex items-center justify-between gap-3 border-b bg-app-surface-muted/60 px-4 py-3 sm:px-5">
+              <div key={mod} className={`rounded-xl border overflow-hidden ${styles.panel}`}>
+                <div className="flex items-center justify-between gap-3 border-b border-app-border bg-app-surface-elevated/40 px-4 py-3 sm:px-5">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`inline-block h-2.5 w-2.5 rounded-full ${styles.dot}`} />
                     <span className="text-sm font-semibold text-app-text truncate">{meta.label}</span>
@@ -65,7 +65,7 @@ export default function DefaultQuestions({
                   </span>
                 </div>
 
-                <div className="divide-y">
+                <div className="divide-y divide-app-border">
                   {modQuestions.map((q, qi) => {
                     const rawAnswer = answersById[q.id];
                     const answerString = Array.isArray(rawAnswer) ? '' : String(rawAnswer || '');

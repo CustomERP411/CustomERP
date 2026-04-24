@@ -89,8 +89,12 @@ function sweepFor(type: KnobType): 0 | 1 {
  * Build a single SVG `d` attribute for a piece. The outline is seamless —
  * no internal lines at knob bases — because the path walks the full
  * perimeter including each tab/socket arc.
+ *
+ * `knobR` overrides the default protrusion radius so boards rendered at
+ * different scales (e.g. desktop vs mobile) can share the same layout
+ * definitions while still getting proportionally-sized tabs.
  */
-export function computePiecePath(piece: Piece): string {
+export function computePiecePath(piece: Piece, knobR: number = KNOB_R): string {
   const { x, y, w, h } = piece;
   const top = normalizeSide(piece.sides?.top);
   const right = normalizeSide(piece.sides?.right);
@@ -101,29 +105,29 @@ export function computePiecePath(piece: Piece): string {
 
   for (const k of top) {
     const cx = x + k.pos * w;
-    parts.push(`L ${cx - KNOB_R} ${y}`);
-    parts.push(`A ${KNOB_R} ${KNOB_R} 0 0 ${sweepFor(k.type)} ${cx + KNOB_R} ${y}`);
+    parts.push(`L ${cx - knobR} ${y}`);
+    parts.push(`A ${knobR} ${knobR} 0 0 ${sweepFor(k.type)} ${cx + knobR} ${y}`);
   }
   parts.push(`L ${x + w} ${y}`);
 
   for (const k of right) {
     const cy = y + k.pos * h;
-    parts.push(`L ${x + w} ${cy - KNOB_R}`);
-    parts.push(`A ${KNOB_R} ${KNOB_R} 0 0 ${sweepFor(k.type)} ${x + w} ${cy + KNOB_R}`);
+    parts.push(`L ${x + w} ${cy - knobR}`);
+    parts.push(`A ${knobR} ${knobR} 0 0 ${sweepFor(k.type)} ${x + w} ${cy + knobR}`);
   }
   parts.push(`L ${x + w} ${y + h}`);
 
   for (const k of [...bottom].reverse()) {
     const cx = x + k.pos * w;
-    parts.push(`L ${cx + KNOB_R} ${y + h}`);
-    parts.push(`A ${KNOB_R} ${KNOB_R} 0 0 ${sweepFor(k.type)} ${cx - KNOB_R} ${y + h}`);
+    parts.push(`L ${cx + knobR} ${y + h}`);
+    parts.push(`A ${knobR} ${knobR} 0 0 ${sweepFor(k.type)} ${cx - knobR} ${y + h}`);
   }
   parts.push(`L ${x} ${y + h}`);
 
   for (const k of [...left].reverse()) {
     const cy = y + k.pos * h;
-    parts.push(`L ${x} ${cy + KNOB_R}`);
-    parts.push(`A ${KNOB_R} ${KNOB_R} 0 0 ${sweepFor(k.type)} ${x} ${cy - KNOB_R}`);
+    parts.push(`L ${x} ${cy + knobR}`);
+    parts.push(`A ${knobR} ${knobR} 0 0 ${sweepFor(k.type)} ${x} ${cy - knobR}`);
   }
   parts.push(`L ${x} ${y}`, 'Z');
 
@@ -152,30 +156,30 @@ export function computeKnobs(piece: Piece): AbsoluteKnob[] {
   return knobs;
 }
 
-const HIT_OFFSET = KNOB_R * 0.5;
-
 /** Centre point for a hit region over a knob's visible protrusion. */
 export function knobHitCenter(
   side: SideName,
   cx: number,
   cy: number,
+  knobR: number = KNOB_R,
 ): { hx: number; hy: number } {
-  if (side === 'top') return { hx: cx, hy: cy - HIT_OFFSET };
-  if (side === 'bottom') return { hx: cx, hy: cy + HIT_OFFSET };
-  if (side === 'left') return { hx: cx - HIT_OFFSET, hy: cy };
-  return { hx: cx + HIT_OFFSET, hy: cy };
+  const offset = knobR * 0.5;
+  if (side === 'top') return { hx: cx, hy: cy - offset };
+  if (side === 'bottom') return { hx: cx, hy: cy + offset };
+  if (side === 'left') return { hx: cx - offset, hy: cy };
+  return { hx: cx + offset, hy: cy };
 }
 
 /**
  * Bounding box including any outward-pointing tabs, used to pad the viewBox
  * so strokes on protruding knobs aren't clipped.
  */
-export function computePieceBbox(piece: Piece): Bbox {
+export function computePieceBbox(piece: Piece, knobR: number = KNOB_R): Bbox {
   const { x, y, w, h, sides = {} } = piece;
-  const extL = hasTab(sides.left) ? KNOB_R : 0;
-  const extR = hasTab(sides.right) ? KNOB_R : 0;
-  const extT = hasTab(sides.top) ? KNOB_R : 0;
-  const extB = hasTab(sides.bottom) ? KNOB_R : 0;
+  const extL = hasTab(sides.left) ? knobR : 0;
+  const extR = hasTab(sides.right) ? knobR : 0;
+  const extT = hasTab(sides.top) ? knobR : 0;
+  const extB = hasTab(sides.bottom) ? knobR : 0;
   return {
     minX: x - extL,
     minY: y - extT,

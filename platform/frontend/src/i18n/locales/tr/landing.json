@@ -1,14 +1,20 @@
 {
   "nav": {
     "signIn": "Giriş Yap",
-    "getStarted": "Başla",
+    "signUp": "Kayıt Ol",
     "about": "Hakkımızda",
-    "howItWorks": "Nasıl Çalışır"
+    "howItWorks": "Nasıl Çalışır",
+    "home": "Ana sayfa",
+    "toggleTheme": "Temayı değiştir"
   },
   "hero": {
-    "titleLine1": "Kendi Özel ERP'nizi Oluşturun",
-    "titleLine2": "Kod Yazmadan",
-    "subtitle": "İş süreçlerinizi yalnızca doğal dille anlatarak tam işlevsel bir ERP sistemine dönüştürün. Yapay zekâ destekli."
+    "titleLine1": "Kısa bir tanımdan çalışan bir ERP'ye — otomatik olarak.",
+    "subtitle": "İşletmenizi düz dille anlatın. Modülleri, iş akışlarını ve veriyi modelleyelim; geliştirici ekibi olmadan yayına çıkın."
+  },
+  "tagline": {
+    "line1": "Şirketinizi tanımlarsınız.",
+    "line2": "Bunu varlıklar, kurallar ve kullanıma hazır ekranlara çeviririz.",
+    "line3": "Aylar süren özel yazılım yerine saatler içinde çalışan sistem."
   },
   "pills": {
     "aiPowered": "Yapay Zekâ Destekli",

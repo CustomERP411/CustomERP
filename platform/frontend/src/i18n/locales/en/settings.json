@@ -6,7 +6,13 @@
     "password": "Change password",
     "language": "Language",
     "theme": "Theme",
+    "preferences": "Preferences",
     "danger": "Danger zone"
+  },
+  "preferences": {
+    "subtitle": "Choose the interface language and light or dark appearance.",
+    "themeLabel": "Appearance",
+    "themeHint": "Toggle light and dark mode."
   },
   "profile": {
     "nameLabel": "Full name",

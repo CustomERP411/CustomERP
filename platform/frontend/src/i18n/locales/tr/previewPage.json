@@ -2,6 +2,10 @@
   "livePreview": "Canlı Önizleme",
   "approveDownload": "Onayla ve İndir",
   "iframeTitle": "ERP Önizleme",
+  "iframe": {
+    "waitingToken": "Önizlemeye bağlanılıyor…",
+    "retryLink": "Bağlantıyı yenile"
+  },
   "preparingPreview": "Önizleme hazırlanıyor...",
   "mayTake": "Bu bir dakikaya kadar sürebilir",
   "previewFailed": "Önizleme Başarısız",
@@ -79,6 +83,12 @@
     "waitingAnswers": "Cevaplarınız bekleniyor",
     "processingAnswers": "Cevaplarınız işleniyor...",
     "complete": "Tamamlandı"
+  },
+  "mobileView": {
+    "wideLayout": "Geniş düzen",
+    "tallLayout": "Dikey düzen",
+    "wideLayoutAria": "Önizlemeyi doksan derece döndür; telefonda tablolar ve kenar çubukları için daha geniş alan",
+    "tallLayoutAria": "Önizlemeyi normal dikey düzende göster"
   },
   "changePanel": {
     "title": "Değişiklik Talep Et",

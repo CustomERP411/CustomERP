@@ -122,7 +122,7 @@ export default function FeatureRequestsAdminPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Stats bar */}
-      <div className="flex flex-wrap items-center gap-4 border-b bg-app-surface px-5 py-3">
+      <div className="flex flex-wrap items-center gap-4 border-b border-app-border bg-app-surface px-5 py-3">
         <h1 className="text-lg font-bold text-app-text">{t('featureRequests.title')}</h1>
         {stats && (
           <>
@@ -137,14 +137,14 @@ export default function FeatureRequestsAdminPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left: list */}
-        <div className={`${detail ? 'hidden md:flex' : 'flex'} w-full md:w-[420px] flex-shrink-0 flex-col border-r bg-app-surface-muted overflow-hidden`}>
+        <div className={`${detail ? 'hidden md:flex' : 'flex'} w-full md:w-[420px] flex-shrink-0 flex-col border-r border-app-border bg-app-surface-muted overflow-hidden`}>
           {/* Filters */}
-          <div className="flex flex-wrap gap-2 border-b px-3 py-2 bg-app-surface">
-            <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setOffset(0); }} className="rounded border px-2 py-1 text-xs">
+          <div className="flex flex-wrap gap-2 border-b border-app-border px-3 py-2 bg-app-surface">
+            <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setOffset(0); }} className="rounded border border-app-border bg-app-surface px-2 py-1 text-xs text-app-text">
               <option value="">{t('featureRequests.filters.allStatuses')}</option>
               {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
             </select>
-            <select value={filterSource} onChange={(e) => { setFilterSource(e.target.value); setOffset(0); }} className="rounded border px-2 py-1 text-xs">
+            <select value={filterSource} onChange={(e) => { setFilterSource(e.target.value); setOffset(0); }} className="rounded border border-app-border bg-app-surface px-2 py-1 text-xs text-app-text">
               <option value="">{t('featureRequests.filters.allSources')}</option>
               {SOURCES.map((s) => <option key={s} value={s}>{s === 'chatbot' ? t('featureRequests.sources.chatbot') : t('featureRequests.sources.sdfGeneration')}</option>)}
             </select>
@@ -161,8 +161,8 @@ export default function FeatureRequestsAdminPage() {
                 <button
                   key={r.id}
                   onClick={() => openDetail(r.id)}
-                  className={`w-full text-left border-b px-3 py-3 transition-colors hover:bg-app-surface-hover ${
-                    detail?.id === r.id ? 'bg-app-info-soft border-l-2 border-l-blue-500' : ''
+                  className={`w-full text-left border-b border-app-border px-3 py-3 transition-colors hover:bg-app-surface-hover ${
+                    detail?.id === r.id ? 'bg-app-info-soft border-l-2 border-l-app-accent-blue' : ''
                   }`}
                 >
                   <div className="flex items-center gap-1.5 text-xs">
@@ -182,11 +182,11 @@ export default function FeatureRequestsAdminPage() {
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between border-t bg-app-surface px-3 py-2 text-xs text-app-text-muted">
+          <div className="flex items-center justify-between border-t border-app-border bg-app-surface px-3 py-2 text-xs text-app-text-muted">
             <span>{t('featureRequests.list.total', { count: total })}</span>
             <div className="flex gap-1">
-              <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))} className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-app-surface-hover">{t('featureRequests.list.prev')}</button>
-              <button disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)} className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-app-surface-hover">{t('featureRequests.list.next')}</button>
+              <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))} className="rounded border border-app-border bg-app-surface px-2 py-0.5 text-app-text disabled:opacity-40 hover:bg-app-surface-hover">{t('featureRequests.list.prev')}</button>
+              <button disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)} className="rounded border border-app-border bg-app-surface px-2 py-0.5 text-app-text disabled:opacity-40 hover:bg-app-surface-hover">{t('featureRequests.list.next')}</button>
             </div>
           </div>
         </div>
@@ -202,7 +202,7 @@ export default function FeatureRequestsAdminPage() {
           ) : detail ? (
             <div className="flex flex-col h-full min-w-0">
               {/* Header */}
-              <div className="border-b bg-app-surface-muted px-4 sm:px-6 py-4">
+              <div className="border-b border-app-border bg-app-surface-muted px-4 sm:px-6 py-4">
                 <button
                   type="button"
                   onClick={() => setDetail(null)}
@@ -249,13 +249,13 @@ export default function FeatureRequestsAdminPage() {
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <label className="block text-xs font-medium text-app-text-muted mb-1">{t('featureRequests.detail.status')}</label>
-                      <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as FeatureStatus)} className="w-full rounded border px-3 py-2 text-sm">
+                      <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as FeatureStatus)} className="w-full rounded border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text">
                         {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-app-text-muted mb-1">{t('featureRequests.detail.adminNotes')}</label>
-                      <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} className="w-full rounded border px-3 py-2 text-sm" placeholder={t('featureRequests.detail.notesPlaceholder')} />
+                      <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} className="w-full rounded border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle" placeholder={t('featureRequests.detail.notesPlaceholder')} />
                     </div>
                   </div>
                   <button onClick={handleSave} disabled={saving} className="mt-3 rounded-lg bg-app-accent-blue px-4 py-2 text-sm font-medium text-white hover:bg-app-accent-dark-blue disabled:opacity-50 transition-colors">
@@ -265,7 +265,7 @@ export default function FeatureRequestsAdminPage() {
 
                 {/* Chat thread */}
                 <Section title={t('featureRequests.detail.conversation')}>
-                  <div className="rounded-lg border bg-app-surface-muted max-h-80 overflow-y-auto">
+                  <div className="rounded-lg border border-app-border bg-app-surface-muted max-h-80 overflow-y-auto">
                     {detail.messages.length === 0 ? (
                       <p className="p-4 text-xs text-app-text-subtle text-center">{t('featureRequests.detail.noMessages')}</p>
                     ) : (
@@ -295,7 +295,7 @@ export default function FeatureRequestsAdminPage() {
                       onChange={(e) => setMsgText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                       placeholder={t('featureRequests.detail.messagePlaceholder')}
-                      className="flex-1 rounded-lg border px-3 py-2 text-sm focus:border-app-accent-blue focus:outline-none focus:ring-1 focus:ring-app-focus"
+                      className="flex-1 rounded-lg border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-app-accent-blue focus:outline-none focus:ring-1 focus:ring-app-focus"
                     />
                     <button
                       onClick={handleSendMessage}
@@ -319,7 +319,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div>
       <h3 className="text-sm font-semibold text-app-text mb-2">{title}</h3>
-      <div className="rounded-lg border bg-app-surface p-4">{children}</div>
+      <div className="rounded-lg border border-app-border bg-app-surface p-4">{children}</div>
     </div>
   );
 }

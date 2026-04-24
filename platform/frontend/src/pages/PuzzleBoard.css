@@ -22,6 +22,23 @@
   cursor: default;
 }
 
+/* Clickable landing pieces: scale only the HTML inside foreignObject so the
+ * SVG path (tabs/sockets) stays pixel-aligned with neighbours. Scaling the
+ * whole <g> made right-edge knobs look like “extra” tabs next to Sign In. */
+.piece.piece--interactive .piece__content-inner {
+  transition: transform 0.22s cubic-bezier(0.34, 1.45, 0.64, 1);
+  transform-origin: center;
+}
+
+.piece.piece--interactive:hover .piece__content-inner,
+.piece.piece--interactive:focus-within .piece__content-inner {
+  transform: scale(1.06);
+}
+
+.piece.piece--interactive:active .piece__content-inner {
+  transform: scale(1.03);
+}
+
 .piece__path {
   /* --puzzle-piece-fill can be set on `.piece` for per-tile tints; inherits on <g> */
   fill: var(--puzzle-piece-fill, var(--puzzle-fill, #161b22));
@@ -76,6 +93,23 @@
   justify-content: center;
   color: var(--puzzle-label, inherit);
   font-family: inherit;
+}
+
+/* Full-piece click target. Sits on top of everything (including foreignObject)
+ * so clicking anywhere inside the piece outline — body and knob tabs alike —
+ * routes to the same link. Fully transparent; the visible outline is the
+ * piece itself. */
+.piece__clickable {
+  fill: transparent;
+  stroke: none;
+  cursor: pointer;
+  pointer-events: all;
+}
+
+.piece--interactive a:focus-visible .piece__clickable {
+  stroke: var(--app-focus-ring, rgba(66, 133, 244, 0.55));
+  stroke-width: 3;
+  outline: none;
 }
 
 /* Invisible hit region over each tab. A subtle tint appears on hover so the

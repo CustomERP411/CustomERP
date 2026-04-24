@@ -1,14 +1,20 @@
 {
   "nav": {
     "signIn": "Sign In",
-    "getStarted": "Get Started",
+    "signUp": "Sign Up",
     "about": "About",
-    "howItWorks": "How It Works"
+    "howItWorks": "How It Works",
+    "home": "Home",
+    "toggleTheme": "Toggle theme"
   },
   "hero": {
-    "titleLine1": "Build Your Custom ERP",
-    "titleLine2": "Without Writing Code",
-    "subtitle": "Transform your business processes into a fully functional ERP system using just natural language. Powered by AI."
+    "titleLine1": "From a short description to a live ERP — automatically.",
+    "subtitle": "Describe your business in plain language. We model the modules, workflows, and data so you can ship without a dev team."
+  },
+  "tagline": {
+    "line1": "You describe your company.",
+    "line2": "We translate that into entities, rules, and screens you can use.",
+    "line3": "Hours to a working system — not months of bespoke development."
   },
   "pills": {
     "aiPowered": "AI-Powered",

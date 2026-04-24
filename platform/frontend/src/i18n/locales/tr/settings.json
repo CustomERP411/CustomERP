@@ -6,7 +6,13 @@
     "password": "Parola değiştir",
     "language": "Dil",
     "theme": "Tema",
+    "preferences": "Tercihler",
     "danger": "Tehlikeli bölge"
+  },
+  "preferences": {
+    "subtitle": "Arayüz dilini ve açık veya koyu görünümü seçin.",
+    "themeLabel": "Görünüm",
+    "themeHint": "Açık ve koyu tema arasında geçiş yapın."
   },
   "profile": {
     "nameLabel": "Ad soyad",

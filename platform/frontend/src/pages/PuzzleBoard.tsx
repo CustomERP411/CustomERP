@@ -1,7 +1,12 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import PuzzlePiece from './PuzzlePiece';
-import { computePieceBbox, computePiecePath } from '../components/puzzle/geometry';
+import type { PieceAction } from './PuzzlePiece';
+import {
+  KNOB_R,
+  computePieceBbox,
+  computePiecePath,
+} from '../components/puzzle/geometry';
 import type { Piece, SideName } from '../components/puzzle/geometry';
 import './PuzzleBoard.css';
 
@@ -37,6 +42,18 @@ export interface PuzzleBoardProps {
   useLandingGradients?: boolean;
   /** Drives def stop colours for the landing board (`useLandingGradients`). */
   landingGradientTheme?: 'light' | 'dark';
+  /**
+   * Map of piece id → full-piece link/button spec. When set for a piece, the
+   * entire puzzle outline (including protruding knobs) becomes a click target,
+   * not just the rectangular body.
+   */
+  actionsById?: Record<string, PieceAction>;
+  /**
+   * Override the tab/socket protrusion radius for this board. Lets a mobile
+   * layout render proportionally-smaller knobs than the desktop one while
+   * sharing the same `Piece[]` shape definitions.
+   */
+  knobR?: number;
 }
 
 function LandingBoardDefs({
@@ -177,6 +194,8 @@ export default function PuzzleBoard({
   style,
   useLandingGradients = false,
   landingGradientTheme = 'light',
+  actionsById,
+  knobR = KNOB_R,
 }: PuzzleBoardProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -190,10 +209,10 @@ export default function PuzzleBoard({
     () =>
       pieces.map((p) => ({
         ...p,
-        path: computePiecePath(p),
-        bbox: computePieceBbox(p),
+        path: computePiecePath(p, knobR),
+        bbox: computePieceBbox(p, knobR),
       })),
-    [pieces],
+    [pieces, knobR],
   );
 
   const bbox = useMemo(() => {
@@ -322,6 +341,8 @@ export default function PuzzleBoard({
           onKnobClick={handleKnobClick}
           content={contentById?.[p.id]}
           pathStyle={pathStyleLanding}
+          action={actionsById?.[p.id]}
+          knobR={knobR}
         />
       ))}
     </svg>

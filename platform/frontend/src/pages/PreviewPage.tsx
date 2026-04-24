@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { projectService } from '../services/projectService';
@@ -16,6 +16,18 @@ type PreviewStatus = 'idle' | 'queued' | 'building' | 'running' | 'error' | 'sto
 const SIDEBAR_KEY = 'sidebar_collapsed';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:3000/api';
+
+/** When `VITE_API_URL` is absolute (common in Docker), point the iframe at the API origin so `/preview` is not loaded through the Vite dev server (whose default proxy target is wrong inside a container). */
+function buildPreviewIframeUrl(previewId: string, token: string): string {
+  const path = `/preview/${previewId}/?token=${encodeURIComponent(token)}`;
+  const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
+  if (!apiUrl || apiUrl.startsWith('/')) return path;
+  try {
+    return new URL(path, apiUrl).toString();
+  } catch {
+    return path;
+  }
+}
 
 // Map backend error codes → i18n keys. Unknown codes fall back to regex/msg.
 const CODE_TO_KEY: Record<string, string> = {
@@ -73,6 +85,8 @@ export default function PreviewPage() {
   const [changeText, setChangeText] = useState('');
   // Mobile bottom sheet toggle for the change panel (collapsed by default on <md)
   const [changePanelOpen, setChangePanelOpen] = useState(false);
+  /** Phone-only: rotate preview 90° so the ERP uses the long screen edge as “width”. */
+  const [mobileWideLayout, setMobileWideLayout] = useState(false);
   const [genPhase, setGenPhase] = useState('');
   const [genResult, setGenResult] = useState<'success' | 'error' | null>(null);
   const [genErrorMsg, setGenErrorMsg] = useState('');
@@ -106,6 +120,16 @@ export default function PreviewPage() {
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const clearWide = () => {
+      if (mq.matches) setMobileWideLayout(false);
+    };
+    clearWide();
+    mq.addEventListener('change', clearWide);
+    return () => mq.removeEventListener('change', clearWide);
   }, []);
 
   const clearPoll = useCallback(() => {
@@ -461,9 +485,25 @@ export default function PreviewPage() {
     setQuestions([]); setAnswersById({});
   };
 
-  const iframeSrc = previewId && iframeToken
-    ? `/preview/${previewId}/?token=${encodeURIComponent(iframeToken)}`
-    : undefined;
+  const iframeSrc = previewId && iframeToken ? buildPreviewIframeUrl(previewId, iframeToken) : undefined;
+
+  useEffect(() => {
+    if (!projectId || status !== 'running' || !previewId || iframeToken) return;
+    const h = window.setTimeout(() => {
+      projectService.getPreviewStatus(projectId).then(applyStatusResponse).catch(() => {});
+    }, 500);
+    return () => window.clearTimeout(h);
+  }, [projectId, status, previewId, iframeToken, applyStatusResponse]);
+
+  const mobileRotatedFrameStyle: CSSProperties = {
+    position: 'absolute',
+    width: '100dvh',
+    height: '100dvw',
+    left: '50%',
+    top: '50%',
+    transform: 'translate(-50%, -50%) rotate(90deg)',
+    transformOrigin: 'center center',
+  };
 
   // Drive the blocking modal off backend-authoritative state.
   const modalState: PreviewModalState | null = (() => {
@@ -480,7 +520,7 @@ export default function PreviewPage() {
   })();
 
   return (
-    <div className="flex flex-col min-h-[calc(100svh-64px)] bg-app-surface-muted">
+    <div className="flex min-h-0 flex-1 flex-col bg-app-surface-muted">
       {languageBlocked && (
         <div
           role="alert"
@@ -529,7 +569,21 @@ export default function PreviewPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {status === 'running' && iframeSrc && (
+              <button
+                type="button"
+                onClick={() => setMobileWideLayout((v) => !v)}
+                className="md:hidden px-3 py-1.5 text-sm font-medium rounded-lg border border-app-border-strong bg-app-surface-muted text-app-text hover:bg-app-surface-hover transition-colors flex items-center gap-1.5"
+                aria-pressed={mobileWideLayout}
+                aria-label={mobileWideLayout ? t('mobileView.tallLayoutAria') : t('mobileView.wideLayoutAria')}
+              >
+                <svg className="h-4 w-4 shrink-0 text-app-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                {mobileWideLayout ? t('mobileView.tallLayout') : t('mobileView.wideLayout')}
+              </button>
+            )}
             <button
               onClick={openDownloadModal}
               disabled={(status !== 'running') || showDownloadModal}
@@ -543,10 +597,35 @@ export default function PreviewPage() {
       </div>
 
       {/* Main: split layout (side-by-side on md+, stacked with bottom-sheet on <md) */}
-      <div className={`flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 ${languageBlocked ? 'pointer-events-none opacity-50' : ''}`}>
-        <div className="flex-1 relative overflow-hidden bg-app-surface-muted min-h-[50vh] md:min-h-0">
+      <div className={`flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row ${languageBlocked ? 'pointer-events-none opacity-50' : ''}`}>
+        <div className="relative flex-1 min-h-[50vh] overflow-hidden bg-app-surface-muted md:min-h-0">
+          {status === 'running' && previewId && !iframeSrc && (
+            <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-3 bg-app-surface-muted p-6 text-center">
+              <p className="text-sm text-app-text-muted">{t('iframe.waitingToken')}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  void projectService.getPreviewStatus(projectId!).then(applyStatusResponse);
+                }}
+                className="rounded-lg border border-app-border-strong bg-app-surface px-4 py-2 text-sm font-medium text-app-text hover:bg-app-surface-hover"
+              >
+                {t('iframe.retryLink')}
+              </button>
+            </div>
+          )}
           {status === 'running' && iframeSrc && (
-            <iframe ref={iframeRef} src={iframeSrc} title={t('iframeTitle')} className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads" />
+            <div
+              className={mobileWideLayout ? 'absolute z-0' : 'absolute inset-0'}
+              style={mobileWideLayout ? mobileRotatedFrameStyle : undefined}
+            >
+              <iframe
+                ref={iframeRef}
+                src={iframeSrc}
+                title={t('iframeTitle')}
+                className="h-full w-full border-0"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+              />
+            </div>
           )}
         </div>
 

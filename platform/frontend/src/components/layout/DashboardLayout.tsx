@@ -8,6 +8,7 @@ import ChatWidget from '../chat/ChatWidget';
 export default function DashboardLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
+  const isPreviewRoute = /\/projects\/[^/]+\/preview$/.test(location.pathname);
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -15,11 +16,21 @@ export default function DashboardLayout() {
 
   return (
     <ChatProvider>
-      <div className="flex min-h-screen bg-app-bg transition-colors duration-200">
+      <div
+        className={`flex bg-app-bg transition-colors duration-200 ${
+          isPreviewRoute ? 'h-dvh max-h-dvh min-h-0 overflow-hidden' : 'min-h-screen'
+        }`}
+      >
         <Sidebar drawerOpen={drawerOpen} onCloseDrawer={() => setDrawerOpen(false)} />
-        <div className="flex flex-1 flex-col min-w-0">
+        <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${isPreviewRoute ? 'min-h-0 overflow-hidden' : ''}`}>
           <MobileTopbar onOpenMenu={() => setDrawerOpen(true)} />
-          <main className="flex-1 overflow-auto p-4 sm:p-6 min-w-0">
+          <main
+            className={`min-h-0 min-w-0 flex-1 ${
+              isPreviewRoute
+                ? 'flex flex-col overflow-hidden p-0'
+                : 'overflow-auto p-4 sm:p-6'
+            }`}
+          >
             <Outlet />
           </main>
         </div>

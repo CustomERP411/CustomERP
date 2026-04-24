@@ -83,14 +83,17 @@ export default function LanguageSelector({
     }
   }
 
+  // Square h-9 w-9 button matches `ThemeToggle`'s default size (same
+  // `h-9 w-9` with `rounded-lg`) so when the two controls sit side-by-side
+  // on auth / settings / content pages they read as a matched pair. The
+  // `compact` variant is kept as a separate name for back-compat but now
+  // renders at the same size — the difference is purely semantic.
   const buttonCls =
     resolvedVariant === 'landing' && embedInPuzzle
       ? 'inline-flex h-full w-full min-h-0 min-w-0 items-center justify-center border-0 bg-transparent text-lg font-bold tracking-wider text-app-text shadow-none rounded-none transition-colors hover:bg-app-surface-hover/40 focus:outline-none focus-visible:ring-0'
       : resolvedVariant === 'landing'
       ? 'inline-flex items-center justify-center rounded-full border border-app-border bg-app-surface px-3 py-1.5 text-sm font-bold tracking-wider text-app-text hover:bg-app-surface-hover transition-all focus:outline-none focus-visible:ring-0'
-      : resolvedVariant === 'compact'
-      ? 'inline-flex items-center justify-center rounded-md border border-app-border bg-app-surface-muted px-2 py-1 text-xs font-bold tracking-wider text-app-text shadow-sm hover:bg-app-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-app-focus'
-      : 'inline-flex items-center justify-center rounded-md border border-app-border bg-app-surface-muted px-3 py-1.5 text-sm font-bold tracking-wider text-app-text shadow-sm hover:bg-app-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-app-focus';
+      : 'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-app-border bg-app-surface-muted text-[13px] font-bold tracking-wider text-app-text shadow-sm hover:bg-app-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-app-focus';
 
   const wrapCls =
     embedInPuzzle && resolvedVariant === 'landing'

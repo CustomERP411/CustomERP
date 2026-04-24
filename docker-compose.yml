@@ -81,6 +81,9 @@ services:
     container_name: customwerp-frontend
     environment:
       VITE_API_URL: http://localhost:3000/api
+      # Vite runs inside the container; localhost:3000 would not reach the API. Proxies must target the backend service.
+      VITE_DEV_API_PROXY: http://backend:3000
+      VITE_DEV_PREVIEW_PROXY: http://backend:3000
     ports:
       - "5173:5173"
     volumes:

@@ -170,20 +170,24 @@ export default function SettingsPage() {
         </form>
       </section>
 
-      {/* Language & Theme */}
+      {/* Preferences — language + appearance */}
       <section className={sectionCls}>
-        <h2 className="text-lg font-semibold text-app-text">{t('settings:sections.language')}</h2>
-        <p className="mt-1 text-sm text-app-text-muted">{t('settings:language.info')}</p>
+        <h2 className="text-lg font-semibold text-app-text">{t('settings:sections.preferences')}</h2>
+        <p className="mt-1 text-sm text-app-text-muted">{t('settings:preferences.subtitle')}</p>
 
-        <div className="mt-5 space-y-6">
-          <div>
-            <label className={`${labelCls} mb-1.5`}>{t('settings:language.label')}</label>
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 sm:gap-6">
+          <div className="rounded-lg border border-app-border bg-app-surface-muted/50 p-4 sm:p-5">
+            <label className={`${labelCls} mb-2`}>{t('settings:language.label')}</label>
             <LanguageSelector />
+            <p className="mt-3 text-xs leading-relaxed text-app-text-muted">{t('settings:language.info')}</p>
           </div>
 
-          <div>
-            <label className={`${labelCls} mb-1.5`}>{t('settings:sections.theme')}</label>
-            <ThemeToggle />
+          <div className="rounded-lg border border-app-border bg-app-surface-muted/50 p-4 sm:p-5">
+            <label className={`${labelCls} mb-2`}>{t('settings:preferences.themeLabel')}</label>
+            <div className="mt-1 flex items-center gap-3">
+              <ThemeToggle />
+              <span className="text-sm text-app-text-muted">{t('settings:preferences.themeHint')}</span>
+            </div>
           </div>
         </div>
       </section>

@@ -7,6 +7,7 @@ import Button from '../components/ui/Button';
 import LanguageSelector from '../components/common/LanguageSelector';
 import BrandMark from '../components/brand/BrandMark';
 import ThemeToggle from '../components/common/ThemeToggle';
+import AuthSidePuzzle from '../components/auth/AuthSidePuzzle';
 import type { LoginFormData, FormErrors } from '../types/auth';
 import { AxiosError } from 'axios';
 
@@ -83,11 +84,13 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex bg-app-bg transition-colors duration-200">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-app-surface p-12 flex-col justify-between relative border-r border-app-border">
+      {/* Left Panel — puzzle-piece brand + "how it works" steps. Mirrors the
+       *  landing page's jigsaw so the sign-in flow feels like a continuation
+       *  of the marketing surface instead of a disconnected form screen. */}
+      <div className="hidden lg:flex lg:w-1/2 bg-app-surface p-10 xl:p-12 flex-col justify-between relative border-r border-app-border">
         <Link
           to="/"
-          className="absolute top-8 right-8 flex items-center text-app-text-subtle hover:text-app-accent-blue transition-colors"
+          className="absolute top-6 right-6 z-10 flex items-center text-app-text-subtle hover:text-app-accent-blue transition-colors"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -95,12 +98,11 @@ export default function LoginPage() {
           {t('common:back')}
         </Link>
 
-        <div>
-          <BrandMark variant="wordmark" className="h-16 sm:h-20 md:h-24 w-auto max-w-lg object-left object-contain" />
-          <p className="text-app-text-subtle mt-4">{t('landing:hero.subtitle')}</p>
+        <div className="mx-auto w-full max-w-xl">
+          <AuthSidePuzzle />
         </div>
 
-        <p className="text-app-text-muted-muted text-sm">{t('landing:footer.copyright')}</p>
+        <p className="text-app-text-muted text-sm">{t('landing:footer.copyright')}</p>
       </div>
 
       {/* Right Panel - Login Form */}

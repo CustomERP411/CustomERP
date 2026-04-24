@@ -1,7 +1,15 @@
 import axios from 'axios';
 
+// In Vite dev, default to same-origin `/api` so requests are proxied to the
+// backend (see vite.config.ts). Without this, the browser calls localhost:3000
+// directly and hits CORS / wrong host when only `npm run dev` is used on :5173.
+// Set VITE_API_URL at build time for production or a custom backend URL.
+const resolvedBase =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL: resolvedBase,
 });
 
 api.interceptors.request.use((config) => {

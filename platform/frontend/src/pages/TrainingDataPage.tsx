@@ -19,10 +19,10 @@ function qualityColor(q: string | null) {
 }
 
 function agentBadge(agent: string) {
-  if (agent === 'distributor') return 'bg-orange-100 text-orange-700';
-  if (agent.includes('hr')) return 'bg-pink-100 text-pink-700';
-  if (agent.includes('invoice')) return 'bg-cyan-100 text-cyan-700';
-  if (agent.includes('inventory')) return 'bg-lime-100 text-lime-700';
+  if (agent === 'distributor') return 'bg-app-warning-soft text-app-warning';
+  if (agent.includes('hr')) return 'bg-app-mod-hr-soft text-app-mod-hr';
+  if (agent.includes('invoice')) return 'bg-app-mod-invoice-soft text-app-mod-invoice';
+  if (agent.includes('inventory')) return 'bg-app-mod-inventory-soft text-app-mod-inventory';
   if (agent === 'chatbot') return 'bg-app-info-soft text-app-info';
   return 'bg-app-surface-hover text-app-text-muted';
 }
@@ -198,7 +198,7 @@ export default function TrainingDataPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Stats bar */}
-      <div className="flex flex-wrap items-center gap-4 border-b bg-app-surface px-5 py-3">
+      <div className="flex flex-wrap items-center gap-4 border-b border-app-border bg-app-surface px-5 py-3">
         <h1 className="text-lg font-bold text-app-text">{t('training.title')}</h1>
         {stats && (
           <>
@@ -222,13 +222,13 @@ export default function TrainingDataPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel: session list */}
-        <div className={`${selectedId ? 'hidden md:flex' : 'flex'} w-full md:w-96 flex-shrink-0 flex-col border-r bg-app-surface-muted overflow-hidden`}>
+        <div className={`${selectedId ? 'hidden md:flex' : 'flex'} w-full md:w-96 flex-shrink-0 flex-col border-r border-app-border bg-app-surface-muted overflow-hidden`}>
           {/* Filters */}
-          <div className="flex flex-wrap gap-2 border-b px-3 py-2 bg-app-surface">
+          <div className="flex flex-wrap gap-2 border-b border-app-border px-3 py-2 bg-app-surface">
             <select
               value={filterAgent}
               onChange={(e) => { setFilterAgent(e.target.value); setOffset(0); }}
-              className="rounded border px-2 py-1 text-xs"
+              className="rounded border border-app-border bg-app-surface px-2 py-1 text-xs text-app-text"
             >
               <option value="">{t('training.filters.allAgents')}</option>
               {AGENT_OPTIONS.map((a) => <option key={a} value={a}>{agentLabel(a)}</option>)}
@@ -236,7 +236,7 @@ export default function TrainingDataPage() {
             <select
               value={filterQuality}
               onChange={(e) => { setFilterQuality(e.target.value); setOffset(0); }}
-              className="rounded border px-2 py-1 text-xs"
+              className="rounded border border-app-border bg-app-surface px-2 py-1 text-xs text-app-text"
             >
               <option value="">{t('training.filters.allQuality')}</option>
               {QUALITY_OPTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
@@ -244,7 +244,7 @@ export default function TrainingDataPage() {
             <select
               value={filterReviewed}
               onChange={(e) => { setFilterReviewed(e.target.value); setOffset(0); }}
-              className="rounded border px-2 py-1 text-xs"
+              className="rounded border border-app-border bg-app-surface px-2 py-1 text-xs text-app-text"
             >
               <option value="">{t('training.filters.all')}</option>
               <option value="true">{t('training.filters.reviewed')}</option>
@@ -263,8 +263,8 @@ export default function TrainingDataPage() {
                 <button
                   key={s.session_id}
                   onClick={() => setSelectedId(s.session_id)}
-                  className={`w-full text-left border-b px-3 py-2.5 transition-colors hover:bg-app-surface-hover ${
-                    selectedId === s.session_id ? 'bg-app-info-soft border-l-2 border-l-blue-500' : ''
+                  className={`w-full text-left border-b border-app-border px-3 py-2.5 transition-colors hover:bg-app-surface-hover ${
+                    selectedId === s.session_id ? 'bg-app-info-soft border-l-2 border-l-app-accent-blue' : ''
                   }`}
                 >
                   <div className="flex flex-wrap gap-1">
@@ -288,18 +288,18 @@ export default function TrainingDataPage() {
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between border-t bg-app-surface px-3 py-2 text-xs text-app-text-muted">
+          <div className="flex items-center justify-between border-t border-app-border bg-app-surface px-3 py-2 text-xs text-app-text-muted">
             <span>{t('training.sessionsTotal', { count: total })}</span>
             <div className="flex gap-1">
               <button
                 disabled={offset === 0}
                 onClick={() => setOffset(Math.max(0, offset - limit))}
-                className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-app-surface-hover"
+                className="rounded border border-app-border bg-app-surface px-2 py-0.5 text-app-text disabled:opacity-40 hover:bg-app-surface-hover"
               >{t('training.prev')}</button>
               <button
                 disabled={offset + limit >= total}
                 onClick={() => setOffset(offset + limit)}
-                className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-app-surface-hover"
+                className="rounded border border-app-border bg-app-surface px-2 py-0.5 text-app-text disabled:opacity-40 hover:bg-app-surface-hover"
               >{t('training.next')}</button>
             </div>
           </div>
@@ -316,7 +316,7 @@ export default function TrainingDataPage() {
           ) : detail ? (
             <div className="flex flex-col h-full min-w-0">
               {/* Tabs */}
-              <div className="flex items-center border-b bg-app-surface-muted px-2 sm:px-4 overflow-x-auto">
+              <div className="flex items-center border-b border-app-border bg-app-surface-muted px-2 sm:px-4 overflow-x-auto">
                 <button
                   type="button"
                   onClick={() => setSelectedId(null)}
@@ -363,7 +363,7 @@ export default function TrainingDataPage() {
                       </div>
                     )}
 
-                    <div className="rounded-lg border p-3">
+                    <div className="rounded-lg border border-app-border bg-app-surface p-3">
                       <h3 className="text-sm font-semibold text-app-text mb-2">{t('training.overview.tokenUsage')}</h3>
                       <div className="flex flex-wrap gap-3 text-xs">
                         {Object.entries(detail.token_usage || {}).map(([key, val]) => {
@@ -436,9 +436,9 @@ export default function TrainingDataPage() {
                             </button>
 
                             {isExpanded && (
-                              <div className="border-t">
+                              <div className="border-t border-app-border">
                                 {/* Data sections (collapsible) */}
-                                <div className="divide-y">
+                                <div className="divide-y divide-app-border">
                                   {step.prompt_text && (
                                     <SectionToggle
                                       title={t('training.agentsTab.promptSent')}
@@ -493,7 +493,7 @@ export default function TrainingDataPage() {
                                 </div>
 
                                 {/* Review — always visible when expanded */}
-                                <div className="border-t bg-app-surface px-4 py-3 space-y-3">
+                                <div className="border-t border-app-border bg-app-surface px-4 py-3 space-y-3">
                                   <div className="flex items-center justify-between">
                                     <span className="text-xs font-semibold text-app-text">{t('training.agentsTab.review')}</span>
                                     {existingReview?.reviewed_at && (
@@ -608,7 +608,7 @@ function JsonSection({ title, data, defaultExpanded = false }: {
   if (!data) return null;
   const text = JSON.stringify(data, null, 2);
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-lg border border-app-border bg-app-surface">
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-app-text hover:bg-app-surface-muted"
@@ -619,7 +619,7 @@ function JsonSection({ title, data, defaultExpanded = false }: {
         </svg>
       </button>
       {expanded && (
-        <pre className="border-t bg-app-surface-muted p-3 text-xs text-app-text overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-words">
+        <pre className="border-t border-app-border bg-app-surface-muted p-3 text-xs text-app-text overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-words">
           {text}
         </pre>
       )}

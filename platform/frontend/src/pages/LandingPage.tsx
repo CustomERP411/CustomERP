@@ -3,15 +3,16 @@ import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import LanguageSelector from '../components/common/LanguageSelector';
 import ThemeToggle from '../components/common/ThemeToggle';
 import BrandMark from '../components/brand/BrandMark';
-import { PuzzleBoard } from '../components/puzzle';
-import type { Piece } from '../components/puzzle';
+import PuzzleBoard from './PuzzleBoard';
+import type { Piece } from '../components/puzzle/geometry';
 
 /**
  * Landing Page — a single jigsaw of SVG puzzle pieces (see
- * `components/puzzle/`). Every piece is a `<path>` inside one `<svg>`, so
+ * `pages/PuzzleBoard` + `components/puzzle/geometry`). Every piece is a `<path>` inside one `<svg>`, so
  * outlines stay seamless and knob shapes interlock natively. Each piece
  * embeds its HTML content (logo, toggles, CTA buttons, contact placeholder,
  * links…) through a `<foreignObject>` that exposes the piece's rectangular
@@ -51,6 +52,7 @@ const Y_FOOT = Y_CONTACT + ROW_H_CONTACT; // 1080
 
 export default function LandingPage() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const { t } = useTranslation('landing');
 
@@ -300,7 +302,7 @@ export default function LandingPage() {
     trynow: (
       <Link
         to="/register"
-        className="flex h-full w-full min-h-0 min-w-0 self-stretch items-center justify-center bg-transparent px-4 text-center text-[26px] font-bold text-app-accent-orange transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-0"
+        className="flex h-full w-full min-h-0 min-w-0 self-stretch items-center justify-center bg-transparent px-4 text-center text-[26px] font-bold text-app-accent-blue transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-0"
       >
         {t('hero.ctaPrimary')}
       </Link>
@@ -348,11 +350,14 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-app-bg transition-colors duration-200">
-      <div className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 sm:py-10 landing-puzzle-shell">
+        <div className="landing-puzzle-aura" aria-hidden />
         <PuzzleBoard
-          className="landing-board"
+          className="relative z-10 landing-board"
           pieces={pieces}
           contentById={contentById}
+          useLandingGradients
+          landingGradientTheme={theme}
         />
       </div>
     </div>

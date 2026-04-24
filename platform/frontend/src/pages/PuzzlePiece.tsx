@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-import { KNOB_R, TAB, computeKnobs, knobHitCenter } from './geometry';
-import type { Piece, SideName } from './geometry';
+import type { CSSProperties, ReactNode } from 'react';
+import { KNOB_R, TAB, computeKnobs, knobHitCenter } from '../components/puzzle/geometry';
+import type { Piece, SideName } from '../components/puzzle/geometry';
 
 /**
  * Single puzzle piece rendered as `<g><path/></g>` inside a parent `<svg>`
@@ -29,6 +29,15 @@ export interface PuzzlePieceProps {
   onKnobClick?: (id: string, side: SideName, pos: number) => void;
   /** Rich React content rendered inside a `<foreignObject>` sized to the piece body. */
   content?: ReactNode;
+  /** When set (e.g. `url(#id)` from the parent `<svg>` defs), overrides CSS fill. */
+  pathFill?: string;
+  /** When set, overrides CSS stroke (e.g. URL to a stroke gradient). */
+  pathStroke?: string;
+  /**
+   * Merged `style` for the piece `<path>` (e.g. fill URL + `stroke: none` for
+   * landing back-light). If set, takes precedence over `pathFill` / `pathStroke` alone.
+   */
+  pathStyle?: CSSProperties;
 }
 
 export default function PuzzlePiece({
@@ -41,22 +50,39 @@ export default function PuzzlePiece({
   onSelect,
   onKnobClick,
   content,
+  pathFill,
+  pathStroke,
+  pathStyle: pathStyleProp,
 }: PuzzlePieceProps) {
   const { id, x, y, w, h, label } = piece;
   const knobs = computeKnobs(piece);
 
+  const pathStyle: CSSProperties | undefined = pathStyleProp
+    ? pathStyleProp
+    : pathFill != null || pathStroke != null
+      ? {
+          ...(pathFill != null && { fill: pathFill }),
+          ...(pathStroke != null && { stroke: pathStroke }),
+        }
+      : undefined;
+
   return (
     <g
+      data-piece-id={id}
       className={`piece ${isHovered ? 'piece--hover' : ''} ${isSelected ? 'piece--selected' : ''}`}
       onMouseEnter={() => onHoverStart?.(id)}
       onMouseLeave={() => onHoverEnd?.(id)}
       onClick={() => onSelect?.(id)}
     >
-      <path d={path} className="piece__path" />
+      <path d={path} className="piece__path" style={pathStyle} />
 
       {content != null && (
         <foreignObject x={x} y={y} width={w} height={h} className="piece__content">
-          <div className="piece__content-inner" style={{ width: '100%', height: '100%' }}>
+          <div
+            xmlns="http://www.w3.org/1999/xhtml"
+            className="piece__content-inner"
+            style={{ width: '100%', height: '100%' }}
+          >
             {content}
           </div>
         </foreignObject>

@@ -23,11 +23,12 @@
 }
 
 .piece__path {
-  fill: var(--puzzle-fill, #161b22);
+  /* --puzzle-piece-fill can be set on `.piece` for per-tile tints; inherits on <g> */
+  fill: var(--puzzle-piece-fill, var(--puzzle-fill, #161b22));
   stroke: var(--puzzle-stroke, #3a414d);
   stroke-width: var(--puzzle-stroke-width, 1.25);
   stroke-linejoin: round;
-  transition: stroke 150ms ease, stroke-width 150ms ease, fill 150ms ease;
+  transition: stroke 100ms ease, stroke-width 100ms ease, fill 100ms ease, filter 80ms ease, fill-opacity 80ms ease;
   /* Let HTML inside foreignObject receive clicks; path is decorative for hit-testing. */
   pointer-events: none;
 }
@@ -35,13 +36,13 @@
 .piece--hover .piece__path {
   stroke: var(--puzzle-stroke-hover, #4285f4);
   stroke-width: var(--puzzle-stroke-width-active, 2.5);
-  fill: var(--puzzle-fill-hover, #1b222d);
+  fill: var(--puzzle-piece-fill-hover, var(--puzzle-fill-hover, #1b222d));
 }
 
 .piece--selected .piece__path {
   stroke: var(--puzzle-stroke-hover, #4285f4);
   stroke-width: var(--puzzle-stroke-width-active, 2.5);
-  fill: var(--puzzle-fill-selected, #232b38);
+  fill: var(--puzzle-piece-fill-selected, var(--puzzle-fill-selected, #232b38));
 }
 
 .piece--selected.piece--hover .piece__path {

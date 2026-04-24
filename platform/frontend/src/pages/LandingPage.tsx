@@ -37,7 +37,7 @@ const COLS = 6;
 const CELL_W = 200;
 const BOARD_W = COLS * CELL_W; // 1200
 
-const ROW_H_HEADER = 160;
+const ROW_H_HEADER = 120;
 const ROW_H_HERO = 320;
 const ROW_H_STEPS = 240;
 const CONTACT_ROW_H = 120; // each of the 3 right-column cells
@@ -45,10 +45,10 @@ const ROW_H_CONTACT = CONTACT_ROW_H * 3; // 360 — contact form spans all three
 const ROW_H_FOOT = 100;
 
 const Y_HEADER = 0;
-const Y_HERO = Y_HEADER + ROW_H_HEADER; // 160
-const Y_STEPS = Y_HERO + ROW_H_HERO; // 480
-const Y_CONTACT = Y_STEPS + ROW_H_STEPS; // 720
-const Y_FOOT = Y_CONTACT + ROW_H_CONTACT; // 1080
+const Y_HERO = Y_HEADER + ROW_H_HEADER;
+const Y_STEPS = Y_HERO + ROW_H_HERO;
+const Y_CONTACT = Y_STEPS + ROW_H_STEPS;
+const Y_FOOT = Y_CONTACT + ROW_H_CONTACT;
 
 export default function LandingPage() {
   const { user } = useAuth();
@@ -246,10 +246,10 @@ export default function LandingPage() {
 
   const contentById: Record<string, ReactNode> = {
     logo: (
-      <Link to="/" className="flex h-full w-full items-center justify-center px-8">
+      <Link to="/" className="flex h-full w-full min-h-0 items-center justify-center px-4">
         <BrandMark
           variant="wordmark"
-          className="h-20 w-auto max-w-full object-contain"
+          className="h-14 w-auto max-w-full object-contain"
         />
       </Link>
     ),
@@ -350,7 +350,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-app-bg transition-colors duration-200">
-      <div className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 sm:py-10 landing-puzzle-shell">
+      <div className="mx-auto w-full max-w-[1600px] px-4 pt-1 pb-8 sm:px-6 sm:pt-2 sm:pb-10 landing-puzzle-shell">
         <div className="landing-puzzle-aura" aria-hidden />
         <PuzzleBoard
           className="relative z-10 landing-board"

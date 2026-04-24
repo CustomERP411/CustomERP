@@ -21,22 +21,20 @@ import type { Piece } from '../components/puzzle/geometry';
  *   Row 1 — Logo(2) | About | HowItWorks | SignIn | SignUp
  *   Row 2 — Theme | Lang | Banner(2) | Tagline(2)
  *   Row 3 — Step1(2) | Step2(2) | Step3(2)
- *   Row 4 — Video(6)        (full-width placeholder)
+ *   Row 4 — Video(3, 16:9) | VideoText(3)
  *   Row 5 — GitHub(2) | Copyright(3) | CTIS
  *
- * Typography and piece dimensions are tuned down from the old layout so the
- * landing reads as a refined product page rather than a toy.
+ * Typography and piece dimensions are tuned so the landing fills a large
+ * desktop viewport (~1300px wide) without wasted whitespace.
  */
 
-const COLS = 6;
-const CELL_W = 170;
-const BOARD_W = COLS * CELL_W; // 1020
+const CELL_W = 200;
 
-const ROW_H_HEADER = 90;
-const ROW_H_HERO = 220;
-const ROW_H_STEPS = 190;
-const ROW_H_VIDEO = 260;
-const ROW_H_FOOT = 70;
+const ROW_H_HEADER = 100;
+const ROW_H_HERO = 230;
+const ROW_H_STEPS = 200;
+const ROW_H_VIDEO = 380;
+const ROW_H_FOOT = 80;
 
 const Y_HEADER = 0;
 const Y_HERO = Y_HEADER + ROW_H_HEADER;
@@ -160,7 +158,7 @@ export default function LandingPage() {
             { pos: 0.75, type: 'socket' },
           ],
           right: { count: 1, type: 'tab' },
-          bottom: { count: 1, type: 'tab' },
+          bottom: { count: 1, type: 'tab' }, // x=200, matches video top pos 1/3
         },
       },
       {
@@ -170,7 +168,10 @@ export default function LandingPage() {
           top: { count: 1, type: 'socket' },
           left: { count: 1, type: 'socket' },
           right: { count: 1, type: 'tab' },
-          bottom: { count: 1, type: 'tab' },
+          bottom: [
+            { pos: 0.25, type: 'tab' }, // x=500, matches video top pos 5/6
+            { pos: 0.75, type: 'tab' }, // x=700, matches videoText top pos 1/6
+          ],
         },
       },
       {
@@ -179,20 +180,32 @@ export default function LandingPage() {
         sides: {
           top: { count: 1, type: 'socket' },
           left: { count: 1, type: 'socket' },
-          bottom: { count: 1, type: 'tab' },
+          bottom: { count: 1, type: 'tab' }, // x=1000, matches videoText top pos 2/3
         },
       },
 
-      // ── Row 4 — video placeholder (full width) ────────────────────────
+      // ── Row 4 — video (left, 16:9) + copy/CTA (right) ─────────────────
       {
         id: 'video',
-        x: 0, y: Y_VIDEO, w: BOARD_W, h: ROW_H_VIDEO,
+        x: 0, y: Y_VIDEO, w: 3 * CELL_W, h: ROW_H_VIDEO,
         sides: {
           top: [
-            { pos: 1 / 6, type: 'socket' },
-            { pos: 0.5, type: 'socket' },
-            { pos: 5 / 6, type: 'socket' },
+            { pos: 1 / 3, type: 'socket' },
+            { pos: 2 / 3, type: 'socket' },
           ],
+          right: { count: 1, type: 'tab' },
+          bottom: { count: 1, type: 'tab' },
+        },
+      },
+      {
+        id: 'videoText',
+        x: 3 * CELL_W, y: Y_VIDEO, w: 3 * CELL_W, h: ROW_H_VIDEO,
+        sides: {
+          top: [
+            { pos: 1 / 3, type: 'socket' },
+            { pos: 2 / 3, type: 'socket' },
+          ],
+          left: { count: 1, type: 'socket' },
           bottom: { count: 1, type: 'tab' },
         },
       },
@@ -202,6 +215,7 @@ export default function LandingPage() {
         id: 'github',
         x: 0, y: Y_FOOT, w: 2 * CELL_W, h: ROW_H_FOOT,
         sides: {
+          top: [{ pos: 0.75, type: 'socket' }], // x=300, matches video bottom tab
           right: { count: 1, type: 'tab' },
         },
       },
@@ -209,7 +223,7 @@ export default function LandingPage() {
         id: 'copyright',
         x: 2 * CELL_W, y: Y_FOOT, w: 3 * CELL_W, h: ROW_H_FOOT,
         sides: {
-          top: { count: 1, type: 'socket' },
+          top: [{ pos: 5 / 6, type: 'socket' }], // x=900, matches videoText bottom tab
           left: { count: 1, type: 'socket' },
           right: { count: 1, type: 'tab' },
         },
@@ -230,7 +244,7 @@ export default function LandingPage() {
       <Link to="/" className="flex h-full w-full min-h-0 items-center justify-center px-4">
         <BrandMark
           variant="wordmark"
-          className="h-9 w-auto max-w-full object-contain"
+          className="h-14 w-auto max-w-full object-contain"
         />
       </Link>
     ),
@@ -302,6 +316,7 @@ export default function LandingPage() {
     step2: <StepCard step={2} t={t} accent="invoice" />,
     step3: <StepCard step={3} t={t} accent="hr" />,
     video: <VideoPlaceholder t={t} />,
+    videoText: <VideoCopy t={t} />,
     github: (
       <a
         href="https://github.com/CustomERP411/CustomERP"
@@ -334,7 +349,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-app-bg transition-colors duration-200">
-      <div className="mx-auto w-full max-w-[1180px] px-4 pt-4 pb-10 sm:px-6 sm:pt-6 sm:pb-12">
+      <div className="mx-auto w-full max-w-[1340px] px-4 pt-4 pb-10 sm:px-6 sm:pt-6 sm:pb-12">
         <PuzzleBoard
           className="relative z-10 landing-board"
           pieces={pieces}
@@ -359,9 +374,9 @@ interface StepCardProps {
   accent: StepAccent;
 }
 
-/** One of the three "how it works" step cards. Left-aligned with a small
- *  ringed numbered badge; preserves the "3 easy steps" affordance without the
- *  toy-block feel of the previous filled-square version. */
+/** One of the three "how it works" step cards. Vertically centered with a
+ *  small ringed numbered badge. Horizontal padding clears the left socket
+ *  (KNOB_R = 30px) so the badge never collides with the piece edge. */
 function StepCard({ step, t, accent }: StepCardProps) {
   const accentCls: Record<StepAccent, { badge: string; title: string }> = {
     inventory: {
@@ -380,9 +395,9 @@ function StepCard({ step, t, accent }: StepCardProps) {
   const cls = accentCls[accent];
 
   return (
-    <div className="flex h-full w-full items-start gap-4 px-6 py-6 text-left">
+    <div className="flex h-full w-full items-center gap-4 pl-12 pr-8 py-6 text-left">
       <span
-        className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[14px] font-bold ${cls.badge}`}
+        className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-[15px] font-bold ${cls.badge}`}
       >
         {step}
       </span>
@@ -402,26 +417,51 @@ interface VideoPlaceholderProps {
   t: (key: string) => string;
 }
 
-/** Video placeholder piece — rounded 16:9 frame with a play icon. The real
- *  video will be dropped in later; we keep the visual anchor on the page. */
+/** Video puzzle piece — fills the piece body with a rounded 16:9 frame so the
+ *  placeholder clearly reads as part of the jigsaw. The real video will be
+ *  dropped in later; we keep the visual anchor on the page. */
 function VideoPlaceholder({ t }: VideoPlaceholderProps) {
   return (
-    <div className="flex h-full w-full items-center justify-center px-6 py-6">
-      <div className="relative flex aspect-video w-full max-w-[720px] items-center justify-center overflow-hidden rounded-xl border border-app-border bg-app-surface-muted shadow-sm">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-app-info-soft ring-1 ring-app-info-border">
+    <div className="flex h-full w-full items-center justify-center pl-10 pr-6 py-8">
+      <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-app-border-strong bg-app-surface-sunken shadow-inner">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-app-accent-orange/15 ring-1 ring-app-accent-orange/40">
           <svg
             viewBox="0 0 24 24"
-            className="h-6 w-6 text-app-accent-blue"
+            className="h-7 w-7 text-app-accent-orange"
             fill="currentColor"
             aria-hidden
           >
             <path d="M8 5v14l11-7z" />
           </svg>
         </div>
-        <span className="absolute bottom-3 right-4 text-[12px] text-app-text-muted">
+        <span className="absolute bottom-3 right-4 rounded-md bg-app-surface/80 px-2 py-0.5 text-[11px] font-medium text-app-text-muted">
           {t('video.comingSoon')}
         </span>
       </div>
+    </div>
+  );
+}
+
+/** Copy block that sits inside the right-hand puzzle piece next to the video.
+ *  Headline + supporting body + primary CTA. */
+function VideoCopy({ t }: VideoPlaceholderProps) {
+  return (
+    <div className="flex h-full w-full flex-col items-start justify-center gap-3 pl-10 pr-10 py-8 text-left">
+      <span className="inline-flex items-center rounded-full border border-app-accent-blue/30 bg-app-info-soft px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-app-accent-blue">
+        {t('video.eyebrow')}
+      </span>
+      <h2 className="text-[22px] sm:text-[26px] font-bold leading-tight text-app-text">
+        {t('video.heading')}
+      </h2>
+      <p className="text-[14px] sm:text-[15px] leading-relaxed text-app-text-muted">
+        {t('video.body')}
+      </p>
+      <Link
+        to="/register"
+        className="mt-1 inline-flex items-center justify-center rounded-lg bg-app-accent-blue px-4 py-2 text-[14px] font-semibold text-app-text-inverse shadow-sm transition-colors hover:bg-app-accent-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-app-focus-ring"
+      >
+        {t('video.cta')}
+      </Link>
     </div>
   );
 }

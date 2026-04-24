@@ -1,6 +1,7 @@
 {
   "nav": {
-    "home": "Home"
+    "home": "Home",
+    "about": "About"
   },
   "title": "How it works",
   "subtitle": "Walk through the path from a few sentences about your business to a working ERP.",

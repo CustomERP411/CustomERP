@@ -1,6 +1,7 @@
 {
   "nav": {
-    "home": "Home"
+    "home": "Home",
+    "howItWorks": "How it works"
   },
   "title": "About CustomERP",
   "subtitle": "Started as a Bilkent University CTIS graduation project — we turn business descriptions into working ERP systems.",

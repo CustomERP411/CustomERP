@@ -112,20 +112,30 @@ function MarketingHeader() {
   const { t } = useTranslation('howItWorks');
   return (
     <header className="sticky top-0 z-10 border-b border-app-border bg-app-bg/85 backdrop-blur supports-[backdrop-filter]:bg-app-bg/70">
-      <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-[1340px] items-center justify-between px-4 py-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2">
-          <BrandMark variant="wordmark" className="h-7 w-auto object-contain" />
+          <BrandMark variant="wordmark" className="h-11 sm:h-12 w-auto object-contain" />
         </Link>
-        <div className="flex items-center gap-2">
+        <nav className="flex items-center gap-2 sm:gap-3">
           <Link
             to="/"
-            className="hidden sm:inline-flex items-center rounded-lg border border-app-border bg-app-surface px-3 py-1.5 text-[13px] font-semibold text-app-text hover:bg-app-surface-hover"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-app-border bg-app-surface px-3 py-1.5 text-[13px] font-semibold text-app-text hover:bg-app-surface-hover"
           >
-            {t('nav.home')}
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 12l9-9 9 9" />
+              <path d="M5 10v10h14V10" />
+            </svg>
+            <span className="hidden sm:inline">{t('nav.home')}</span>
+          </Link>
+          <Link
+            to="/about"
+            className="hidden md:inline-flex items-center rounded-lg px-3 py-1.5 text-[13px] font-semibold text-app-text-muted hover:text-app-text"
+          >
+            {t('nav.about')}
           </Link>
           <ThemeToggle />
           <LanguageSelector compact />
-        </div>
+        </nav>
       </div>
     </header>
   );

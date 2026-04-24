@@ -1,6 +1,7 @@
 {
   "nav": {
-    "home": "Ana sayfa"
+    "home": "Ana sayfa",
+    "about": "Hakkımızda"
   },
   "title": "Nasıl çalışır?",
   "subtitle": "İşletmenizi birkaç cümleyle anlatmaktan çalışır durumda bir ERP'ye kadar giden yolu adım adım inceleyin.",

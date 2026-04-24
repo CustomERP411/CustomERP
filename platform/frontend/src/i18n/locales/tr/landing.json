@@ -26,7 +26,11 @@
     "step3Body": "Özel ERP sisteminizi kullanıma hazır bir konteynerde teslim alın."
   },
   "video": {
-    "comingSoon": "Video yakında"
+    "comingSoon": "Video yakında",
+    "eyebrow": "Demo",
+    "heading": "Platformu iş başında görün",
+    "body": "CustomERP'nin işletmenizi nasıl anladığını ve dakikalar içinde tam bir ERP sistemini nasıl ürettiğini kısa bir tur ile keşfedin.",
+    "cta": "Ücretsiz Deneyin"
   },
   "footer": {
     "copyright": "© 2026 CustomERP. Bilkent Üniversitesi CTIS Projesi.",

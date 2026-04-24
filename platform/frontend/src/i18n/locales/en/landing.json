@@ -26,7 +26,11 @@
     "step3Body": "Get a ready-to-use container with your custom ERP system."
   },
   "video": {
-    "comingSoon": "Video coming soon"
+    "comingSoon": "Video coming soon",
+    "eyebrow": "Demo",
+    "heading": "See the platform in action",
+    "body": "Take a short tour and watch CustomERP turn a plain description of your business into a fully working ERP system in minutes.",
+    "cta": "Try it free"
   },
   "footer": {
     "copyright": "© 2026 CustomERP. Bilkent University CTIS Project.",

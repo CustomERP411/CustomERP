@@ -1,6 +1,7 @@
 {
   "nav": {
-    "home": "Ana sayfa"
+    "home": "Ana sayfa",
+    "howItWorks": "Nasıl çalışır"
   },
   "title": "Hakkımızda",
   "subtitle": "Bilkent Üniversitesi CTIS bitirme projesi olarak başladı; iş tanımlarını çalışan bir ERP sistemine çeviriyoruz.",

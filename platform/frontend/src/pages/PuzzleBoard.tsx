@@ -66,61 +66,62 @@ function LandingBoardDefs({
   const y2 = vbY + vbH;
   const r = Math.max(vbW, vbH) * 0.85;
 
-  // Rim / back / fill stops tuned to the app's cool-slate semantic palette
-  // (see `--app-*` tokens in src/index.css). No near-black corners in light,
-  // no near-black corners in dark — the jigsaw reads as a subtle inset bevel
-  // over `--app-bg` rather than a high-contrast toy graphic.
+  // Rim / back / fill stops tuned to the app's warm tan / deep espresso
+  // semantic palette (see `--app-*` tokens in src/index.css). The board reads
+  // as a subtle inset bevel over `--app-bg` rather than a high-contrast
+  // black-line puzzle — the brand orange (#FF5400) + navy (#004AA6) pop on
+  // top of the warm neutrals.
   const rimStops =
     variant === 'light'
       ? [
-          { o: '0%', c: '#ffffff' },
-          { o: '22%', c: '#eef2f8' },
-          { o: '48%', c: '#c8d1df' },
-          { o: '72%', c: '#a3afc2' },
-          { o: '100%', c: '#7a8699' },
+          { o: '0%', c: '#FBF5E6' },
+          { o: '22%', c: '#F2EAD8' },
+          { o: '48%', c: '#CFC0A3' },
+          { o: '72%', c: '#A08C69' },
+          { o: '100%', c: '#74623F' },
         ]
       : [
-          { o: '0%', c: '#3a4766' },
-          { o: '25%', c: '#2e3853' },
-          { o: '50%', c: '#242c46' },
-          { o: '75%', c: '#1b2338' },
-          { o: '100%', c: '#151c30' },
+          { o: '0%', c: '#503F29' },
+          { o: '25%', c: '#3A2F1F' },
+          { o: '50%', c: '#2B2318' },
+          { o: '75%', c: '#1F1910' },
+          { o: '100%', c: '#14100A' },
         ];
 
   const backStops =
     variant === 'light'
       ? [
-          ['0%', '#f8fafc'],
-          ['25%', '#eef2f8'],
-          ['50%', '#e6ebf2'],
-          ['75%', '#dde3ec'],
-          ['100%', '#e2e8f0'],
+          ['0%', '#F2EAD8'],
+          ['25%', '#E6DBC6'],
+          ['50%', '#E0D4BB'],
+          ['75%', '#DED0B5'],
+          ['100%', '#CFC0A3'],
         ]
       : [
-          ['0%', '#131a2c'],
-          ['25%', '#1b2338'],
-          ['50%', '#0f1525'],
-          ['75%', '#1a2238'],
-          ['100%', '#0a0f1c'],
+          ['0%', '#1F1910'],
+          ['25%', '#2B2318'],
+          ['50%', '#181208'],
+          ['75%', '#1F1910'],
+          ['100%', '#14100A'],
         ];
 
   const fillStops =
     variant === 'light'
       ? [
-          ['0%', '#ffffff'],
-          ['22%', '#f8fafc'],
-          ['45%', '#eef2f8'],
-          ['65%', '#e6ebf2'],
-          ['85%', '#dde3ec'],
-          ['100%', '#d1d9e6'],
+          ['0%', '#FBF5E6'],
+          ['22%', '#F2EAD8'],
+          ['45%', '#E6DBC6'],
+          ['65%', '#E0D4BB'],
+          ['85%', '#DED0B5'],
+          ['100%', '#CFC0A3'],
         ]
       : [
-          ['0%', '#1b2338'],
-          ['22%', '#161e34'],
-          ['45%', '#131a2c'],
-          ['65%', '#182038'],
-          ['85%', '#1f2740'],
-          ['100%', '#0f1525'],
+          ['0%', '#2B2318'],
+          ['22%', '#24201A'],
+          ['45%', '#1F1910'],
+          ['65%', '#252118'],
+          ['85%', '#2B2318'],
+          ['100%', '#14100A'],
         ];
 
   return (

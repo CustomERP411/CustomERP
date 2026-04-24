@@ -4,6 +4,8 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 
 import enCommon from './locales/en/common.json';
 import enLanding from './locales/en/landing.json';
+import enAbout from './locales/en/about.json';
+import enHowItWorks from './locales/en/howItWorks.json';
 import enAuth from './locales/en/auth.json';
 import enSidebar from './locales/en/sidebar.json';
 import enProjects from './locales/en/projects.json';
@@ -18,6 +20,8 @@ import enPreviewPage from './locales/en/previewPage.json';
 
 import trCommon from './locales/tr/common.json';
 import trLanding from './locales/tr/landing.json';
+import trAbout from './locales/tr/about.json';
+import trHowItWorks from './locales/tr/howItWorks.json';
 import trAuth from './locales/tr/auth.json';
 import trSidebar from './locales/tr/sidebar.json';
 import trProjects from './locales/tr/projects.json';
@@ -51,6 +55,8 @@ const resources = {
   en: {
     common: enCommon,
     landing: enLanding,
+    about: enAbout,
+    howItWorks: enHowItWorks,
     auth: enAuth,
     sidebar: enSidebar,
     projects: enProjects,
@@ -66,6 +72,8 @@ const resources = {
   tr: {
     common: trCommon,
     landing: trLanding,
+    about: trAbout,
+    howItWorks: trHowItWorks,
     auth: trAuth,
     sidebar: trSidebar,
     projects: trProjects,
@@ -93,6 +101,8 @@ void i18n
     ns: [
       'common',
       'landing',
+      'about',
+      'howItWorks',
       'auth',
       'sidebar',
       'projects',

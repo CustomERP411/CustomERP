@@ -1,14 +1,14 @@
 {
   "nav": {
     "signIn": "Giriş Yap",
-    "getStarted": "Başla"
+    "getStarted": "Başla",
+    "about": "Hakkımızda",
+    "howItWorks": "Nasıl Çalışır"
   },
   "hero": {
     "titleLine1": "Kendi Özel ERP'nizi Oluşturun",
     "titleLine2": "Kod Yazmadan",
-    "subtitle": "İş süreçlerinizi yalnızca doğal dille anlatarak tam işlevsel bir ERP sistemine dönüştürün. Yapay zekâ destekli.",
-    "ctaPrimary": "Ücretsiz Başla",
-    "ctaSecondary": "Nasıl Çalışıyor?"
+    "subtitle": "İş süreçlerinizi yalnızca doğal dille anlatarak tam işlevsel bir ERP sistemine dönüştürün. Yapay zekâ destekli."
   },
   "pills": {
     "aiPowered": "Yapay Zekâ Destekli",
@@ -25,14 +25,11 @@
     "step3Title": "İndirin ve Yayına Alın",
     "step3Body": "Özel ERP sisteminizi kullanıma hazır bir konteynerde teslim alın."
   },
-  "cta": {
-    "heading": "ERP'nizi Oluşturmaya Hazır mısınız?",
-    "body": "Operasyonlarını hızlandırmak için CustomERP kullanan işletmelere siz de katılın.",
-    "button": "Ücretsiz Başlayın"
+  "video": {
+    "comingSoon": "Video yakında"
   },
   "footer": {
     "copyright": "© 2026 CustomERP. Bilkent Üniversitesi CTIS Projesi.",
-    "github": "GitHub",
-    "contact": "İletişim"
+    "github": "GitHub"
   }
 }

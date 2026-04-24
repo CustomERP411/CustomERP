@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "home": "Home"
+  },
+  "title": "About CustomERP",
+  "subtitle": "Started as a Bilkent University CTIS graduation project — we turn business descriptions into working ERP systems.",
+  "mission": {
+    "heading": "Our mission",
+    "body": "Let small and mid-sized businesses stand up their own ERP without hiring a technical team. CustomERP takes a few paragraphs written by the business owner in their own language and runs them through an AI-assisted pipeline that produces a fully functional, deployable ERP project."
+  },
+  "team": {
+    "heading": "The team",
+    "body": "CustomERP was built as a graduation project by students of the Computer Technology and Information Systems (CTIS) program at Bilkent University.",
+    "ctisLabel": "Visit Bilkent CTIS"
+  },
+  "tech": {
+    "heading": "Technology",
+    "body": "The frontend is React + TypeScript, the API layer runs on Node.js / Express, and the AI pipeline is a multi-agent Python FastAPI service. The project is open source and available on GitHub.",
+    "githubLabel": "View on GitHub"
+  },
+  "cta": {
+    "heading": "Ready to try it?",
+    "body": "Build your own ERP from a few sentences.",
+    "primary": "Start for free",
+    "secondary": "How it works"
+  }
+}

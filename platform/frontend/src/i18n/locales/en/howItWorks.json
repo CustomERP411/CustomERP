@@ -1,0 +1,42 @@
+{
+  "nav": {
+    "home": "Home"
+  },
+  "title": "How it works",
+  "subtitle": "Walk through the path from a few sentences about your business to a working ERP.",
+  "steps": {
+    "step1Title": "1. Describe your business",
+    "step1Body": "Write a few paragraphs in your own language: what you do, which modules (inventory, invoice, HR) you want, and any special rules. No technical background required.",
+    "step2Title": "2. AI dispatches the request",
+    "step2Body": "An input router agent decides which modules to enable, which entities are needed, and what's missing. If something is genuinely ambiguous, you get a few short clarifying questions.",
+    "step3Title": "3. Module generators build",
+    "step3Body": "Specialist agents for inventory, invoice, and HR produce fields, labels, relationships, and business rules in an SDF (System Definition File).",
+    "step4Title": "4. Integrator merges and validates",
+    "step4Body": "A deterministic integrator merges every module's output, resolves cross-references, and makes sure the assembler receives a consistent SDF ready for code generation.",
+    "step5Title": "5. Preview and download in one click",
+    "step5Body": "Preview the generated ERP in your browser and, when you're happy, download it as a ready-to-run container bundle."
+  },
+  "faq": {
+    "heading": "FAQ",
+    "items": [
+      {
+        "q": "Which modules are supported?",
+        "a": "Inventory (multi-location, reservations, inbound/outbound, serial/expiry tracking), invoicing (customers, billing, payments, tax) and HR (employees, departments, leave, attendance)."
+      },
+      {
+        "q": "Which languages are supported?",
+        "a": "English and Turkish for now. The language you pick when creating a project stays fixed for that project."
+      },
+      {
+        "q": "Where does the generated ERP run?",
+        "a": "The output is a Docker Compose bundle you can download and run on your own server or locally."
+      }
+    ]
+  },
+  "cta": {
+    "heading": "Try it out",
+    "body": "Build your own ERP from a few sentences.",
+    "primary": "Start for free",
+    "secondary": "About"
+  }
+}

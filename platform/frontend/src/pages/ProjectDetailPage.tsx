@@ -897,15 +897,15 @@ export default function ProjectDetailPage() {
       {languageBlocked && (
         <div
           role="alert"
-          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm"
+          className="rounded-xl border border-app-warning-border bg-app-warning-soft px-4 py-3 text-sm text-app-warning shadow-sm"
         >
-          <p className="font-semibold text-amber-950">{t('projectDetail:languageGate.title')}</p>
-          <p className="mt-1 text-amber-900/90">
+          <p className="font-semibold">{t('projectDetail:languageGate.title')}</p>
+          <p className="mt-1 opacity-90">
             {t('projectDetail:languageGate.body', { language: lockedLangLabel })}
           </p>
           <Link
             to="/settings"
-            className="mt-3 inline-flex items-center rounded-lg bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-900"
+            className="mt-3 inline-flex items-center rounded-lg border border-app-warning-border bg-app-surface px-3 py-1.5 text-xs font-semibold text-app-text hover:bg-app-surface-hover"
           >
             {t('projectDetail:languageGate.openSettings')}
           </Link>

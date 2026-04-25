@@ -1,0 +1,14 @@
+{
+  "name": "customerp-unit-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Unit tests for the CustomERP platform, organized by Use Case.",
+  "scripts": {
+    "test": "jest",
+    "test:uc1": "jest UC-1",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useCallback, type CSSProperties } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { projectService } from '../services/projectService';
@@ -49,7 +49,7 @@ const CODE_TO_KEY: Record<string, string> = {
 export default function PreviewPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { setProjectContext } = useChatContext();
+  const { setProjectContext, setPreviewWideLayout } = useChatContext();
   const { t, i18n } = useTranslation(['previewPage', 'projectDetail', 'projects']);
   const PLATFORM_INFO = usePlatformInfo();
 
@@ -114,8 +114,12 @@ export default function PreviewPage() {
     ? t(`projects:card.languages.${normalizeLanguage(project.language || 'en')}`)
     : '';
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [previewSize, setPreviewSize] = useState({ w: 0, h: 0 });
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+  const changePanelTitleId = useId();
+  const wideToolbarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -131,6 +135,41 @@ export default function PreviewPage() {
     mq.addEventListener('change', clearWide);
     return () => mq.removeEventListener('change', clearWide);
   }, []);
+
+  useEffect(() => {
+    const el = previewContainerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      const e = entries[0];
+      if (!e) return;
+      const { width, height } = e.contentRect;
+      setPreviewSize((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setPreviewWideLayout(mobileWideLayout);
+    return () => setPreviewWideLayout(false);
+  }, [mobileWideLayout, setPreviewWideLayout]);
+
+  useEffect(() => {
+    if (!changePanelOpen || !mobileWideLayout) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = wideToolbarRef.current;
+      if (el && !el.contains(e.target as Node)) setChangePanelOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [changePanelOpen, mobileWideLayout]);
+
+  useEffect(() => {
+    if (!changePanelOpen || mobileWideLayout) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [changePanelOpen, mobileWideLayout]);
 
   const clearPoll = useCallback(() => {
     if (pollTimerRef.current) {
@@ -392,6 +431,7 @@ export default function PreviewPage() {
 
   const handleRequestChanges = async () => {
     if (!projectId || !changeText.trim()) return;
+    setChangePanelOpen(false);
     setGenPhase(t('phase.applying')); setGenResult(null); setGenErrorMsg(''); setGenProgress(null);
     setQuestions([]); setAnswersById({});
 
@@ -495,15 +535,30 @@ export default function PreviewPage() {
     return () => window.clearTimeout(h);
   }, [projectId, status, previewId, iframeToken, applyStatusResponse]);
 
-  const mobileRotatedFrameStyle: CSSProperties = {
-    position: 'absolute',
-    width: '100dvh',
-    height: '100dvw',
-    left: '50%',
-    top: '50%',
-    transform: 'translate(-50%, -50%) rotate(90deg)',
-    transformOrigin: 'center center',
-  };
+  /** Fills the preview column after 90° rotation: prerotation size swaps W/H. */
+  const mobileRotatedFrameStyle = useMemo((): CSSProperties | undefined => {
+    const { w, h } = previewSize;
+    if (w < 1 || h < 1) {
+      return {
+        position: 'absolute',
+        width: '100dvh',
+        height: '100dvw',
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%) rotate(90deg)',
+        transformOrigin: 'center center',
+      };
+    }
+    return {
+      position: 'absolute',
+      width: h,
+      height: w,
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%) rotate(90deg)',
+      transformOrigin: 'center center',
+    };
+  }, [previewSize.w, previewSize.h]);
 
   // Drive the blocking modal off backend-authoritative state.
   const modalState: PreviewModalState | null = (() => {
@@ -539,8 +594,11 @@ export default function PreviewPage() {
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className={`flex-shrink-0 bg-app-surface border-b border-app-border shadow-sm px-4 sm:px-6 py-3 ${languageBlocked ? 'pointer-events-none opacity-50' : ''}`}>
+      {/* Toolbar — on mobile wide/horizontal layout, "Request changes" lives here and expands horizontally below */}
+      <div
+        ref={wideToolbarRef}
+        className={`flex-shrink-0 bg-app-surface border-b border-app-border shadow-sm px-4 sm:px-6 py-3 ${languageBlocked ? 'pointer-events-none opacity-50' : ''}`}
+      >
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <Link to={`/projects/${projectId}`} className="text-app-text-muted hover:text-app-text transition-colors">
@@ -584,6 +642,28 @@ export default function PreviewPage() {
                 {mobileWideLayout ? t('mobileView.tallLayout') : t('mobileView.wideLayout')}
               </button>
             )}
+            {status === 'running' && iframeSrc && mobileWideLayout && (
+              <button
+                type="button"
+                onClick={() => setChangePanelOpen((v) => !v)}
+                aria-expanded={changePanelOpen}
+                aria-controls="preview-wide-change-panel"
+                aria-haspopup="dialog"
+                id={changePanelTitleId}
+                className="md:hidden inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-app-border-strong bg-app-surface-muted px-3 py-1.5 text-left text-sm font-medium text-app-text hover:bg-app-surface-hover"
+              >
+                {t('changePanel.title')}
+                <svg
+                  className={`h-4 w-4 shrink-0 text-app-text-muted transition-transform duration-200 ${changePanelOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
             <button
               onClick={openDownloadModal}
               disabled={(status !== 'running') || showDownloadModal}
@@ -594,11 +674,44 @@ export default function PreviewPage() {
             </button>
           </div>
         </div>
+
+        {/* Wide mobile: full-width panel opens from the bottom edge of the toolbar (below the first row) */}
+        {mobileWideLayout && changePanelOpen && (
+          <div
+            id="preview-wide-change-panel"
+            role="region"
+            aria-labelledby={changePanelTitleId}
+            className="md:hidden mt-3 border-t border-app-border bg-app-surface pt-3 animate-in slide-in-from-top-2 duration-200"
+          >
+            <p className="mb-2 text-xs leading-snug text-app-text-muted">{t('changePanel.subtitle')}</p>
+            <div className="flex max-h-[min(20rem,50dvh)] flex-col gap-2 overflow-y-auto min-[420px]:flex-row min-[420px]:items-stretch min-[420px]:flex-nowrap">
+              <textarea
+                value={changeText}
+                onChange={(e) => setChangeText(e.target.value)}
+                placeholder={t('changePanel.placeholder')}
+                className="min-h-[4.5rem] min-w-0 w-full min-[420px]:min-h-0 min-[420px]:flex-1 rounded-lg border border-app-border-strong bg-app-surface-muted px-3 py-2 text-sm focus:ring-2 focus:ring-app-focus focus:border-app-accent-blue outline-none"
+                disabled={!!genPhase}
+                rows={3}
+              />
+              <button
+                type="button"
+                onClick={handleRequestChanges}
+                disabled={!changeText.trim() || !!genPhase || status !== 'running'}
+                className="flex w-full shrink-0 items-center justify-center rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-app-accent-dark-blue disabled:cursor-not-allowed disabled:opacity-50 min-[420px]:h-auto min-[420px]:w-32 min-[420px]:self-stretch"
+              >
+                {t('changePanel.button')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main: split layout (side-by-side on md+, stacked with bottom-sheet on <md) */}
       <div className={`flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row ${languageBlocked ? 'pointer-events-none opacity-50' : ''}`}>
-        <div className="relative flex-1 min-h-[50vh] overflow-hidden bg-app-surface-muted md:min-h-0">
+        <div
+          ref={previewContainerRef}
+          className="relative flex-1 min-h-[50vh] overflow-hidden bg-app-surface-muted md:min-h-0"
+        >
           {status === 'running' && previewId && !iframeSrc && (
             <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-3 bg-app-surface-muted p-6 text-center">
               <p className="text-sm text-app-text-muted">{t('iframe.waitingToken')}</p>
@@ -654,8 +767,12 @@ export default function PreviewPage() {
           </div>
         </div>
 
-        {/* Below md: change panel as collapsible bottom sheet */}
-        <div className="md:hidden border-t border-app-border bg-app-surface flex-shrink-0">
+        {/* Below md: handle row; fixed sheet when open. Collapsed in wide layout / when sheet open. */}
+        <div
+          className={`md:hidden border-t border-app-border bg-app-surface flex-shrink-0 ${
+            mobileWideLayout || changePanelOpen ? 'max-md:hidden' : ''
+          } pb-[max(0.75rem,env(safe-area-inset-bottom))]`}
+        >
           <button
             type="button"
             onClick={() => setChangePanelOpen((v) => !v)}
@@ -663,32 +780,63 @@ export default function PreviewPage() {
             className="flex w-full items-center justify-between px-4 py-3 text-left"
           >
             <span className="text-sm font-semibold text-app-text">{t('changePanel.title')}</span>
-            <svg className={`h-4 w-4 text-app-text-muted transition-transform ${changePanelOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <svg className="h-4 w-4 text-app-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
             </svg>
           </button>
-          {changePanelOpen && (
-            <div className="px-4 pb-4 space-y-3">
-              <p className="text-xs text-app-text-muted">{t('changePanel.subtitle')}</p>
-              <textarea
-                value={changeText}
-                onChange={(e) => setChangeText(e.target.value)}
-                placeholder={t('changePanel.placeholder')}
-                rows={4}
-                className="w-full rounded-lg border border-app-border-strong bg-app-surface-muted px-3 py-2 text-sm resize-y focus:ring-2 focus:ring-app-focus focus:border-app-accent-blue outline-none"
-                disabled={!!genPhase}
-              />
-              <button
-                type="button"
-                onClick={handleRequestChanges}
-                disabled={!changeText.trim() || !!genPhase || status !== 'running'}
-                className="w-full rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-app-accent-dark-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {t('changePanel.button')}
-              </button>
-            </div>
-          )}
         </div>
+
+        {changePanelOpen && !mobileWideLayout && (
+          <div className="md:hidden">
+            <div
+              className="fixed inset-0 z-[45] bg-app-overlay/60"
+              onClick={() => setChangePanelOpen(false)}
+              aria-hidden
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={changePanelTitleId}
+              className="fixed bottom-0 left-0 right-0 z-[45] flex max-h-[85dvh] max-w-full flex-col rounded-t-2xl border-t border-app-border bg-app-surface shadow-xl"
+            >
+              <div className="flex flex-shrink-0 items-center justify-between border-b border-app-border px-4 py-3">
+                <span id={changePanelTitleId} className="text-sm font-semibold text-app-text">
+                  {t('changePanel.title')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setChangePanelOpen(false)}
+                  className="rounded-lg p-1.5 text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                  aria-label={t('common:close')}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                <p className="text-xs text-app-text-muted mb-3">{t('changePanel.subtitle')}</p>
+                <textarea
+                  value={changeText}
+                  onChange={(e) => setChangeText(e.target.value)}
+                  placeholder={t('changePanel.placeholder')}
+                  className="min-h-[8rem] w-full rounded-lg border border-app-border-strong bg-app-surface-muted px-3 py-2 text-sm focus:ring-2 focus:ring-app-focus focus:border-app-accent-blue outline-none"
+                  disabled={!!genPhase}
+                />
+              </div>
+              <div className="flex-shrink-0 border-t border-app-border bg-app-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <button
+                  type="button"
+                  onClick={handleRequestChanges}
+                  disabled={!changeText.trim() || !!genPhase || status !== 'running'}
+                  className="w-full rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-app-accent-dark-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {t('changePanel.button')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <PreviewBuildModal

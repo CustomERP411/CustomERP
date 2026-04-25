@@ -5,7 +5,7 @@ const SDF = require('../models/SDF');
 const Approval = require('../models/Approval');
 const { buildReviewSummary } = require('../services/reviewService');
 
-const REVIEWABLE_STATUSES = new Set(['Ready', 'Generated', 'Approved', 'Clarifying']);
+const REVIEWABLE_STATUSES = new Set(['Ready', 'Generated', 'Approved']);
 
 exports.getReviewSummary = async (req, res) => {
   try {

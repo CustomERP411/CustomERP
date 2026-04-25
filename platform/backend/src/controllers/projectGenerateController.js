@@ -4,6 +4,8 @@ const SDF = require('../models/SDF');
 const erpGenerationService = require('../services/erpGenerationService');
 const { validateGeneratorSdf } = require('./projectHelpers');
 
+const DOWNLOADABLE_STATUSES = new Set(['Ready', 'Generated', 'Approved']);
+
 exports.generateErpZip = async (req, res) => {
   req.setTimeout(300000);
   let outputDir = null;
@@ -12,6 +14,9 @@ exports.generateErpZip = async (req, res) => {
     const projectId = req.params.id;
 
     const project = await projectService.getProject(projectId, userId);
+    if (!DOWNLOADABLE_STATUSES.has(project.status)) {
+      return res.status(409).json({ error: 'Generate the ERP before downloading it.' });
+    }
     const latest = await SDF.findLatestByProject(project.id);
     if (!latest?.sdf_json) {
       return res.status(400).json({ error: 'No SDF found. Analyze and save an SDF first.' });
@@ -65,6 +70,9 @@ exports.generateStandaloneErpZip = async (req, res) => {
     }
 
     const project = await projectService.getProject(projectId, userId);
+    if (!DOWNLOADABLE_STATUSES.has(project.status)) {
+      return res.status(409).json({ error: 'Generate the ERP before downloading it.' });
+    }
     const latest = await SDF.findLatestByProject(project.id);
     if (!latest?.sdf_json) {
       return res.status(400).json({ error: 'No SDF found. Analyze and save an SDF first.' });

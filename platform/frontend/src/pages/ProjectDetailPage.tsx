@@ -27,6 +27,9 @@ import GenerationModal from '../components/project/GenerationModal';
 import { useChatContext } from '../context/ChatContext';
 import { normalizeLanguage } from '../i18n';
 
+const SDF_VISIBLE_STATUSES = new Set<Project['status']>(['Ready', 'Generated', 'Approved', 'Clarifying']);
+const SDF_FINAL_STATUSES = new Set<Project['status']>(['Ready', 'Generated', 'Approved']);
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
@@ -303,17 +306,16 @@ export default function ProjectDetailPage() {
             if (!isNaN(idx) && idx >= 0 && idx < BUSINESS_QUESTIONS.length) setBusinessStep(idx);
           }
         } catch { /* ignore */ }
-        // Always restore the SDF if one exists on the server, unless the
-        // project is stuck mid-generation (Analyzing). The server SDF is the
-        // source of truth -- we should never hide it because local business
-        // answers are missing from localStorage.
-        const reviewBlocked = p.status === 'Reviewing';
-        const generationFailed = p.status === 'Analyzing';
-        if (latest?.sdf && !generationFailed && !reviewBlocked) {
+        // Only restore SDFs in lifecycle states where an ERP has actually been
+        // generated or is being clarified. Module-question prefill can exist
+        // without the user pressing Generate, so a raw latest SDF row is not
+        // enough to show the post-generation panel.
+        const shouldRestoreSdf = SDF_VISIBLE_STATUSES.has(p.status);
+        if (latest?.sdf && shouldRestoreSdf) {
           setSdf(latest.sdf);
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
           setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
-        } else if (reviewBlocked) {
+        } else {
           setSdf(null);
           setSdfVersion(null);
           setQuestions([]);
@@ -343,7 +345,7 @@ export default function ProjectDetailPage() {
         const serverHistory = await projectService.getReviewHistory(projectId).catch(() => ({ history: [] }));
         if (!cancelled && serverHistory.history.length > 0) {
           setReviewHistory(serverHistory.history);
-        } else if (!cancelled && latest?.sdf && !generationFailed) {
+        } else if (!cancelled && latest?.sdf && shouldRestoreSdf) {
           setReviewHistory([{
             id: `baseline-${latest.sdf_version || 0}`,
             action: 'generated',
@@ -477,14 +479,15 @@ export default function ProjectDetailPage() {
     [selectedModules.length, defaultQuestions.length, defaultAnswersDirty],
   );
   const canSubmitAnswers = useMemo(() => !!sdf && questions.length > 0 && questions.every((q) => (answersById[q.id] || '').trim().length > 0), [sdf, questions, answersById]);
+  const canShowPostGeneration = !!sdf && !!project && SDF_FINAL_STATUSES.has(project.status);
 
   const currentStep = useMemo(() => {
-    if (sdf) return 4;
+    if (canShowPostGeneration) return 4;
     if (!selectedModules.length) return 0;
     if (!defaultCompletion?.is_complete) return 1;
     if (!businessComplete) return 2;
     return 3;
-  }, [selectedModules, defaultCompletion, businessComplete, sdf]);
+  }, [selectedModules, defaultCompletion, businessComplete, canShowPostGeneration]);
 
   // Scroll to the user's progress point on initial page load.
   // If modules were loaded from saved state, wait for question data (defaultCompletion)
@@ -601,9 +604,10 @@ export default function ProjectDetailPage() {
         answers: defaultQuestions.map((q) => ({ question_id: q.id, answer: defaultAnswersById[q.id] ?? (q.type === 'multi_choice' ? [] : '') })),
       });
       applyDefaultQuestionState(payload);
+      if (payload.project) setProject(payload.project);
       // Clear stale SDF so the user must complete business questions before
       // the post-generation panel re-appears.
-      if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); }
+      if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); setDraftJson(''); }
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.saveAnswersFailed')); }
     finally { setSavingDefaultAnswers(false); }
   };
@@ -1013,7 +1017,7 @@ export default function ProjectDetailPage() {
 
       <div className={languageBlocked ? 'pointer-events-none select-none opacity-[0.55]' : ''}>
       {/* Step Progress Bar — hidden after generation */}
-      {!sdf && (
+      {!canShowPostGeneration && (
         <div className="-mx-2 overflow-x-auto px-2 sm:mx-0 sm:px-0">
           <nav className="flex items-center gap-1 min-w-max sm:min-w-0">
             {STEPS.map((label, i) => {
@@ -1087,8 +1091,8 @@ export default function ProjectDetailPage() {
 
       {/* Step 4: Post-generation (Download & Run) */}
       <div ref={stepRefs[4]} className="scroll-mt-6">
-        <SlideIn show={!!sdf} className="space-y-8">
-          {sdf && (
+        <SlideIn show={canShowPostGeneration} className="space-y-8">
+          {canShowPostGeneration && sdf && (
             <PostGenerationPanel
             sdf={sdf} preview={preview}
             projectStatus={project.status} sdfVersion={sdfVersion} reviewHistory={reviewHistory} running={running}

@@ -5,6 +5,7 @@ const SDF = require('../models/SDF');
 const { signIframeToken } = require('../utils/previewToken');
 
 const { ERROR_CODES } = previewManager;
+const PREVIEWABLE_STATUSES = new Set(['Ready', 'Generated', 'Approved']);
 
 function respondError(res, statusCode, code, message) {
   return res.status(statusCode).json({ error: message, code });
@@ -27,6 +28,14 @@ async function startPreview(req, res) {
     const projectId = req.params.id;
 
     const project = await projectService.getProject(projectId, req.user.userId);
+    if (!PREVIEWABLE_STATUSES.has(project.status)) {
+      return respondError(
+        res,
+        409,
+        ERROR_CODES.NO_SDF,
+        'Generate the ERP before opening the preview.',
+      );
+    }
 
     const sdfRow = await SDF.findLatestByProject(projectId);
     if (!sdfRow) {

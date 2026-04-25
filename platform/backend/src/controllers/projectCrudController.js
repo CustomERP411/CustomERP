@@ -2,7 +2,6 @@ const projectService = require('../services/projectService');
 const logger = require('../utils/logger');
 const moduleQuestionnaireService = require('../services/moduleQuestionnaireService');
 const prefilledSdfService = require('../services/prefilledSdfService');
-const SDF = require('../models/SDF');
 const { parseModulesInput } = require('./projectHelpers');
 
 exports.listProjects = async (req, res) => {
@@ -127,14 +126,18 @@ exports.saveDefaultModuleAnswers = async (req, res) => {
       questionnaireState: state,
     });
 
-    let prefilledSdfVersion = null;
-    if (prefill.prefilled_sdf && typeof prefill.prefilled_sdf === 'object') {
-      const saved = await SDF.create(project.id, prefill.prefilled_sdf);
-      prefilledSdfVersion = saved?.version || null;
-    }
+    // The questionnaire prefill is an input to generation, not a generated ERP.
+    // Persisting it in the SDF table makes the project look "ready" on reload
+    // before the user answers the open-ended business questions or presses
+    // Generate. Return it to the frontend, but do not create an SDF version.
+    const prefilledSdfVersion = null;
+    const updatedProject = project.status === 'Draft'
+      ? project
+      : await projectService.updateProject(projectId, userId, { status: 'Draft' });
 
     res.json({
       ...state,
+      project: updatedProject,
       prefilled_sdf: prefill.prefilled_sdf,
       prefilled_sdf_version: prefilledSdfVersion,
       prefill_validation: prefill.validation,

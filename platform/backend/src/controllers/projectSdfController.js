@@ -8,7 +8,14 @@ exports.getLatestSdf = async (req, res) => {
   try {
     const userId = req.user.userId;
     const projectId = req.params.id;
-    await projectService.getProject(projectId, userId);
+    const project = await projectService.getProject(projectId, userId);
+
+    // A raw SDF row may be an internal prefill from module questions. Only
+    // expose SDFs once the project has actually generated or is clarifying a
+    // generated draft.
+    if (!['Ready', 'Generated', 'Approved', 'Clarifying'].includes(project.status)) {
+      return res.json({ sdf: null, sdf_version: null });
+    }
 
     const latest = await SDF.findLatestByProject(projectId);
     res.json({ sdf: latest?.sdf_json || null, sdf_version: latest?.version || null });

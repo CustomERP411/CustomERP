@@ -32,7 +32,7 @@
   "newModal": {
     "title": "New Project",
     "nameLabel": "Project name",
-    "namePlaceholder": "e.g. Acme ERP",
+    "namePlaceholder": "Example ERP name",
     "languageNotice": "This project will be created in {{language}}. The language is locked once the project is created, including for the generated ERP. You can change the default for future projects from Settings.",
     "create": "Create",
     "creating": "Creating...",

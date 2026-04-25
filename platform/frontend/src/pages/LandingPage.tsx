@@ -34,11 +34,11 @@ import type { Piece } from '../components/puzzle/geometry';
  *     2. SignIn(2) | SignUp(2)
  *     3. About(2) | HowItWorks(2)
  *     4. Hero(4, tall)
- *     5. Tagline(4)
+ *     5. Tagline(4) — tall enough for title + body on phones
  *     6. Step1(4) | Step2(4) | Step3(4) (stacked)
- *     7. VideoText(4)
+ *     7. VideoText(4) — extra height for copy + CTA
  *     8. Video(4, tall)
- *     9. Copyright(2) | Github(1) | CTIS(1)
+ *     9. Copyright(2) | Github(1) | CTIS(1) — room for wrapped lines
  *
  * The mobile board renders with a smaller `knobR` so the tabs/sockets stay
  * visually proportional to the smaller pieces (otherwise the default 30px
@@ -68,17 +68,21 @@ const DY_FOOT = DY_VIDEO + DH_VIDEO;
 const MCW = 100;
 const MH_ROW_NAV = 80;
 const MH_HERO = 220;
-const MH_TAGLINE = 140;
+// Extra headroom for the "No coding required" block on narrow viewports
+// (multi-line title + body without tight vertical fit).
+const MH_TAGLINE = 180;
 // Steps need more vertical room than the original 110 so the body copy can
 // breathe (2-3 lines of description) without feeling cramped next to the
 // numbered badge.
 const MH_STEP = 150;
-const MH_VIDEOTEXT = 160;
+// Demo / VideoCopy: eyebrow, heading, body, and CTA need comfortable spacing.
+const MH_VIDEOTEXT = 210;
 // Taller video piece lets the 16:9 frame grow — at 300h the frame clears
 // roughly the full available piece width on a typical phone viewport, so
 // the placeholder no longer reads as a thin band inside a tall empty piece.
 const MH_VIDEO = 300;
-const MH_FOOT = 80;
+// Footer line + copyright: avoid clipping when split across 2-col + icons.
+const MH_FOOT = 104;
 
 const MY_LOGO = 0;
 const MY_AUTH = MY_LOGO + MH_ROW_NAV;

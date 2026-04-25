@@ -169,7 +169,8 @@ async function stopAllForProject(projectId) {
   }
 }
 
-async function startPreview(projectId, sdf) {
+async function startPreview(projectId, sdf, options = {}) {
+  const { language } = options;
   // Idempotent: if a non-terminal preview already exists for this project,
   // return it instead of starting a second build (covers double-clicks and
   // races between the status poll and the mount effect on PreviewPage).
@@ -220,7 +221,7 @@ async function startPreview(projectId, sdf) {
 
   _startCleanupTimer();
 
-  _buildQueue.push({ previewId, projectId, sdf });
+  _buildQueue.push({ previewId, projectId, sdf, language });
   logger.info(`[PreviewManager] Preview ${previewId} queued (position ${_buildQueue.length})`);
 
   _drainQueue();
@@ -246,7 +247,7 @@ function _drainQueue() {
   _buildRunning = true;
   logger.info(`[PreviewManager] Starting build for preview ${job.previewId}`);
 
-  _executeBuild(job.previewId, job.projectId, job.sdf)
+  _executeBuild(job.previewId, job.projectId, job.sdf, job.language)
     .finally(() => {
       _buildRunning = false;
       _drainQueue();
@@ -258,7 +259,7 @@ function _setPhase(previewId, phase) {
   if (preview) preview.phase = phase;
 }
 
-async function _executeBuild(previewId, projectId, sdf) {
+async function _executeBuild(previewId, projectId, sdf, language) {
   const basePath = `/preview/${previewId}`;
 
   try {
@@ -270,6 +271,7 @@ async function _executeBuild(previewId, projectId, sdf) {
         projectId,
         sdf,
         standalone: true,
+        language,
       });
       outputDir = result.outputDir;
     } catch (err) {

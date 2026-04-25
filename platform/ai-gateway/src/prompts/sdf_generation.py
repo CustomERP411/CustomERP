@@ -179,6 +179,65 @@ def get_finalize_prompt(business_description: str, partial_sdf: str, answers: st
 # Multi-Agent Pipeline Prompts
 # ─────────────────────────────────────────────────────────────
 
+def get_answer_reviewer_prompt(
+    business_description: str,
+    business_answers: str = "",
+    default_questions: str = "",
+    selected_modules: Optional[list] = None,
+    acknowledged_unsupported_features: Optional[list] = None,
+    language: str = DEFAULT_LANGUAGE,
+) -> str:
+    """Loads the answer-reviewer prompt for pre-distributor quality gating.
+
+    Args:
+        business_description: The composed business description string.
+        business_answers: JSON string of the per-question Q&A map (id -> {question, answer}).
+        default_questions: JSON string of module-wizard default answers.
+        selected_modules: List of modules the user picked in the UI.
+        acknowledged_unsupported_features: Plain-English feature names the user
+            has already accepted on a previous review.
+        language: Project language code (en/tr) — controls directive injection
+            and the language of user-facing review messages.
+    """
+    try:
+        prompt_template_path = PROMPT_DIR / "answer_reviewer_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+
+        cleaned_selected: list[str] = []
+        if selected_modules:
+            seen: set[str] = set()
+            for m in selected_modules:
+                if not isinstance(m, str):
+                    continue
+                key = m.strip().lower()
+                if key and key not in seen:
+                    seen.add(key)
+                    cleaned_selected.append(key)
+        selected_str = ", ".join(cleaned_selected) if cleaned_selected else "(none — user has not selected modules yet)"
+
+        ack_clean: list[str] = []
+        if acknowledged_unsupported_features:
+            for f in acknowledged_unsupported_features:
+                if isinstance(f, str) and f.strip():
+                    ack_clean.append(f.strip())
+        ack_str = "\n".join(f"- {f}" for f in ack_clean) if ack_clean else "(none)"
+
+        rendered = _inject_placeholders(
+            prompt_template,
+            {
+                "business_description": business_description or "(empty)",
+                "business_answers": business_answers or "{}",
+                "default_questions": default_questions or "{}",
+                "selected_modules": selected_str,
+                "acknowledged_unsupported_features": ack_str,
+            },
+        )
+        return _with_language_directive(rendered, language)
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found at {prompt_template_path}")
+        return "Error: Could not load prompt."
+
+
 def get_distributor_prompt(
     business_description: str,
     default_questions: str = "",

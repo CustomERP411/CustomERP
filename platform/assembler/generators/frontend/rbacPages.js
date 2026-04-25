@@ -105,29 +105,18 @@ export { API };
 }
 
 function buildLoginPage({ language } = {}) {
-  const isTr = String(language || '').toLowerCase() === 'tr';
+  const t = tFor(language);
   const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  const L = isTr
-    ? {
-        signIn: 'Giriş Yap',
-        subtitle: 'Devam etmek için kimlik bilgilerinizi girin',
-        loading: 'Yükleniyor...',
-        username: 'Kullanıcı adı',
-        password: 'Şifre',
-        signingIn: 'Giriş yapılıyor...',
-        loginFailed: 'Giriş başarısız',
-        defaultLogin: 'Varsayılan giriş:',
-      }
-    : {
-        signIn: 'Sign In',
-        subtitle: 'Enter your credentials to continue',
-        loading: 'Loading...',
-        username: 'Username',
-        password: 'Password',
-        signingIn: 'Signing in...',
-        loginFailed: 'Login failed',
-        defaultLogin: 'Default login:',
-      };
+  const L = {
+    signIn: t('auth.login.submit'),
+    subtitle: t('auth.login.subtitle'),
+    loading: t('rbac.loading'),
+    username: t('auth.login.username'),
+    password: t('auth.login.password'),
+    signingIn: t('auth.login.submitting'),
+    loginFailed: t('auth.login.genericError'),
+    defaultLogin: t('rbac.defaultLogin'),
+  };
   return `import { useState, useEffect, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -250,23 +239,15 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 function buildRequirePermission({ language } = {}) {
-  const isTr = String(language || '').toLowerCase() === 'tr';
+  const t = tFor(language);
   const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  const L = isTr
-    ? {
-        loading: 'Yükleniyor...',
-        forbiddenTitle: 'Erişim reddedildi',
-        forbiddenBody: 'Bu sayfayı görüntüleme izniniz yok.',
-        missing: 'Eksik izin',
-        back: 'Geri dön',
-      }
-    : {
-        loading: 'Loading...',
-        forbiddenTitle: 'Access denied',
-        forbiddenBody: 'You do not have permission to view this page.',
-        missing: 'Missing permission',
-        back: 'Go back',
-      };
+  const L = {
+    loading: t('rbacForbidden.loading'),
+    forbiddenTitle: t('rbacForbidden.title'),
+    forbiddenBody: t('rbacForbidden.body'),
+    missing: t('rbacForbidden.missing'),
+    back: t('rbacForbidden.back'),
+  };
   return `import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -579,21 +560,23 @@ export default function UsersAdminPageConnected() {
 function buildGroupsAdminPageConnected({ language } = {}) {
   const t = tFor(language);
   const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  const isTr = String(language || '').toLowerCase() === 'tr';
-  const actionLabels = isTr
-    ? { create: 'Ekle', read: 'Görüntüle', update: 'Düzenle', delete: 'Sil' }
-    : { create: 'Add', read: 'View', update: 'Edit', delete: 'Remove' };
-  const memberSingular = isTr ? 'üye' : 'member';
-  const memberPlural = isTr ? 'üye' : 'members';
-  const noDescription = isTr ? 'Açıklama yok' : 'No description';
-  const permissionsWord = isTr ? 'İzinler' : 'Permissions';
-  const searchRoles = isTr ? 'Rol ara...' : 'Search roles...';
-  const descriptionOptional = isTr ? 'Açıklama (opsiyonel)' : 'Description (optional)';
-  const whatCanThisRoleDo = isTr ? 'Bu rol neler yapabilir?' : 'What can this role do?';
-  const hideAdvanced = isTr ? 'Gelişmiş ayarları gizle' : 'Hide advanced settings';
-  const showAdvancedLbl = isTr ? 'Gelişmiş ayarları göster' : 'Show advanced settings';
-  const manageRolesSub = isTr ? 'Rolleri ve her rolün neler yapabileceğini yönetin.' : 'Manage roles and what each role can do.';
-  const closeLbl = isTr ? 'Kapat' : 'Close';
+  const actionLabels = {
+    create: t('rbac.actionCreate'),
+    read: t('rbac.actionRead'),
+    update: t('rbac.actionUpdate'),
+    delete: t('rbac.actionDelete'),
+  };
+  const memberSingular = t('rbac.memberSingular');
+  const memberPlural = t('rbac.memberPlural');
+  const noDescription = t('rbac.noDescription');
+  const permissionsWord = t('rbac.permissions');
+  const searchRoles = t('rbac.searchRoles');
+  const descriptionOptional = t('rbac.descriptionOptional');
+  const whatCanThisRoleDo = t('rbac.whatCanThisRoleDo');
+  const hideAdvanced = t('rbac.hideAdvanced');
+  const showAdvancedLbl = t('rbac.showAdvanced');
+  const manageRolesSub = t('rbac.manageRolesSub');
+  const closeLbl = t('rbac.close');
   return `import { useEffect, useState, useCallback, useRef } from 'react';
 import { API } from '../../contexts/AuthContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -873,49 +856,28 @@ export default function GroupsAdminPageConnected() {
 }
 
 function buildPermissionsAdminPageConnected({ language } = {}) {
-  const isTr = String(language || '').toLowerCase() === 'tr';
+  const t = tFor(language);
   const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  const L = isTr
-    ? {
-        title: 'İzin Yönetimi',
-        subtitle: 'Mevcut izinleri inceleyin ve yönetin.',
-        addPermission: 'İzin Ekle',
-        showGlobalOnly: 'Yalnızca global izinleri göster',
-        editPermission: 'İzni Düzenle',
-        createPermission: 'İzin Oluştur',
-        permissionKey: 'İzin anahtarı',
-        label: 'Etiket',
-        description: 'Açıklama',
-        scopeModule: 'Modül',
-        scopeGlobal: 'Global',
-        save: 'Kaydet',
-        cancel: 'İptal',
-        permission: 'İzin',
-        scope: 'Kapsam',
-        usedByGroups: 'Kullanan roller',
-        actions: 'İşlemler',
-        edit: 'Düzenle',
-      }
-    : {
-        title: 'Permission Management',
-        subtitle: 'Review and manage available permissions.',
-        addPermission: 'Add Permission',
-        showGlobalOnly: 'Show global permissions only',
-        editPermission: 'Edit Permission',
-        createPermission: 'Create Permission',
-        permissionKey: 'Permission key',
-        label: 'Label',
-        description: 'Description',
-        scopeModule: 'Module',
-        scopeGlobal: 'Global',
-        save: 'Save',
-        cancel: 'Cancel',
-        permission: 'Permission',
-        scope: 'Scope',
-        usedByGroups: 'Used By Groups',
-        actions: 'Actions',
-        edit: 'Edit',
-      };
+  const L = {
+    title: t('rbac.permissionsManagementTitle'),
+    subtitle: t('rbac.permissionsManagementSubtitle'),
+    addPermission: t('rbac.addPermission'),
+    showGlobalOnly: t('rbac.showGlobalOnly'),
+    editPermission: t('rbac.editPermission'),
+    createPermission: t('rbac.createPermission'),
+    permissionKey: t('rbac.permissionKey'),
+    label: t('rbac.permissionLabel'),
+    description: t('rbac.description'),
+    scopeModule: t('rbac.scopeModule'),
+    scopeGlobal: t('rbac.scopeGlobal'),
+    save: t('rbac.save'),
+    cancel: t('rbac.cancel'),
+    permission: t('rbac.permission'),
+    scope: t('rbac.scope'),
+    usedByGroups: t('rbac.usedByGroups'),
+    actions: t('rbac.actions'),
+    edit: t('rbac.edit'),
+  };
   return `import { useEffect, useState, useCallback } from 'react';
 import { API } from '../../contexts/AuthContext';
 

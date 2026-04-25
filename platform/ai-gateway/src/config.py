@@ -124,6 +124,7 @@ class Settings:
         if agent_name not in cls._agent_configs:
             default_temps = {
                 "distributor": 0.1,
+                "reviewer": 0.0,
                 "hr": 0.2,
                 "invoice": 0.2,
                 "inventory": 0.2,
@@ -139,6 +140,34 @@ class Settings:
     @classmethod
     def distributor_config(cls) -> AgentConfig:
         return cls.get_agent_config("distributor")
+
+    @classmethod
+    def reviewer_config(cls) -> AgentConfig:
+        """Pre-distributor answer reviewer.
+
+        Falls back to the distributor's model/provider when no explicit
+        AI_AGENT_REVIEWER_* env vars are set, so deployments don't need to
+        configure another provider for this lightweight gate.
+        """
+        cfg = cls.get_agent_config("reviewer")
+        dist = cls.get_agent_config("distributor")
+        # Mirror unset reviewer fields from the distributor config so the
+        # reviewer "just works" out of the box.
+        if not cfg.api_key and dist.api_key:
+            cfg.api_key = dist.api_key
+        if not cfg.model and dist.model:
+            cfg.model = dist.model
+        if not cfg.azure_endpoint and dist.azure_endpoint:
+            cfg.azure_endpoint = dist.azure_endpoint
+        if not cfg.azure_deployment and dist.azure_deployment:
+            cfg.azure_deployment = dist.azure_deployment
+        if not cfg.azure_api_version and dist.azure_api_version:
+            cfg.azure_api_version = dist.azure_api_version
+        # Provider gets resolved via AI_DEFAULT_PROVIDER if AI_AGENT_REVIEWER_PROVIDER
+        # is unset; if for some reason it's still unset, mirror distributor.
+        if not cfg.provider:
+            cfg.provider = dist.provider
+        return cfg
     
     @classmethod
     def hr_config(cls) -> AgentConfig:

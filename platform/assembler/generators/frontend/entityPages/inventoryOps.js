@@ -1,5 +1,46 @@
-function buildReceivePage({ entity, entityName, invCfg, entityLocationField, importBase }) {
+const { tFor } = require('../../../i18n/labels');
+
+function _commonInvLabels(language) {
+  const t = tFor(language);
+  return {
+    item: t('inventoryOps.fields.item') || 'Item',
+    location: t('inventoryOps.fields.location') || 'Location',
+    locationOptional: t('inventoryOps.fields.locationOptional') || 'Location (optional)',
+    fromLocation: t('inventoryOps.fields.fromLocation') || 'From location',
+    toLocation: t('inventoryOps.fields.toLocation') || 'To location',
+    quantity: t('inventoryOps.fields.quantity') || 'Quantity',
+    quantityChange: t('inventoryOps.fields.quantityChange') || 'Quantity change',
+    movementDate: t('inventoryOps.fields.movementDate') || 'Movement date',
+    referenceNumber: t('inventoryOps.fields.referenceNumber') || 'Reference # (optional)',
+    note: t('inventoryOps.fields.note') || 'Note (optional)',
+    reasonCode: t('inventoryOps.fields.reasonCode') || 'Reason code',
+    selectPlaceholder: t('common.select') || 'Select...',
+    cancel: t('common.cancel'),
+    back: t('common.back'),
+    loading: t('common.loading'),
+    selectItemTitle: t('inventoryOps.errors.selectItem') || 'Select an item',
+    qtyMustBePositive: t('inventoryOps.errors.qtyPositive') || 'Quantity must be > 0',
+    qtyChangeNonZero: t('inventoryOps.errors.qtyNonZero') || 'Quantity change must be non-zero',
+    qtyChangeHint: t('inventoryOps.errors.qtyChangeHint') || 'Use + for increase, - for decrease',
+    selectBothLocations: t('inventoryOps.errors.selectBothLocations') || 'Select both locations',
+    invalidTransferTitle: t('inventoryOps.errors.invalidTransfer') || 'Invalid transfer',
+    invalidTransferBody: t('inventoryOps.errors.invalidTransferBody') || 'From and To locations must be different',
+    insufficientStockTitle: t('inventoryOps.errors.insufficientStock') || 'Insufficient stock',
+    insufficientStockBody: t('inventoryOps.errors.insufficientStockBody') || 'This would make stock negative. Adjust stock or enable negative stock for this operation.',
+    unknownError: 'Unknown error',
+  };
+}
+
+function buildReceivePage({ entity, entityName, invCfg, entityLocationField, importBase, language = 'en' }) {
   const base = importBase || '..';
+  const t = tFor(language);
+  const c = _commonInvLabels(language);
+  const TITLE = t('inventoryOps.receive.title');
+  const SUBTITLE = t('inventoryOps.receive.subtitle');
+  const SUBMIT = t('inventoryOps.receive.submit');
+  const SUCCESS = t('inventoryOps.receive.successToast');
+  const FAILED = t('inventoryOps.receive.failureToast');
+  const I18N_JSON = JSON.stringify({ ...c, title: TITLE, subtitle: SUBTITLE, submit: SUBMIT, successToast: SUCCESS, failureToast: FAILED }, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -9,6 +50,7 @@ import { useToast } from '${base}/components/ui/toast';
 const INV = ${JSON.stringify(invCfg, null, 2)} as const;
 const ENTITY_SLUG = '${entity.slug}' as const;
 const ENTITY_LOCATION_FIELD = ${entityLocationField ? `'${entityLocationField}'` : 'null'} as any;
+const I18N = ${I18N_JSON} as const;
 
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(
   ENTITIES.map((e) => [e.slug, e.displayField])
@@ -64,11 +106,11 @@ export default function ${entityName}ReceivePage() {
 
   const submit = async () => {
     if (!itemId) {
-      toast({ title: 'Select an item', variant: 'warning' });
+      toast({ title: I18N.selectItemTitle, variant: 'warning' });
       return;
     }
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      toast({ title: 'Quantity must be > 0', variant: 'warning' });
+      toast({ title: I18N.qtyMustBePositive, variant: 'warning' });
       return;
     }
 
@@ -81,7 +123,7 @@ export default function ${entityName}ReceivePage() {
           reference_number: referenceNumber || undefined,
           note: note || undefined,
         });
-        toast({ title: 'Stock received', variant: 'success' });
+        toast({ title: I18N.successToast, variant: 'success' });
         navigate('/' + ENTITY_SLUG);
         return;
       }
@@ -97,7 +139,6 @@ export default function ${entityName}ReceivePage() {
 
       await api.post('/' + INV.movement_entity, movement);
 
-      // Update cached quantity on the main entity (if it exists)
       const current = Number(selectedItem?.[INV.quantity_field] ?? 0) || 0;
       const patch: any = {};
       patch[INV.quantity_field] = current + quantity;
@@ -113,32 +154,32 @@ export default function ${entityName}ReceivePage() {
 
       await api.put('/' + ENTITY_SLUG + '/' + itemId, patch);
 
-      toast({ title: 'Stock received', variant: 'success' });
+      toast({ title: I18N.successToast, variant: 'success' });
       navigate('/' + ENTITY_SLUG);
     } catch (err: any) {
-      toast({ title: 'Receive failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.failureToast, description: err?.response?.data?.error || err?.message || I18N.unknownError, variant: 'error' });
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <div className="p-4">{I18N.loading}</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Receive stock</h1>
-          <p className="text-sm text-slate-600">Creates a movement + updates quantity.</p>
+          <h1 className="text-2xl font-bold text-slate-900">{I18N.title}</h1>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 no-print">
-          Back
+          {I18N.back}
         </Link>
       </div>
 
       <div className="rounded-lg bg-white p-6 shadow space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Item</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.item}</label>
           <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="w-full rounded border px-3 py-2">
-            <option value="">Select...</option>
+            <option value="">{I18N.selectPlaceholder}</option>
             {items.map((it) => (
               <option key={it.id} value={it.id}>{getEntityDisplay(ENTITY_SLUG, it)}</option>
             ))}
@@ -147,9 +188,9 @@ export default function ${entityName}ReceivePage() {
 
         {locations.length ? (
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Location (optional)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.locationOptional}</label>
             <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="w-full rounded border px-3 py-2">
-              <option value="">Select...</option>
+              <option value="">{I18N.selectPlaceholder}</option>
               {locations.map((l) => (
                 <option key={l.id} value={l.id}>{getEntityDisplay(INV.location_entity, l)}</option>
               ))}
@@ -159,7 +200,7 @@ export default function ${entityName}ReceivePage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.quantity}</label>
             <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.valueAsNumber)} className="w-full rounded border px-3 py-2" />
           </div>
           <div>
@@ -181,10 +222,10 @@ export default function ${entityName}ReceivePage() {
 
         <div className="flex justify-end gap-2 no-print">
           <button type="button" onClick={() => navigate('/' + ENTITY_SLUG)} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-            Cancel
+            {I18N.cancel}
           </button>
           <button type="button" onClick={submit} className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-            Receive
+            {I18N.submit}
           </button>
         </div>
       </div>
@@ -194,8 +235,18 @@ export default function ${entityName}ReceivePage() {
 `;
 }
 
-function buildIssuePage({ entity, entityName, invCfg, entityLocationField, issueLabel, escapeJsString, importBase }) {
+function buildIssuePage({ entity, entityName, invCfg, entityLocationField, issueLabel, escapeJsString, importBase, language = 'en' }) {
   const base = importBase || '..';
+  const t = tFor(language);
+  const c = _commonInvLabels(language);
+  const I18N_JSON = JSON.stringify({
+    ...c,
+    title: t('inventoryOps.issue.title'),
+    subtitle: t('inventoryOps.issue.subtitle'),
+    submit: t('inventoryOps.issue.submit'),
+    successToast: t('inventoryOps.issue.successToast'),
+    failureToast: t('inventoryOps.issue.failureToast'),
+  }, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -206,6 +257,7 @@ const INV = ${JSON.stringify(invCfg, null, 2)} as const;
 const ENTITY_SLUG = '${entity.slug}' as const;
 const ENTITY_LOCATION_FIELD = ${entityLocationField ? `'${entityLocationField}'` : 'null'} as any;
 const ISSUE_LABEL = '${escapeJsString(issueLabel || 'Sell')}' as const;
+const I18N = ${I18N_JSON} as const;
 
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(
   ENTITIES.map((e) => [e.slug, e.displayField])
@@ -261,11 +313,11 @@ export default function ${entityName}IssuePage() {
 
   const submit = async () => {
     if (!itemId) {
-      toast({ title: 'Select an item', variant: 'warning' });
+      toast({ title: I18N.selectItemTitle, variant: 'warning' });
       return;
     }
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      toast({ title: 'Quantity must be > 0', variant: 'warning' });
+      toast({ title: I18N.qtyMustBePositive, variant: 'warning' });
       return;
     }
 
@@ -273,8 +325,8 @@ export default function ${entityName}IssuePage() {
     const nextQty = current - quantity;
     if (!(INV.issue && INV.issue.allow_negative_stock) && nextQty < 0) {
       toast({
-        title: 'Insufficient stock',
-        description: 'This would make stock negative. Adjust stock or enable negative stock for this operation.',
+        title: I18N.insufficientStockTitle,
+        description: I18N.insufficientStockBody,
         variant: 'warning',
       });
       return;
@@ -289,7 +341,7 @@ export default function ${entityName}IssuePage() {
           reference_number: referenceNumber || undefined,
           note: note || undefined,
         });
-        toast({ title: ISSUE_LABEL + ' recorded', variant: 'success' });
+        toast({ title: I18N.successToast, variant: 'success' });
         navigate('/' + ENTITY_SLUG);
         return;
       }
@@ -320,32 +372,32 @@ export default function ${entityName}IssuePage() {
 
       await api.put('/' + ENTITY_SLUG + '/' + itemId, patch);
 
-      toast({ title: ISSUE_LABEL + ' recorded', variant: 'success' });
+      toast({ title: I18N.successToast, variant: 'success' });
       navigate('/' + ENTITY_SLUG);
     } catch (err: any) {
-      toast({ title: ISSUE_LABEL + ' failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.failureToast, description: err?.response?.data?.error || err?.message || I18N.unknownError, variant: 'error' });
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <div className="p-4">{I18N.loading}</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{ISSUE_LABEL}</h1>
-          <p className="text-sm text-slate-600">Creates a movement + updates quantity.</p>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 no-print">
-          Back
+          {I18N.back}
         </Link>
       </div>
 
       <div className="rounded-lg bg-white p-6 shadow space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Item</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.item}</label>
           <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="w-full rounded border px-3 py-2">
-            <option value="">Select...</option>
+            <option value="">{I18N.selectPlaceholder}</option>
             {items.map((it) => (
               <option key={it.id} value={it.id}>{getEntityDisplay(ENTITY_SLUG, it)}</option>
             ))}
@@ -354,9 +406,9 @@ export default function ${entityName}IssuePage() {
 
         {locations.length ? (
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Location (optional)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.locationOptional}</label>
             <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="w-full rounded border px-3 py-2">
-              <option value="">Select...</option>
+              <option value="">{I18N.selectPlaceholder}</option>
               {locations.map((l) => (
                 <option key={l.id} value={l.id}>{getEntityDisplay(INV.location_entity, l)}</option>
               ))}
@@ -366,29 +418,29 @@ export default function ${entityName}IssuePage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.quantity}</label>
             <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.valueAsNumber)} className="w-full rounded border px-3 py-2" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Movement date</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.movementDate}</label>
             <input type="date" value={movementDate} onChange={(e) => setMovementDate(e.target.value)} className="w-full rounded border px-3 py-2" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Reference # (optional)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.referenceNumber}</label>
             <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} className="w-full rounded border px-3 py-2" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Note (optional)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.note}</label>
             <input value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded border px-3 py-2" />
           </div>
         </div>
 
         <div className="flex justify-end gap-2 no-print">
           <button type="button" onClick={() => navigate('/' + ENTITY_SLUG)} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-            Cancel
+            {I18N.cancel}
           </button>
           <button type="button" onClick={submit} className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
             {ISSUE_LABEL}
@@ -401,8 +453,19 @@ export default function ${entityName}IssuePage() {
 `;
 }
 
-function buildAdjustPage({ entity, entityName, invCfg, importBase }) {
+function buildAdjustPage({ entity, entityName, invCfg, importBase, language = 'en' }) {
   const base = importBase || '..';
+  const t = tFor(language);
+  const c = _commonInvLabels(language);
+  const I18N_JSON = JSON.stringify({
+    ...c,
+    title: t('inventoryOps.adjust.title'),
+    subtitle: t('inventoryOps.adjust.subtitle'),
+    submit: t('inventoryOps.adjust.submit'),
+    successToast: t('inventoryOps.adjust.successToast'),
+    failureToast: t('inventoryOps.adjust.failureToast'),
+    qtyChangeExample: t('inventoryOps.adjust.qtyChangeExample') || 'Example: -5 (shrinkage), +10 (found stock)',
+  }, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -411,6 +474,7 @@ import { useToast } from '${base}/components/ui/toast';
 
 const INV = ${JSON.stringify(invCfg, null, 2)} as const;
 const ENTITY_SLUG = '${entity.slug}' as const;
+const I18N = ${I18N_JSON} as const;
 
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(
   ENTITIES.map((e) => [e.slug, e.displayField])
@@ -454,11 +518,11 @@ export default function ${entityName}AdjustPage() {
 
   const submit = async () => {
     if (!itemId) {
-      toast({ title: 'Select an item', variant: 'warning' });
+      toast({ title: I18N.selectItemTitle, variant: 'warning' });
       return;
     }
     if (!Number.isFinite(qtyChange) || qtyChange === 0) {
-      toast({ title: 'Quantity change must be non-zero', description: 'Use + for increase, - for decrease', variant: 'warning' });
+      toast({ title: I18N.qtyChangeNonZero, description: I18N.qtyChangeHint, variant: 'warning' });
       return;
     }
 
@@ -470,7 +534,7 @@ export default function ${entityName}AdjustPage() {
           reason: reasonCode,
           note: note || undefined,
         });
-        toast({ title: 'Stock adjusted', variant: 'success' });
+        toast({ title: I18N.successToast, variant: 'success' });
         navigate('/' + ENTITY_SLUG);
         return;
       }
@@ -500,32 +564,32 @@ export default function ${entityName}AdjustPage() {
       patch[INV.quantity_field] = current + qtyChange;
       await api.put('/' + ENTITY_SLUG + '/' + itemId, patch);
 
-      toast({ title: 'Stock adjusted', variant: 'success' });
+      toast({ title: I18N.successToast, variant: 'success' });
       navigate('/' + ENTITY_SLUG);
     } catch (err: any) {
-      toast({ title: 'Adjust failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.failureToast, description: err?.response?.data?.error || err?.message || I18N.unknownError, variant: 'error' });
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <div className="p-4">{I18N.loading}</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Adjust stock</h1>
-          <p className="text-sm text-slate-600">Use a quantity change (+/-) and a reason code (for non-sales corrections).</p>
+          <h1 className="text-2xl font-bold text-slate-900">{I18N.title}</h1>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 no-print">
-          Back
+          {I18N.back}
         </Link>
       </div>
 
       <div className="rounded-lg bg-white p-6 shadow space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Item</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.item}</label>
           <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="w-full rounded border px-3 py-2">
-            <option value="">Select...</option>
+            <option value="">{I18N.selectPlaceholder}</option>
             {items.map((it) => (
               <option key={it.id} value={it.id}>{getEntityDisplay(ENTITY_SLUG, it)}</option>
             ))}
@@ -534,19 +598,19 @@ export default function ${entityName}AdjustPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity change</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.quantityChange}</label>
             <input type="number" value={qtyChange} onChange={(e) => setQtyChange(e.target.valueAsNumber)} className="w-full rounded border px-3 py-2" />
-            <div className="mt-1 text-xs text-slate-500">Example: -5 (shrinkage), +10 (found stock)</div>
+            <div className="mt-1 text-xs text-slate-500">{I18N.qtyChangeExample}</div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Movement date</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.movementDate}</label>
             <input type="date" value={movementDate} onChange={(e) => setMovementDate(e.target.value)} className="w-full rounded border px-3 py-2" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Reason code</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.reasonCode}</label>
             <select value={reasonCode} onChange={(e) => setReasonCode(e.target.value)} className="w-full rounded border px-3 py-2">
               {(INV.adjust.reason_codes || []).map((rc) => (
                 <option key={rc} value={rc}>{rc}</option>
@@ -554,17 +618,17 @@ export default function ${entityName}AdjustPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Note (optional)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.note}</label>
             <input value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded border px-3 py-2" />
           </div>
         </div>
 
         <div className="flex justify-end gap-2 no-print">
           <button type="button" onClick={() => navigate('/' + ENTITY_SLUG)} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-            Cancel
+            {I18N.cancel}
           </button>
           <button type="button" onClick={submit} className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-            Apply adjustment
+            {I18N.submit}
           </button>
         </div>
       </div>
@@ -574,8 +638,18 @@ export default function ${entityName}AdjustPage() {
 `;
 }
 
-function buildTransferPage({ entity, entityName, invCfg, entityLocationField, importBase }) {
+function buildTransferPage({ entity, entityName, invCfg, entityLocationField, importBase, language = 'en' }) {
   const base = importBase || '..';
+  const t = tFor(language);
+  const c = _commonInvLabels(language);
+  const I18N_JSON = JSON.stringify({
+    ...c,
+    title: t('inventoryOps.transfer.title'),
+    subtitle: t('inventoryOps.transfer.subtitle'),
+    submit: t('inventoryOps.transfer.submit'),
+    successToast: t('inventoryOps.transfer.successToast'),
+    failureToast: t('inventoryOps.transfer.failureToast'),
+  }, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -585,6 +659,7 @@ import { useToast } from '${base}/components/ui/toast';
 const INV = ${JSON.stringify(invCfg, null, 2)} as const;
 const ENTITY_SLUG = '${entity.slug}' as const;
 const ENTITY_LOCATION_FIELD = ${entityLocationField ? `'${entityLocationField}'` : 'null'} as any;
+const I18N = ${I18N_JSON} as const;
 
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(
   ENTITIES.map((e) => [e.slug, e.displayField])
@@ -634,19 +709,19 @@ export default function ${entityName}TransferPage() {
 
   const submit = async () => {
     if (!itemId) {
-      toast({ title: 'Select an item', variant: 'warning' });
+      toast({ title: I18N.selectItemTitle, variant: 'warning' });
       return;
     }
     if (!fromLocationId || !toLocationId) {
-      toast({ title: 'Select both locations', variant: 'warning' });
+      toast({ title: I18N.selectBothLocations, variant: 'warning' });
       return;
     }
     if (String(fromLocationId) === String(toLocationId)) {
-      toast({ title: 'Invalid transfer', description: 'From and To locations must be different', variant: 'warning' });
+      toast({ title: I18N.invalidTransferTitle, description: I18N.invalidTransferBody, variant: 'warning' });
       return;
     }
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      toast({ title: 'Quantity must be > 0', variant: 'warning' });
+      toast({ title: I18N.qtyMustBePositive, variant: 'warning' });
       return;
     }
 
@@ -659,7 +734,7 @@ export default function ${entityName}TransferPage() {
           movement_date: movementDate || undefined,
           note: note || undefined,
         });
-        toast({ title: 'Transfer recorded', variant: 'success' });
+        toast({ title: I18N.successToast, variant: 'success' });
         navigate('/' + ENTITY_SLUG);
         return;
       }
@@ -700,32 +775,32 @@ export default function ${entityName}TransferPage() {
         await api.put('/' + ENTITY_SLUG + '/' + itemId, patch);
       }
 
-      toast({ title: 'Transfer recorded', variant: 'success' });
+      toast({ title: I18N.successToast, variant: 'success' });
       navigate('/' + ENTITY_SLUG);
     } catch (err: any) {
-      toast({ title: 'Transfer failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.failureToast, description: err?.response?.data?.error || err?.message || I18N.unknownError, variant: 'error' });
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <div className="p-4">{I18N.loading}</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Transfer stock</h1>
-          <p className="text-sm text-slate-600">Records an OUT and an IN movement (net zero).</p>
+          <h1 className="text-2xl font-bold text-slate-900">{I18N.title}</h1>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 no-print">
-          Back
+          {I18N.back}
         </Link>
       </div>
 
       <div className="rounded-lg bg-white p-6 shadow space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Item</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.item}</label>
           <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="w-full rounded border px-3 py-2">
-            <option value="">Select...</option>
+            <option value="">{I18N.selectPlaceholder}</option>
             {items.map((it) => (
               <option key={it.id} value={it.id}>{getEntityDisplay(ENTITY_SLUG, it)}</option>
             ))}
@@ -734,18 +809,18 @@ export default function ${entityName}TransferPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">From location</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.fromLocation}</label>
             <select value={fromLocationId} onChange={(e) => setFromLocationId(e.target.value)} className="w-full rounded border px-3 py-2">
-              <option value="">Select...</option>
+              <option value="">{I18N.selectPlaceholder}</option>
               {locations.map((l) => (
                 <option key={l.id} value={l.id}>{getEntityDisplay(INV.location_entity, l)}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">To location</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.toLocation}</label>
             <select value={toLocationId} onChange={(e) => setToLocationId(e.target.value)} className="w-full rounded border px-3 py-2">
-              <option value="">Select...</option>
+              <option value="">{I18N.selectPlaceholder}</option>
               {locations.map((l) => (
                 <option key={l.id} value={l.id}>{getEntityDisplay(INV.location_entity, l)}</option>
               ))}
@@ -755,26 +830,26 @@ export default function ${entityName}TransferPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.quantity}</label>
             <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.valueAsNumber)} className="w-full rounded border px-3 py-2" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Movement date</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.movementDate}</label>
             <input type="date" value={movementDate} onChange={(e) => setMovementDate(e.target.value)} className="w-full rounded border px-3 py-2" />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Note (optional)</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">{I18N.note}</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded border px-3 py-2" />
         </div>
 
         <div className="flex justify-end gap-2 no-print">
           <button type="button" onClick={() => navigate('/' + ENTITY_SLUG)} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-            Cancel
+            {I18N.cancel}
           </button>
           <button type="button" onClick={submit} className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-            Transfer
+            {I18N.submit}
           </button>
         </div>
       </div>

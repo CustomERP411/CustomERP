@@ -47,6 +47,47 @@ class ClarificationQuestion(BaseModel):
     )
 
 
+class AnswerIssue(BaseModel):
+    """A single issue detected by the answer reviewer."""
+    kind: Literal[
+        "gibberish",
+        "too_short",
+        "all_basics_empty",
+        "mismatch",
+        "unsupported_feature",
+    ] = Field(..., description="Category of issue detected")
+    severity: Literal["block", "acknowledgeable"] = Field(
+        ...,
+        description="'block' issues must be fixed; 'acknowledgeable' can be accepted by the user",
+    )
+    question_id: Optional[str] = Field(
+        default=None,
+        description="ID of the offending business question (e.g. what_business). None for cross-cutting issues",
+    )
+    message: str = Field(
+        ...,
+        description="User-facing explanation in the project's language",
+    )
+    suggested_fix: Optional[str] = Field(
+        default=None,
+        description="Concrete suggestion for how the user can resolve the issue",
+    )
+    related_feature: Optional[str] = Field(
+        default=None,
+        description="Plain-English feature name when kind=unsupported_feature",
+    )
+
+
+class AnswerReview(BaseModel):
+    """Output of the pre-distributor answer reviewer agent."""
+    is_clear_to_proceed: bool = Field(
+        default=True,
+        description="True when no blocking issues remain (acknowledgeable issues may still exist if pre-acknowledged)",
+    )
+    issues: List[AnswerIssue] = Field(default_factory=list)
+    summary: str = Field(default="", description="Short overall summary of the review in the project language")
+
+
 class ModuleGeneratorOutput(BaseModel):
     """Output from a module-specific generator."""
     module: Literal["hr", "invoice", "inventory"]
@@ -111,5 +152,13 @@ class PipelineResult(BaseModel):
         description="Per-agent step logs for training data collection"
     )
     unsupported_features: List[str] = Field(default_factory=list)
+    answer_review: Optional[AnswerReview] = Field(
+        default=None,
+        description="Output of the pre-distributor answer reviewer agent, when run",
+    )
+    halted_reason: Optional[Literal["answer_review", "clarifications"]] = Field(
+        default=None,
+        description="When the pipeline stops early, indicates which gate halted it",
+    )
     errors: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)

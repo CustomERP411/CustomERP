@@ -26,6 +26,8 @@ async function startPreview(req, res) {
 
     const projectId = req.params.id;
 
+    const project = await projectService.getProject(projectId, req.user.userId);
+
     const sdfRow = await SDF.findLatestByProject(projectId);
     if (!sdfRow) {
       return respondError(
@@ -38,7 +40,9 @@ async function startPreview(req, res) {
 
     const sdf = typeof sdfRow.sdf_json === 'string' ? JSON.parse(sdfRow.sdf_json) : sdfRow.sdf_json;
 
-    const result = await previewManager.startPreview(projectId, sdf);
+    const result = await previewManager.startPreview(projectId, sdf, {
+      language: project?.language,
+    });
     res.json({ previewId: result.previewId, status: result.status });
   } catch (err) {
     const statusCode = err.statusCode || 500;

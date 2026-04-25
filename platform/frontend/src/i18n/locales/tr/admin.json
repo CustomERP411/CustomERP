@@ -3,6 +3,13 @@
   "subtitle": "Platform kullanıcılarını yönetin ve tüm projeleri görüntüleyin.",
   "accessDenied": "Erişim Engellendi",
   "accessDeniedMessage": "Yönetim paneline erişim izniniz yok.",
+  "restrictedAccess": {
+    "title": "Erişim Kısıtlı",
+    "body": "Bu sayfa yalnızca platform yöneticilerine açıktır. Projelerinize yönlendirileceksiniz.",
+    "redirecting_one": "{{count}} saniye içinde yönlendiriliyorsunuz...",
+    "redirecting_other": "{{count}} saniye içinde yönlendiriliyorsunuz...",
+    "goNow": "Projelere şimdi git"
+  },
   "loadingAdminData": "Yönetim verileri yükleniyor...",
   "unknownError": "Bilinmeyen hata",
   "tabs": {

@@ -22,6 +22,8 @@ from src.services.gemini_client import GeminiClient
 from src.services.azure_client import AzureOpenAIClient
 from src.schemas.multi_agent import (
     AgentStepLog,
+    AnswerIssue,
+    AnswerReview,
     ClarificationQuestion,
     DistributorOutput,
     ModuleContext,
@@ -29,6 +31,7 @@ from src.schemas.multi_agent import (
     PipelineResult,
 )
 from src.prompts.sdf_generation import (
+    get_answer_reviewer_prompt,
     get_distributor_prompt,
     get_hr_generator_prompt,
     get_invoice_generator_prompt,
@@ -49,18 +52,25 @@ class MultiAgentService:
         hr_client: Optional[BaseAIClient] = None,
         invoice_client: Optional[BaseAIClient] = None,
         inventory_client: Optional[BaseAIClient] = None,
+        reviewer_client: Optional[BaseAIClient] = None,
     ):
         self.distributor_client = distributor_client or self._create_client("distributor")
         self.hr_client = hr_client or self._create_client("hr")
         self.invoice_client = invoice_client or self._create_client("invoice")
         self.inventory_client = inventory_client or self._create_client("inventory")
+        self.reviewer_client = reviewer_client or self._create_client("reviewer")
 
     # ── client factory ──────────────────────────────────────────
 
     @staticmethod
     def _create_client(agent_name: str) -> BaseAIClient:
         """Create the right AI client based on the agent's configured provider."""
-        config = settings.get_agent_config(agent_name)
+        # Reviewer falls back to distributor's provider/model when AI_AGENT_REVIEWER_*
+        # vars are unset; keep that logic in config.reviewer_config().
+        if agent_name == "reviewer":
+            config = settings.reviewer_config()
+        else:
+            config = settings.get_agent_config(agent_name)
         if config.provider == "azure_openai":
             try:
                 return AzureOpenAIClient(agent_config=config)
@@ -78,6 +88,7 @@ class MultiAgentService:
     @staticmethod
     def _empty_token_usage() -> Dict[str, Any]:
         return {
+            "reviewer": {"prompt": 0, "completion": 0, "total": 0},
             "distributor": {"prompt": 0, "completion": 0, "total": 0},
             "hr": {"prompt": 0, "completion": 0, "total": 0},
             "invoice": {"prompt": 0, "completion": 0, "total": 0},
@@ -135,6 +146,8 @@ class MultiAgentService:
         on_progress: Optional[Callable] = None,
         language: str = "en",
         selected_modules: Optional[List[str]] = None,
+        business_answers: Optional[Dict[str, Dict[str, str]]] = None,
+        acknowledged_unsupported_features: Optional[List[str]] = None,
     ) -> PipelineResult:
         errors: List[str] = []
         warnings: List[str] = []
@@ -144,6 +157,85 @@ class MultiAgentService:
         def _progress(step: str, pct: int, detail: str = ""):
             if on_progress:
                 on_progress(step, pct, detail)
+
+        # ── Step 0: Answer Reviewer (pre-distributor quality gate) ──
+        # Skip the reviewer for change-request mode — there is already an SDF in
+        # play, the user has confirmed it before, and the questionnaire isn't the
+        # primary driver. Reviewing again just blocks legitimate edits.
+        run_review = (
+            business_answers is not None
+            and not (prefilled_sdf and (prefilled_sdf.get("modules") or prefilled_sdf.get("entities")))
+        )
+        answer_review: Optional[AnswerReview] = None
+        if run_review:
+            _progress("reviewer", 5, "Reviewing your answers")
+            print("[MultiAgentService] Step 0: Running answer reviewer...")
+            t_rev = time.monotonic()
+            try:
+                answer_review, rev_tokens, rev_prompt = await self._run_answer_reviewer(
+                    business_description=business_description,
+                    business_answers=business_answers or {},
+                    default_question_answers=default_question_answers or {},
+                    selected_modules=selected_modules or [],
+                    acknowledged_unsupported_features=acknowledged_unsupported_features or [],
+                    language=language,
+                )
+                rev_ms = int((time.monotonic() - t_rev) * 1000)
+                self._add_tokens(token_usage, "reviewer", rev_tokens)
+                step_logs.append(self._build_step_log(
+                    "reviewer", self.reviewer_client,
+                    {
+                        "business_description_len": len(business_description or ""),
+                        "business_answer_ids": list((business_answers or {}).keys()),
+                        "selected_modules": selected_modules or [],
+                        "acknowledged_unsupported_features": acknowledged_unsupported_features or [],
+                    },
+                    answer_review.model_dump(exclude_none=True),
+                    rev_tokens, rev_ms,
+                    prompt_text=rev_prompt,
+                ))
+            except Exception as e:
+                # Reviewer must never break generation — log and proceed.
+                print(f"[MultiAgentService] Answer reviewer failed (non-fatal): {e}")
+                warnings.append(f"Answer reviewer skipped due to error: {str(e)}")
+                answer_review = None
+
+            if answer_review is not None:
+                # Drop unsupported_feature issues already acknowledged by the user
+                # so a second submit clears them and the pipeline moves on.
+                ack_set = {f.strip().lower() for f in (acknowledged_unsupported_features or []) if isinstance(f, str)}
+                if ack_set:
+                    answer_review.issues = [
+                        iss for iss in answer_review.issues
+                        if not (
+                            iss.kind == "unsupported_feature"
+                            and (iss.related_feature or "").strip().lower() in ack_set
+                        )
+                    ]
+                # Re-derive is_clear_to_proceed from remaining issues (don't trust LLM math).
+                has_blocking = any(iss.severity == "block" for iss in answer_review.issues)
+                has_unack_unsupported = any(
+                    iss.kind == "unsupported_feature" and iss.severity == "acknowledgeable"
+                    for iss in answer_review.issues
+                )
+                answer_review.is_clear_to_proceed = not has_blocking and not has_unack_unsupported
+
+                if not answer_review.is_clear_to_proceed:
+                    print(
+                        f"[MultiAgentService] Answer review halted pipeline — "
+                        f"{len(answer_review.issues)} issue(s), blocking={has_blocking}"
+                    )
+                    _progress("answer_review", 8, "Waiting for your review")
+                    return PipelineResult(
+                        success=True,
+                        sdf=None,
+                        sdf_complete=False,
+                        answer_review=answer_review,
+                        halted_reason="answer_review",
+                        token_usage=token_usage,
+                        step_logs=step_logs,
+                        warnings=warnings,
+                    )
 
         # Step 1: Distributor
         _progress("distributor", 10, "Analyzing your business requirements")
@@ -200,6 +292,8 @@ class MultiAgentService:
                 distributor_output=distributor_output,
                 clarifications_needed=dist_clarifications,
                 unsupported_features=unsupported,
+                answer_review=answer_review,
+                halted_reason="clarifications",
                 token_usage=token_usage,
                 step_logs=step_logs,
                 warnings=warnings,
@@ -406,6 +500,7 @@ class MultiAgentService:
             module_outputs=module_outputs,
             clarifications_needed=aggregated_clarifications,
             unsupported_features=unsupported,
+            answer_review=answer_review,
             token_usage=token_usage,
             step_logs=step_logs,
             errors=errors,
@@ -442,6 +537,64 @@ class MultiAgentService:
             lines.append(f"{mod.upper()} entities: {', '.join(slugs)}")
 
         return "\n".join(lines) if lines else "No existing ERP — this is a fresh generation."
+
+    async def _run_answer_reviewer(
+        self,
+        business_description: str,
+        business_answers: Dict[str, Dict[str, str]],
+        default_question_answers: Dict[str, Any],
+        selected_modules: List[str],
+        acknowledged_unsupported_features: List[str],
+        language: str = "en",
+    ) -> tuple[AnswerReview, GenerationResult, str]:
+        """Run the pre-distributor answer-quality reviewer."""
+        # Compact, JSON-shaped dump of the per-question Q&A so the LLM can
+        # tie issues back to specific question_ids without parsing the
+        # composed description string.
+        answers_payload = []
+        for qid, entry in (business_answers or {}).items():
+            if not isinstance(entry, dict):
+                continue
+            answers_payload.append({
+                "question_id": qid,
+                "question": (entry.get("question") or "").strip(),
+                "answer": (entry.get("answer") or "").strip(),
+            })
+        answers_str = json.dumps(answers_payload, indent=2, ensure_ascii=False) if answers_payload else "[]"
+        defaults_str = json.dumps(default_question_answers, indent=2, ensure_ascii=False) if default_question_answers else "{}"
+
+        prompt = get_answer_reviewer_prompt(
+            business_description=business_description or "",
+            business_answers=answers_str,
+            default_questions=defaults_str,
+            selected_modules=selected_modules or [],
+            acknowledged_unsupported_features=acknowledged_unsupported_features or [],
+            language=language,
+        )
+        result = await self.reviewer_client.generate_with_retry(
+            prompt,
+            temperature=self.reviewer_client.get_temperature(),
+            response_schema=AnswerReview,
+        )
+        data = await self._parse_json_with_repair(result.text, "reviewer")
+
+        parsed_issues: List[AnswerIssue] = []
+        for raw in data.get("issues", []) or []:
+            if not isinstance(raw, dict):
+                continue
+            try:
+                parsed_issues.append(AnswerIssue(**raw))
+            except Exception as e:
+                print(f"[MultiAgentService] Skipping malformed reviewer issue {raw}: {e}")
+
+        review = AnswerReview(
+            is_clear_to_proceed=bool(data.get("is_clear_to_proceed", True)) and not any(
+                iss.severity == "block" for iss in parsed_issues
+            ),
+            issues=parsed_issues,
+            summary=str(data.get("summary", "") or ""),
+        )
+        return review, result, prompt
 
     async def _run_distributor(
         self, business_description: str,

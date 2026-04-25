@@ -94,6 +94,7 @@ export const projectService = {
         business_answers?: Record<string, { question: string; answer: string }>;
         access_requirements?: { name: string; user_count: string; responsibilities: string; permissions: string[]; custom_permissions: string }[];
       };
+      acknowledged_unsupported_features?: string[];
     }
   ): Promise<AnalyzeProjectResponse> => {
     const response = await api.post<AnalyzeProjectResponse>(`/projects/${id}/analyze`, {
@@ -102,6 +103,9 @@ export const projectService = {
       ...(options?.default_question_answers ? { default_question_answers: options.default_question_answers } : {}),
       ...(options?.prefilled_sdf ? { prefilled_sdf: options.prefilled_sdf } : {}),
       ...(options?.conversation_context ? { conversation_context: options.conversation_context } : {}),
+      ...(options?.acknowledged_unsupported_features?.length
+        ? { acknowledged_unsupported_features: options.acknowledged_unsupported_features }
+        : {}),
     }, { timeout: 300000 });
     return response.data;
   },

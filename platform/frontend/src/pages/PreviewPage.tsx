@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { projectService } from '../services/projectService';
@@ -10,6 +10,7 @@ import { useChatContext } from '../context/ChatContext';
 import { normalizeLanguage } from '../i18n';
 import type { Project } from '../types/project';
 import type { ClarificationQuestion, ClarificationAnswer } from '../types/aiGateway';
+import { enterFullscreen, exitFullscreen, getFullscreenElement } from '../utils/fullscreen';
 
 type PreviewStatus = 'idle' | 'queued' | 'building' | 'running' | 'error' | 'stopping';
 
@@ -85,8 +86,7 @@ export default function PreviewPage() {
   const [changeText, setChangeText] = useState('');
   // Mobile bottom sheet toggle for the change panel (collapsed by default on <md)
   const [changePanelOpen, setChangePanelOpen] = useState(false);
-  /** Phone-only: rotate preview 90° so the ERP uses the long screen edge as “width”. */
-  const [mobileWideLayout, setMobileWideLayout] = useState(false);
+  const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const [genPhase, setGenPhase] = useState('');
   const [genResult, setGenResult] = useState<'success' | 'error' | null>(null);
   const [genErrorMsg, setGenErrorMsg] = useState('');
@@ -114,23 +114,65 @@ export default function PreviewPage() {
     ? t(`projects:card.languages.${normalizeLanguage(project.language || 'en')}`)
     : '';
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const previewStageRef = useRef<HTMLDivElement>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+  const changePanelTitleId = useId();
 
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)');
-    const clearWide = () => {
-      if (mq.matches) setMobileWideLayout(false);
-    };
-    clearWide();
-    mq.addEventListener('change', clearWide);
-    return () => mq.removeEventListener('change', clearWide);
+  const syncPreviewFullscreen = useCallback(() => {
+    setIsPreviewFullscreen(getFullscreenElement() === previewStageRef.current);
   }, []);
+
+  useEffect(() => {
+    const onFs = () => { syncPreviewFullscreen(); };
+    document.addEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs);
+    document.addEventListener('mozfullscreenchange', onFs);
+    document.addEventListener('MSFullscreenChange', onFs);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs);
+      document.removeEventListener('webkitfullscreenchange', onFs);
+      document.removeEventListener('mozfullscreenchange', onFs);
+      document.removeEventListener('MSFullscreenChange', onFs);
+    };
+  }, [syncPreviewFullscreen]);
+
+  const togglePreviewFullscreen = useCallback(async () => {
+    const el = previewStageRef.current;
+    if (!el) return;
+    const fsEl = getFullscreenElement();
+    try {
+      if (fsEl === el) await exitFullscreen();
+      else await enterFullscreen(el);
+    } catch {
+      /* unsupported or blocked */
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      const el = previewStageRef.current;
+      if (el && getFullscreenElement() === el) void exitFullscreen();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!changePanelOpen) return;
+    const html = document.documentElement;
+    const prevHtml = html.style.overflow;
+    const prevBody = document.body.style.overflow;
+    html.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtml;
+      document.body.style.overflow = prevBody;
+    };
+  }, [changePanelOpen]);
 
   const clearPoll = useCallback(() => {
     if (pollTimerRef.current) {
@@ -392,6 +434,7 @@ export default function PreviewPage() {
 
   const handleRequestChanges = async () => {
     if (!projectId || !changeText.trim()) return;
+    setChangePanelOpen(false);
     setGenPhase(t('phase.applying')); setGenResult(null); setGenErrorMsg(''); setGenProgress(null);
     setQuestions([]); setAnswersById({});
 
@@ -495,16 +538,6 @@ export default function PreviewPage() {
     return () => window.clearTimeout(h);
   }, [projectId, status, previewId, iframeToken, applyStatusResponse]);
 
-  const mobileRotatedFrameStyle: CSSProperties = {
-    position: 'absolute',
-    width: '100dvh',
-    height: '100dvw',
-    left: '50%',
-    top: '50%',
-    transform: 'translate(-50%, -50%) rotate(90deg)',
-    transformOrigin: 'center center',
-  };
-
   // Drive the blocking modal off backend-authoritative state.
   const modalState: PreviewModalState | null = (() => {
     if (status === 'error' && errorState) {
@@ -539,8 +572,9 @@ export default function PreviewPage() {
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className={`flex-shrink-0 bg-app-surface border-b border-app-border shadow-sm px-4 sm:px-6 py-3 ${languageBlocked ? 'pointer-events-none opacity-50' : ''}`}>
+      <div
+        className={`flex-shrink-0 bg-app-surface border-b border-app-border shadow-sm px-4 sm:px-6 py-3 ${languageBlocked ? 'pointer-events-none opacity-50' : ''}`}
+      >
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <Link to={`/projects/${projectId}`} className="text-app-text-muted hover:text-app-text transition-colors">
@@ -573,15 +607,21 @@ export default function PreviewPage() {
             {status === 'running' && iframeSrc && (
               <button
                 type="button"
-                onClick={() => setMobileWideLayout((v) => !v)}
-                className="md:hidden px-3 py-1.5 text-sm font-medium rounded-lg border border-app-border-strong bg-app-surface-muted text-app-text hover:bg-app-surface-hover transition-colors flex items-center gap-1.5"
-                aria-pressed={mobileWideLayout}
-                aria-label={mobileWideLayout ? t('mobileView.tallLayoutAria') : t('mobileView.wideLayoutAria')}
+                onClick={() => { void togglePreviewFullscreen(); }}
+                className="md:hidden px-3 py-1.5 text-sm font-medium rounded-lg border border-app-border-strong bg-app-surface-muted text-app-text hover:bg-app-surface-hover transition-colors inline-flex items-center gap-1.5"
+                aria-pressed={isPreviewFullscreen}
+                aria-label={isPreviewFullscreen ? t('fullscreen.exitAria') : t('fullscreen.enterAria')}
               >
-                <svg className="h-4 w-4 shrink-0 text-app-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-                {mobileWideLayout ? t('mobileView.tallLayout') : t('mobileView.wideLayout')}
+                {isPreviewFullscreen ? (
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                  </svg>
+                )}
+                {isPreviewFullscreen ? t('fullscreen.exit') : t('fullscreen.enter')}
               </button>
             )}
             <button
@@ -615,14 +655,29 @@ export default function PreviewPage() {
           )}
           {status === 'running' && iframeSrc && (
             <div
-              className={mobileWideLayout ? 'absolute z-0' : 'absolute inset-0'}
-              style={mobileWideLayout ? mobileRotatedFrameStyle : undefined}
+              ref={previewStageRef}
+              className="preview-erp-stage absolute inset-0 bg-app-surface-muted"
             >
+              {isPreviewFullscreen && (
+                <button
+                  type="button"
+                  onClick={() => { void togglePreviewFullscreen(); }}
+                  className="absolute right-2 top-2 z-20 flex items-center gap-1.5 rounded-lg border border-app-border/80 bg-app-surface/95 px-2.5 py-1.5 text-xs font-medium text-app-text shadow-md backdrop-blur-sm"
+                  aria-label={t('fullscreen.exitAria')}
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                  </svg>
+                  {t('fullscreen.exit')}
+                </button>
+              )}
               <iframe
                 ref={iframeRef}
                 src={iframeSrc}
                 title={t('iframeTitle')}
                 className="h-full w-full border-0"
+                allow="fullscreen"
+                allowFullScreen
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
               />
             </div>
@@ -654,8 +709,12 @@ export default function PreviewPage() {
           </div>
         </div>
 
-        {/* Below md: change panel as collapsible bottom sheet */}
-        <div className="md:hidden border-t border-app-border bg-app-surface flex-shrink-0">
+        {/* Below md: handle row; fixed sheet when open. Collapsed in wide layout / when sheet open. */}
+        <div
+          className={`md:hidden border-t border-app-border bg-app-surface flex-shrink-0 ${
+            changePanelOpen ? 'max-md:hidden' : ''
+          } pb-[max(0.75rem,env(safe-area-inset-bottom))]`}
+        >
           <button
             type="button"
             onClick={() => setChangePanelOpen((v) => !v)}
@@ -663,32 +722,63 @@ export default function PreviewPage() {
             className="flex w-full items-center justify-between px-4 py-3 text-left"
           >
             <span className="text-sm font-semibold text-app-text">{t('changePanel.title')}</span>
-            <svg className={`h-4 w-4 text-app-text-muted transition-transform ${changePanelOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <svg className="h-4 w-4 text-app-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
             </svg>
           </button>
-          {changePanelOpen && (
-            <div className="px-4 pb-4 space-y-3">
-              <p className="text-xs text-app-text-muted">{t('changePanel.subtitle')}</p>
-              <textarea
-                value={changeText}
-                onChange={(e) => setChangeText(e.target.value)}
-                placeholder={t('changePanel.placeholder')}
-                rows={4}
-                className="w-full rounded-lg border border-app-border-strong bg-app-surface-muted px-3 py-2 text-sm resize-y focus:ring-2 focus:ring-app-focus focus:border-app-accent-blue outline-none"
-                disabled={!!genPhase}
-              />
-              <button
-                type="button"
-                onClick={handleRequestChanges}
-                disabled={!changeText.trim() || !!genPhase || status !== 'running'}
-                className="w-full rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-app-accent-dark-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {t('changePanel.button')}
-              </button>
-            </div>
-          )}
         </div>
+
+        {changePanelOpen && (
+          <div className="md:hidden">
+            <div
+              className="fixed inset-0 z-[45] bg-app-overlay/60"
+              onClick={() => setChangePanelOpen(false)}
+              aria-hidden
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={changePanelTitleId}
+              className="fixed bottom-0 left-0 right-0 z-[45] flex max-h-mobile-sheet max-w-full flex-col rounded-t-2xl border-t border-app-border bg-app-surface shadow-xl"
+            >
+              <div className="flex flex-shrink-0 items-center justify-between border-b border-app-border px-4 py-3">
+                <span id={changePanelTitleId} className="text-sm font-semibold text-app-text">
+                  {t('changePanel.title')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setChangePanelOpen(false)}
+                  className="rounded-lg p-1.5 text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                  aria-label={t('common:close')}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                <p className="text-xs text-app-text-muted mb-3">{t('changePanel.subtitle')}</p>
+                <textarea
+                  value={changeText}
+                  onChange={(e) => setChangeText(e.target.value)}
+                  placeholder={t('changePanel.placeholder')}
+                  className="min-h-[8rem] w-full rounded-lg border border-app-border-strong bg-app-surface-muted px-3 py-2 text-sm focus:ring-2 focus:ring-app-focus focus:border-app-accent-blue outline-none"
+                  disabled={!!genPhase}
+                />
+              </div>
+              <div className="flex-shrink-0 border-t border-app-border bg-app-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <button
+                  type="button"
+                  onClick={handleRequestChanges}
+                  disabled={!changeText.trim() || !!genPhase || status !== 'running'}
+                  className="w-full rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-app-accent-dark-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {t('changePanel.button')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <PreviewBuildModal

@@ -18,7 +18,7 @@ export default function DashboardLayout() {
     <ChatProvider>
       <div
         className={`flex bg-app-bg transition-colors duration-200 ${
-          isPreviewRoute ? 'h-dvh max-h-dvh min-h-0 overflow-hidden' : 'min-h-screen'
+          isPreviewRoute ? 'h-viewport max-h-viewport min-h-0 overflow-hidden' : 'min-h-screen'
         }`}
       >
         <Sidebar drawerOpen={drawerOpen} onCloseDrawer={() => setDrawerOpen(false)} />

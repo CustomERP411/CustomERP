@@ -2,6 +2,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import { isUserAdmin } from '../../utils/permissions';
 import BrandMark from '../brand/BrandMark';
 
 const SIDEBAR_KEY = 'sidebar_collapsed';
@@ -96,7 +97,7 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
     },
   ];
 
-  if (user?.is_admin) {
+  if (isUserAdmin(user)) {
     navItems.push(
       {
         to: '/admin',

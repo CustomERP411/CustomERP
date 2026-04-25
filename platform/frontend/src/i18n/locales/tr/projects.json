@@ -32,7 +32,7 @@
   "newModal": {
     "title": "Yeni Proje",
     "nameLabel": "Proje adı",
-    "namePlaceholder": "örn. Acme ERP",
+    "namePlaceholder": "Örnek ERP adı",
     "languageNotice": "Bu proje {{language}} dilinde oluşturulacak. Proje oluşturulduğunda dili — oluşturulacak ERP dahil — kilitlenir. Gelecek projeler için varsayılan dili Ayarlar'dan değiştirebilirsiniz.",
     "create": "Oluştur",
     "creating": "Oluşturuluyor...",

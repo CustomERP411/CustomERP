@@ -3,6 +3,13 @@
   "subtitle": "Manage platform users and view all projects.",
   "accessDenied": "Access Denied",
   "accessDeniedMessage": "You do not have permission to access the admin panel.",
+  "restrictedAccess": {
+    "title": "Restricted Access",
+    "body": "This page is for platform administrators only. You will be redirected to your projects.",
+    "redirecting_one": "Redirecting in {{count}} second...",
+    "redirecting_other": "Redirecting in {{count}} seconds...",
+    "goNow": "Go to projects now"
+  },
   "loadingAdminData": "Loading admin data...",
   "unknownError": "Unknown error",
   "tabs": {

@@ -16,5 +16,9 @@
   "errorFallback": "Üzgünüm, mesajınızı işleyemedim. Lütfen tekrar deneyin.",
   "recordedForFuture": "Gelecek geliştirmeler için kaydedildi:",
   "openChat": "Yapay zekâ asistanını aç",
-  "closeChat": "Yapay zekâ asistanını kapat"
+  "closeChat": "Yapay zekâ asistanını kapat",
+  "helpPrompt": {
+    "withAnswer": "Bu soruda yardıma ihtiyacım var: \"{{question}}\"\nŞu anki cevabım: \"{{answer}}\"\nBu cevabı geliştirmeme veya genişletmeme yardımcı olur musun?",
+    "empty": "Bu soruyu cevaplamakta yardıma ihtiyacım var: \"{{question}}\"\nBunun ne anlama geldiğini açıklar ve işletmem için nasıl cevaplayacağıma dair yönlendirme verir misin?"
+  }
 }

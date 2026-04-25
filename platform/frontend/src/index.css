@@ -225,3 +225,28 @@
     box-shadow: 0 0 0 16px rgba(0, 74, 166, 0);
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Cross-browser viewport height (Safari < 15.4 has no dvh; iOS needs fallbacks)
+ * --------------------------------------------------------------------------- */
+@layer utilities {
+  .h-viewport {
+    height: 100vh;
+    height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+  .max-h-viewport {
+    max-height: 100vh;
+    max-height: 100dvh;
+  }
+  .max-h-mobile-sheet {
+    max-height: 85vh;
+    max-height: 85dvh;
+  }
+}
+
+/* Fullscreen: Safari uses :-webkit-full-screen until full standards support */
+.preview-erp-stage:fullscreen,
+.preview-erp-stage:-webkit-full-screen {
+  background-color: var(--app-bg);
+}

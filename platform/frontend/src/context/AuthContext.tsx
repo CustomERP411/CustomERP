@@ -17,13 +17,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for existing session on mount
+  // Restore session: prefer server truth for is_admin (etc.) so demoted users cannot
+  // use stale localStorage and open admin UIs that APIs reject with 403.
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
       const savedUser = localStorage.getItem('user');
-      
-      if (token && savedUser) {
+      if (savedUser) {
         try {
           const parsed = JSON.parse(savedUser) as User;
           setUser(parsed);
@@ -32,17 +37,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         } catch (error) {
           console.error('Auth verification failed:', error);
-          // Clear invalid session
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+      }
+
+      try {
+        const res = await api.get<{ user: User }>('/auth/me');
+        const u = res.data.user;
+        localStorage.setItem('user', JSON.stringify(u));
+        setUser(u);
+        if (u.preferred_language) {
+          await setAppLanguage(normalizeLanguage(u.preferred_language));
+        }
+      } catch (e: unknown) {
+        const status = (e as { response?: { status?: number } })?.response?.status;
+        if (status === 401 || status === 403) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setUser(null);
         }
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
-    initAuth();
+    void initAuth();
   }, []);
 
   /**

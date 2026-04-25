@@ -1,5 +1,6 @@
 // Field definitions and utility methods (split from FrontendGenerator)
 const path = require('path');
+const { tFor } = require('../../i18n/labels');
 
 module.exports = {
   async generateDynamicForm(outputDir) {
@@ -103,17 +104,22 @@ module.exports = {
       defs.push(`  { name: '${field.name}', label: '${label}', type: '${field.type}', widget: '${widget}', required: ${field.required || false}${extraProps} },`);
     }
 
-    // Feature-specific fields (backwards compat)
+    const t = tFor(this._language || 'en');
+    const batchLabel = this._escapeJsString(t('fieldLabels.inventory.batch'));
+    const expiryLabel = this._escapeJsString(t('fieldLabels.inventory.expiry'));
+    const serialLabel = this._escapeJsString(t('fieldLabels.inventory.serial'));
+    const locationLabel = this._escapeJsString(t('fieldLabels.inventory.location'));
+
     if (features && features.batch_tracking) {
       const hasBatch = fields.some((f) => f && f.name === 'batch_number');
       const hasExpiry = fields.some((f) => f && f.name === 'expiry_date');
-      if (!hasBatch) defs.push(`  { name: 'batch_number', label: 'Batch Number', type: 'string', widget: 'Input', required: true },`);
-      if (!hasExpiry) defs.push(`  { name: 'expiry_date', label: 'Expiry Date', type: 'date', widget: 'DatePicker', required: false },`);
+      if (!hasBatch) defs.push(`  { name: 'batch_number', label: '${batchLabel}', type: 'string', widget: 'Input', required: true },`);
+      if (!hasExpiry) defs.push(`  { name: 'expiry_date', label: '${expiryLabel}', type: 'date', widget: 'DatePicker', required: false },`);
     }
 
     if (features && features.serial_tracking) {
       const hasSerial = fields.some((f) => f && f.name === 'serial_number');
-      if (!hasSerial) defs.push(`  { name: 'serial_number', label: 'Serial Number', type: 'string', widget: 'Input', required: true },`);
+      if (!hasSerial) defs.push(`  { name: 'serial_number', label: '${serialLabel}', type: 'string', widget: 'Input', required: true },`);
     }
 
     if (features && features.multi_location) {
@@ -123,7 +129,7 @@ module.exports = {
         return f.name === 'location_id' || f.name === 'location_ids' || ref === 'locations';
       });
       if (!hasLocationRef) {
-        defs.push(`  { name: 'location_id', label: 'Location', type: 'reference', widget: 'EntitySelect', required: true, referenceEntity: 'locations' },`);
+        defs.push(`  { name: 'location_id', label: '${locationLabel}', type: 'reference', widget: 'EntitySelect', required: true, referenceEntity: 'locations' },`);
       }
     }
 

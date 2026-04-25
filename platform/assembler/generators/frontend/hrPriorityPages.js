@@ -1,5 +1,40 @@
-function buildLeaveApprovalsPage({ entity, entityName, importBase, leaveCfg, approvalCfg }) {
+const { tFor } = require('../../i18n/labels');
+
+function buildLeaveApprovalsPage({ entity, entityName, importBase, leaveCfg, approvalCfg, language = 'en' }) {
   const base = importBase || '..';
+  const t = tFor(language);
+  const I18N = {
+    title: t('leaveApprovals.title'),
+    subtitle: t('leaveApprovals.subtitle'),
+    pending: t('leaveApprovals.pending'),
+    showPendingOnly: t('leaveApprovals.showPendingOnly'),
+    showAllStatuses: t('leaveApprovals.showAllStatuses'),
+    backTo: t('leaveApprovals.backTo').replace('{{entity}}', entityName),
+    noRequests: t('leaveApprovals.noRequests'),
+    loading: t('common.loading'),
+    loadFailed: t('leaveApprovals.loadFailed'),
+    approved: t('leaveApprovals.approved'),
+    rejected: t('leaveApprovals.rejected'),
+    cancelled: t('leaveApprovals.cancelled'),
+    rejectionPrompt: t('leaveApprovals.rejectionPrompt'),
+    columnEmployee: t('leaveApprovals.columns.employee'),
+    columnType: t('leaveApprovals.columns.type'),
+    columnStart: t('leaveApprovals.columns.start'),
+    columnEnd: t('leaveApprovals.columns.end'),
+    columnDays: t('leaveApprovals.columns.days'),
+    columnStatus: t('leaveApprovals.columns.status'),
+    columnActions: t('leaveApprovals.columns.actions'),
+    actionApprove: t('leaveApprovals.actions.approve'),
+    actionReject: t('leaveApprovals.actions.reject'),
+    actionCancel: t('leaveApprovals.actions.cancel'),
+    confirmApprove: t('leaveApprovals.confirmDecision').replace('{{action}}', t('leaveApprovals.actions.approve')),
+    confirmReject: t('leaveApprovals.confirmDecision').replace('{{action}}', t('leaveApprovals.actions.reject')),
+    confirmCancel: t('leaveApprovals.confirmDecision').replace('{{action}}', t('leaveApprovals.actions.cancel')),
+    approveFailed: t('leaveApprovals.actionFailed').replace('{{action}}', t('leaveApprovals.actions.approve')),
+    rejectFailed: t('leaveApprovals.actionFailed').replace('{{action}}', t('leaveApprovals.actions.reject')),
+    cancelFailed: t('leaveApprovals.actionFailed').replace('{{action}}', t('leaveApprovals.actions.cancel')),
+  };
+  const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -8,6 +43,7 @@ import { useToast } from '${base}/components/ui/toast';
 const ENTITY_SLUG = '${entity.slug}' as const;
 const LEAVE_CFG = ${JSON.stringify(leaveCfg || {}, null, 2)} as const;
 const APPROVAL_CFG = ${JSON.stringify(approvalCfg || {}, null, 2)} as const;
+const I18N = ${i18nJson} as const;
 
 const STATUS_FIELD = APPROVAL_CFG.status_field || LEAVE_CFG.status_field || 'status';
 const EMPLOYEE_FIELD = LEAVE_CFG.employee_field || 'employee_id';
@@ -30,7 +66,7 @@ export default function ${entityName}ApprovalsPage() {
       const res = await api.get('/' + ENTITY_SLUG, { params });
       setRows(Array.isArray(res.data) ? res.data : []);
     } catch (error: any) {
-      toast({ title: 'Failed to load requests', description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -47,12 +83,12 @@ export default function ${entityName}ApprovalsPage() {
 
   const runDecision = async (id: string, action: 'approve' | 'reject' | 'cancel') => {
     if (!id) return;
-    const label = action.charAt(0).toUpperCase() + action.slice(1);
     const reason =
       action === 'reject'
-        ? (window.prompt('Optional rejection reason:') || '').trim()
+        ? (window.prompt(I18N.rejectionPrompt) || '').trim()
         : '';
-    if (!confirm(label + ' selected leave request?')) return;
+    const confirmMsg = action === 'approve' ? I18N.confirmApprove : action === 'reject' ? I18N.confirmReject : I18N.confirmCancel;
+    if (!confirm(confirmMsg)) return;
 
     setWorkingId(id);
     try {
@@ -61,10 +97,12 @@ export default function ${entityName}ApprovalsPage() {
         reason: reason || undefined,
         decision_key: action + '-' + id,
       });
-      toast({ title: 'Leave request ' + label.toLowerCase() + 'd', variant: 'success' });
+      const successMsg = action === 'approve' ? I18N.approved : action === 'reject' ? I18N.rejected : I18N.cancelled;
+      toast({ title: successMsg, variant: 'success' });
       await fetchRows();
     } catch (error: any) {
-      toast({ title: label + ' failed', description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      const failMsg = action === 'approve' ? I18N.approveFailed : action === 'reject' ? I18N.rejectFailed : I18N.cancelFailed;
+      toast({ title: failMsg, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
     } finally {
       setWorkingId('');
     }
@@ -74,9 +112,9 @@ export default function ${entityName}ApprovalsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Leave Approvals</h1>
-          <p className="text-sm text-slate-600">Review requests, approve/reject, and keep approval audit fields consistent.</p>
-          <p className="mt-1 text-sm font-semibold text-amber-700">Pending: {pendingCount}</p>
+          <h1 className="text-2xl font-bold text-slate-900">{I18N.title}</h1>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
+          <p className="mt-1 text-sm font-semibold text-amber-700">{I18N.pending}: {pendingCount}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -84,31 +122,31 @@ export default function ${entityName}ApprovalsPage() {
             onClick={() => setShowAll((v) => !v)}
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
           >
-            {showAll ? 'Show Pending Only' : 'Show All Statuses'}
+            {showAll ? I18N.showPendingOnly : I18N.showAllStatuses}
           </button>
           <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-            Back to ${entityName}
+            {I18N.backTo}
           </Link>
         </div>
       </div>
 
       <div className="rounded-lg border bg-white p-4">
         {loading ? (
-          <div className="text-sm text-slate-500">Loading…</div>
+          <div className="text-sm text-slate-500">{I18N.loading}</div>
         ) : rows.length === 0 ? (
-          <div className="text-sm text-slate-500">No leave requests to review.</div>
+          <div className="text-sm text-slate-500">{I18N.noRequests}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
-                  <th className="px-3 py-2 text-left">Employee</th>
-                  <th className="px-3 py-2 text-left">Type</th>
-                  <th className="px-3 py-2 text-left">Start</th>
-                  <th className="px-3 py-2 text-left">End</th>
-                  <th className="px-3 py-2 text-left">Days</th>
-                  <th className="px-3 py-2 text-left">Status</th>
-                  <th className="px-3 py-2 text-right">Actions</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnEmployee}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnType}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnStart}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnEnd}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnDays}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnStatus}</th>
+                  <th className="px-3 py-2 text-right">{I18N.columnActions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -132,11 +170,11 @@ export default function ${entityName}ApprovalsPage() {
                         <div className="flex justify-end gap-3">
                           {isPending ? (
                             <>
-                              <button type="button" onClick={() => runDecision(id, 'approve')} disabled={workingId === id} className="text-emerald-700 hover:underline disabled:opacity-50">Approve</button>
-                              <button type="button" onClick={() => runDecision(id, 'reject')} disabled={workingId === id} className="text-rose-700 hover:underline disabled:opacity-50">Reject</button>
+                              <button type="button" onClick={() => runDecision(id, 'approve')} disabled={workingId === id} className="text-emerald-700 hover:underline disabled:opacity-50">{I18N.actionApprove}</button>
+                              <button type="button" onClick={() => runDecision(id, 'reject')} disabled={workingId === id} className="text-rose-700 hover:underline disabled:opacity-50">{I18N.actionReject}</button>
                             </>
                           ) : (
-                            <button type="button" onClick={() => runDecision(id, 'cancel')} disabled={workingId === id} className="text-slate-600 hover:underline disabled:opacity-50">Cancel</button>
+                            <button type="button" onClick={() => runDecision(id, 'cancel')} disabled={workingId === id} className="text-slate-600 hover:underline disabled:opacity-50">{I18N.actionCancel}</button>
                           )}
                         </div>
                       </td>
@@ -154,8 +192,40 @@ export default function ${entityName}ApprovalsPage() {
 `;
 }
 
-function buildLeaveBalancesPage({ entity, entityName, importBase, leaveCfg }) {
+function buildLeaveBalancesPage({ entity, entityName, importBase, leaveCfg, language = 'en' }) {
   const base = importBase || '..';
+  const t = tFor(language);
+  const I18N = {
+    title: t('leaveBalances.title'),
+    subtitle: t('leaveBalances.subtitle'),
+    backTo: t('leaveBalances.backTo').replace('{{entity}}', entityName),
+    employee: t('leaveBalances.employee'),
+    noEmployees: t('leaveBalances.noEmployees'),
+    selected: t('leaveBalances.selected'),
+    accrueAdjustHeading: t('leaveBalances.accrueAdjustHeading'),
+    leaveTypePlaceholder: t('leaveBalances.leaveTypePlaceholder'),
+    yearPlaceholder: t('leaveBalances.yearPlaceholder'),
+    amountPlaceholder: t('leaveBalances.amountPlaceholder'),
+    notePlaceholder: t('leaveBalances.notePlaceholder'),
+    accrue: t('leaveBalances.accrue'),
+    adjust: t('leaveBalances.adjust'),
+    currentHeading: t('leaveBalances.currentHeading'),
+    noBalances: t('leaveBalances.noBalances'),
+    loading: t('common.loading'),
+    amountMustBeNonZero: t('leaveBalances.amountMustBeNonZero'),
+    accrued: t('leaveBalances.accrued'),
+    adjusted: t('leaveBalances.adjusted'),
+    accrueFailed: t('leaveBalances.accrueFailed'),
+    adjustFailed: t('leaveBalances.adjustFailed'),
+    loadEmployeesFailed: t('leaveBalances.loadEmployeesFailed'),
+    loadBalancesFailed: t('leaveBalances.loadBalancesFailed'),
+    columnType: t('leaveBalances.columns.type'),
+    columnYear: t('leaveBalances.columns.year'),
+    columnAccrued: t('leaveBalances.columns.accrued'),
+    columnConsumed: t('leaveBalances.columns.consumed'),
+    columnAvailable: t('leaveBalances.columns.available'),
+  };
+  const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -163,6 +233,7 @@ import { useToast } from '${base}/components/ui/toast';
 
 const EMPLOYEE_SLUG = '${entity.slug}' as const;
 const CFG = ${JSON.stringify(leaveCfg || {}, null, 2)} as const;
+const I18N = ${i18nJson} as const;
 
 const LEAVE_TYPE_FIELD = CFG.leave_type_field || 'leave_type';
 const YEAR_FIELD = CFG.fiscal_year_field || 'year';
@@ -211,7 +282,7 @@ export default function ${entityName}BalancesPage() {
       try {
         await fetchEmployees();
       } catch (error: any) {
-        toast({ title: 'Failed to load employees', description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+        toast({ title: I18N.loadEmployeesFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
       } finally {
         setLoading(false);
       }
@@ -220,7 +291,7 @@ export default function ${entityName}BalancesPage() {
 
   useEffect(() => {
     fetchBalances(selectedId).catch((error: any) => {
-      toast({ title: 'Failed to load leave balances', description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.loadBalancesFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
     });
   }, [selectedId]);
 
@@ -228,7 +299,7 @@ export default function ${entityName}BalancesPage() {
     if (!selectedId) return;
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount === 0) {
-      toast({ title: 'Amount must be non-zero', variant: 'warning' });
+      toast({ title: I18N.amountMustBeNonZero, variant: 'warning' });
       return;
     }
     setWorking(true);
@@ -239,11 +310,11 @@ export default function ${entityName}BalancesPage() {
         amount,
         note: form.note || undefined,
       });
-      toast({ title: action === 'accrue' ? 'Balance accrued' : 'Balance adjusted', variant: 'success' });
+      toast({ title: action === 'accrue' ? I18N.accrued : I18N.adjusted, variant: 'success' });
       setForm((prev) => ({ ...prev, amount: '', note: '' }));
       await fetchBalances(selectedId);
     } catch (error: any) {
-      toast({ title: action === 'accrue' ? 'Accrual failed' : 'Adjustment failed', description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: action === 'accrue' ? I18N.accrueFailed : I18N.adjustFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
     } finally {
       setWorking(false);
     }
@@ -253,18 +324,18 @@ export default function ${entityName}BalancesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Leave Balances</h1>
-          <p className="text-sm text-slate-600">Manage accrual and manual adjustments for employee leave balances.</p>
+          <h1 className="text-2xl font-bold text-slate-900">{I18N.title}</h1>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <Link to={'/' + EMPLOYEE_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-          Back to ${entityName}
+          {I18N.backTo}
         </Link>
       </div>
 
       <div className="rounded-lg border bg-white p-4 space-y-3">
-        <label className="block text-sm font-medium text-slate-700">Employee</label>
+        <label className="block text-sm font-medium text-slate-700">{I18N.employee}</label>
         <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} className="w-full rounded border px-3 py-2">
-          {!employees.length && <option value="">No employees</option>}
+          {!employees.length && <option value="">{I18N.noEmployees}</option>}
           {employees.map((emp) => (
             <option key={String(emp.id)} value={String(emp.id)}>
               {String(emp.first_name || '')} {String(emp.last_name || '')} ({String(emp.id)})
@@ -273,65 +344,65 @@ export default function ${entityName}BalancesPage() {
         </select>
         {selectedEmployee ? (
           <div className="rounded bg-slate-50 px-3 py-2 text-sm text-slate-700">
-            Selected: {String(selectedEmployee.first_name || '')} {String(selectedEmployee.last_name || '')}
+            {I18N.selected}: {String(selectedEmployee.first_name || '')} {String(selectedEmployee.last_name || '')}
           </div>
         ) : null}
       </div>
 
       <div className="rounded-lg border bg-white p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-slate-900">Accrue / Adjust</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{I18N.accrueAdjustHeading}</h2>
         <div className="grid gap-3 md:grid-cols-4">
           <input
             value={form.leaveType}
             onChange={(e) => setForm((prev) => ({ ...prev, leaveType: e.target.value }))}
-            placeholder="Leave type"
+            placeholder={I18N.leaveTypePlaceholder}
             className="rounded border px-3 py-2 text-sm"
           />
           <input
             value={form.year}
             onChange={(e) => setForm((prev) => ({ ...prev, year: e.target.value }))}
-            placeholder="Year"
+            placeholder={I18N.yearPlaceholder}
             className="rounded border px-3 py-2 text-sm"
           />
           <input
             value={form.amount}
             onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
-            placeholder="Amount (+/-)"
+            placeholder={I18N.amountPlaceholder}
             className="rounded border px-3 py-2 text-sm"
           />
           <input
             value={form.note}
             onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
-            placeholder="Note"
+            placeholder={I18N.notePlaceholder}
             className="rounded border px-3 py-2 text-sm"
           />
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <button type="button" onClick={() => runBalanceAction('accrue')} disabled={!selectedId || working} className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
-            Accrue
+            {I18N.accrue}
           </button>
           <button type="button" onClick={() => runBalanceAction('adjust')} disabled={!selectedId || working} className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-            Adjust
+            {I18N.adjust}
           </button>
         </div>
       </div>
 
       <div className="rounded-lg border bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Current Balances</h2>
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">{I18N.currentHeading}</h2>
         {loading ? (
-          <div className="text-sm text-slate-500">Loading…</div>
+          <div className="text-sm text-slate-500">{I18N.loading}</div>
         ) : balances.length === 0 ? (
-          <div className="text-sm text-slate-500">No balances found for selected employee.</div>
+          <div className="text-sm text-slate-500">{I18N.noBalances}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
-                  <th className="px-3 py-2 text-left">Type</th>
-                  <th className="px-3 py-2 text-left">Year</th>
-                  <th className="px-3 py-2 text-left">Accrued</th>
-                  <th className="px-3 py-2 text-left">Consumed</th>
-                  <th className="px-3 py-2 text-left">Available</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnType}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnYear}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnAccrued}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnConsumed}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnAvailable}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -355,8 +426,40 @@ export default function ${entityName}BalancesPage() {
 `;
 }
 
-function buildAttendanceEntriesPage({ entity, entityName, importBase, attendanceCfg }) {
+function buildAttendanceEntriesPage({ entity, entityName, importBase, attendanceCfg, language = 'en' }) {
   const base = importBase || '..';
+  const t = tFor(language);
+  const I18N = {
+    title: t('attendance.title'),
+    subtitle: t('attendance.subtitle'),
+    backTo: t('attendance.backTo').replace('{{entity}}', entityName),
+    recordHeading: t('attendance.recordHeading'),
+    noEmployees: t('attendance.noEmployees'),
+    notePlaceholder: t('attendance.notePlaceholder'),
+    record: t('attendance.record'),
+    recentHeading: t('attendance.recentHeading'),
+    noEntries: t('attendance.noEntries'),
+    loading: t('common.loading'),
+    loadFailed: t('attendance.loadFailed'),
+    recorded: t('attendance.recorded'),
+    recordFailed: t('attendance.recordFailed'),
+    recomputed: t('attendance.recomputed'),
+    recomputeFailed: t('attendance.recomputeFailed'),
+    selectEmployeeFirst: t('attendance.selectEmployeeFirst'),
+    recalculate: t('attendance.recalculate'),
+    statusPresent: t('attendance.statusOptions.present'),
+    statusAbsent: t('attendance.statusOptions.absent'),
+    statusHalfDay: t('attendance.statusOptions.halfDay'),
+    statusOnLeave: t('attendance.statusOptions.onLeave'),
+    columnEmployee: t('attendance.columns.employee'),
+    columnDate: t('attendance.columns.date'),
+    columnCheckIn: t('attendance.columns.checkIn'),
+    columnCheckOut: t('attendance.columns.checkOut'),
+    columnHours: t('attendance.columns.hours'),
+    columnStatus: t('attendance.columns.status'),
+    columnActions: t('attendance.columns.actions'),
+  };
+  const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -364,6 +467,7 @@ import { useToast } from '${base}/components/ui/toast';
 
 const ENTITY_SLUG = '${entity.slug}' as const;
 const CFG = ${JSON.stringify(attendanceCfg || {}, null, 2)} as const;
+const I18N = ${i18nJson} as const;
 
 const EMPLOYEE_ENTITY = CFG.employee_entity || 'employees';
 const EMPLOYEE_FIELD = CFG.attendance_employee_field || 'employee_id';
@@ -407,7 +511,7 @@ export default function ${entityName}AttendancePage() {
       try {
         await fetchAll();
       } catch (error: any) {
-        toast({ title: 'Failed to load attendance context', description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+        toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
       } finally {
         setLoading(false);
       }
@@ -416,7 +520,7 @@ export default function ${entityName}AttendancePage() {
 
   const recordAttendance = async () => {
     if (!form.employeeId) {
-      toast({ title: 'Select employee first', variant: 'warning' });
+      toast({ title: I18N.selectEmployeeFirst, variant: 'warning' });
       return;
     }
     setWorkingId('record');
@@ -429,11 +533,11 @@ export default function ${entityName}AttendancePage() {
         [STATUS_FIELD]: form.status || undefined,
         note: form.note || undefined,
       });
-      toast({ title: 'Attendance recorded', variant: 'success' });
+      toast({ title: I18N.recorded, variant: 'success' });
       setForm((prev) => ({ ...prev, checkInAt: '', checkOutAt: '', note: '' }));
       await fetchAll();
     } catch (error: any) {
-      toast({ title: 'Attendance record failed', description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.recordFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
     } finally {
       setWorkingId('');
     }
@@ -444,10 +548,10 @@ export default function ${entityName}AttendancePage() {
     setWorkingId(id);
     try {
       await api.post('/' + ENTITY_SLUG + '/' + id + '/recalculate', {});
-      toast({ title: 'Attendance recomputed', variant: 'success' });
+      toast({ title: I18N.recomputed, variant: 'success' });
       await fetchAll();
     } catch (error: any) {
-      toast({ title: 'Recompute failed', description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.recomputeFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
     } finally {
       setWorkingId('');
     }
@@ -457,19 +561,19 @@ export default function ${entityName}AttendancePage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Attendance Entries</h1>
-          <p className="text-sm text-slate-600">Capture attendance and keep timesheets synced from worked hours.</p>
+          <h1 className="text-2xl font-bold text-slate-900">{I18N.title}</h1>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
-          Back to ${entityName}
+          {I18N.backTo}
         </Link>
       </div>
 
       <div className="rounded-lg border bg-white p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-slate-900">Record Attendance</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{I18N.recordHeading}</h2>
         <div className="grid gap-3 md:grid-cols-3">
           <select value={form.employeeId} onChange={(e) => setForm((prev) => ({ ...prev, employeeId: e.target.value }))} className="rounded border px-3 py-2 text-sm">
-            {!employees.length && <option value="">No employees</option>}
+            {!employees.length && <option value="">{I18N.noEmployees}</option>}
             {employees.map((emp) => (
               <option key={String(emp.id)} value={String(emp.id)}>
                 {String(emp.first_name || '')} {String(emp.last_name || '')}
@@ -478,40 +582,40 @@ export default function ${entityName}AttendancePage() {
           </select>
           <input type="date" value={form.workDate} onChange={(e) => setForm((prev) => ({ ...prev, workDate: e.target.value }))} className="rounded border px-3 py-2 text-sm" />
           <select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))} className="rounded border px-3 py-2 text-sm">
-            <option value="Present">Present</option>
-            <option value="Absent">Absent</option>
-            <option value="Half Day">Half Day</option>
-            <option value="On Leave">On Leave</option>
+            <option value="Present">{I18N.statusPresent}</option>
+            <option value="Absent">{I18N.statusAbsent}</option>
+            <option value="Half Day">{I18N.statusHalfDay}</option>
+            <option value="On Leave">{I18N.statusOnLeave}</option>
           </select>
           <input type="datetime-local" value={form.checkInAt} onChange={(e) => setForm((prev) => ({ ...prev, checkInAt: e.target.value }))} className="rounded border px-3 py-2 text-sm" />
           <input type="datetime-local" value={form.checkOutAt} onChange={(e) => setForm((prev) => ({ ...prev, checkOutAt: e.target.value }))} className="rounded border px-3 py-2 text-sm" />
-          <input value={form.note} onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))} placeholder="Note (optional)" className="rounded border px-3 py-2 text-sm" />
+          <input value={form.note} onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))} placeholder={I18N.notePlaceholder} className="rounded border px-3 py-2 text-sm" />
         </div>
         <div className="flex justify-end">
           <button type="button" onClick={recordAttendance} disabled={workingId === 'record'} className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-            Record
+            {I18N.record}
           </button>
         </div>
       </div>
 
       <div className="rounded-lg border bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Recent Entries</h2>
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">{I18N.recentHeading}</h2>
         {loading ? (
-          <div className="text-sm text-slate-500">Loading…</div>
+          <div className="text-sm text-slate-500">{I18N.loading}</div>
         ) : rows.length === 0 ? (
-          <div className="text-sm text-slate-500">No attendance entries found.</div>
+          <div className="text-sm text-slate-500">{I18N.noEntries}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
-                  <th className="px-3 py-2 text-left">Employee</th>
-                  <th className="px-3 py-2 text-left">Date</th>
-                  <th className="px-3 py-2 text-left">Check In</th>
-                  <th className="px-3 py-2 text-left">Check Out</th>
-                  <th className="px-3 py-2 text-left">Worked Hours</th>
-                  <th className="px-3 py-2 text-left">Status</th>
-                  <th className="px-3 py-2 text-right">Actions</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnEmployee}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnDate}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnCheckIn}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnCheckOut}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnHours}</th>
+                  <th className="px-3 py-2 text-left">{I18N.columnStatus}</th>
+                  <th className="px-3 py-2 text-right">{I18N.columnActions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -527,7 +631,7 @@ export default function ${entityName}AttendancePage() {
                       <td className="px-3 py-2">{String(row?.[STATUS_FIELD] || '—')}</td>
                       <td className="px-3 py-2 text-right">
                         <button type="button" onClick={() => recalculate(id)} disabled={workingId === id} className="text-blue-600 hover:underline disabled:opacity-50">
-                          Recalculate
+                          {I18N.recalculate}
                         </button>
                       </td>
                     </tr>

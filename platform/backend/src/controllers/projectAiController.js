@@ -54,6 +54,13 @@ exports.analyzeProject = async (req, res) => {
 
     // Persist pre-build conversation snapshot BEFORE calling the AI
     const convContext = req.body?.conversation_context;
+    const acknowledgedUnsupportedFeatures = Array.isArray(
+      req.body?.acknowledged_unsupported_features
+    )
+      ? req.body.acknowledged_unsupported_features.filter(
+          (f) => typeof f === 'string' && f.trim()
+        ).map((f) => f.trim())
+      : [];
     const conversation = await ProjectConversation.create({
       projectId: project.id,
       sdfVersion: null,
@@ -63,6 +70,7 @@ exports.analyzeProject = async (req, res) => {
       accessRequirements: convContext?.access_requirements || null,
       descriptionSnapshot: description.trim(),
       defaultQuestionAnswers: mandatoryAnswers,
+      acknowledgedUnsupportedFeatures,
     }).catch((err) => { logger.error('Failed to persist pre-build conversation context:', err); return null; });
 
     // Save description + status
@@ -74,7 +82,41 @@ exports.analyzeProject = async (req, res) => {
       projectId,
       language: project.language,
       selectedModules: requestedModules,
+      businessAnswers: convContext?.business_answers || null,
+      acknowledgedUnsupportedFeatures,
     });
+
+    // Pre-distributor answer review halted the pipeline. Do NOT save an SDF
+    // version, do NOT persist clarifications, do NOT record feature requests
+    // for issues the user hasn't acknowledged yet. Just return the review so
+    // the frontend can surface feedback.
+    if (sdf?.halted_reason === 'answer_review' && sdf?.answer_review) {
+      if (conversation?.id) {
+        await ProjectConversation.updateAnswerReview(conversation.id, sdf.answer_review)
+          .catch((err) => logger.error('Failed to persist answer_review on conversation:', err));
+      }
+      const updatedProject = await projectService.updateProject(projectId, userId, { status: 'Reviewing' });
+      return res.json({
+        status: 'answer_review_required',
+        project: updatedProject,
+        answer_review: sdf.answer_review,
+        token_usage: sdf?.token_usage || null,
+        default_question_answers: mandatoryAnswers,
+        prefilled_sdf: prefilledSdf,
+      });
+    }
+
+    // User just acknowledged unsupported features and resubmitted — record
+    // them as feature requests now so they end up in the backlog even though
+    // the SDF will be generated without them.
+    if (acknowledgedUnsupportedFeatures.length) {
+      featureRequestService.recordFeatures({
+        userId, projectId, source: 'sdf_generation',
+        features: acknowledgedUnsupportedFeatures,
+        userPrompt: description.trim(),
+      }).catch((e) => logger.warn('Failed to record acknowledged unsupported feature requests:', e.message));
+    }
+
     const rawQuestions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
     const persistedQuestions = await clarificationService.persistQuestions({
       projectId: project.id,

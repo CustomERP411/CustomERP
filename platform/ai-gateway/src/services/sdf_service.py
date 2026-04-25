@@ -83,6 +83,8 @@ class SDFService:
         on_progress: Optional[Callable] = None,
         language: str = "en",
         selected_modules: Optional[List[str]] = None,
+        business_answers: Optional[Dict[str, Dict[str, str]]] = None,
+        acknowledged_unsupported_features: Optional[List[str]] = None,
     ) -> tuple["SystemDefinitionFile", "PipelineResult"]:
         """
         Generates an SDF using the multi-agent pipeline.
@@ -117,11 +119,31 @@ class SDFService:
             on_progress=on_progress,
             language=language,
             selected_modules=normalized_selected,
+            business_answers=business_answers,
+            acknowledged_unsupported_features=acknowledged_unsupported_features,
         )
 
         if not result.success:
             error_msg = "; ".join(result.errors) if result.errors else "Unknown error"
             raise ValueError(f"Multi-agent pipeline failed: {error_msg}")
+
+        # Answer-review halt: reviewer flagged blocking issues OR unack'd unsupported
+        # features. Return a shell SDF that carries the review payload through.
+        if not result.sdf and result.halted_reason == "answer_review" and result.answer_review:
+            print(
+                f"[SDFService] Pipeline halted at reviewer — "
+                f"{len(result.answer_review.issues)} issue(s)"
+            )
+            shell_data: Dict[str, Any] = {
+                "project_name": "CustomERP Project",
+                "entities": [],
+                "sdf_complete": False,
+                "token_usage": result.token_usage or {},
+                "answer_review": result.answer_review.model_dump(exclude_none=True),
+                "halted_reason": "answer_review",
+            }
+            validated_sdf = SystemDefinitionFile.model_validate(shell_data)
+            return validated_sdf, result
 
         # Clarification-only result: distributor needs more info before generators run
         if not result.sdf and result.clarifications_needed:

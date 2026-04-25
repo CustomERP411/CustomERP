@@ -17,6 +17,7 @@ import MyRequestsPage from './pages/MyRequestsPage';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicOnlyRoute from './components/PublicOnlyRoute';
+import AdminRoute from './components/AdminRoute';
 
 function App() {
   return (
@@ -49,9 +50,11 @@ function App() {
           <Route path="/projects/:id/preview" element={<PreviewPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/my/requests" element={<MyRequestsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/admin/training" element={<TrainingDataPage />} />
-          <Route path="/admin/feature-requests" element={<FeatureRequestsAdminPage />} />
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/training" element={<TrainingDataPage />} />
+            <Route path="/admin/feature-requests" element={<FeatureRequestsAdminPage />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -16,5 +16,9 @@
   "errorFallback": "Sorry, I could not process your message. Please try again.",
   "recordedForFuture": "Recorded for future development:",
   "openChat": "Open AI assistant",
-  "closeChat": "Close AI assistant"
+  "closeChat": "Close AI assistant",
+  "helpPrompt": {
+    "withAnswer": "I need help with this question: \"{{question}}\"\nMy current answer is: \"{{answer}}\"\nCan you help me improve or expand this answer?",
+    "empty": "I need help answering this question: \"{{question}}\"\nCan you explain what this means and give me guidance on how to answer it for my business?"
+  }
 }

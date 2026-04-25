@@ -89,23 +89,11 @@ export default function AdminPage() {
     }
   }
 
-  if (!user?.is_admin) {
-    return (
-      <div className="mx-auto max-w-2xl py-20 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-app-danger-soft">
-          <svg className="h-8 w-8 text-app-danger" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
-          </svg>
-        </div>
-        <h1 className="text-xl font-bold text-app-text">{t('accessDenied')}</h1>
-        <p className="mt-2 text-sm text-app-text-muted">{t('accessDeniedMessage')}</p>
-      </div>
-    );
-  }
-
   if (loading) {
     return <div className="flex items-center justify-center py-20 text-app-text-muted">{t('loadingAdminData')}</div>;
   }
+
+  if (!user) return null;
 
   const activeUsers = users.filter((u) => !u.deleted);
 

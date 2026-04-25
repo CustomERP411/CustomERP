@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -28,6 +29,7 @@ const primaryBtnCls =
 
 export default function SettingsPage() {
   const { user, updateUser, deleteAccount } = useAuth();
+  const navigate = useNavigate();
   const { t } = useTranslation(['settings', 'common', 'auth']);
 
   const [name, setName] = useState(user?.name || '');
@@ -115,6 +117,7 @@ export default function SettingsPage() {
       setDeleting(true);
       setDeleteErr('');
       await deleteAccount();
+      navigate('/login', { replace: true });
     } catch (err) {
       setDeleteErr(getErrorMessage(err, t('settings:danger.error')));
     } finally {

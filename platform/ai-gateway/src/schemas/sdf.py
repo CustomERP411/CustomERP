@@ -165,5 +165,17 @@ class SystemDefinitionFile(BaseModel):
         description="Plain-English list of requested features the platform cannot yet provide.",
     )
 
+    # Pre-distributor answer-quality review (Step 0 of the multi-agent pipeline).
+    # Populated when the reviewer halts the pipeline so the frontend can show
+    # actionable feedback per business question instead of generating an SDF.
+    answer_review: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Output of the answer-reviewer agent when it halts the pipeline.",
+    )
+    halted_reason: Optional[Literal["answer_review", "clarifications"]] = Field(
+        default=None,
+        description="When the pipeline stops early, indicates which gate halted it.",
+    )
+
     # Backwards-compat: old AI schema used `relations`; we accept but ignore.
     relations: Optional[List[Dict[str, Any]]] = Field(default=None)

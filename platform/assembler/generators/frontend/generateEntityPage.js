@@ -189,6 +189,7 @@ module.exports = {
           enableCsvExport,
           fieldDefs,
           title: this._escapeJsString(entity.display_name || entityName),
+          language: this._language,
         })
       : isEmployeeEntity
       ? buildEmployeeListPage({
@@ -200,6 +201,7 @@ module.exports = {
           enableCsvExport,
           fieldDefs,
           title: this._escapeJsString(entity.display_name || entityName),
+          language: this._language,
         })
       : isDepartmentEntity
       ? buildDepartmentListPage({
@@ -211,6 +213,7 @@ module.exports = {
           enableCsvExport,
           fieldDefs,
           title: this._escapeJsString(entity.display_name || entityName),
+          language: this._language,
         })
       : isLeaveEntity
       ? buildLeaveListPage({
@@ -218,6 +221,7 @@ module.exports = {
           entityName,
           importBase,
           hrConfig,
+          language: this._language,
           enableCsvImport,
           enableCsvExport,
           fieldDefs,
@@ -248,6 +252,7 @@ module.exports = {
           importBase,
           hasReservationFields,
           hasStatusField,
+          language: this._language,
         });
 
     // Optional embedded children/line-items sections (generic)
@@ -361,6 +366,7 @@ module.exports = {
       approvalConfig,
       availabilityLabels,
       companionUserConfig,
+      language: this._language,
     });
 
     await fs.writeFile(path.join(modulePagesDir, `${entityName}Page.tsx`), listPageContent);
@@ -373,6 +379,7 @@ module.exports = {
         fieldDefs,
         escapeJsString: (s) => this._escapeJsString(s),
         importBase,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}ImportPage.tsx`), importPageContent);
     }
@@ -471,7 +478,7 @@ module.exports = {
         (entityHasLocationIds ? 'location_ids' : (entityHasLocationId ? 'location_id' : null));
 
       if (enableReceive) {
-        const receivePageContent = buildReceivePage({ entity, entityName, invCfg, entityLocationField, importBase });
+        const receivePageContent = buildReceivePage({ entity, entityName, invCfg, entityLocationField, importBase, language: this._language });
         await fs.writeFile(path.join(modulePagesDir, `${entityName}ReceivePage.tsx`), receivePageContent);
       }
 
@@ -484,17 +491,18 @@ module.exports = {
           issueLabel,
           escapeJsString: (s) => this._escapeJsString(s),
           importBase,
+          language: this._language,
         });
         await fs.writeFile(path.join(modulePagesDir, `${entityName}IssuePage.tsx`), issuePageContent);
       }
 
       if (enableAdjust) {
-        const adjustPageContent = buildAdjustPage({ entity, entityName, invCfg, importBase });
+        const adjustPageContent = buildAdjustPage({ entity, entityName, invCfg, importBase, language: this._language });
         await fs.writeFile(path.join(modulePagesDir, `${entityName}AdjustPage.tsx`), adjustPageContent);
       }
 
       if (canTransfer) {
-        const transferPageContent = buildTransferPage({ entity, entityName, invCfg, entityLocationField, importBase });
+        const transferPageContent = buildTransferPage({ entity, entityName, invCfg, entityLocationField, importBase, language: this._language });
         await fs.writeFile(path.join(modulePagesDir, `${entityName}TransferPage.tsx`), transferPageContent);
       }
     }
@@ -577,6 +585,7 @@ module.exports = {
         entityName,
         importBase,
         lifecycleCfg: invoicePriorityCfg.lifecycle,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}WorkflowPage.tsx`), workflowPageContent);
     }
@@ -585,6 +594,7 @@ module.exports = {
         entity,
         entityName,
         importBase,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}PaymentsPage.tsx`), paymentsPageContent);
     }
@@ -593,6 +603,7 @@ module.exports = {
         entity,
         entityName,
         importBase,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}NotesPage.tsx`), notesPageContent);
     }
@@ -601,6 +612,7 @@ module.exports = {
         entity,
         entityName,
         importBase,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}WorkflowPage.tsx`), workflowPageContent);
     }
@@ -609,6 +621,7 @@ module.exports = {
         entity,
         entityName,
         importBase,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}WorkflowPage.tsx`), workflowPageContent);
     }
@@ -634,6 +647,7 @@ module.exports = {
         importBase,
         leaveCfg: hrPriorityCfg.leaveEngine,
         approvalCfg: hrPriorityCfg.leaveApprovals,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}ApprovalsPage.tsx`), approvalsPageContent);
     }
@@ -643,6 +657,7 @@ module.exports = {
         entityName,
         importBase,
         leaveCfg: hrPriorityCfg.leaveEngine,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}BalancesPage.tsx`), balancesPageContent);
     }
@@ -655,6 +670,7 @@ module.exports = {
           ...hrPriorityCfg.attendanceTime,
           employee_entity: hrPriorityCfg.employeeEntity,
         },
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}AttendancePage.tsx`), attendancePageContent);
     }

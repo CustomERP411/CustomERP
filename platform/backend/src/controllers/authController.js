@@ -55,7 +55,9 @@ async function register(req, res, next) {
     logger.error('Registration error:', error.message);
     
     if (error.statusCode) {
-      return res.status(error.statusCode).json({ error: error.message });
+      const body = { error: error.message };
+      if (error.code) body.code = error.code;
+      return res.status(error.statusCode).json(body);
     }
     
     next(error);
@@ -137,7 +139,11 @@ async function logout(req, res) {
  */
 async function deleteAccount(req, res, next) {
   try {
-    await authService.deleteAccount(req.user.userId);
+    const userId = req.user.userId ?? req.user.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Invalid session' });
+    }
+    await authService.deleteAccount(userId);
     res.status(204).send();
   } catch (error) {
     logger.error('Delete account error:', error.message);

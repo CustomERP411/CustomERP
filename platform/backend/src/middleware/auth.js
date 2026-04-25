@@ -20,10 +20,20 @@ async function authenticateToken(req, res, next) {
     req.user = decoded;
 
     const result = await query(
-      'SELECT blocked_at FROM users WHERE user_id = $1',
+      'SELECT blocked_at, deleted_at FROM users WHERE user_id = $1',
       [decoded.userId]
     );
-    if (result.rows[0]?.blocked_at) {
+    const row = result.rows[0];
+    if (!row) {
+      return res.status(401).json({ error: 'Account not found', code: 'ACCOUNT_NOT_FOUND' });
+    }
+    if (row.deleted_at) {
+      return res.status(401).json({
+        error: 'This account was deleted. Please sign in again or create a new account.',
+        code: 'ACCOUNT_DELETED',
+      });
+    }
+    if (row.blocked_at) {
       return res.status(403).json({ error: 'Account suspended', code: 'ACCOUNT_BLOCKED' });
     }
 

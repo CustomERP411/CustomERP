@@ -185,14 +185,17 @@ describe('UC-1 / authService.register', () => {
   });
 
   // TC-UC1-025
-  test('rejects with 400 when the email already belongs to an existing account', async () => {
+  test('rejects with 400 when the email already belongs to an active account', async () => {
     query.mockResolvedValueOnce({
       rows: [
-        dbRowForNewUser({
-          name: 'Taken',
-          email: 'taken@test.com',
-          preferred_language: 'en',
-        }),
+        {
+          ...dbRowForNewUser({
+            name: 'Taken',
+            email: 'taken@test.com',
+            preferred_language: 'en',
+          }),
+          deleted_at: null,
+        },
       ],
     });
 
@@ -212,5 +215,49 @@ describe('UC-1 / authService.register', () => {
     expect(query).toHaveBeenCalledTimes(1);
     expect(bcrypt.hash).not.toHaveBeenCalled();
     expect(generateToken).not.toHaveBeenCalled();
+  });
+
+  test('reactivates a soft-deleted account by email (UPDATE, no new INSERT) instead of conflicting on UNIQUE', async () => {
+    const userId = '11111111-1111-1111-1111-111111111111';
+    query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            user_id: userId,
+            name: 'Old',
+            email: 'returning@test.com',
+            password_hash: 'OLD',
+            is_admin: false,
+            preferred_language: 'en',
+            deleted_at: new Date('2026-01-15T00:00:00Z'),
+            created_at: new Date('2025-12-01T00:00:00Z'),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          dbRowForNewUser({
+            user_id: userId,
+            name: 'New Name',
+            email: 'returning@test.com',
+            preferred_language: 'en',
+          }),
+        ],
+      });
+
+    const result = await authService.register({
+      name: 'New Name',
+      email: 'returning@test.com',
+      password: 'Passw0rd!',
+      preferred_language: 'en',
+    });
+
+    expect(query).toHaveBeenCalledTimes(2);
+    const updateCall = query.mock.calls[1];
+    expect(updateCall[0]).toMatch(/UPDATE users SET/i);
+    expect(updateCall[0]).toMatch(/deleted_at = NULL/i);
+    expect(result.user.email).toBe('returning@test.com');
+    expect(result.user.name).toBe('New Name');
+    expect(generateToken).toHaveBeenCalled();
   });
 });

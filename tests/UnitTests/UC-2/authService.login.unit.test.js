@@ -6,7 +6,7 @@
  *
  * Branches exercised:
  *   - Unknown email        → 401 (generic message, no enumeration)
- *   - deleted_at set        → 401 "deactivated"
+ *   - deleted_at set        → 401 + ACCOUNT_DELETED (re-signup hint)
  *   - blocked_at set        → 403 with `code: 'ACCOUNT_BLOCKED'`
  *                             + message that includes the block reason
  *                             and CONTACT_EMAIL env var (or default)
@@ -85,7 +85,7 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-012
-  test('rejects soft-deleted accounts with a "deactivated" 401 message', async () => {
+  test('rejects soft-deleted accounts with 401, ACCOUNT_DELETED, and a re-signup hint', async () => {
     query.mockResolvedValueOnce({
       rows: [userRow({ deleted_at: new Date('2026-02-01T00:00:00Z') })],
     });
@@ -94,7 +94,8 @@ describe('UC-2 / authService.login', () => {
       authService.login({ email: 'gone@test.com', password: 'Passw0rd!' }),
     ).rejects.toMatchObject({
       statusCode: 401,
-      message: 'Account has been deactivated. Please contact support.',
+      code: 'ACCOUNT_DELETED',
+      message: 'This account was deleted. You can create a new account with the same email on the sign-up page.',
     });
 
     expect(bcrypt.compare).not.toHaveBeenCalled();

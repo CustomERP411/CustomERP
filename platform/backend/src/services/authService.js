@@ -24,22 +24,71 @@ function normalizeLanguage(value) {
  * Handles user registration, login, and token management
  */
 class AuthService {
+  buildRegisterResponse(user) {
+    const preferredLanguage = normalizeLanguage(user.preferred_language);
+    const token = generateToken({
+      userId: user.user_id,
+      email: user.email,
+      name: user.name,
+      isAdmin: !!user.is_admin,
+      preferredLanguage,
+    });
+    return {
+      token,
+      user: {
+        id: user.user_id,
+        name: user.name,
+        email: user.email,
+        is_admin: !!user.is_admin,
+        preferred_language: preferredLanguage,
+        created_at: user.created_at,
+      },
+    };
+  }
+
   /**
    * Register a new user
    * @param {Object} userData - { name, email, password, preferred_language }
    * @returns {Promise<{token: string, user: Object}>}
    */
   async register({ name, email, password, preferred_language }) {
-    const existingUser = await this.findByEmail(email);
-    if (existingUser) {
+    const normalized = email.toLowerCase().trim();
+    const existingUser = await this.findByEmail(normalized);
+    if (existingUser && !existingUser.deleted_at) {
       const error = new Error('An account with this email address already exists.');
       error.statusCode = 400;
       throw error;
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    const userId = uuidv4();
     const lang = normalizeLanguage(preferred_language);
+    const trimmedName = name.trim();
+
+    if (existingUser && existingUser.deleted_at) {
+      const reactivated = await query(
+        `UPDATE users SET
+          deleted_at = NULL,
+          password_hash = $1,
+          name = $2,
+          preferred_language = $3,
+          updated_at = CURRENT_TIMESTAMP,
+          blocked_at = NULL,
+          block_reason = NULL
+         WHERE user_id = $4 AND deleted_at IS NOT NULL
+         RETURNING user_id, name, email, is_admin, preferred_language, created_at`,
+        [passwordHash, trimmedName, lang, existingUser.user_id]
+      );
+      if (!reactivated.rows[0]) {
+        const err = new Error('Could not reactivate account. Please try again.');
+        err.statusCode = 409;
+        throw err;
+      }
+      const user = reactivated.rows[0];
+      logger.info(`User re-registered (reactivated): ${user.email} (lang=${user.preferred_language})`);
+      return this.buildRegisterResponse(user);
+    }
+
+    const userId = uuidv4();
 
     const insertQuery = `
       INSERT INTO users (user_id, name, email, password_hash, preferred_language, created_at, updated_at)
@@ -49,8 +98,8 @@ class AuthService {
 
     const result = await query(insertQuery, [
       userId,
-      name.trim(),
-      email.toLowerCase().trim(),
+      trimmedName,
+      normalized,
       passwordHash,
       lang,
     ]);
@@ -58,25 +107,7 @@ class AuthService {
     const user = result.rows[0];
     logger.info(`User registered: ${user.email} (lang=${user.preferred_language})`);
 
-    const token = generateToken({
-      userId: user.user_id,
-      email: user.email,
-      name: user.name,
-      isAdmin: !!user.is_admin,
-      preferredLanguage: user.preferred_language,
-    });
-
-    return {
-      token,
-      user: {
-        id: user.user_id,
-        name: user.name,
-        email: user.email,
-        is_admin: !!user.is_admin,
-        preferred_language: user.preferred_language,
-        created_at: user.created_at,
-      },
-    };
+    return this.buildRegisterResponse(user);
   }
 
   async login({ email, password }) {
@@ -88,8 +119,11 @@ class AuthService {
     }
 
     if (user.deleted_at) {
-      const error = new Error('Account has been deactivated. Please contact support.');
+      const error = new Error(
+        'This account was deleted. You can create a new account with the same email on the sign-up page.',
+      );
       error.statusCode = 401;
+      error.code = 'ACCOUNT_DELETED';
       throw error;
     }
 
@@ -195,7 +229,7 @@ class AuthService {
     if (email !== undefined) {
       const normalizedEmail = email.toLowerCase().trim();
       const existing = await this.findByEmail(normalizedEmail);
-      if (existing && existing.user_id !== userId) {
+      if (existing && existing.user_id !== userId && !existing.deleted_at) {
         const error = new Error('This email is already in use by another account.');
         error.statusCode = 409;
         throw error;

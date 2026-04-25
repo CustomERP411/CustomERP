@@ -70,7 +70,7 @@ export default function ProjectDetailPage() {
   const [genProgress, setGenProgress] = useState<{ step: string; pct: number; detail: string } | null>(null);
   const [bizSkipWarningOpen, setBizSkipWarningOpen] = useState(false);
   const [answerReview, setAnswerReview] = useState<AnswerReview | null>(null);
-  const [acknowledgedFeatures, setAcknowledgedFeatures] = useState<string[]>([]);
+  const [, setAcknowledgedFeatures] = useState<string[]>([]);
 
   const { setProjectContext, openChat, sendMessage, setPulsing } = useChatContext();
 
@@ -800,13 +800,13 @@ export default function ProjectDetailPage() {
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
 
       if (resQuestions.length > 0 && !res.sdf_complete) {
-        setSdf(res.sdf); setQuestions(resQuestions); setAnswersById({});
+        setSdf(res.sdf ?? null); setQuestions(resQuestions); setAnswersById({});
         setSdfComplete(false);
         setGenProgress({ step: 'clarifications', pct: 20, detail: t('projectDetail:progress.waitingAnswers') });
         return;
       }
 
-      setSdf(res.sdf); setQuestions([]); setAnswersById({});
+      setSdf(res.sdf ?? null); setQuestions([]); setAnswersById({});
       setSdfComplete(res.sdf_complete || false);
       appendReviewHistory({
         action: 'clarified',
@@ -833,7 +833,7 @@ export default function ProjectDetailPage() {
       let parsed: any;
       try { parsed = JSON.parse(draftJson); } catch (e: any) { setDraftError(t('projectDetail:errors.invalidJson', { message: e?.message || t('projectDetail:errors.parseError') })); return; }
       const res = await projectService.saveSdf(projectId, parsed);
-      setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setDraftJson(JSON.stringify(res.sdf, null, 2));
+      setProject(res.project); setSdf(res.sdf ?? null); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setDraftJson(JSON.stringify(res.sdf, null, 2));
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
       appendReviewHistory({ action: 'manual_save', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.manualSave') });
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.saveFailed')); }
@@ -845,7 +845,7 @@ export default function ProjectDetailPage() {
     setSaving(true); setError('');
     try {
       const res = await projectService.aiEditSdf(projectId, aiEditText.trim(), sdf || undefined);
-      setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setAiEditText('');
+      setProject(res.project); setSdf(res.sdf ?? null); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setAiEditText('');
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
       appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.aiRevision') });
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.aiEditFailed')); }

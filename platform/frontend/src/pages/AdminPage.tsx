@@ -93,6 +93,8 @@ export default function AdminPage() {
     return <div className="flex items-center justify-center py-20 text-app-text-muted">{t('loadingAdminData')}</div>;
   }
 
+  if (!user) return null;
+
   const activeUsers = users.filter((u) => !u.deleted);
 
   return (

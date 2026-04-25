@@ -12,9 +12,30 @@ process.env.NODE_ENV = 'test';
 
 const noop = () => {};
 if (!process.env.JEST_SHOW_LOGS) {
-  jest.spyOn(console, 'log').mockImplementation(noop);
-  jest.spyOn(console, 'info').mockImplementation(noop);
-  jest.spyOn(console, 'warn').mockImplementation(noop);
-  jest.spyOn(console, 'error').mockImplementation(noop);
-  jest.spyOn(console, 'debug').mockImplementation(noop);
+  // Direct assignment (not jest.spyOn) so `restoreMocks: true` in
+  // jest.config.js cannot restore the noisy backend logger between tests.
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
 }
+
+function preview(value) {
+  try {
+    if (value === undefined) return 'undefined';
+    if (typeof value === 'string') return JSON.stringify(value);
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+global.tcLog = (tcId, { input, expected, got, note }) => {
+  const parts = [`[${tcId}]`];
+  if (input !== undefined) parts.push(`input=${preview(input)}`);
+  if (expected !== undefined) parts.push(`expected=${preview(expected)}`);
+  if (got !== undefined) parts.push(`got=${preview(got)}`);
+  if (note) parts.push(`note=${note}`);
+  process.stdout.write(parts.join(' | ') + '\n');
+};

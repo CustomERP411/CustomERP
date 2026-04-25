@@ -70,7 +70,7 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-011
-  test('rejects with generic 401 when the email is not in the database', async () => {
+  test('TC-UC2-011 — rejects with generic 401 when the email is not in the database', async () => {
     query.mockResolvedValueOnce({ rows: [] });
 
     await expect(
@@ -85,7 +85,7 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-012
-  test('rejects soft-deleted accounts with a "deactivated" 401 message', async () => {
+  test('TC-UC2-012 — rejects soft-deleted accounts with a "deactivated" 401 message', async () => {
     query.mockResolvedValueOnce({
       rows: [userRow({ deleted_at: new Date('2026-02-01T00:00:00Z') })],
     });
@@ -101,7 +101,7 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-013
-  test('blocked account returns 403 with ACCOUNT_BLOCKED code, reason, and CONTACT_EMAIL', async () => {
+  test('TC-UC2-013 — blocked account returns 403 with ACCOUNT_BLOCKED code, reason, and CONTACT_EMAIL', async () => {
     process.env.CONTACT_EMAIL = 'help@customerp.io';
     query.mockResolvedValueOnce({
       rows: [
@@ -128,7 +128,7 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-014
-  test('blocked account with no reason uses "suspicious activity" + default support email', async () => {
+  test('TC-UC2-014 — blocked account with no reason uses "suspicious activity" + default support email', async () => {
     query.mockResolvedValueOnce({
       rows: [
         userRow({
@@ -152,7 +152,7 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-015
-  test('wrong password returns the SAME generic 401 as unknown email', async () => {
+  test('TC-UC2-015 — wrong password returns the SAME generic 401 as unknown email', async () => {
     query.mockResolvedValueOnce({ rows: [userRow()] });
     bcrypt.compare.mockResolvedValueOnce(false);
 
@@ -167,7 +167,7 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-016
-  test('happy path returns token + user with preferred_language="en" and correct JWT payload', async () => {
+  test('TC-UC2-016 — happy path returns token + user with preferred_language="en" and correct JWT payload', async () => {
     query.mockResolvedValueOnce({
       rows: [userRow({ preferred_language: 'en' })],
     });
@@ -200,7 +200,7 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-017 — localization-specific
-  test('normalizes stored preferred_language "tr-TR" to "tr" in both response and JWT', async () => {
+  test('TC-UC2-017 — normalizes stored preferred_language "tr-TR" to "tr" in both response and JWT', async () => {
     query.mockResolvedValueOnce({
       rows: [userRow({ name: 'Ayşe', preferred_language: 'tr-TR' })],
     });
@@ -217,7 +217,7 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-018 — defensive for legacy rows written before migration 014
-  test('defensively normalizes an unsupported stored language to "en"', async () => {
+  test('TC-UC2-018 — defensively normalizes an unsupported stored language to "en"', async () => {
     query.mockResolvedValueOnce({
       rows: [userRow({ preferred_language: 'fr' })],
     });
@@ -233,7 +233,7 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-019
-  test('findByEmail is called with a trimmed, lowercased email', async () => {
+  test('TC-UC2-019 — findByEmail is called with a trimmed, lowercased email', async () => {
     query.mockResolvedValueOnce({ rows: [] });
 
     await expect(

@@ -65,7 +65,7 @@ describe('UC-9.1 / featureRequestService.listAll (real)', () => {
   });
 
   // TC-UC9.1-003
-  test('builds WHERE clauses when both status and source are supplied', async () => {
+  test('TC-UC9.1-003 — builds WHERE clauses when both status and source are supplied', async () => {
     const calls = installSnapshottingMock([
       { rows: [{ total: '3' }] }, // COUNT
       { rows: [{ id: 'fr-1' }, { id: 'fr-2' }, { id: 'fr-3' }] },
@@ -85,7 +85,7 @@ describe('UC-9.1 / featureRequestService.listAll (real)', () => {
   });
 
   // TC-UC9.1-004
-  test('omits the WHERE clause when no filters are provided', async () => {
+  test('TC-UC9.1-004 — omits the WHERE clause when no filters are provided', async () => {
     const calls = installSnapshottingMock([
       { rows: [{ total: '0' }] },
       { rows: [] },
@@ -101,7 +101,7 @@ describe('UC-9.1 / featureRequestService.listAll (real)', () => {
   });
 
   // TC-UC9.1-005
-  test('returns a numeric total and raw request rows', async () => {
+  test('TC-UC9.1-005 — returns a numeric total and raw request rows', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ total: '42' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'a' }, { id: 'b' }] });
@@ -122,7 +122,7 @@ describe('UC-9.1 / featureRequestController.listAll', () => {
   });
 
   // TC-UC9.1-006
-  test('parses limit and offset query params as integers before calling the service', async () => {
+  test('TC-UC9.1-006 — parses limit and offset query params as integers before calling the service', async () => {
     featureRequestService.listAll.mockResolvedValueOnce({
       total: 0,
       requests: [],

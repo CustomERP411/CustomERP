@@ -42,7 +42,7 @@ beforeEach(() => {
 
 describe('UC-8 / featureRequestController.listMine', () => {
   // TC-UC8-004
-  test('returns { requests } from listByUser for the authenticated user', async () => {
+  test('TC-UC8-004 — returns { requests } from listByUser for the authenticated user', async () => {
     featureRequestService.listByUser.mockResolvedValueOnce([{ id: 'f1' }]);
 
     const req = { user: { userId: 'u-1' } };
@@ -58,7 +58,7 @@ describe('UC-8 / featureRequestController.listMine', () => {
 
 describe('UC-8.1 / featureRequestController.getMyDetail', () => {
   // TC-UC8.1-002
-  test('returns HTTP 403 when the feature request is owned by a different user', async () => {
+  test('TC-UC8.1-002 — returns HTTP 403 when the feature request is owned by a different user', async () => {
     featureRequestService.getById.mockResolvedValueOnce({
       id: 'fr-1',
       user_id: 'u-1',
@@ -76,7 +76,7 @@ describe('UC-8.1 / featureRequestController.getMyDetail', () => {
   });
 
   // TC-UC8.1-003
-  test('returns the feature request merged with its messages when the caller is the owner', async () => {
+  test('TC-UC8.1-003 — returns the feature request merged with its messages when the caller is the owner', async () => {
     const fr = { id: 'fr-1', user_id: 'u-1', feature_name: 'X', status: 'recorded' };
     featureRequestService.getById.mockResolvedValueOnce(fr);
     featureRequestService.getMessages.mockResolvedValueOnce([
@@ -101,7 +101,7 @@ describe('UC-8.1 / featureRequestController.getMyDetail', () => {
   });
 
   // TC-UC8.1-004
-  test('propagates a service 404 as an HTTP 404 response', async () => {
+  test('TC-UC8.1-004 — propagates a service 404 as an HTTP 404 response', async () => {
     featureRequestService.getById.mockRejectedValueOnce(
       Object.assign(new Error('Feature request not found'), { statusCode: 404 }),
     );

@@ -44,7 +44,7 @@ describe('UC-9.2 / featureRequestController.updateStatus — validation', () => 
   });
 
   // TC-UC9.2-002
-  test('returns 400 for an unknown status value', async () => {
+  test('TC-UC9.2-002 — returns 400 for an unknown status value', async () => {
     const req = { params: { id: 'fr-1' }, body: { status: 'rejected' } };
     const res = mockRes();
 
@@ -58,7 +58,7 @@ describe('UC-9.2 / featureRequestController.updateStatus — validation', () => 
   });
 
   // TC-UC9.2-003
-  test('returns 400 when status is missing entirely', async () => {
+  test('TC-UC9.2-003 — returns 400 when status is missing entirely', async () => {
     const req = { params: { id: 'fr-1' }, body: {} };
     const res = mockRes();
 
@@ -90,7 +90,7 @@ describe('UC-9.2 / featureRequestService.updateStatus — persistence', () => {
   });
 
   // TC-UC9.2-004
-  test('issues an UPDATE that sets status, admin_notes, and updated_at=NOW()', async () => {
+  test('TC-UC9.2-004 — issues an UPDATE that sets status, admin_notes, and updated_at=NOW()', async () => {
     const row = { id: 'fr-1', status: 'in_progress', admin_notes: 'reviewing' };
     db.query.mockResolvedValueOnce({ rows: [row] });
 
@@ -108,7 +108,7 @@ describe('UC-9.2 / featureRequestService.updateStatus — persistence', () => {
   });
 
   // TC-UC9.2-005
-  test('throws 404 error when the id does not match any row', async () => {
+  test('TC-UC9.2-005 — throws 404 error when the id does not match any row', async () => {
     db.query.mockResolvedValueOnce({ rows: [] });
 
     await expect(

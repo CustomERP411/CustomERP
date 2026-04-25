@@ -33,7 +33,7 @@ beforeEach(() => {
 
 describe('UC-11.1 / adminController.listUsers', () => {
   // TC-UC11.1-004
-  test('wraps the service result as { users }', async () => {
+  test('TC-UC11.1-004 — wraps the service result as { users }', async () => {
     adminService.listUsers.mockResolvedValueOnce([
       { id: 'u-1', name: 'Alice', is_admin: false },
     ]);

@@ -26,7 +26,7 @@ beforeEach(() => {
 
 describe('UC-11.2 / adminService.setAdminStatus', () => {
   // TC-UC11.2-005
-  test('UPDATE is scoped by `user_id = $2 AND deleted_at IS NULL`', async () => {
+  test('TC-UC11.2-005 — UPDATE is scoped by `user_id = $2 AND deleted_at IS NULL`', async () => {
     db.query.mockResolvedValueOnce({
       rows: [
         {
@@ -56,7 +56,7 @@ describe('UC-11.2 / adminService.setAdminStatus', () => {
   });
 
   // TC-UC11.2-006
-  test('throws { statusCode: 404 } when no row matches', async () => {
+  test('TC-UC11.2-006 — throws { statusCode: 404 } when no row matches', async () => {
     db.query.mockResolvedValueOnce({ rows: [] });
 
     await expect(adminService.setAdminStatus('missing', true)).rejects.toMatchObject({
@@ -66,7 +66,7 @@ describe('UC-11.2 / adminService.setAdminStatus', () => {
   });
 
   // TC-UC11.2-007
-  test('coerces truthy / falsy values to real booleans before persistence', async () => {
+  test('TC-UC11.2-007 — coerces truthy / falsy values to real booleans before persistence', async () => {
     db.query.mockResolvedValue({
       rows: [
         {

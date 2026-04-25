@@ -32,7 +32,7 @@ const authService = require(
 
 describe('UC-4.3 / authService.changePassword', () => {
   // TC-UC4.3-005
-  test('rejects with 400 when currentPassword does not match the stored hash', async () => {
+  test('TC-UC4.3-005 — rejects with 400 when currentPassword does not match the stored hash', async () => {
     query.mockResolvedValueOnce({
       rows: [{ user_id: 'u-1', password_hash: '$2a$10$stored-hash' }],
     });
@@ -50,7 +50,7 @@ describe('UC-4.3 / authService.changePassword', () => {
   });
 
   // TC-UC4.3-006
-  test('hashes the new password and UPDATEs the password_hash column', async () => {
+  test('TC-UC4.3-006 — hashes the new password and UPDATEs the password_hash column', async () => {
     query
       .mockResolvedValueOnce({
         rows: [{ user_id: 'u-1', password_hash: '$2a$10$old-hash' }],
@@ -73,7 +73,7 @@ describe('UC-4.3 / authService.changePassword', () => {
   });
 
   // TC-UC4.3-007
-  test('rejects with 404 when the user does not exist (or was soft-deleted)', async () => {
+  test('TC-UC4.3-007 — rejects with 404 when the user does not exist (or was soft-deleted)', async () => {
     query.mockResolvedValueOnce({ rows: [] });
 
     await expect(
@@ -88,7 +88,7 @@ describe('UC-4.3 / authService.changePassword', () => {
   });
 
   // TC-UC4.3-008
-  test('the plaintext new password never appears as a SQL parameter', async () => {
+  test('TC-UC4.3-008 — the plaintext new password never appears as a SQL parameter', async () => {
     query
       .mockResolvedValueOnce({
         rows: [{ user_id: 'u-1', password_hash: '$2a$10$old' }],

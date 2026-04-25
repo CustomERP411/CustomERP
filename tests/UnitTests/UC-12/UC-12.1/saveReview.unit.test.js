@@ -27,7 +27,7 @@ beforeEach(() => {
 
 describe('UC-12.1 / trainingService.saveReview', () => {
   // TC-UC12.1-004
-  test('upserts into training_reviews via ON CONFLICT DO UPDATE', async () => {
+  test('TC-UC12.1-004 — upserts into training_reviews via ON CONFLICT DO UPDATE', async () => {
     db.query.mockResolvedValueOnce({
       rows: [{ session_id: 's-1', quality: 'good' }],
     });
@@ -44,7 +44,7 @@ describe('UC-12.1 / trainingService.saveReview', () => {
   });
 
   // TC-UC12.1-005
-  test('serializes editedOutput to a JSON string before persistence', async () => {
+  test('TC-UC12.1-005 — serializes editedOutput to a JSON string before persistence', async () => {
     db.query.mockResolvedValueOnce({ rows: [{}] });
 
     await training.saveReview('s-1', {
@@ -71,7 +71,7 @@ describe('UC-12.1 / trainingService.saveStepReview + syncSessionReview', () => {
   }
 
   // TC-UC12.1-006
-  test('saveStepReview triggers a syncSessionReview aggregation write', async () => {
+  test('TC-UC12.1-006 — saveStepReview triggers a syncSessionReview aggregation write', async () => {
     primeSteps(['good']);
 
     await training.saveStepReview('s-1', 'hr_generator', { quality: 'good' });
@@ -91,7 +91,7 @@ describe('UC-12.1 / trainingService.saveStepReview + syncSessionReview', () => {
   });
 
   // TC-UC12.1-007
-  test("aggregate rule: any 'bad' step → session quality is 'bad'", async () => {
+  test("TC-UC12.1-007 — aggregate rule: any 'bad' step → session quality is 'bad'", async () => {
     primeSteps(['good', 'good', 'bad', 'good']);
 
     await training.saveStepReview('s-1', 'hr_generator', { quality: 'bad' });
@@ -101,7 +101,7 @@ describe('UC-12.1 / trainingService.saveStepReview + syncSessionReview', () => {
   });
 
   // TC-UC12.1-008
-  test("aggregate rule: no bad + any 'needs_edit' → 'needs_edit'", async () => {
+  test("TC-UC12.1-008 — aggregate rule: no bad + any 'needs_edit' → 'needs_edit'", async () => {
     primeSteps(['good', 'needs_edit', 'good']);
 
     await training.saveStepReview('s-1', 'hr_generator', { quality: 'needs_edit' });
@@ -111,7 +111,7 @@ describe('UC-12.1 / trainingService.saveStepReview + syncSessionReview', () => {
   });
 
   // TC-UC12.1-009
-  test("aggregate rule: all 'good' → 'good'", async () => {
+  test("TC-UC12.1-009 — aggregate rule: all 'good' → 'good'", async () => {
     primeSteps(['good', 'good', 'good']);
 
     await training.saveStepReview('s-1', 'hr_generator', { quality: 'good' });

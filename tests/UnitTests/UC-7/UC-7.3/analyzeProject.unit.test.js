@@ -156,7 +156,7 @@ describe('UC-7.3 / projectAiController.analyzeProject', () => {
   });
 
   // TC-UC7.3-003
-  test("returns 400 when description is missing or shorter than 10 characters", async () => {
+  test("TC-UC7.3-003 — returns 400 when description is missing or shorter than 10 characters", async () => {
     const req = {
       user: { userId: 'u-1' },
       params: { id: 'p-1' },
@@ -172,7 +172,7 @@ describe('UC-7.3 / projectAiController.analyzeProject', () => {
   });
 
   // TC-UC7.3-004
-  test('returns 400 with missing_required_question_ids when the questionnaire is incomplete', async () => {
+  test('TC-UC7.3-004 — returns 400 with missing_required_question_ids when the questionnaire is incomplete', async () => {
     setHappyDefaults();
     moduleQuestionnaireService.getQuestionnaireState.mockResolvedValueOnce({
       modules: ['inventory'],
@@ -207,7 +207,7 @@ describe('UC-7.3 / projectAiController.analyzeProject', () => {
   });
 
   // TC-UC7.3-005
-  test("passes project.language through to the AI gateway (Turkish)", async () => {
+  test("TC-UC7.3-005 — passes project.language through to the AI gateway (Turkish)", async () => {
     setHappyDefaults({ language: 'tr' });
 
     const req = {
@@ -228,7 +228,7 @@ describe('UC-7.3 / projectAiController.analyzeProject', () => {
   });
 
   // TC-UC7.3-006
-  test("sets status 'Clarifying' when AI returns clarifications_needed, else 'Ready'", async () => {
+  test("TC-UC7.3-006 — sets status 'Clarifying' when AI returns clarifications_needed, else 'Ready'", async () => {
     // Run 1 — AI returns one clarification question.
     setHappyDefaults({
       clarifications: [{ id: 'q-cl-1', question: 'Which currency?' }],
@@ -262,7 +262,7 @@ describe('UC-7.3 / projectAiController.analyzeProject', () => {
   });
 
   // TC-UC7.3-007
-  test('forwards unsupported_features to featureRequestService (fire-and-forget)', async () => {
+  test('TC-UC7.3-007 — forwards unsupported_features to featureRequestService (fire-and-forget)', async () => {
     setHappyDefaults({
       unsupported: [{ label: 'Biometric punch clock', description: 'X' }],
     });
@@ -288,7 +288,7 @@ describe('UC-7.3 / projectAiController.analyzeProject', () => {
   });
 
   // TC-UC7.3-008
-  test('AI 503 back-pressure errors bubble through as HTTP 503 (not 500)', async () => {
+  test('TC-UC7.3-008 — AI 503 back-pressure errors bubble through as HTTP 503 (not 500)', async () => {
     setHappyDefaults();
     const busy = Object.assign(new Error('busy'), { statusCode: 503 });
     aiGatewayClient.analyzeDescription.mockRejectedValueOnce(busy);

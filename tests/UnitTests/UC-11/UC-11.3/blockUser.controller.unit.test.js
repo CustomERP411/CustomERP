@@ -38,7 +38,7 @@ beforeEach(() => {
 
 describe('UC-11.3 / adminController.blockUser', () => {
   // TC-UC11.3-002
-  test('admins cannot block themselves', async () => {
+  test('TC-UC11.3-002 — admins cannot block themselves', async () => {
     const req = {
       user: { userId: 'admin-1' },
       params: { userId: 'admin-1' },
@@ -56,7 +56,7 @@ describe('UC-11.3 / adminController.blockUser', () => {
   });
 
   // TC-UC11.3-003
-  test('missing or empty reason is passed to the service as null', async () => {
+  test('TC-UC11.3-003 — missing or empty reason is passed to the service as null', async () => {
     adminService.blockUser.mockResolvedValue({ id: 'u-1', blocked: true });
 
     // Missing reason.

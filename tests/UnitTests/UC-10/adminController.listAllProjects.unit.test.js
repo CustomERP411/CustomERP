@@ -33,7 +33,7 @@ beforeEach(() => {
 
 describe('UC-10 / adminController.listAllProjects', () => {
   // TC-UC10-006 (happy path)
-  test('wraps the service result as { projects }', async () => {
+  test('TC-UC10-006 — wraps the service result as { projects }', async () => {
     adminService.listAllProjects.mockResolvedValueOnce([
       { id: 'p-1', name: 'A', owner: { id: 'u-1' } },
     ]);
@@ -50,7 +50,7 @@ describe('UC-10 / adminController.listAllProjects', () => {
   });
 
   // TC-UC10-006 (error path)
-  test('forwards unknown service errors as HTTP 500', async () => {
+  test('TC-UC10-006 — forwards unknown service errors as HTTP 500', async () => {
     adminService.listAllProjects.mockRejectedValueOnce(new Error('db down'));
 
     const req = {};

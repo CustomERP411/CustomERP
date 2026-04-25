@@ -34,7 +34,7 @@ function updatedRow(overrides = {}) {
 
 describe('UC-4.1 / authService.updateProfile — name path', () => {
   // TC-UC4.1-005
-  test('builds a partial UPDATE that only touches the `name` column', async () => {
+  test('TC-UC4.1-005 — builds a partial UPDATE that only touches the `name` column', async () => {
     query.mockResolvedValueOnce({ rows: [updatedRow({ name: 'Bob' })] });
 
     await authService.updateProfile('u-1', { name: 'Bob' });
@@ -53,7 +53,7 @@ describe('UC-4.1 / authService.updateProfile — name path', () => {
   });
 
   // TC-UC4.1-006
-  test('trims surrounding whitespace from the new name', async () => {
+  test('TC-UC4.1-006 — trims surrounding whitespace from the new name', async () => {
     query.mockResolvedValueOnce({ rows: [updatedRow({ name: 'Ayşe' })] });
 
     await authService.updateProfile('u-1', { name: '   Ayşe   ' });
@@ -63,7 +63,7 @@ describe('UC-4.1 / authService.updateProfile — name path', () => {
   });
 
   // TC-UC4.1-007 — localization-specific
-  test('stores a Turkish name (ğ, ş, ç, ö, İ) byte-perfect and returns it unchanged', async () => {
+  test('TC-UC4.1-007 — stores a Turkish name (ğ, ş, ç, ö, İ) byte-perfect and returns it unchanged', async () => {
     const turkishName = 'Gülşen İçöz';
     query.mockResolvedValueOnce({ rows: [updatedRow({ name: turkishName })] });
 

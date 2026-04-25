@@ -38,7 +38,7 @@ beforeEach(() => {
 
 describe('UC-11.2 / adminController.setAdminStatus', () => {
   // TC-UC11.2-002
-  test("returns 400 when `is_admin` is missing or non-boolean", async () => {
+  test("TC-UC11.2-002 — returns 400 when `is_admin` is missing or non-boolean", async () => {
     // Missing.
     let req = {
       user: { userId: 'admin-1' },
@@ -66,7 +66,7 @@ describe('UC-11.2 / adminController.setAdminStatus', () => {
   });
 
   // TC-UC11.2-003
-  test('admins cannot toggle their own admin status', async () => {
+  test('TC-UC11.2-003 — admins cannot toggle their own admin status', async () => {
     const req = {
       user: { userId: 'admin-1' },
       params: { userId: 'admin-1' },
@@ -84,7 +84,7 @@ describe('UC-11.2 / adminController.setAdminStatus', () => {
   });
 
   // TC-UC11.2-004
-  test('service 404 is forwarded as HTTP 404', async () => {
+  test('TC-UC11.2-004 — service 404 is forwarded as HTTP 404', async () => {
     adminService.setAdminStatus.mockRejectedValueOnce(
       Object.assign(new Error('User not found'), { statusCode: 404 }),
     );

@@ -37,7 +37,7 @@ describe('UC-13.2 / normalize', () => {
   // TC-UC13.2-001
   // normalize is not exported directly, but its behavior is observable
   // through the normalized column in the INSERT params.
-  test('lowercases, trims, and collapses whitespace in feature names', async () => {
+  test('TC-UC13.2-001 — lowercases, trims, and collapses whitespace in feature names', async () => {
     db.query.mockResolvedValue({ rows: [{ id: 1 }] });
 
     await frs.recordFeatures({
@@ -57,7 +57,7 @@ describe('UC-13.2 / normalize', () => {
 
 describe('UC-13.2 / recordFeatures — no-op cases', () => {
   // TC-UC13.2-002
-  test('empty or non-array input returns [] and makes no query', async () => {
+  test('TC-UC13.2-002 — empty or non-array input returns [] and makes no query', async () => {
     const a = await frs.recordFeatures({
       userId: 'u-1', projectId: 'p-1', features: [], source: 'chatbot',
     });
@@ -71,7 +71,7 @@ describe('UC-13.2 / recordFeatures — no-op cases', () => {
   });
 
   // TC-UC13.2-005
-  test('blank / whitespace-only feature names are silently skipped', async () => {
+  test('TC-UC13.2-005 — blank / whitespace-only feature names are silently skipped', async () => {
     const out = await frs.recordFeatures({
       userId: 'u-1',
       projectId: 'p-1',
@@ -86,7 +86,7 @@ describe('UC-13.2 / recordFeatures — no-op cases', () => {
 
 describe('UC-13.2 / recordFeatures — SQL contract', () => {
   // TC-UC13.2-003
-  test('INSERT uses ON CONFLICT DO NOTHING for idempotent recording', async () => {
+  test('TC-UC13.2-003 — INSERT uses ON CONFLICT DO NOTHING for idempotent recording', async () => {
     db.query.mockResolvedValue({ rows: [{ id: 1 }] });
 
     await frs.recordFeatures({
@@ -112,7 +112,7 @@ describe('UC-13.2 / recordFeatures — SQL contract', () => {
   });
 
   // TC-UC13.2-004
-  test('returns only rows where INSERT actually produced a row (conflict filtered)', async () => {
+  test('TC-UC13.2-004 — returns only rows where INSERT actually produced a row (conflict filtered)', async () => {
     db.query
       // First feature is new → RETURNING produces a row.
       .mockResolvedValueOnce({ rows: [{ id: 1, feature_name: 'A' }] })
@@ -131,7 +131,7 @@ describe('UC-13.2 / recordFeatures — SQL contract', () => {
   });
 
   // TC-UC13.2-006
-  test('per-row DB error does NOT abort the batch', async () => {
+  test('TC-UC13.2-006 — per-row DB error does NOT abort the batch', async () => {
     db.query
       .mockRejectedValueOnce(new Error('unique violation race'))
       .mockResolvedValueOnce({ rows: [{ id: 2, feature_name: 'OK' }] });

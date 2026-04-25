@@ -40,7 +40,7 @@ beforeEach(() => {
 
 describe('UC-12.1 / trainingService.listSessions', () => {
   // TC-UC12.1-002
-  test("applies the `quality` filter after merging review rows", async () => {
+  test("TC-UC12.1-002 — applies the `quality` filter after merging review rows", async () => {
     mockFetchOnce({
       sessions: [
         { session_id: 's-1', endpoint: '/ai/analyze' },
@@ -65,7 +65,7 @@ describe('UC-12.1 / trainingService.listSessions', () => {
   });
 
   // TC-UC12.1-003
-  test('paginates via offset + limit in-memory', async () => {
+  test('TC-UC12.1-003 — paginates via offset + limit in-memory', async () => {
     mockFetchOnce({
       sessions: [
         { session_id: 's-1' },

@@ -52,7 +52,7 @@ beforeEach(() => {
 
 describe('UC-5 / projectService.createProject', () => {
   // TC-UC5-007
-  test('rejects when data.name is missing', async () => {
+  test('TC-UC5-007 — rejects when data.name is missing', async () => {
     await expect(projectService.createProject('u-1', {})).rejects.toThrow(
       'Project name is required',
     );
@@ -60,7 +60,7 @@ describe('UC-5 / projectService.createProject', () => {
   });
 
   // TC-UC5-008
-  test('rejects when data.name is only whitespace', async () => {
+  test('TC-UC5-008 — rejects when data.name is only whitespace', async () => {
     await expect(
       projectService.createProject('u-1', { name: '   ' }),
     ).rejects.toThrow('Project name is required');
@@ -68,7 +68,7 @@ describe('UC-5 / projectService.createProject', () => {
   });
 
   // TC-UC5-009
-  test('trims surrounding whitespace from the name before creating', async () => {
+  test('TC-UC5-009 — trims surrounding whitespace from the name before creating', async () => {
     authService.findById.mockResolvedValueOnce({ preferred_language: 'en' });
     Project.create.mockResolvedValueOnce({ id: 'p-1', name: 'My ERP' });
 
@@ -80,7 +80,7 @@ describe('UC-5 / projectService.createProject', () => {
   });
 
   // TC-UC5-010
-  test("inherits the user's preferred_language when data.language is undefined", async () => {
+  test("TC-UC5-010 — inherits the user's preferred_language when data.language is undefined", async () => {
     authService.findById.mockResolvedValueOnce({ preferred_language: 'tr' });
     Project.create.mockResolvedValueOnce({ id: 'p-1' });
 
@@ -92,7 +92,7 @@ describe('UC-5 / projectService.createProject', () => {
   });
 
   // TC-UC5-011
-  test("explicit data.language ('tr-TR') wins and is normalized to 'tr'", async () => {
+  test("TC-UC5-011 — explicit data.language ('tr-TR') wins and is normalized to 'tr'", async () => {
     authService.findById.mockResolvedValueOnce({ preferred_language: 'en' });
     Project.create.mockResolvedValueOnce({ id: 'p-1' });
 
@@ -104,7 +104,7 @@ describe('UC-5 / projectService.createProject', () => {
   });
 
   // TC-UC5-012
-  test('falls back to DEFAULT_LANGUAGE when authService.findById throws', async () => {
+  test('TC-UC5-012 — falls back to DEFAULT_LANGUAGE when authService.findById throws', async () => {
     authService.findById.mockRejectedValueOnce(new Error('DB down'));
     Project.create.mockResolvedValueOnce({ id: 'p-1' });
 

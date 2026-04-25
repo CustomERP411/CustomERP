@@ -24,7 +24,7 @@ const projectService = require(
 
 describe('UC-6 / projectService.deleteProject', () => {
   // TC-UC6-006
-  test('delegates to Project.delete with (id, userId) and resolves true on success', async () => {
+  test('TC-UC6-006 — delegates to Project.delete with (id, userId) and resolves true on success', async () => {
     Project.delete.mockResolvedValueOnce(true);
 
     const ok = await projectService.deleteProject('p-1', 'u-1');
@@ -34,7 +34,7 @@ describe('UC-6 / projectService.deleteProject', () => {
   });
 
   // TC-UC6-007
-  test("throws Error('Project not found') when the model returns false", async () => {
+  test("TC-UC6-007 — throws Error('Project not found') when the model returns false", async () => {
     Project.delete.mockResolvedValueOnce(false);
 
     await expect(

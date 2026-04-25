@@ -54,7 +54,7 @@ function updatedRow(overrides = {}) {
 
 describe('UC-4.2 / authService.updateProfile — email path', () => {
   // TC-UC4.2-004
-  test('changing email to one owned by a different user throws HTTP 409', async () => {
+  test('TC-UC4.2-004 — changing email to one owned by a different user throws HTTP 409', async () => {
     query.mockResolvedValueOnce({
       rows: [emailRow({ user_id: 'u-OTHER', email: 'taken@test.com' })],
     });
@@ -70,7 +70,7 @@ describe('UC-4.2 / authService.updateProfile — email path', () => {
   });
 
   // TC-UC4.2-005
-  test("changing email to the user's own current email is allowed", async () => {
+  test("TC-UC4.2-005 — changing email to the user's own current email is allowed", async () => {
     query
       .mockResolvedValueOnce({ rows: [emailRow({ user_id: 'u-1' })] })
       .mockResolvedValueOnce({ rows: [updatedRow({ email: 'same@test.com' })] });
@@ -83,7 +83,7 @@ describe('UC-4.2 / authService.updateProfile — email path', () => {
   });
 
   // TC-UC4.2-006
-  test('no UPDATE is issued when the payload has no updatable fields', async () => {
+  test('TC-UC4.2-006 — no UPDATE is issued when the payload has no updatable fields', async () => {
     query.mockResolvedValueOnce({
       rows: [
         {
@@ -110,7 +110,7 @@ describe('UC-4.2 / authService.updateProfile — email path', () => {
   });
 
   // TC-UC4.2-007 — localization-specific
-  test('returned preferred_language is normalized when stored value is "tr-TR"', async () => {
+  test('TC-UC4.2-007 — returned preferred_language is normalized when stored value is "tr-TR"', async () => {
     query
       .mockResolvedValueOnce({ rows: [] }) // no conflict
       .mockResolvedValueOnce({

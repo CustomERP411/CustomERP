@@ -53,7 +53,7 @@ beforeEach(() => {
 
 describe('UC-4.5 / authController.updateProfile — preferred_language', () => {
   // TC-UC4-LANG-002
-  test("rejects an unsupported language with 400 listing 'en, tr'", async () => {
+  test("TC-UC4-LANG-002 — rejects an unsupported language with 400 listing 'en, tr'", async () => {
     const req = { body: { preferred_language: 'fr' }, user: { userId: 'u-1' } };
     const res = mockRes();
     const next = jest.fn();
@@ -69,7 +69,7 @@ describe('UC-4.5 / authController.updateProfile — preferred_language', () => {
   });
 
   // TC-UC4-LANG-003
-  test('rejects non-string language with 400', async () => {
+  test('TC-UC4-LANG-003 — rejects non-string language with 400', async () => {
     const req = { body: { preferred_language: 123 }, user: { userId: 'u-1' } };
     const res = mockRes();
 
@@ -80,7 +80,7 @@ describe('UC-4.5 / authController.updateProfile — preferred_language', () => {
   });
 
   // TC-UC4-LANG-004
-  test("locale-tagged 'tr-TR' is accepted and normalized to 'tr' before the service call", async () => {
+  test("TC-UC4-LANG-004 — locale-tagged 'tr-TR' is accepted and normalized to 'tr' before the service call", async () => {
     authService.updateProfile.mockResolvedValueOnce({
       id: 'u-1', name: 'Ayşe', email: 'a@b.com', preferred_language: 'tr',
     });
@@ -96,7 +96,7 @@ describe('UC-4.5 / authController.updateProfile — preferred_language', () => {
   });
 
   // TC-UC4-LANG-005
-  test('omitted preferred_language does NOT overwrite the stored value', async () => {
+  test('TC-UC4-LANG-005 — omitted preferred_language does NOT overwrite the stored value', async () => {
     authService.updateProfile.mockResolvedValueOnce({
       id: 'u-1', name: 'Ayse', email: 'a@b.com', preferred_language: 'en',
     });

@@ -50,7 +50,7 @@ function mockRes() {
 
 describe('UC-6 / projectCrudController.deleteProject', () => {
   // TC-UC6-003
-  test('returns HTTP 204 with an empty body on success', async () => {
+  test('TC-UC6-003 — returns HTTP 204 with an empty body on success', async () => {
     projectService.deleteProject.mockResolvedValueOnce(true);
 
     const req = { params: { id: 'p-1' }, user: { userId: 'u-1' } };
@@ -68,7 +68,7 @@ describe('UC-6 / projectCrudController.deleteProject', () => {
   });
 
   // TC-UC6-004
-  test("returns HTTP 404 when the project cannot be found (or is not owned by caller)", async () => {
+  test("TC-UC6-004 — returns HTTP 404 when the project cannot be found (or is not owned by caller)", async () => {
     projectService.deleteProject.mockRejectedValueOnce(new Error('Project not found'));
 
     const req = { params: { id: 'p-missing' }, user: { userId: 'u-1' } };
@@ -81,7 +81,7 @@ describe('UC-6 / projectCrudController.deleteProject', () => {
   });
 
   // TC-UC6-005
-  test('unknown errors are reported as HTTP 500 without leaking the underlying message', async () => {
+  test('TC-UC6-005 — unknown errors are reported as HTTP 500 without leaking the underlying message', async () => {
     projectService.deleteProject.mockRejectedValueOnce(new Error('Something blew up'));
 
     const req = { params: { id: 'p-1' }, user: { userId: 'u-1' } };

@@ -123,7 +123,7 @@ beforeEach(() => {
 
 describe('UC-7.2 / moduleQuestionnaireService.getQuestionnaireState — visibility', () => {
   // TC-UC7.2-003
-  test("condition op 'all' requires every rule to match", async () => {
+  test("TC-UC7.2-003 — condition op 'all' requires every rule to match", async () => {
     const r1 = row({
       id: 'q-pick-batch',
       key: 'inv_batch_tracking',
@@ -181,7 +181,7 @@ describe('UC-7.2 / moduleQuestionnaireService.getQuestionnaireState — visibili
   });
 
   // TC-UC7.2-004
-  test("condition op 'any' is satisfied when a single rule matches", async () => {
+  test("TC-UC7.2-004 — condition op 'any' is satisfied when a single rule matches", async () => {
     const r1 = row({ id: 'q-A', key: 'feat_A', type: 'single_choice', required: true, choices: ['yes', 'no'] });
     const r2 = row({ id: 'q-B', key: 'feat_B', type: 'single_choice', required: true, choices: ['yes', 'no'] });
     const rGated = row({
@@ -216,7 +216,7 @@ describe('UC-7.2 / moduleQuestionnaireService.getQuestionnaireState — visibili
 
 describe('UC-7.2 / moduleQuestionnaireService.saveQuestionnaireAnswers — serialization', () => {
   // TC-UC7.2-005
-  test('multi_choice answers are persisted as a JSON array string', async () => {
+  test('TC-UC7.2-005 — multi_choice answers are persisted as a JSON array string', async () => {
     const r = row({
       id: 'q-mc',
       key: 'inv_channels',
@@ -241,7 +241,7 @@ describe('UC-7.2 / moduleQuestionnaireService.saveQuestionnaireAnswers — seria
   });
 
   // TC-UC7.2-006
-  test("boolean true/false values are serialized as 'yes' / 'no'", async () => {
+  test("TC-UC7.2-006 — boolean true/false values are serialized as 'yes' / 'no'", async () => {
     const r = row({
       id: 'q-bool',
       key: 'inv_has_cost_tracking',
@@ -272,7 +272,7 @@ describe('UC-7.2 / moduleQuestionnaireService.saveQuestionnaireAnswers — seria
 
 describe('UC-7.2 / moduleQuestionnaireService.getQuestionnaireState — completion', () => {
   // TC-UC7.2-007
-  test('is_complete is false when a required visible question has no answer', async () => {
+  test('TC-UC7.2-007 — is_complete is false when a required visible question has no answer', async () => {
     const r1 = row({ id: 'q-1', key: 'k1', required: true });
     const r2 = row({ id: 'q-2', key: 'k2', required: true });
     moduleRegistry.getQuestionTemplatePayload.mockReturnValue(templatePayload([r1, r2]));
@@ -292,7 +292,7 @@ describe('UC-7.2 / moduleQuestionnaireService.getQuestionnaireState — completi
   });
 
   // TC-UC7.2-008
-  test("whitespace-only answers count as unanswered", async () => {
+  test("TC-UC7.2-008 — whitespace-only answers count as unanswered", async () => {
     const r = row({ id: 'q-1', key: 'k1', required: true, type: 'text' });
     moduleRegistry.getQuestionTemplatePayload.mockReturnValue(templatePayload([r]));
     Question.findDefaultByProjectAndModules.mockResolvedValue([r]);

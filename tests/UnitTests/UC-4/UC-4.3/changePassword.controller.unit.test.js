@@ -36,7 +36,7 @@ function mockRes() {
 
 describe('UC-4.3 / authController.changePassword', () => {
   // TC-UC4.3-003
-  test('returns 400 when currentPassword is missing', async () => {
+  test('TC-UC4.3-003 — returns 400 when currentPassword is missing', async () => {
     const req = {
       body: { newPassword: 'Abcd1234' },
       user: { userId: 'u-1' },
@@ -52,7 +52,7 @@ describe('UC-4.3 / authController.changePassword', () => {
   });
 
   // TC-UC4.3-004
-  test('returns 400 when newPassword is shorter than 8 characters', async () => {
+  test('TC-UC4.3-004 — returns 400 when newPassword is shorter than 8 characters', async () => {
     const req = {
       body: { currentPassword: 'x', newPassword: 'short' },
       user: { userId: 'u-1' },

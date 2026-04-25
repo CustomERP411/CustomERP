@@ -52,7 +52,7 @@ beforeEach(() => {
 
 describe('UC-9.3 / featureRequestController.addMessage — authorization', () => {
   // TC-UC9.3-002
-  test('returns 400 when body is empty / whitespace', async () => {
+  test('TC-UC9.3-002 — returns 400 when body is empty / whitespace', async () => {
     const req = {
       user: { userId: 'u-1', is_admin: false },
       params: { id: 'fr-1' },
@@ -69,7 +69,7 @@ describe('UC-9.3 / featureRequestController.addMessage — authorization', () =>
   });
 
   // TC-UC9.3-003
-  test('admin callers can reply to any user\'s request (senderRole = admin)', async () => {
+  test('TC-UC9.3-003 — admin callers can reply to any user\'s request (senderRole = admin)', async () => {
     featureRequestService.getById.mockResolvedValueOnce({
       id: 'fr-1',
       user_id: 'u-other',
@@ -99,7 +99,7 @@ describe('UC-9.3 / featureRequestController.addMessage — authorization', () =>
   });
 
   // TC-UC9.3-004
-  test('non-admin callers get 403 when replying to someone else\'s request', async () => {
+  test('TC-UC9.3-004 — non-admin callers get 403 when replying to someone else\'s request', async () => {
     featureRequestService.getById.mockResolvedValueOnce({
       id: 'fr-1',
       user_id: 'u-owner',
@@ -120,7 +120,7 @@ describe('UC-9.3 / featureRequestController.addMessage — authorization', () =>
   });
 
   // TC-UC9.3-005
-  test('message body is trimmed before persistence', async () => {
+  test('TC-UC9.3-005 — message body is trimmed before persistence', async () => {
     featureRequestService.getById.mockResolvedValueOnce({
       id: 'fr-1',
       user_id: 'u-1',
@@ -152,7 +152,7 @@ describe('UC-9.3 / featureRequestService.addMessage — persistence', () => {
   });
 
   // TC-UC9.3-006
-  test('INSERTs into feature_request_messages and returns the new row', async () => {
+  test('TC-UC9.3-006 — INSERTs into feature_request_messages and returns the new row', async () => {
     const row = {
       id: 'm-100',
       feature_request_id: 'fr-1',

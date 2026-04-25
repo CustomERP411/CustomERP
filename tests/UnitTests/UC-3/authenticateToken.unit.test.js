@@ -35,7 +35,7 @@ function mockRes() {
 
 describe('UC-3 / middleware.authenticateToken (logout guard)', () => {
   // TC-UC3-005
-  test('returns 401 when the Authorization header is absent', async () => {
+  test('TC-UC3-005 — returns 401 when the Authorization header is absent', async () => {
     const req = { headers: {} };
     const res = mockRes();
     const next = jest.fn();

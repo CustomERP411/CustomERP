@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe('UC-11.1 / adminService.listUsers', () => {
   // TC-UC11.1-002
-  test('selects from users with ORDER BY created_at DESC and NO deleted_at filter', async () => {
+  test('TC-UC11.1-002 — selects from users with ORDER BY created_at DESC and NO deleted_at filter', async () => {
     db.query.mockResolvedValueOnce({ rows: [] });
 
     await adminService.listUsers();
@@ -38,7 +38,7 @@ describe('UC-11.1 / adminService.listUsers', () => {
   });
 
   // TC-UC11.1-003
-  test('converts deleted_at / blocked_at to booleans and renames user_id to id', async () => {
+  test('TC-UC11.1-003 — converts deleted_at / blocked_at to booleans and renames user_id to id', async () => {
     db.query.mockResolvedValueOnce({
       rows: [
         {

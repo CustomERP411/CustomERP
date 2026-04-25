@@ -24,7 +24,7 @@ function mockRes() {
 
 describe('UC-7.7 / erpGenerationService.safeFileName (observed via streamZipFromDir)', () => {
   // TC-UC7.7-008
-  test('path traversal characters collapse to hyphens in the Content-Disposition header', async () => {
+  test('TC-UC7.7-008 — path traversal characters collapse to hyphens in the Content-Disposition header', async () => {
     const res = mockRes();
     await erpGenerationService.streamZipFromDir(res, {
       outputDir: '/tmp/fake',
@@ -47,7 +47,7 @@ describe('UC-7.7 / erpGenerationService.safeFileName (observed via streamZipFrom
   });
 
   // TC-UC7.7-009
-  test('Turkish / Unicode filenames collapse to hyphens but always yield a non-empty safe name', async () => {
+  test('TC-UC7.7-009 — Turkish / Unicode filenames collapse to hyphens but always yield a non-empty safe name', async () => {
     const res = mockRes();
     await erpGenerationService.streamZipFromDir(res, {
       outputDir: '/tmp/fake',

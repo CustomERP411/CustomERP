@@ -27,35 +27,54 @@ const { normalizeLanguage, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } = require(
 );
 
 describe('UC-1 / normalizeLanguage', () => {
-  test('exposes the exact list of supported languages (en, tr)', () => {
+  test('TC-UC1-019a — exposes the exact list of supported languages (en, tr)', () => {
     expect(SUPPORTED_LANGUAGES).toEqual(['en', 'tr']);
     expect(DEFAULT_LANGUAGE).toBe('en');
+    tcLog('TC-UC1-019a', {
+      expected: "SUPPORTED=['en','tr'], DEFAULT='en'",
+      got: { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE },
+    });
   });
 
   // TC-UC1-019
-  test('missing, null, or empty input defaults to English', () => {
-    expect(normalizeLanguage(undefined)).toBe('en');
-    expect(normalizeLanguage(null)).toBe('en');
-    expect(normalizeLanguage('')).toBe('en');
-    expect(normalizeLanguage('   ')).toBe('en');
+  test('TC-UC1-019 — missing, null, or empty input defaults to English', () => {
+    const inputs = [undefined, null, '', '   '];
+    const got = inputs.map(normalizeLanguage);
+    got.forEach((r) => expect(r).toBe('en'));
+    tcLog('TC-UC1-019', {
+      input: ['undefined', 'null', '""', '"   "'],
+      expected: "'en' for each",
+      got,
+    });
   });
 
   // TC-UC1-020
-  test('locale tags and mixed case are normalized to the language prefix', () => {
-    expect(normalizeLanguage('tr-TR')).toBe('tr');
-    expect(normalizeLanguage('TR')).toBe('tr');
-    expect(normalizeLanguage(' tr ')).toBe('tr');
-    expect(normalizeLanguage('en-US')).toBe('en');
-    expect(normalizeLanguage('EN')).toBe('en');
+  test('TC-UC1-020 — locale tags and mixed case are normalized to the language prefix', () => {
+    const cases = [
+      ['tr-TR', 'tr'],
+      ['TR', 'tr'],
+      [' tr ', 'tr'],
+      ['en-US', 'en'],
+      ['EN', 'en'],
+    ];
+    const got = cases.map(([inp]) => normalizeLanguage(inp));
+    cases.forEach(([, exp], i) => expect(got[i]).toBe(exp));
+    tcLog('TC-UC1-020', {
+      input: cases.map((c) => c[0]),
+      expected: cases.map((c) => c[1]),
+      got,
+    });
   });
 
   // TC-UC1-021
-  test('unsupported languages fall back to English so the DB constraint is never violated', () => {
-    expect(normalizeLanguage('fr')).toBe('en');
-    expect(normalizeLanguage('de-DE')).toBe('en');
-    expect(normalizeLanguage('zh')).toBe('en');
-    // Non-string input is also handled gracefully.
-    expect(normalizeLanguage(42)).toBe('en');
-    expect(normalizeLanguage({})).toBe('en');
+  test('TC-UC1-021 — unsupported languages fall back to English so the DB constraint is never violated', () => {
+    const inputs = ['fr', 'de-DE', 'zh', 42, {}];
+    const got = inputs.map(normalizeLanguage);
+    got.forEach((r) => expect(r).toBe('en'));
+    tcLog('TC-UC1-021', {
+      input: ['"fr"', '"de-DE"', '"zh"', '42', '{}'],
+      expected: "'en' for each",
+      got,
+    });
   });
 });

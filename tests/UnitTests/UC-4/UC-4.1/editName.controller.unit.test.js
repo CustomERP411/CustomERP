@@ -40,7 +40,7 @@ function mockRes() {
 
 describe('UC-4.1 / authController.updateProfile — name path', () => {
   // TC-UC4.1-003
-  test('returns 400 when the new name is shorter than 2 characters', async () => {
+  test('TC-UC4.1-003 — returns 400 when the new name is shorter than 2 characters', async () => {
     const req = { body: { name: 'A' }, user: { userId: 'u-1' } };
     const res = mockRes();
     const next = jest.fn();
@@ -54,7 +54,7 @@ describe('UC-4.1 / authController.updateProfile — name path', () => {
   });
 
   // TC-UC4.1-004
-  test('sanitizes (HTML-escapes) and trims the name before calling the service', async () => {
+  test('TC-UC4.1-004 — sanitizes (HTML-escapes) and trims the name before calling the service', async () => {
     authService.updateProfile.mockResolvedValueOnce({
       id: 'u-1', name: 'Ayşe', email: 'x@y.com', preferred_language: 'tr',
     });

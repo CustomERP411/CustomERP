@@ -24,7 +24,7 @@ const Project = require('../../../platform/backend/src/models/Project');
 
 describe('UC-6 / Project.delete', () => {
   // TC-UC6-008
-  test('issues a soft-delete UPDATE scoped by owner and not-yet-deleted', async () => {
+  test('TC-UC6-008 — issues a soft-delete UPDATE scoped by owner and not-yet-deleted', async () => {
     db.query.mockResolvedValueOnce({
       rowCount: 1,
       rows: [{ project_id: 'p-1' }],
@@ -49,7 +49,7 @@ describe('UC-6 / Project.delete', () => {
   });
 
   // TC-UC6-009
-  test('returns false when no row was updated (missing or already deleted)', async () => {
+  test('TC-UC6-009 — returns false when no row was updated (missing or already deleted)', async () => {
     db.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
     const ok = await Project.delete('p-missing', 'u-1');

@@ -86,7 +86,7 @@ beforeEach(() => {
 
 describe('UC-7.6 / projectAiController.regenerateProject', () => {
   // TC-UC7.6-003
-  test('returns 400 when change_instructions are missing or shorter than 3 chars', async () => {
+  test('TC-UC7.6-003 — returns 400 when change_instructions are missing or shorter than 3 chars', async () => {
     const req = {
       user: { userId: 'u-1' },
       params: { id: 'p-1' },
@@ -104,7 +104,7 @@ describe('UC-7.6 / projectAiController.regenerateProject', () => {
   });
 
   // TC-UC7.6-004
-  test('returns 400 when no existing SDF is found for the project', async () => {
+  test('TC-UC7.6-004 — returns 400 when no existing SDF is found for the project', async () => {
     SDF.findLatestByProject.mockResolvedValueOnce({ sdf_json: null });
 
     const req = {

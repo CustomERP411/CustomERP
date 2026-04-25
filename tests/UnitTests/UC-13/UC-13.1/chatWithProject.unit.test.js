@@ -72,7 +72,7 @@ beforeEach(() => {
 
 describe('UC-13.1 / chatWithProject — validation', () => {
   // TC-UC13.1-002
-  test('empty message returns 400 without calling the AI', async () => {
+  test('TC-UC13.1-002 — empty message returns 400 without calling the AI', async () => {
     const { req, res } = mkReqRes({ message: '' });
 
     await controller.chatWithProject(req, res);
@@ -82,7 +82,7 @@ describe('UC-13.1 / chatWithProject — validation', () => {
   });
 
   // TC-UC13.1-003
-  test('whitespace-only message returns 400', async () => {
+  test('TC-UC13.1-003 — whitespace-only message returns 400', async () => {
     const { req, res } = mkReqRes({ message: '   ' });
 
     await controller.chatWithProject(req, res);
@@ -92,7 +92,7 @@ describe('UC-13.1 / chatWithProject — validation', () => {
   });
 
   // TC-UC13.1-004
-  test('missing `message` key returns 400', async () => {
+  test('TC-UC13.1-004 — missing `message` key returns 400', async () => {
     const req = { user: { userId: 'u-1' }, params: { id: 'p-1' }, body: {} };
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
 
@@ -105,7 +105,7 @@ describe('UC-13.1 / chatWithProject — validation', () => {
 
 describe('UC-13.1 / chatWithProject — happy path', () => {
   // TC-UC13.1-005
-  test("forwards project.language ('tr') to the AI gateway", async () => {
+  test("TC-UC13.1-005 — forwards project.language ('tr') to the AI gateway", async () => {
     const { req, res } = mkReqRes({ message: 'Merhaba', language: 'tr' });
     aiGatewayClient.chat.mockResolvedValue({ reply: 'Selam', confidence: 0.9 });
 
@@ -119,7 +119,7 @@ describe('UC-13.1 / chatWithProject — happy path', () => {
   });
 
   // TC-UC13.1-006
-  test('returns the AI response body verbatim as JSON', async () => {
+  test('TC-UC13.1-006 — returns the AI response body verbatim as JSON', async () => {
     const { req, res } = mkReqRes({ message: 'hi' });
     const aiBody = { reply: 'ok', confidence: 0.9, unsupported_features: [] };
     aiGatewayClient.chat.mockResolvedValue(aiBody);
@@ -132,7 +132,7 @@ describe('UC-13.1 / chatWithProject — happy path', () => {
 
 describe('UC-13.1 / chatWithProject — errors', () => {
   // TC-UC13.1-007
-  test("projectService throwing 'Project not found' yields 404", async () => {
+  test("TC-UC13.1-007 — projectService throwing 'Project not found' yields 404", async () => {
     const req = { user: { userId: 'u-1' }, params: { id: 'p-1' }, body: { message: 'hi' } };
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
     projectService.getProject.mockRejectedValue(new Error('Project not found'));
@@ -146,7 +146,7 @@ describe('UC-13.1 / chatWithProject — errors', () => {
 
 describe('UC-13.1 / chatWithProject — UC-14 include', () => {
   // TC-UC13.1-008
-  test("unsupported_features trigger recordFeatures with source='chatbot'", async () => {
+  test("TC-UC13.1-008 — unsupported_features trigger recordFeatures with source='chatbot'", async () => {
     const { req, res } = mkReqRes({ message: '   Barcode scanner   ' });
     aiGatewayClient.chat.mockResolvedValue({
       reply: 'noted',
@@ -167,7 +167,7 @@ describe('UC-13.1 / chatWithProject — UC-14 include', () => {
   });
 
   // TC-UC13.1-009
-  test('recordFeatures rejection does NOT break the 200 response', async () => {
+  test('TC-UC13.1-009 — recordFeatures rejection does NOT break the 200 response', async () => {
     const { req, res } = mkReqRes({ message: 'hi' });
     aiGatewayClient.chat.mockResolvedValue({
       reply: 'ok',

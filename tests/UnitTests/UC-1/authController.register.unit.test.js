@@ -68,7 +68,7 @@ function mockRes() {
 
 describe('UC-1 / authController.register', () => {
   // TC-UC1-026
-  test('returns 400 when preferred_language is unsupported (e.g. "fr")', async () => {
+  test('TC-UC1-026 — returns 400 when preferred_language is unsupported (e.g. "fr")', async () => {
     const req = {
       body: {
         name: 'Valid Name',
@@ -92,9 +92,15 @@ describe('UC-1 / authController.register', () => {
 
     expect(authService.register).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
+
+    tcLog('TC-UC1-026', {
+      input: { preferred_language: 'fr' },
+      expected: 'HTTP 400 + error mentions preferred_language/en/tr, service NOT called',
+      got: { status: 400, body, serviceCalls: authService.register.mock.calls.length },
+    });
   });
 
-  test('returns 400 on invalid email without invoking the service', async () => {
+  test('TC-UC1-026b — returns 400 on invalid email without invoking the service', async () => {
     const req = {
       body: {
         name: 'Valid Name',
@@ -113,9 +119,15 @@ describe('UC-1 / authController.register', () => {
       error: 'Valid email is required',
     });
     expect(authService.register).not.toHaveBeenCalled();
+
+    tcLog('TC-UC1-026b', {
+      input: { email: 'not-an-email' },
+      expected: "HTTP 400 + {error:'Valid email is required'}, service NOT called",
+      got: { status: 400, body: res.json.mock.calls[0][0] },
+    });
   });
 
-  test('on happy path, forwards normalized inputs to authService and returns 201', async () => {
+  test('TC-UC1-026c — on happy path, forwards normalized inputs to authService and returns 201', async () => {
     authService.register.mockResolvedValue({
       token: 'signed.jwt.token',
       user: {
@@ -152,5 +164,11 @@ describe('UC-1 / authController.register', () => {
     // Sanitize/trim should have happened on the name.
     expect(forwarded.name).toBe('Ayşe');
     expect(next).not.toHaveBeenCalled();
+
+    tcLog('TC-UC1-026c', {
+      input: { name: '  Ayşe  ', email: 'Ayse@Test.COM', preferred_language: 'tr-TR' },
+      expected: "HTTP 201, service called with {name:'Ayşe', email:'ayse@test.com', preferred_language:'tr'}",
+      got: { status: 201, forwarded },
+    });
   });
 });

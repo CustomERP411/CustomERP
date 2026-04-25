@@ -15,7 +15,7 @@ const { parseModulesInput } = require(
 
 describe('UC-7.1 / parseModulesInput', () => {
   // TC-UC7.1-002
-  test('array input filters out unsupported module names', () => {
+  test('TC-UC7.1-002 — array input filters out unsupported module names', () => {
     expect(parseModulesInput(['inventory', 'payroll', 'hr', 'marketing'])).toEqual([
       'inventory',
       'hr',
@@ -23,7 +23,7 @@ describe('UC-7.1 / parseModulesInput', () => {
   });
 
   // TC-UC7.1-003
-  test('comma-separated string input is split, trimmed, and lower-cased', () => {
+  test('TC-UC7.1-003 — comma-separated string input is split, trimmed, and lower-cased', () => {
     expect(parseModulesInput(' Inventory , INVOICE,,HR ')).toEqual([
       'inventory',
       'invoice',
@@ -32,14 +32,14 @@ describe('UC-7.1 / parseModulesInput', () => {
   });
 
   // TC-UC7.1-004
-  test('duplicates are collapsed while first-seen order is preserved', () => {
+  test('TC-UC7.1-004 — duplicates are collapsed while first-seen order is preserved', () => {
     expect(
       parseModulesInput(['hr', 'inventory', 'hr', 'invoice', 'inventory']),
     ).toEqual(['hr', 'inventory', 'invoice']);
   });
 
   // TC-UC7.1-005
-  test('null, undefined, numbers, and plain objects all yield an empty array', () => {
+  test('TC-UC7.1-005 — null, undefined, numbers, and plain objects all yield an empty array', () => {
     expect(parseModulesInput(null)).toEqual([]);
     expect(parseModulesInput(undefined)).toEqual([]);
     expect(parseModulesInput(42)).toEqual([]);

@@ -23,7 +23,7 @@ beforeEach(() => {
 
 describe('UC-8 / featureRequestService.listByUser', () => {
   // TC-UC8-003
-  test('scopes by user_id and orders created_at DESC', async () => {
+  test('TC-UC8-003 — scopes by user_id and orders created_at DESC', async () => {
     db.query.mockResolvedValueOnce({
       rows: [{ id: 'f1' }, { id: 'f2' }],
     });
@@ -41,7 +41,7 @@ describe('UC-8 / featureRequestService.listByUser', () => {
 
 describe('UC-8.1 / featureRequestService.getById', () => {
   // TC-UC8.1-005
-  test('rejects with a 404-carrying Error when the row cannot be found', async () => {
+  test('TC-UC8.1-005 — rejects with a 404-carrying Error when the row cannot be found', async () => {
     db.query.mockResolvedValueOnce({ rows: [] });
 
     await expect(svc.getById('missing')).rejects.toMatchObject({
@@ -60,7 +60,7 @@ describe('UC-8.1 / featureRequestService.getById', () => {
 
 describe('UC-8.1 / featureRequestService.getMessages', () => {
   // TC-UC8.1-006
-  test('queries messages with ORDER BY created_at ASC', async () => {
+  test('TC-UC8.1-006 — queries messages with ORDER BY created_at ASC', async () => {
     db.query.mockResolvedValueOnce({
       rows: [
         { id: 'm1', body: 'first', created_at: '2026-01-01' },

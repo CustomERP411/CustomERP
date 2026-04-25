@@ -37,7 +37,7 @@ function mockRes() {
 
 describe('UC-4.2 / authController.updateProfile — email path', () => {
   // TC-UC4.2-002
-  test('returns 400 for a malformed email without invoking the service', async () => {
+  test('TC-UC4.2-002 — returns 400 for a malformed email without invoking the service', async () => {
     const req = { body: { email: 'no-at-sign' }, user: { userId: 'u-1' } };
     const res = mockRes();
     const next = jest.fn();
@@ -50,7 +50,7 @@ describe('UC-4.2 / authController.updateProfile — email path', () => {
   });
 
   // TC-UC4.2-003
-  test('lowercases the email before calling the service', async () => {
+  test('TC-UC4.2-003 — lowercases the email before calling the service', async () => {
     authService.updateProfile.mockResolvedValueOnce({
       id: 'u-1', name: 'U', email: 'ayse@test.com', preferred_language: 'en',
     });

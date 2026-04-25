@@ -73,7 +73,7 @@ describe('UC-1 / authService.register', () => {
   });
 
   // TC-UC1-022
-  test('hashes the password, inserts the hash, and returns a token (happy path, EN)', async () => {
+  test('TC-UC1-022 — hashes the password, inserts the hash, and returns a token (happy path, EN)', async () => {
     // First call = findByEmail (no existing user). Second call = INSERT RETURNING.
     query
       .mockResolvedValueOnce({ rows: [] })
@@ -125,10 +125,20 @@ describe('UC-1 / authService.register', () => {
       email: 'alice@test.com',
       preferredLanguage: 'en',
     });
+
+    tcLog('TC-UC1-022', {
+      input: { name: 'Alice', email: 'alice@test.com', password: 'Passw0rd!', preferred_language: 'en' },
+      expected: 'password hashed, INSERT stores hash (not plaintext), token returned',
+      got: {
+        hashedParam: insertParams[3],
+        tokenPayload: generateToken.mock.calls[0][0],
+        resultUser: result.user,
+      },
+    });
   });
 
   // TC-UC1-023 — localization-specific
-  test('normalizes preferred_language "tr-TR" to "tr" before inserting', async () => {
+  test('TC-UC1-023 — normalizes preferred_language "tr-TR" to "tr" before inserting', async () => {
     query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
@@ -153,10 +163,20 @@ describe('UC-1 / authService.register', () => {
 
     expect(result.user.preferred_language).toBe('tr');
     expect(generateToken.mock.calls[0][0].preferredLanguage).toBe('tr');
+
+    tcLog('TC-UC1-023', {
+      input: { preferred_language: 'tr-TR' },
+      expected: "INSERT param[4]='tr', user.preferred_language='tr', token.preferredLanguage='tr'",
+      got: {
+        insertLangParam: insertParams[4],
+        userLang: result.user.preferred_language,
+        tokenLang: generateToken.mock.calls[0][0].preferredLanguage,
+      },
+    });
   });
 
   // TC-UC1-024 — localization-specific
-  test('stores a Turkish name with ğ, ş, ç, ö, İ characters unchanged', async () => {
+  test('TC-UC1-024 — stores a Turkish name with ğ, ş, ç, ö, İ characters unchanged', async () => {
     const turkishName = 'Gülşen İçöz';
     query
       .mockResolvedValueOnce({ rows: [] })
@@ -182,10 +202,16 @@ describe('UC-1 / authService.register', () => {
     expect(result.user.name).toBe(turkishName);
     // Codepoint-level sanity check: ensure no UTF-8 corruption occurred.
     expect(insertParams[1]).toMatch(/[ğşçöİı]/);
+
+    tcLog('TC-UC1-024', {
+      input: { name: turkishName },
+      expected: 'Turkish chars preserved in INSERT param and in result.user.name',
+      got: { insertNameParam: insertParams[1], resultName: result.user.name },
+    });
   });
 
   // TC-UC1-025
-  test('rejects with 400 when the email already belongs to an existing account', async () => {
+  test('TC-UC1-025 — rejects with 400 when the email already belongs to an existing account', async () => {
     query.mockResolvedValueOnce({
       rows: [
         dbRowForNewUser({
@@ -212,5 +238,15 @@ describe('UC-1 / authService.register', () => {
     expect(query).toHaveBeenCalledTimes(1);
     expect(bcrypt.hash).not.toHaveBeenCalled();
     expect(generateToken).not.toHaveBeenCalled();
+
+    tcLog('TC-UC1-025', {
+      input: { email: 'taken@test.com (already exists)' },
+      expected: 'throws {statusCode:400, message:"...already exists..."}, no INSERT, no hash, no token',
+      got: {
+        queryCalls: query.mock.calls.length,
+        bcryptCalls: bcrypt.hash.mock.calls.length,
+        tokenCalls: generateToken.mock.calls.length,
+      },
+    });
   });
 });

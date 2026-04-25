@@ -29,7 +29,7 @@ beforeEach(() => {
 
 describe('UC-13.2 / recordWarnings — filtering', () => {
   // TC-UC13.2-007
-  test('non-unsupported warnings are ignored entirely', async () => {
+  test('TC-UC13.2-007 — non-unsupported warnings are ignored entirely', async () => {
     const out = await frs.recordWarnings({
       userId: 'u-1',
       projectId: 'p-1',
@@ -42,7 +42,7 @@ describe('UC-13.2 / recordWarnings — filtering', () => {
   });
 
   // TC-UC13.2-008
-  test("Turkish 'desteklenmiyor' warnings match and are recorded", async () => {
+  test("TC-UC13.2-008 — Turkish 'desteklenmiyor' warnings match and are recorded", async () => {
     db.query.mockResolvedValue({ rows: [{ id: 1 }] });
 
     await frs.recordWarnings({
@@ -63,7 +63,7 @@ describe('UC-13.2 / recordWarnings — filtering', () => {
 
 describe('UC-13.2 / recordWarnings — name shaping', () => {
   // TC-UC13.2-009
-  test("Module-tagged warnings shape feature_name as 'Module: <name>'", async () => {
+  test("TC-UC13.2-009 — Module-tagged warnings shape feature_name as 'Module: <name>'", async () => {
     db.query.mockResolvedValue({ rows: [{ id: 1 }] });
 
     await frs.recordWarnings({
@@ -79,7 +79,7 @@ describe('UC-13.2 / recordWarnings — name shaping', () => {
   });
 
   // TC-UC13.2-010
-  test("Feature+entity warnings shape feature_name as 'Feature: <x> (<y>)'", async () => {
+  test("TC-UC13.2-010 — Feature+entity warnings shape feature_name as 'Feature: <x> (<y>)'", async () => {
     db.query.mockResolvedValue({ rows: [{ id: 1 }] });
 
     await frs.recordWarnings({
@@ -94,7 +94,7 @@ describe('UC-13.2 / recordWarnings — name shaping', () => {
   });
 
   // TC-UC13.2-011
-  test('unstructured warnings > 100 chars are truncated to 100 + "..."', async () => {
+  test('TC-UC13.2-011 — unstructured warnings > 100 chars are truncated to 100 + "..."', async () => {
     db.query.mockResolvedValue({ rows: [{ id: 1 }] });
 
     // 300 chars of filler + a suffix that matches /not supported/i so

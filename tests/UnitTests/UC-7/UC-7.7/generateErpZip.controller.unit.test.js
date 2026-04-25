@@ -79,7 +79,7 @@ beforeEach(() => {
 
 describe('UC-7.7 / projectGenerateController.generateStandaloneErpZip', () => {
   // TC-UC7.7-003
-  test('returns 400 when the platform query parameter is missing', async () => {
+  test('TC-UC7.7-003 — returns 400 when the platform query parameter is missing', async () => {
     const req = mockReq();
     const res = mockRes();
 
@@ -97,7 +97,7 @@ describe('UC-7.7 / projectGenerateController.generateStandaloneErpZip', () => {
 
 describe('UC-7.7 / projectGenerateController.generateErpZip', () => {
   // TC-UC7.7-004
-  test('returns 400 when the project has no SDF yet', async () => {
+  test('TC-UC7.7-004 — returns 400 when the project has no SDF yet', async () => {
     SDF.findLatestByProject.mockResolvedValueOnce(null);
 
     const req = mockReq();
@@ -113,7 +113,7 @@ describe('UC-7.7 / projectGenerateController.generateErpZip', () => {
   });
 
   // TC-UC7.7-005
-  test('returns 400 when the latest SDF fails the generator validator', async () => {
+  test('TC-UC7.7-005 — returns 400 when the latest SDF fails the generator validator', async () => {
     SDF.findLatestByProject.mockResolvedValueOnce({
       sdf_json: { entities: [{ slug: 's', fields: [] }] },
     });
@@ -131,7 +131,7 @@ describe('UC-7.7 / projectGenerateController.generateErpZip', () => {
   });
 
   // TC-UC7.7-006
-  test("updates project status to 'Generated' BEFORE streaming the zip", async () => {
+  test("TC-UC7.7-006 — updates project status to 'Generated' BEFORE streaming the zip", async () => {
     SDF.findLatestByProject.mockResolvedValueOnce({ sdf_json: VALID_SDF });
     erpGenerationService.generateProjectDir.mockResolvedValue({
       outputDir: '/tmp/out',
@@ -163,7 +163,7 @@ describe('UC-7.7 / projectGenerateController.generateErpZip', () => {
   });
 
   // TC-UC7.7-007
-  test('cleans up the generated temp directory in `finally`', async () => {
+  test('TC-UC7.7-007 — cleans up the generated temp directory in `finally`', async () => {
     SDF.findLatestByProject.mockResolvedValueOnce({ sdf_json: VALID_SDF });
     erpGenerationService.generateProjectDir.mockResolvedValue({
       outputDir: '/tmp/out-42',

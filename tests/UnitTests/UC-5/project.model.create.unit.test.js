@@ -21,7 +21,7 @@ const Project = require('../../../platform/backend/src/models/Project');
 
 describe('UC-5 / Project.create', () => {
   // TC-UC5-013
-  test("INSERTs with status 'Draft' and a normalized language, then returns the transformed row", async () => {
+  test("TC-UC5-013 — INSERTs with status 'Draft' and a normalized language, then returns the transformed row", async () => {
     db.query.mockResolvedValueOnce({
       rows: [
         {

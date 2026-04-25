@@ -33,7 +33,7 @@ describe('UC-4.4 / authService.deleteAccount', () => {
   });
 
   // TC-UC4.4-003
-  test('soft-deletes by updating deleted_at (no DELETE issued)', async () => {
+  test('TC-UC4.4-003 — soft-deletes by updating deleted_at (no DELETE issued)', async () => {
     query.mockResolvedValueOnce({
       rowCount: 1,
       rows: [{ user_id: 'u-1' }],
@@ -57,7 +57,7 @@ describe('UC-4.4 / authService.deleteAccount', () => {
   });
 
   // TC-UC4.4-004
-  test('rejects with 404 when no row was updated (already deleted or missing)', async () => {
+  test('TC-UC4.4-004 — rejects with 404 when no row was updated (already deleted or missing)', async () => {
     query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
     await expect(authService.deleteAccount('u-missing')).rejects.toMatchObject({
@@ -100,7 +100,7 @@ describe('UC-4.4 / authController.deleteAccount', () => {
   }
 
   // TC-UC4.4-005
-  test('returns HTTP 204 on a successful delete', async () => {
+  test('TC-UC4.4-005 — returns HTTP 204 on a successful delete', async () => {
     authService.deleteAccount.mockResolvedValueOnce(true);
 
     const req = { user: { userId: 'u-1' } };
@@ -119,7 +119,7 @@ describe('UC-4.4 / authController.deleteAccount', () => {
   });
 
   // TC-UC4.4-006
-  test('forwards a 404 service error as a 404 JSON response', async () => {
+  test('TC-UC4.4-006 — forwards a 404 service error as a 404 JSON response', async () => {
     const err = new Error('Account not found');
     err.statusCode = 404;
     authService.deleteAccount.mockRejectedValueOnce(err);

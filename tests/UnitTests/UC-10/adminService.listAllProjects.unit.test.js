@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe('UC-10 / adminService.listAllProjects', () => {
   // TC-UC10-003
-  test('JOINs users and reshapes each row into { id, ..., owner: {...} }', async () => {
+  test('TC-UC10-003 — JOINs users and reshapes each row into { id, ..., owner: {...} }', async () => {
     db.query.mockResolvedValueOnce({
       rows: [
         {
@@ -61,7 +61,7 @@ describe('UC-10 / adminService.listAllProjects', () => {
   });
 
   // TC-UC10-004
-  test('orders rows by p.created_at DESC and sends no parameters', async () => {
+  test('TC-UC10-004 — orders rows by p.created_at DESC and sends no parameters', async () => {
     db.query.mockResolvedValueOnce({ rows: [] });
 
     await adminService.listAllProjects();
@@ -76,7 +76,7 @@ describe('UC-10 / adminService.listAllProjects', () => {
   });
 
   // TC-UC10-005
-  test('rows with a missing owner surface as owner with null fields (no crash)', async () => {
+  test('TC-UC10-005 — rows with a missing owner surface as owner with null fields (no crash)', async () => {
     db.query.mockResolvedValueOnce({
       rows: [
         {

@@ -48,7 +48,7 @@ describe('UC-1 (LANG) / authController.register — language validation', () => 
   });
 
   // TC-UC1-LANG-001
-  test("rejects preferred_language='fr' with 400 and does NOT call the service", async () => {
+  test("TC-UC1-LANG-001 — rejects preferred_language='fr' with 400 and does NOT call the service", async () => {
     const req = {
       body: {
         name: 'Ayse',
@@ -66,6 +66,12 @@ describe('UC-1 (LANG) / authController.register — language validation', () => 
     const body = res.json.mock.calls[0][0];
     expect(body.error).toMatch(/preferred_language must be one of/i);
     expect(authServiceMock.register).not.toHaveBeenCalled();
+
+    tcLog('TC-UC1-LANG-001', {
+      input: { preferred_language: 'fr' },
+      expected: "HTTP 400 + error matches /preferred_language must be one of/i, service NOT called",
+      got: { status: 400, body, serviceCalls: authServiceMock.register.mock.calls.length },
+    });
   });
 });
 
@@ -108,7 +114,7 @@ describe('UC-1 (LANG) / authService.register — language persistence', () => {
   });
 
   // TC-UC1-LANG-002
-  test("persists the normalized language ('TR-tr' → 'tr') in INSERT params", async () => {
+  test("TC-UC1-LANG-002 — persists the normalized language ('TR-tr' → 'tr') in INSERT params", async () => {
     query
       // findByEmail → nobody exists
       .mockResolvedValueOnce({ rows: [] })
@@ -137,5 +143,11 @@ describe('UC-1 (LANG) / authService.register — language persistence', () => {
     expect(sql).toMatch(/INSERT\s+INTO\s+users/i);
     expect(sql).toMatch(/preferred_language/);
     expect(params[4]).toBe('tr');
+
+    tcLog('TC-UC1-LANG-002', {
+      input: { preferred_language: 'TR-tr' },
+      expected: "INSERT SQL matches /INSERT INTO users/ and param[4]='tr'",
+      got: { sqlPreview: sql.replace(/\s+/g, ' ').slice(0, 60) + '...', langParam: params[4] },
+    });
   });
 });

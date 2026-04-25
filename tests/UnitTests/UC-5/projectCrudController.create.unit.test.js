@@ -56,7 +56,7 @@ function mockRes() {
 
 describe('UC-5 / projectCrudController.createProject', () => {
   // TC-UC5-004
-  test('returns 201 and the created project on success', async () => {
+  test('TC-UC5-004 — returns 201 and the created project on success', async () => {
     const created = {
       id: 'p-1',
       name: 'My ERP',
@@ -80,7 +80,7 @@ describe('UC-5 / projectCrudController.createProject', () => {
   });
 
   // TC-UC5-005
-  test("returns 400 when the service throws 'Project name is required'", async () => {
+  test("TC-UC5-005 — returns 400 when the service throws 'Project name is required'", async () => {
     projectService.createProject.mockRejectedValueOnce(new Error('Project name is required'));
 
     const req = { user: { userId: 'u-1' }, body: {} };
@@ -93,7 +93,7 @@ describe('UC-5 / projectCrudController.createProject', () => {
   });
 
   // TC-UC5-006
-  test('returns 401 when Postgres rejects the FK for the session user', async () => {
+  test('TC-UC5-006 — returns 401 when Postgres rejects the FK for the session user', async () => {
     const fkErr = Object.assign(new Error('insert or update on table "projects"...'), {
       code: '23503',
       constraint: 'projects_owner_user_id_fkey',

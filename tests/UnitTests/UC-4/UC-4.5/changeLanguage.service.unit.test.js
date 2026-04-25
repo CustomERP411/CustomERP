@@ -34,7 +34,7 @@ beforeEach(() => {
 
 describe('UC-4.5 / authService.updateProfile — preferred_language', () => {
   // TC-UC4-LANG-006
-  test('issues UPDATE users SET preferred_language = $N when provided', async () => {
+  test('TC-UC4-LANG-006 — issues UPDATE users SET preferred_language = $N when provided', async () => {
     query.mockResolvedValueOnce({
       rows: [{
         user_id: 'u-1',
@@ -59,7 +59,7 @@ describe('UC-4.5 / authService.updateProfile — preferred_language', () => {
   });
 
   // TC-UC4-LANG-007
-  test("normalizes locale-tagged input ('TR-tr') to 'tr' before persisting", async () => {
+  test("TC-UC4-LANG-007 — normalizes locale-tagged input ('TR-tr') to 'tr' before persisting", async () => {
     query.mockResolvedValueOnce({
       rows: [{
         user_id: 'u-1',
@@ -78,7 +78,7 @@ describe('UC-4.5 / authService.updateProfile — preferred_language', () => {
   });
 
   // TC-UC4-LANG-008
-  test("re-normalizes the stored value on the way back out ('TR' → 'tr')", async () => {
+  test("TC-UC4-LANG-008 — re-normalizes the stored value on the way back out ('TR' → 'tr')", async () => {
     query.mockResolvedValueOnce({
       rows: [{
         user_id: 'u-1',

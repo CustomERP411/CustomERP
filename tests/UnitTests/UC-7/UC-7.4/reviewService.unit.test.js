@@ -14,7 +14,7 @@ const { buildReviewSummary } = require(
 
 describe('UC-7.4 / reviewService.buildReviewSummary', () => {
   // TC-UC7.4-003
-  test('handles null / non-object SDFs with zeroed counts and a single warning', () => {
+  test('TC-UC7.4-003 — handles null / non-object SDFs with zeroed counts and a single warning', () => {
     const expected = {
       entityCount: 0,
       fieldCount: 0,
@@ -29,7 +29,7 @@ describe('UC-7.4 / reviewService.buildReviewSummary', () => {
   });
 
   // TC-UC7.4-004
-  test('counts entities, fields, and relation fields accurately', () => {
+  test('TC-UC7.4-004 — counts entities, fields, and relation fields accurately', () => {
     const sdf = {
       project_name: 'Demo',
       entities: [
@@ -73,7 +73,7 @@ describe('UC-7.4 / reviewService.buildReviewSummary', () => {
   });
 
   // TC-UC7.4-005
-  test('warns when a relation field points at an entity slug that is not defined', () => {
+  test('TC-UC7.4-005 — warns when a relation field points at an entity slug that is not defined', () => {
     const sdf = {
       entities: [
         {
@@ -93,14 +93,14 @@ describe('UC-7.4 / reviewService.buildReviewSummary', () => {
   });
 
   // TC-UC7.4-006
-  test('warns about any entity with an empty `fields` array', () => {
+  test('TC-UC7.4-006 — warns about any entity with an empty `fields` array', () => {
     const sdf = { entities: [{ slug: 'alpha', fields: [] }] };
     const summary = buildReviewSummary(sdf);
     expect(summary.warnings).toContain('Entity "alpha" has no fields.');
   });
 
   // TC-UC7.4-007
-  test('appends a warning for pending clarification questions', () => {
+  test('TC-UC7.4-007 — appends a warning for pending clarification questions', () => {
     const sdf = {
       entities: [{ slug: 'a', fields: [{ name: 'x', type: 'string' }] }],
       clarifications_needed: [{ id: 'q1' }, { id: 'q2' }],

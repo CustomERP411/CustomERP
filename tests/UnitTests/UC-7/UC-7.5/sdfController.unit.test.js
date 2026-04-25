@@ -60,7 +60,7 @@ beforeEach(() => {
 
 describe('UC-7.5 / projectSdfController.saveSdf', () => {
   // TC-UC7.5-003
-  test('returns 400 when project_name is missing', async () => {
+  test('TC-UC7.5-003 — returns 400 when project_name is missing', async () => {
     const req = {
       user: { userId: 'u-1' },
       params: { id: 'p-1' },
@@ -76,7 +76,7 @@ describe('UC-7.5 / projectSdfController.saveSdf', () => {
   });
 
   // TC-UC7.5-004
-  test('returns 400 when entities is empty or not an array', async () => {
+  test('TC-UC7.5-004 — returns 400 when entities is empty or not an array', async () => {
     // Empty array.
     let req = {
       user: { userId: 'u-1' },
@@ -101,7 +101,7 @@ describe('UC-7.5 / projectSdfController.saveSdf', () => {
   });
 
   // TC-UC7.5-005
-  test("persists the SDF and transitions status to 'Ready' when there are no clarifications", async () => {
+  test("TC-UC7.5-005 — persists the SDF and transitions status to 'Ready' when there are no clarifications", async () => {
     SDF.create.mockResolvedValueOnce({ version: 2 });
 
     const req = {
@@ -126,7 +126,7 @@ describe('UC-7.5 / projectSdfController.saveSdf', () => {
   });
 
   // TC-UC7.5-006
-  test("transitions status to 'Clarifying' when the SDF still has clarifications_needed", async () => {
+  test("TC-UC7.5-006 — transitions status to 'Clarifying' when the SDF still has clarifications_needed", async () => {
     SDF.create.mockResolvedValueOnce({ version: 3 });
 
     const req = {
@@ -151,7 +151,7 @@ describe('UC-7.5 / projectSdfController.saveSdf', () => {
 
 describe('UC-7.5 / projectSdfController.aiEditSdf', () => {
   // TC-UC7.5-007
-  test('returns 400 when instructions are empty / whitespace', async () => {
+  test('TC-UC7.5-007 — returns 400 when instructions are empty / whitespace', async () => {
     const req = {
       user: { userId: 'u-1' },
       params: { id: 'p-1' },
@@ -167,7 +167,7 @@ describe('UC-7.5 / projectSdfController.aiEditSdf', () => {
   });
 
   // TC-UC7.5-008
-  test('returns 400 when no current SDF can be resolved (DB empty + body omits current_sdf)', async () => {
+  test('TC-UC7.5-008 — returns 400 when no current SDF can be resolved (DB empty + body omits current_sdf)', async () => {
     SDF.findLatestByProject.mockResolvedValueOnce(null);
 
     const req = {

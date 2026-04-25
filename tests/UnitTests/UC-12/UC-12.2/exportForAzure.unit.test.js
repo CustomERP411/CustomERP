@@ -50,7 +50,7 @@ beforeEach(() => {
 
 describe('UC-12.2 / trainingService.exportForAzure — quality filter', () => {
   // TC-UC12.2-002
-  test("default qualityFilter ('good') passes [['good']] into ANY($1)", async () => {
+  test("TC-UC12.2-002 — default qualityFilter ('good') passes [['good']] into ANY($1)", async () => {
     queueFetchResponses([{ sessions: [] }]);
     db.query
       .mockResolvedValueOnce({ rows: [] }) // reviews
@@ -69,7 +69,7 @@ describe('UC-12.2 / trainingService.exportForAzure — quality filter', () => {
   });
 
   // TC-UC12.2-003
-  test("qualityFilter='all' widens ANY($1) to ['good','needs_edit']", async () => {
+  test("TC-UC12.2-003 — qualityFilter='all' widens ANY($1) to ['good','needs_edit']", async () => {
     queueFetchResponses([{ sessions: [] }]);
     db.query
       .mockResolvedValueOnce({ rows: [] })
@@ -87,7 +87,7 @@ describe('UC-12.2 / trainingService.exportForAzure — quality filter', () => {
 
 describe('UC-12.2 / trainingService.exportForAzure — post-export bookkeeping', () => {
   // TC-UC12.2-004
-  test('marks exported sessions via UPDATE training_reviews SET is_exported = TRUE', async () => {
+  test('TC-UC12.2-004 — marks exported sessions via UPDATE training_reviews SET is_exported = TRUE', async () => {
     // Two fetch responses: one for /ai/training/sessions (list) and one
     // for /ai/training/sessions/s-1 (full record fetch).
     queueFetchResponses([

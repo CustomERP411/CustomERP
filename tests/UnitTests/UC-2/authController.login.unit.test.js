@@ -48,7 +48,7 @@ function mockRes() {
 
 describe('UC-2 / authController.login', () => {
   // TC-UC2-006
-  test('returns 400 when email is missing', async () => {
+  test('TC-UC2-006 — returns 400 when email is missing', async () => {
     const req = { body: { password: 'Passw0rd!' } };
     const res = mockRes();
     const next = jest.fn();
@@ -62,7 +62,7 @@ describe('UC-2 / authController.login', () => {
   });
 
   // TC-UC2-007
-  test('returns 400 when email is malformed', async () => {
+  test('TC-UC2-007 — returns 400 when email is malformed', async () => {
     const req = { body: { email: 'not-an-email', password: 'Passw0rd!' } };
     const res = mockRes();
     const next = jest.fn();
@@ -75,7 +75,7 @@ describe('UC-2 / authController.login', () => {
   });
 
   // TC-UC2-008
-  test('returns 400 when password is missing', async () => {
+  test('TC-UC2-008 — returns 400 when password is missing', async () => {
     const req = { body: { email: 'ok@test.com' } };
     const res = mockRes();
     const next = jest.fn();
@@ -88,7 +88,7 @@ describe('UC-2 / authController.login', () => {
   });
 
   // TC-UC2-009
-  test('forwards service error statusCode and code (ACCOUNT_BLOCKED) to the response', async () => {
+  test('TC-UC2-009 — forwards service error statusCode and code (ACCOUNT_BLOCKED) to the response', async () => {
     const err = new Error('Your account has been suspended due to spam. Contact x@y.z for assistance.');
     err.statusCode = 403;
     err.code = 'ACCOUNT_BLOCKED';
@@ -127,7 +127,7 @@ describe('UC-2 / authController.login', () => {
   });
 
   // TC-UC2-010
-  test('lowercases the email before calling the service', async () => {
+  test('TC-UC2-010 — lowercases the email before calling the service', async () => {
     // Note: the controller validates email format with isValidEmail()
     // BEFORE trimming — the regex rejects any leading/trailing \s, so
     // surrounding whitespace is a 400 case (covered elsewhere). Here we

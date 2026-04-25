@@ -40,7 +40,7 @@ function mockRes() {
 
 describe('UC-3 / authController.logout', () => {
   // TC-UC3-004
-  test('returns 200 with the success message and does not throw', async () => {
+  test('TC-UC3-004 — returns 200 with the success message and does not throw', async () => {
     const req = { body: {}, user: { userId: 'u-1' } };
     const res = mockRes();
 

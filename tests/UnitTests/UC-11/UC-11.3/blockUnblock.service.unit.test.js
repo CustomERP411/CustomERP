@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe('UC-11.3 / adminService.blockUser', () => {
   // TC-UC11.3-004
-  test('sets blocked_at = CURRENT_TIMESTAMP and records the reason', async () => {
+  test('TC-UC11.3-004 — sets blocked_at = CURRENT_TIMESTAMP and records the reason', async () => {
     db.query.mockResolvedValueOnce({
       rows: [
         {
@@ -59,7 +59,7 @@ describe('UC-11.3 / adminService.blockUser', () => {
   });
 
   // TC-UC11.3-005
-  test('throws 404 when the user is missing or soft-deleted', async () => {
+  test('TC-UC11.3-005 — throws 404 when the user is missing or soft-deleted', async () => {
     db.query.mockResolvedValueOnce({ rows: [] });
 
     await expect(adminService.blockUser('ghost', null)).rejects.toMatchObject({
@@ -71,7 +71,7 @@ describe('UC-11.3 / adminService.blockUser', () => {
 
 describe('UC-11.3 / adminService.unblockUser', () => {
   // TC-UC11.3-006
-  test('clears blocked_at and block_reason to NULL', async () => {
+  test('TC-UC11.3-006 — clears blocked_at and block_reason to NULL', async () => {
     db.query.mockResolvedValueOnce({
       rows: [
         {
@@ -98,7 +98,7 @@ describe('UC-11.3 / adminService.unblockUser', () => {
   });
 
   // TC-UC11.3-007
-  test('returns the shaped user with blocked:false, block_reason:null', async () => {
+  test('TC-UC11.3-007 — returns the shaped user with blocked:false, block_reason:null', async () => {
     db.query.mockResolvedValueOnce({
       rows: [
         {

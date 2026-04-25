@@ -18,7 +18,7 @@
   "openChat": "Yapay zekâ asistanını aç",
   "closeChat": "Yapay zekâ asistanını kapat",
   "helpPrompt": {
-    "withAnswer": "Bu soruda yardıma ihtiyacım var: \"{{question}}\"\nŞu anki cevabım: \"{{answer}}\"\nBu cevabı geliştirmeme veya genişletmeme yardımcı olur musun?",
+    "withAnswer": "Bu soruyu anlamak için yardıma ihtiyacım var: \"{{question}}\"\nSeçtiğim cevap: \"{{answer}}\"\nLütfen bu sorunun ne anlama geldiğini, bu cevabı seçmenin ERP açısından ne ifade ettiğini ve hangi durumda diğer seçeneği seçmem gerekebileceğini açıkla. Cevabımı daha uzun bir cümle olarak yeniden yazma.",
     "empty": "Bu soruyu cevaplamakta yardıma ihtiyacım var: \"{{question}}\"\nBunun ne anlama geldiğini açıklar ve işletmem için nasıl cevaplayacağıma dair yönlendirme verir misin?"
   }
 }

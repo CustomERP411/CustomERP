@@ -365,7 +365,7 @@
     "readyTitle": "ERP'niz hazır",
     "readyBody": "ERP'nizi canlı önizleyin, deneyin ve ihtiyaç duyduğunuz değişiklikleri talep edin.",
     "moduleFallback": "Modül",
-    "dataTypes": "{{count}} veri tipi",
+    "dataTypes": "{{count}} kayıt bölümü",
     "previewBtn": "ERP'mi Önizle",
     "hideDevDetails": "Geliştirici ayrıntılarını gizle",
     "showDevDetails": "Geliştirici ayrıntılarını göster"

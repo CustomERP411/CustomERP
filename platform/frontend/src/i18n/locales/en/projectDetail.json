@@ -371,9 +371,9 @@
     "readyTitle": "Your ERP is ready",
     "readyBody": "Preview your ERP live, test it out, and request any changes you need.",
     "moduleFallback": "Module",
-    "dataTypes_one": "{{count}} data type",
-    "dataTypes_other": "{{count}} data types",
-    "dataTypes": "{{count}} data types",
+    "dataTypes_one": "{{count}} record area",
+    "dataTypes_other": "{{count}} record areas",
+    "dataTypes": "{{count}} record areas",
     "previewBtn": "Preview My ERP",
     "hideDevDetails": "Hide developer details",
     "showDevDetails": "Show developer details"

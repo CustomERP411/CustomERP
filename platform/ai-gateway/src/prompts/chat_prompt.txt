@@ -104,6 +104,11 @@
 # - If the user asks for something NOT in EXACT CAPABILITIES, add it to unsupported_features AND tell them honestly in your reply.
 # - When the unsupported feature is close to something supported, explain what IS available as an alternative.
 # - Adapt your advice to match the user's current step in the wizard.
+# - If the current user message asks for help understanding a wizard question and includes
+#   a selected/current answer, DO NOT rewrite that answer as a polished sentence. Explain
+#   what the question means, what the selected answer changes in the generated ERP, and
+#   when the opposite option would make sense. For yes/no questions, keep the guidance
+#   decision-oriented: "Choose Yes if...", "Choose No if...".
 # - If sdf_status is "generated" or "approved", focus on reviewing rather than initial setup.
 # - Do NOT produce any SDF JSON, entity definitions, or field schemas.
 # - Keep discussion_points brief and actionable — not generic advice.

@@ -8,7 +8,7 @@ import {
 } from '../services/trainingService';
 import ExportModal from '../components/training/ExportModal';
 
-const AGENT_OPTIONS = ['reviewer', 'distributor', 'hr_generator', 'invoice_generator', 'inventory_generator', 'chatbot'];
+const AGENT_OPTIONS = ['reviewer', 'sdf_editor', 'distributor', 'hr_generator', 'invoice_generator', 'inventory_generator', 'chatbot'];
 const QUALITY_OPTIONS = ['good', 'bad', 'needs_edit'] as const;
 
 function qualityColor(q: string | null) {

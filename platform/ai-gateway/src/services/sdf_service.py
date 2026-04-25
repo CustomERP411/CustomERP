@@ -20,10 +20,17 @@ from pydantic import ValidationError
 from .gemini_client import GeminiClient
 from .multi_agent_service import MultiAgentService
 
-from src.prompts.sdf_generation import get_sdf_prompt, get_clarify_prompt, get_fix_json_prompt, get_edit_prompt, get_finalize_prompt
+from src.prompts.sdf_generation import (
+    get_sdf_prompt,
+    get_clarify_prompt,
+    get_fix_json_prompt,
+    get_edit_prompt,
+    get_finalize_prompt,
+    get_change_request_reviewer_prompt,
+)
 from src.schemas.sdf import SystemDefinitionFile
 from src.schemas.clarify import ClarificationAnswer
-from src.schemas.multi_agent import PipelineResult
+from src.schemas.multi_agent import AnswerIssue, AnswerReview, PipelineResult
 
 from .sdf.filtering import (
     DEFAULT_QUESTION_KEYS,
@@ -466,6 +473,96 @@ class SDFService:
         language: str = "en",
     ) -> SystemDefinitionFile:
         """Apply a change request to an existing generator SDF."""
+        validated_sdf, _, _ = await self.edit_sdf_with_telemetry(
+            business_description=business_description,
+            current_sdf=current_sdf,
+            instructions=instructions,
+            language=language,
+        )
+        return validated_sdf
+
+    def _summarize_sdf_for_review(self, current_sdf: SystemDefinitionFile) -> str:
+        data = current_sdf.model_dump(exclude_none=True)
+        modules = sorted((data.get("modules") or {}).keys())
+        entities = []
+        for ent in data.get("entities") or []:
+            if not isinstance(ent, dict):
+                continue
+            fields = [
+                str(f.get("name"))
+                for f in (ent.get("fields") or [])
+                if isinstance(f, dict) and f.get("name")
+            ]
+            entities.append({
+                "slug": ent.get("slug"),
+                "display_name": ent.get("display_name"),
+                "module": ent.get("module"),
+                "fields": fields[:20],
+            })
+        return json.dumps({"modules": modules, "entities": entities}, ensure_ascii=False, indent=2)
+
+    async def review_change_request(
+        self,
+        business_description: str,
+        current_sdf: SystemDefinitionFile,
+        instructions: str,
+        acknowledged_unsupported_features: Optional[List[str]] = None,
+        language: str = "en",
+    ) -> tuple[AnswerReview, Any, str]:
+        """Review a change request before attempting an SDF edit."""
+        ack_set = {
+            f.strip().lower()
+            for f in (acknowledged_unsupported_features or [])
+            if isinstance(f, str) and f.strip()
+        }
+        prompt = get_change_request_reviewer_prompt(
+            business_description=business_description or "",
+            current_sdf_summary=self._summarize_sdf_for_review(current_sdf),
+            instructions=instructions or "",
+            acknowledged_unsupported_features=acknowledged_unsupported_features or [],
+            language=language,
+        )
+        result = await self.multi_agent_service.reviewer_client.generate_with_retry(
+            prompt,
+            temperature=self.multi_agent_service.reviewer_client.get_temperature(),
+            response_schema=AnswerReview,
+        )
+        data = await self.multi_agent_service._parse_json_with_repair(result.text, "change_request_reviewer")
+
+        parsed_issues: List[AnswerIssue] = []
+        for raw in data.get("issues", []) or []:
+            if not isinstance(raw, dict):
+                continue
+            try:
+                issue = AnswerIssue(**{**raw, "question_id": raw.get("question_id") or None})
+            except Exception as e:
+                print(f"[SDFService] Skipping malformed change reviewer issue {raw}: {e}")
+                continue
+            if (
+                issue.kind == "unsupported_feature"
+                and issue.related_feature
+                and issue.related_feature.strip().lower() in ack_set
+            ):
+                continue
+            parsed_issues.append(issue)
+
+        review = AnswerReview(
+            is_clear_to_proceed=bool(data.get("is_clear_to_proceed", True)) and not any(
+                iss.severity == "block" for iss in parsed_issues
+            ),
+            issues=parsed_issues,
+            summary=str(data.get("summary", "") or ""),
+        )
+        return review, result, prompt
+
+    async def edit_sdf_with_telemetry(
+        self,
+        business_description: str,
+        current_sdf: SystemDefinitionFile,
+        instructions: str,
+        language: str = "en",
+    ):
+        """Apply a change request and return SDF plus telemetry for training logs."""
         print("[SDFService] Editing SDF with user instructions...")
 
         current_json = current_sdf.model_dump_json(indent=2)
@@ -508,7 +605,7 @@ class SDFService:
         try:
             validated_sdf = SystemDefinitionFile.model_validate(data)
             print("[SDFService] Edited SDF validation successful.")
-            return validated_sdf
+            return validated_sdf, json_response, prompt
         except ValidationError as e:
             print(f"[SDFService] Edited SDF Validation Error: {e}")
             print(f"[SDFService] Raw AI Data:\n{data}")

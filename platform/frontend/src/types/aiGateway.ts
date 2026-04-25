@@ -65,6 +65,6 @@ export interface AnalyzeProjectResponse {
   // Pre-distributor answer-review halt response. When `status` is set to
   // 'answer_review_required', `sdf` / `sdf_version` / `questions` are absent
   // and the frontend should show feedback instead of the generation modal.
-  status?: 'answer_review_required';
+  status?: 'answer_review_required' | 'change_review_required';
   answer_review?: AnswerReview;
 }

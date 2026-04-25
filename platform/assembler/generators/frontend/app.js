@@ -30,7 +30,6 @@ import RequireAuth from './components/RequireAuth';
 import RequirePermission from './components/RequirePermission';
 import UsersAdminPage from './pages/admin/UsersAdminPage';
 import GroupsAdminPage from './pages/admin/GroupsAdminPage';
-import PermissionsAdminPage from './pages/admin/PermissionsAdminPage';
 ${toolImports || ''}
 ${imports || ''}
 
@@ -42,7 +41,6 @@ function App() {
         <Route path="/" element={<DashboardHome />} />
         <Route path="/admin/users" element={<RequirePermission permission="__erp_users.read"><UsersAdminPage /></RequirePermission>} />
         <Route path="/admin/groups" element={<RequirePermission permission="__erp_groups.read"><GroupsAdminPage /></RequirePermission>} />
-        <Route path="/admin/permissions" element={<RequirePermission permission="__erp_permissions.read"><PermissionsAdminPage /></RequirePermission>} />
 ${toolRoutes || ''}
 ${routes || ''}
       </Route>

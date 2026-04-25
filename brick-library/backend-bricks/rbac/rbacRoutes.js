@@ -130,6 +130,58 @@ router.post('/change-password', rbacLoader, async (req, res) => {
   }
 });
 
+router.get('/dashboard/preferences', rbacLoader, async (req, res) => {
+  try {
+    if (!req.erpUser) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const repo = getProvider();
+    const rows = await repo.findAll('__erp_dashboard_preferences', { user_id: req.erpUser.userId });
+    const row = rows && rows[0];
+    if (!row || !row.config) {
+      return res.json({ config: null });
+    }
+
+    try {
+      return res.json({ config: JSON.parse(String(row.config)) });
+    } catch (_) {
+      return res.json({ config: null });
+    }
+  } catch (err) {
+    console.error('[AUTH] dashboard preferences read error:', err.message || err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/dashboard/preferences', rbacLoader, async (req, res) => {
+  try {
+    if (!req.erpUser) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const config = req.body && Object.prototype.hasOwnProperty.call(req.body, 'config')
+      ? req.body.config
+      : req.body;
+    const serialized = JSON.stringify(config || {});
+    const repo = getProvider();
+    const existing = await repo.findAll('__erp_dashboard_preferences', { user_id: req.erpUser.userId });
+    let row = existing && existing[0];
+    if (row) {
+      row = await repo.update('__erp_dashboard_preferences', row.id, { config: serialized });
+    } else {
+      row = await repo.create('__erp_dashboard_preferences', {
+        user_id: req.erpUser.userId,
+        config: serialized,
+      });
+    }
+    return res.json({ config: JSON.parse(String(row.config || serialized)) });
+  } catch (err) {
+    console.error('[AUTH] dashboard preferences write error:', err.message || err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 /* ── User entity guards ─────────────────────────────────────
    Mounted by the generated routes index as middleware on /__erp_users
    and /__erp_user_groups to hash passwords and prevent

@@ -94,14 +94,19 @@ async function finalizeSdf(sdf, options = {}) {
   return await postJson('/ai/finalize', payload);
 }
 
-async function editSdf({ businessDescription, currentSdf, instructions, language }) {
+async function editSdf({ businessDescription, currentSdf, instructions, language, acknowledgedUnsupportedFeatures, reviewOnly }) {
   if (!instructions || typeof instructions !== 'string') throw new Error('instructions must be a string');
   if (!currentSdf || typeof currentSdf !== 'object') throw new Error('currentSdf must be an object');
+  const acknowledged = Array.isArray(acknowledgedUnsupportedFeatures)
+    ? acknowledgedUnsupportedFeatures.filter((f) => typeof f === 'string' && f.trim()).map((f) => f.trim())
+    : [];
   return await postJson('/ai/edit', {
     business_description: businessDescription,
     current_sdf: currentSdf,
     instructions,
     language: resolveLanguage({ language }),
+    ...(acknowledged.length ? { acknowledged_unsupported_features: acknowledged } : {}),
+    ...(reviewOnly ? { review_only: true } : {}),
   });
 }
 

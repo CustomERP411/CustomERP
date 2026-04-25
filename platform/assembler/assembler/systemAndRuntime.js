@@ -1,5 +1,6 @@
 // System entities, access control, root files & runtime config – extracted from ProjectAssembler
 const path = require('path');
+const { pickTrEntityDisplayName } = require('../i18n/glossaryI18n');
 
 module.exports = {
   _withSystemEntities(userEntities, sdf) {
@@ -163,6 +164,23 @@ module.exports = {
         features: {},
       });
     }
+
+    if (!bySlug.has('__erp_dashboard_preferences')) {
+      entities.push({
+        slug: '__erp_dashboard_preferences',
+        display_name: 'Dashboard Preferences',
+        display_field: 'user_id',
+        module: 'shared',
+        system: { hidden: true },
+        ui: { search: false, csv_import: false, csv_export: false, print: false },
+        list: { columns: ['user_id'] },
+        fields: [
+          { name: 'user_id', type: 'reference', label: 'User', required: true, unique: true, reference: { entity: '__erp_users', display_field: 'username' } },
+          { name: 'config', type: 'text', label: 'Config', required: false },
+        ],
+        features: {},
+      });
+    }
   },
 
   async _generateRootFiles(outputDir, projectId, options = {}) {
@@ -306,7 +324,7 @@ PGPASSWORD=erppassword
     }
   },
 
-  async _applyBackendRuntimeModules(backendDir, sdf, backendEntities) {
+  async _applyBackendRuntimeModules(backendDir, sdf, backendEntities, language = 'en') {
     const fs = require('fs').promises;
     const path = require('path');
 
@@ -441,12 +459,17 @@ PGPASSWORD=erppassword
       const entitySlugs = (backendEntities || []).map((e) => e && e.slug).filter(Boolean);
       const userGroups = Array.isArray(acModConfig.groups) ? acModConfig.groups : [];
       const entityModuleMap = {};
+      const entityDisplayMap = {};
       for (const e of (backendEntities || [])) {
         if (e && e.slug) {
           entityModuleMap[e.slug] = String(e.module || e.module_slug || e.moduleSlug || 'inventory').trim().toLowerCase() || 'inventory';
+          entityDisplayMap[e.slug] =
+            language === 'tr'
+              ? (pickTrEntityDisplayName(e.slug, e.display_name || e.displayName) || e.display_name || e.displayName || e.slug)
+              : (e.display_name || e.displayName || e.slug);
         }
       }
-      systemConfig.rbac = { entitySlugs, groups: userGroups, entityModuleMap };
+      systemConfig.rbac = { entitySlugs, groups: userGroups, entityModuleMap, entityDisplayMap };
     }
 
     const shouldWriteConfig =

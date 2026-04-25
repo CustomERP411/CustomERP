@@ -577,6 +577,17 @@ function buildGroupsAdminPageConnected({ language } = {}) {
   const showAdvancedLbl = t('rbac.showAdvanced');
   const manageRolesSub = t('rbac.manageRolesSub');
   const closeLbl = t('rbac.close');
+  const systemLabels = {
+    '__erp_users': t('sidebar.users'),
+    '__erp_groups': t('sidebar.roles'),
+    '__erp_permissions': t('sidebar.permissions'),
+    '__erp_user_groups': t('rbac.roles'),
+    '__erp_group_permissions': t('rbac.permissions'),
+  };
+  const builtinDescriptions = {
+    superadmin: t('rbac.seedSuperadminDescription'),
+    admin: t('rbac.seedAdminDescription'),
+  };
   return `import { useEffect, useState, useCallback, useRef } from 'react';
 import { API } from '../../contexts/AuthContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -598,12 +609,31 @@ const ENTITY_DISPLAY: Record<string, string> = Object.fromEntries(
   ENTITIES.map((e) => [e.slug, e.displayName])
 );
 
+const SYSTEM_ENTITY_DISPLAY: Record<string, string> = ${JSON.stringify(systemLabels, null, 2)};
+const BUILTIN_ROLE_DESCRIPTIONS: Record<string, string> = ${JSON.stringify(builtinDescriptions, null, 2)};
+
 function humanizeEntity(slug: string) {
   if (ENTITY_DISPLAY[slug]) return ENTITY_DISPLAY[slug];
+  if (SYSTEM_ENTITY_DISPLAY[slug]) return SYSTEM_ENTITY_DISPLAY[slug];
   return slug
     .replace(/^__erp_/, '')
     .replace(/_/g, ' ')
     .replace(/\\b\\w/g, (c) => c.toUpperCase());
+}
+
+function roleDescription(group: GroupRow) {
+  const key = String(group.name || '').trim().toLowerCase();
+  if (BUILTIN_ROLE_DESCRIPTIONS[key]) return BUILTIN_ROLE_DESCRIPTIONS[key];
+  const desc = String(group.description || '').trim();
+  if (!desc) return '${esc(noDescription)}';
+  if (
+    desc === 'Full access to all entities and actions' ||
+    desc === 'Full access (manageable admin group)' ||
+    /^Admin for .+ module$/i.test(desc)
+  ) {
+    return '${esc(noDescription)}';
+  }
+  return desc;
 }
 
 export default function GroupsAdminPageConnected() {
@@ -838,7 +868,7 @@ export default function GroupsAdminPageConnected() {
               <h3 className="text-sm font-semibold text-slate-900">{group.name}</h3>
               <div className="text-xs text-slate-500">{memberCount(group.id)} {memberCount(group.id) === 1 ? '${esc(memberSingular)}' : '${esc(memberPlural)}'}</div>
             </div>
-            <p className="mt-1 text-xs text-slate-500">{group.description || '${esc(noDescription)}'}</p>
+            <p className="mt-1 text-xs text-slate-500">{roleDescription(group)}</p>
             <div className="mt-2 text-xs text-slate-600">${esc(permissionsWord)}: <span className="font-semibold">{permCount(group.id)}</span></div>
             <div className="mt-3 flex items-center justify-end gap-2">
               <button onClick={() => openEdit(group)} className="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">${t('rbac.edit')}</button>

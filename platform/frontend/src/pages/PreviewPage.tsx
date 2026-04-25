@@ -4,12 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { projectService } from '../services/projectService';
 import { detectUserPlatform, usePlatformInfo } from '../components/project/projectConstants';
 import GenerationModal from '../components/project/GenerationModal';
+import ReviewFeedbackModal from '../components/project/ReviewFeedbackModal';
 import PreviewBuildModal, { type PreviewModalState, type PreviewPhase } from '../components/project/PreviewBuildModal';
 import { usePreviewHeartbeat } from '../hooks/usePreviewHeartbeat';
 import { useChatContext } from '../context/ChatContext';
 import { normalizeLanguage } from '../i18n';
 import type { Project } from '../types/project';
-import type { ClarificationQuestion, ClarificationAnswer } from '../types/aiGateway';
+import type { AnswerReview, ClarificationQuestion, ClarificationAnswer } from '../types/aiGateway';
 import { enterFullscreen, exitFullscreen, getFullscreenElement } from '../utils/fullscreen';
 
 type PreviewStatus = 'idle' | 'queued' | 'building' | 'running' | 'error' | 'stopping';
@@ -76,6 +77,8 @@ export default function PreviewPage() {
   const [queuePosition, setQueuePosition] = useState(0);
   const [buildStartedAt, setBuildStartedAt] = useState<number>(() => Date.now());
   const [errorState, setErrorState] = useState<{ code?: string; message: string } | null>(null);
+  const [changeReview, setChangeReview] = useState<AnswerReview | null>(null);
+  const [pendingChangeText, setPendingChangeText] = useState('');
 
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadPlatform, setDownloadPlatform] = useState('');
@@ -432,8 +435,9 @@ export default function PreviewPage() {
     }
   };
 
-  const handleRequestChanges = async () => {
-    if (!projectId || !changeText.trim()) return;
+  const handleRequestChanges = async (acknowledgedUnsupportedFeatures?: string[]) => {
+    const instructions = (pendingChangeText || changeText).trim();
+    if (!projectId || !instructions) return;
     setChangePanelOpen(false);
     setGenPhase(t('phase.applying')); setGenResult(null); setGenErrorMsg(''); setGenProgress(null);
     setQuestions([]); setAnswersById({});
@@ -450,8 +454,18 @@ export default function PreviewPage() {
 
     try {
       pollProgress();
-      const res = await projectService.regenerateProject(projectId, changeText.trim());
+      const res = await projectService.regenerateProject(projectId, instructions, acknowledgedUnsupportedFeatures);
       progressCancelled = true;
+      if (res.status === 'change_review_required' && res.answer_review) {
+        setChangeReview(res.answer_review);
+        setPendingChangeText(instructions);
+        setProject(res.project);
+        setGenPhase('');
+        setGenProgress(null);
+        return;
+      }
+      setChangeReview(null);
+      setPendingChangeText('');
       setProject(res.project);
       const resQuestions = (res.questions || []).filter((q: any) => q?.id && q?.question) as ClarificationQuestion[];
 
@@ -700,7 +714,7 @@ export default function PreviewPage() {
 
             <button
               type="button"
-              onClick={handleRequestChanges}
+              onClick={() => { void handleRequestChanges(); }}
               disabled={!changeText.trim() || !!genPhase || status !== 'running'}
               className="mt-4 w-full rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-app-accent-dark-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
@@ -769,7 +783,7 @@ export default function PreviewPage() {
               <div className="flex-shrink-0 border-t border-app-border bg-app-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 <button
                   type="button"
-                  onClick={handleRequestChanges}
+                  onClick={() => { void handleRequestChanges(); }}
                   disabled={!changeText.trim() || !!genPhase || status !== 'running'}
                   className="w-full rounded-lg bg-app-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-app-accent-dark-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
@@ -920,6 +934,24 @@ export default function PreviewPage() {
             )}
           </div>
         </div>
+      )}
+
+      {changeReview && (
+        <ReviewFeedbackModal
+          review={changeReview}
+          answers={{}}
+          running={Boolean(genPhase)}
+          variant="change_request"
+          requestText={pendingChangeText}
+          onEditQuestion={() => {
+            setChangeText(pendingChangeText);
+            setChangePanelOpen(true);
+            setChangeReview(null);
+            setPendingChangeText('');
+          }}
+          onAcknowledgeAndContinue={(features) => { void handleRequestChanges(features); }}
+          onClose={() => { setChangeReview(null); setPendingChangeText(''); }}
+        />
       )}
     </div>
   );

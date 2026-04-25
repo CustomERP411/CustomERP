@@ -98,6 +98,32 @@
       "empty": "Henüz etkinlik yok.",
       "reportsHint": "Günlük özetler şu sayfada mevcut:"
     },
+    "widgets": {
+      "settings": "Panel ayarları",
+      "save": "Paneli kaydet",
+      "saved": "Panel kaydedildi",
+      "range": "Tarih aralığı",
+      "recentChanges": "Son değişiklikler",
+      "changedAreas": "Değişen alanlar",
+      "alerts": "Önemli uyarılar",
+      "recordOverview": "Kayıt özeti",
+      "showAs": "Gösterim",
+      "hidden": "Gizli",
+      "cards": "Sayı kartları",
+      "list": "Liste",
+      "bars": "Basit çubuklar",
+      "last7": "Son 7 gün",
+      "last30": "Son 30 gün",
+      "last90": "Son 90 gün",
+      "last365": "Son 365 gün",
+      "allTime": "Tüm zamanlar",
+      "noChanges": "Bu aralıkta değişiklik yok.",
+      "created": "oluşturuldu",
+      "updated": "güncellendi",
+      "deleted": "silindi",
+      "alertsEmpty": "Şu anda önemli uyarı yok.",
+      "open": "Aç"
+    },
     "emptyAccess": {
       "title": "Erişilebilir modül yok",
       "body": "Henüz hiçbir modülü görüntüleme izniniz yok. Lütfen yöneticinizle iletişime geçin."
@@ -662,7 +688,15 @@
     "scope": "Kapsam",
     "scopeModule": "Modül",
     "scopeGlobal": "Global",
-    "usedByGroups": "Kullanan roller"
+    "usedByGroups": "Kullanan roller",
+    "seedSuperadminDescription": "Tüm alanlara ve işlemlere tam erişim",
+    "seedAdminDescription": "Kurulumdan sonra ERP'yi yönetebilir",
+    "seedModuleAdminGroupSuffix": "Yöneticisi",
+    "seedModuleAdminDescription": "{{module}} alanını yönetebilir",
+    "seedPermissionDescription": "{{entity}} kayıtlarında {{action}} işlemi yapabilir",
+    "seedCustomPermissionDescription": "Özel izin: {{key}}",
+    "permissionGroupToggle": "{{entity}}: {{actions}}",
+    "permissionUnknownEntity": "Diğer izinler"
   },
   "rbacForbidden": {
     "loading": "Yükleniyor...",

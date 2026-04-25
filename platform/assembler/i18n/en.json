@@ -98,6 +98,32 @@
       "empty": "No activity yet.",
       "reportsHint": "Daily summaries are available in"
     },
+    "widgets": {
+      "settings": "Dashboard settings",
+      "save": "Save dashboard",
+      "saved": "Dashboard saved",
+      "range": "Date range",
+      "recentChanges": "Recent changes",
+      "changedAreas": "Changed areas",
+      "alerts": "Important alerts",
+      "recordOverview": "Record overview",
+      "showAs": "Show as",
+      "hidden": "Hidden",
+      "cards": "Number cards",
+      "list": "List",
+      "bars": "Simple bars",
+      "last7": "Last 7 days",
+      "last30": "Last 30 days",
+      "last90": "Last 90 days",
+      "last365": "Last 365 days",
+      "allTime": "All time",
+      "noChanges": "No changes in this range.",
+      "created": "created",
+      "updated": "updated",
+      "deleted": "deleted",
+      "alertsEmpty": "No important alerts right now.",
+      "open": "Open"
+    },
     "emptyAccess": {
       "title": "No accessible modules",
       "body": "You don't have permission to view any modules yet. Please contact your administrator."
@@ -662,7 +688,15 @@
     "scope": "Scope",
     "scopeModule": "Module",
     "scopeGlobal": "Global",
-    "usedByGroups": "Used By Groups"
+    "usedByGroups": "Used By Groups",
+    "seedSuperadminDescription": "Full access to all areas and actions",
+    "seedAdminDescription": "Can manage the ERP after setup",
+    "seedModuleAdminGroupSuffix": "Admin",
+    "seedModuleAdminDescription": "Can manage the {{module}} area",
+    "seedPermissionDescription": "Can {{action}} {{entity}} records",
+    "seedCustomPermissionDescription": "Custom permission: {{key}}",
+    "permissionGroupToggle": "{{entity}}: {{actions}}",
+    "permissionUnknownEntity": "Other permissions"
   },
   "rbacForbidden": {
     "loading": "Loading...",

@@ -77,7 +77,7 @@ class ProjectAssembler {
       await this.backendGenerator.generateDatabaseArtifacts(backendDir, backendEntities);
 
       await this.backendGenerator.generateMainEntry(backendDir);
-      await this._applyBackendRuntimeModules(backendDir, sdf, backendEntities);
+      await this._applyBackendRuntimeModules(backendDir, sdf, backendEntities, language);
 
       // ==================== FRONTEND ====================
       console.log('Generating frontend...');

@@ -30,6 +30,11 @@ import { normalizeLanguage } from '../i18n';
 const SDF_VISIBLE_STATUSES = new Set<Project['status']>(['Ready', 'Generated', 'Approved', 'Clarifying']);
 const SDF_FINAL_STATUSES = new Set<Project['status']>(['Ready', 'Generated', 'Approved']);
 
+type PendingChangeReview = {
+  source: 'ai_edit' | 'review_revision';
+  instructions: string;
+};
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
@@ -73,6 +78,8 @@ export default function ProjectDetailPage() {
   const [genProgress, setGenProgress] = useState<{ step: string; pct: number; detail: string } | null>(null);
   const [bizSkipWarningOpen, setBizSkipWarningOpen] = useState(false);
   const [answerReview, setAnswerReview] = useState<AnswerReview | null>(null);
+  const [changeReview, setChangeReview] = useState<AnswerReview | null>(null);
+  const [pendingChangeReview, setPendingChangeReview] = useState<PendingChangeReview | null>(null);
   const [, setAcknowledgedFeatures] = useState<string[]>([]);
 
   const { setProjectContext, openChat, sendMessage, setPulsing } = useChatContext();
@@ -824,6 +831,25 @@ export default function ProjectDetailPage() {
     await analyze({ acknowledgedFeatures: acknowledged });
   };
 
+  const handleChangeReviewEdit = () => {
+    if (pendingChangeReview?.source === 'ai_edit') {
+      setAiEditText(pendingChangeReview.instructions);
+    }
+    setChangeReview(null);
+    setPendingChangeReview(null);
+  };
+
+  const handleChangeReviewAcknowledge = async (acknowledged: string[]) => {
+    if (!pendingChangeReview) return;
+    setChangeReview(null);
+    const pending = pendingChangeReview;
+    if (pending.source === 'ai_edit') {
+      await applyAiEdit(acknowledged);
+    } else {
+      await requestRevisionFromReview(pending.instructions, acknowledged);
+    }
+  };
+
   const submitModalAnswers = async () => {
     if (!projectId || !sdf || questions.length === 0) return;
     setClarifying(true);
@@ -891,11 +917,22 @@ export default function ProjectDetailPage() {
     finally { setSaving(false); }
   };
 
-  const applyAiEdit = async () => {
-    if (!projectId || !aiEditText.trim()) return;
+  const applyAiEdit = async (acknowledgedUnsupportedFeatures?: string[]) => {
+    const instructions = pendingChangeReview?.source === 'ai_edit'
+      ? pendingChangeReview.instructions
+      : aiEditText.trim();
+    if (!projectId || !instructions.trim()) return;
     setSaving(true); setError('');
     try {
-      const res = await projectService.aiEditSdf(projectId, aiEditText.trim(), sdf || undefined);
+      const res = await projectService.aiEditSdf(projectId, instructions.trim(), sdf || undefined, acknowledgedUnsupportedFeatures);
+      if (res.status === 'change_review_required' && res.answer_review) {
+        setChangeReview(res.answer_review);
+        setPendingChangeReview({ source: 'ai_edit', instructions: instructions.trim() });
+        setProject(res.project);
+        return;
+      }
+      setChangeReview(null);
+      setPendingChangeReview(null);
       setProject(res.project); setSdf(res.sdf ?? null); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setAiEditText('');
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
       appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.aiRevision') });
@@ -925,14 +962,24 @@ export default function ProjectDetailPage() {
     finally { setReviewActionRunning(false); }
   };
 
-  const requestRevisionFromReview = async (instructions: string) => {
+  const requestRevisionFromReview = async (instructions: string, acknowledgedUnsupportedFeatures?: string[]) => {
     if (!projectId || !instructions.trim()) return;
     setReviewActionRunning(true); setError('');
     try {
-      const res = await projectService.requestRevision(projectId, instructions.trim());
-      setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
+      const res = await projectService.requestRevision(projectId, instructions.trim(), undefined, acknowledgedUnsupportedFeatures);
+      if (res.status === 'change_review_required' && res.answer_review) {
+        setChangeReview(res.answer_review);
+        setPendingChangeReview({ source: 'review_revision', instructions: instructions.trim() });
+        setProject(res.project);
+        return;
+      }
+      setChangeReview(null);
+      setPendingChangeReview(null);
+      setProject(res.project); setSdf(res.sdf ?? null); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
-      appendReviewHistory({ action: 'revision_requested', version: res.approval.sdf_version, status: null, note: instructions.trim() });
+      if (res.approval) {
+        appendReviewHistory({ action: 'revision_requested', version: res.approval.sdf_version, status: null, note: instructions.trim() });
+      }
       appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.aiRevisionFromReview') });
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.revisionFailed')); }
     finally { setReviewActionRunning(false); }
@@ -1135,6 +1182,19 @@ export default function ProjectDetailPage() {
           onEditQuestion={handleReviewEditAnswers}
           onAcknowledgeAndContinue={(features) => { void handleReviewAcknowledge(features); }}
           onClose={() => setAnswerReview(null)}
+        />
+      )}
+
+      {changeReview && pendingChangeReview && (
+        <ReviewFeedbackModal
+          review={changeReview}
+          answers={{}}
+          running={saving || reviewActionRunning}
+          variant="change_request"
+          requestText={pendingChangeReview.instructions}
+          onEditQuestion={handleChangeReviewEdit}
+          onAcknowledgeAndContinue={(features) => { void handleChangeReviewAcknowledge(features); }}
+          onClose={() => { setChangeReview(null); setPendingChangeReview(null); }}
         />
       )}
     </div>

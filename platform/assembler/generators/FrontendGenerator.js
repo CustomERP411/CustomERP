@@ -15,7 +15,6 @@ const {
   buildRequirePermission,
   buildUsersAdminPageConnected,
   buildGroupsAdminPageConnected,
-  buildPermissionsAdminPageConnected,
 } = require('./frontend/rbacPages');
 
 const { normalizeLanguage, tFor } = require('../i18n/labels');
@@ -191,7 +190,6 @@ class FrontendGenerator {
     await fs.writeFile(path.join(outputDir, 'src/components/RequirePermission.tsx'), buildRequirePermission({ language: this._language }));
     await fs.writeFile(path.join(outputDir, 'src/pages/admin/UsersAdminPage.tsx'), buildUsersAdminPageConnected({ language: this._language }));
     await fs.writeFile(path.join(outputDir, 'src/pages/admin/GroupsAdminPage.tsx'), buildGroupsAdminPageConnected({ language: this._language }));
-    await fs.writeFile(path.join(outputDir, 'src/pages/admin/PermissionsAdminPage.tsx'), buildPermissionsAdminPageConnected({ language: this._language }));
   }
 
   /* ── Base files generation ──────────────────────────────── */

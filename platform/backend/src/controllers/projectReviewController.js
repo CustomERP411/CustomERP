@@ -4,8 +4,17 @@ const aiGatewayClient = require('../services/aiGatewayClient');
 const SDF = require('../models/SDF');
 const Approval = require('../models/Approval');
 const { buildReviewSummary } = require('../services/reviewService');
+const { validateGeneratorSdf } = require('./projectHelpers');
+const featureRequestService = require('../services/featureRequestService');
 
 const REVIEWABLE_STATUSES = new Set(['Ready', 'Generated', 'Approved']);
+
+function normalizeAcknowledgedFeatures(body) {
+  const raw = body?.acknowledged_unsupported_features || body?.acknowledgedUnsupportedFeatures || [];
+  return Array.isArray(raw)
+    ? raw.filter((f) => typeof f === 'string' && f.trim()).map((f) => f.trim())
+    : [];
+}
 
 exports.getReviewSummary = async (req, res) => {
   try {
@@ -118,9 +127,31 @@ exports.requestRevision = async (req, res) => {
     const project = await projectService.getProject(projectId, userId);
     const latest = await SDF.findLatestByProject(project.id);
     const currentSdf = latest?.sdf_json;
+    const acknowledgedUnsupportedFeatures = normalizeAcknowledgedFeatures(req.body);
 
     if (!currentSdf || typeof currentSdf !== 'object') {
       return res.status(400).json({ error: 'No current SDF found for this project.' });
+    }
+
+    const sdf = await aiGatewayClient.editSdf({
+      businessDescription: project.description || '',
+      currentSdf,
+      instructions: instructions.trim(),
+      language: project.language,
+      acknowledgedUnsupportedFeatures,
+    });
+
+    if (sdf?.status === 'change_review_required') {
+      return res.json({
+        status: 'change_review_required',
+        project,
+        answer_review: sdf.answer_review,
+      });
+    }
+
+    const validation = validateGeneratorSdf(sdf);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error || 'AI revision returned an invalid SDF' });
     }
 
     const approval = await Approval.create({
@@ -132,16 +163,19 @@ exports.requestRevision = async (req, res) => {
       revisionInstructions: instructions.trim(),
     });
 
-    await projectService.updateProject(projectId, userId, { status: 'Clarifying' });
-
-    const sdf = await aiGatewayClient.editSdf({
-      businessDescription: project.description || '',
-      currentSdf,
-      instructions: instructions.trim(),
-    });
     const saved = await SDF.create(project.id, sdf);
 
     await Approval.updateResultingSdfVersion(approval.id, saved.version);
+
+    if (acknowledgedUnsupportedFeatures.length > 0) {
+      featureRequestService.recordFeatures({
+        userId,
+        projectId,
+        source: 'sdf_revision_request',
+        features: acknowledgedUnsupportedFeatures,
+        userPrompt: instructions.trim(),
+      }).catch((e) => logger.warn('Failed to record acknowledged revision features:', e.message));
+    }
 
     const questions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
     const nextStatus = questions.length ? 'Clarifying' : 'Ready';

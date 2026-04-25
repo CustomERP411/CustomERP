@@ -23,10 +23,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Login POST also returns 403 + ACCOUNT_BLOCKED with a message that includes the block reason.
+    // Do not hard-redirect here: that reloads the page and the login form never shows the error.
     if (error.response?.status === 403 && error.response?.data?.code === 'ACCOUNT_BLOCKED') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const isLoginAttempt = error.config?.url?.includes('/auth/login');
+      if (!isLoginAttempt) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
       return Promise.reject(error);
     }
     if (error.response?.status === 401 && !error.config.url?.includes('/auth/login')) {

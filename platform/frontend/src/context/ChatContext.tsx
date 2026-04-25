@@ -24,9 +24,6 @@ interface ChatContextType {
   chatLoading: boolean;
   projectContext: ProjectContext | null;
   pulsing: boolean;
-  /** True when the live preview is in phone “wide / horizontal” (rotated) layout — chat FAB anchors bottom-left. */
-  previewWideLayout: boolean;
-  setPreviewWideLayout: (v: boolean) => void;
   toggleChat: () => void;
   openChat: () => void;
   sendMessage: (text: string) => Promise<void>;
@@ -64,7 +61,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [chatLoading, setChatLoading] = useState(false);
   const [projectContext, setProjectContextState] = useState<ProjectContext | null>(null);
   const [pulsing, setPulsing] = useState(false);
-  const [previewWideLayout, setPreviewWideLayout] = useState(false);
   const projectContextRef = useRef<ProjectContext | null>(null);
 
   useEffect(() => {
@@ -93,10 +89,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const setProjectContext = useCallback((ctx: ProjectContext | null) => {
     setProjectContextState(ctx);
-  }, []);
-
-  const setPreviewWideLayoutFn = useCallback((v: boolean) => {
-    setPreviewWideLayout(v);
   }, []);
 
   const clearChat = useCallback(() => {
@@ -150,8 +142,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       chatLoading,
       projectContext,
       pulsing,
-      previewWideLayout,
-      setPreviewWideLayout: setPreviewWideLayoutFn,
       toggleChat,
       openChat,
       sendMessage,

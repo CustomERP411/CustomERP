@@ -84,11 +84,11 @@
     "processingAnswers": "Cevaplarınız işleniyor...",
     "complete": "Tamamlandı"
   },
-  "mobileView": {
-    "wideLayout": "Geniş düzen",
-    "tallLayout": "Dikey düzen",
-    "wideLayoutAria": "Önizlemeyi doksan derece döndür; telefonda tablolar ve kenar çubukları için daha geniş alan",
-    "tallLayoutAria": "Önizlemeyi normal dikey düzende göster"
+  "fullscreen": {
+    "enter": "Tam ekran",
+    "exit": "Tam ekrandan çık",
+    "enterAria": "Önizlemeyi tam ekranda aç",
+    "exitAria": "Tam ekran önizlemeden çık"
   },
   "changePanel": {
     "title": "Değişiklik Talep Et",

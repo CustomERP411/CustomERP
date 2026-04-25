@@ -140,9 +140,15 @@ export default function RegisterPage() {
           <ThemeToggle />
         </div>
         <div className="w-full max-w-md">
-          {/* Mobile Logo */}
+          {/* Mobile logo → home */}
           <div className="lg:hidden flex justify-center mb-6 sm:mb-8">
-            <BrandMark variant="wordmark" className="h-14 w-auto max-w-[min(100%,380px)] sm:h-16 object-contain" />
+            <Link
+              to="/"
+              className="inline-block rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-app-focus focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+              aria-label={t('auth:homeAriaLabel')}
+            >
+              <BrandMark variant="wordmark" className="h-14 w-auto max-w-[min(100%,380px)] sm:h-16 object-contain" />
+            </Link>
           </div>
 
           <div className="bg-app-surface/50 backdrop-blur-sm rounded-2xl shadow-xl p-6 sm:p-8 border border-app-border">
@@ -244,6 +250,15 @@ export default function RegisterPage() {
               </p>
             </div>
           </div>
+
+          <p className="lg:hidden mt-6 text-center text-sm">
+            <Link
+              to="/"
+              className="text-app-text-muted hover:text-app-accent-blue underline decoration-app-border-strong underline-offset-4 transition-colors"
+            >
+              {t('auth:backToHome')}
+            </Link>
+          </p>
         </div>
       </div>
     </div>

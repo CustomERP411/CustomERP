@@ -4,7 +4,7 @@ import { useChatContext } from '../../context/ChatContext';
 
 export default function ChatWidget() {
   const {
-    isOpen, chatHistory, chatLoading, projectContext, pulsing, previewWideLayout,
+    isOpen, chatHistory, chatLoading, projectContext, pulsing,
     toggleChat, sendMessage,
   } = useChatContext();
   const { t } = useTranslation('chatbot');
@@ -46,11 +46,7 @@ export default function ChatWidget() {
         <button
           type="button"
           onClick={toggleChat}
-          className={
-            previewWideLayout
-              ? 'fixed bottom-6 left-4 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-app-accent-blue text-white shadow-lg hover:bg-app-accent-dark-blue hover:scale-105 active:scale-95 sm:left-6'
-              : 'fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-app-accent-blue text-white shadow-lg hover:bg-app-accent-dark-blue hover:scale-105 active:scale-95'
-          }
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-app-accent-blue text-white shadow-lg hover:bg-app-accent-dark-blue hover:scale-105 active:scale-95"
           style={pulsing ? { animation: 'chatPulse 1s ease-in-out infinite' } : undefined}
           aria-label={t('openChat')}
         >
@@ -70,67 +66,25 @@ export default function ChatWidget() {
       {/* Chat panel */}
       {isOpen && (
         <div
-          className={
-            previewWideLayout
-              ? 'fixed bottom-6 left-3 z-40 flex w-[min(640px,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] flex-col rounded-2xl border border-app-border bg-app-surface shadow-2xl animate-in fade-in slide-in-from-left-2 duration-200 sm:left-6'
-              : 'fixed bottom-6 right-3 z-40 flex w-[calc(100vw-1.5rem)] sm:right-6 sm:w-[400px] flex-col rounded-2xl border border-app-border bg-app-surface shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200'
-          }
-          style={
-            previewWideLayout
-              ? { height: 'min(480px, 85dvh)', maxHeight: 'calc(100dvh - 3rem)' }
-              : { height: '520px', maxHeight: 'calc(100vh - 48px)' }
-          }
+          className="fixed bottom-6 right-3 z-40 flex w-[calc(100vw-1.5rem)] sm:right-6 sm:w-[400px] flex-col rounded-2xl border border-app-border bg-app-surface shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
+          style={{ height: '520px', maxHeight: 'calc(100vh - 48px)' }}
         >
-          {/* Header — single horizontal row in preview wide layout */}
-          <div
-            className={
-              previewWideLayout
-                ? 'flex flex-nowrap items-center justify-between gap-2 rounded-t-2xl border-b bg-app-accent-blue px-3 py-2.5 sm:px-4'
-                : 'flex items-center justify-between rounded-t-2xl border-b bg-app-accent-blue px-4 py-3'
-            }
-          >
-            <div
-              className={
-                previewWideLayout
-                  ? 'flex min-w-0 flex-1 flex-nowrap items-center gap-2.5'
-                  : 'flex items-center gap-2'
-              }
-            >
-              <svg
-                className={previewWideLayout ? 'h-5 w-5 shrink-0 text-white/80' : 'h-5 w-5 text-white/80'}
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                aria-hidden
-              >
+          <div className="flex items-center justify-between rounded-t-2xl border-b bg-app-accent-blue px-4 py-3">
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5 text-white/80" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
               </svg>
-              {previewWideLayout ? (
-                <div className="flex min-w-0 flex-1 flex-nowrap items-baseline gap-x-2 gap-y-0 overflow-hidden">
-                  <span className="shrink-0 text-sm font-semibold text-white">{t('title')}</span>
-                  {projectContext?.projectName && (
-                    <>
-                      <span className="shrink-0 text-white/50" aria-hidden>
-                        |
-                      </span>
-                      <span className="min-w-0 truncate text-xs font-medium text-white/80">{projectContext.projectName}</span>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  <div className="text-sm font-semibold text-white">{t('title')}</div>
-                  {projectContext?.projectName && (
-                    <div className="text-[11px] text-white/70 truncate max-w-[240px]">{projectContext.projectName}</div>
-                  )}
-                </div>
-              )}
+              <div>
+                <div className="text-sm font-semibold text-white">{t('title')}</div>
+                {projectContext?.projectName && (
+                  <div className="text-[11px] text-white/70 truncate max-w-[240px]">{projectContext.projectName}</div>
+                )}
+              </div>
             </div>
             <button
               type="button"
               onClick={toggleChat}
-              className="shrink-0 rounded-lg p-1.5 text-white/80 hover:bg-app-surface/10 hover:text-white transition-colors"
+              className="rounded-lg p-1 text-white/80 hover:bg-app-surface/10 hover:text-white transition-colors"
               aria-label={t('closeChat')}
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

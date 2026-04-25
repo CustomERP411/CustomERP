@@ -84,11 +84,11 @@
     "processingAnswers": "Processing your answers...",
     "complete": "Complete"
   },
-  "mobileView": {
-    "wideLayout": "Wide layout",
-    "tallLayout": "Tall layout",
-    "wideLayoutAria": "Rotate preview ninety degrees for a wider layout that is easier to use on a phone",
-    "tallLayoutAria": "Use normal upright preview layout"
+  "fullscreen": {
+    "enter": "Full screen",
+    "exit": "Exit full screen",
+    "enterAria": "Open preview in full screen",
+    "exitAria": "Exit full screen preview"
   },
   "changePanel": {
     "title": "Request Changes",

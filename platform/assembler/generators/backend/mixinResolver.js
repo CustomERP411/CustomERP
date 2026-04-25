@@ -134,6 +134,58 @@ module.exports = {
           },
         }, 'modules');
       }
+
+      // ──────────────────────────────────────────────────────────────
+      // SalesOrderCommitmentMixin
+      //
+      // Attach to the sales_orders header (role: 'header') so status
+      // transitions (draft→approved, approved→shipped|cancelled|closed)
+      // flow through to product.committed_quantity and on_hand, and to
+      // sales_order_lines (role: 'lines') so line CRUD keeps the
+      // commitment in sync.
+      //
+      // Both entities are synthesized deterministically in
+      // inventoryEntities.js whenever inventory is enabled, so their
+      // slugs are safe to hardcode here.
+      const allEntitySlugs = Array.isArray(allEntities)
+        ? allEntities.map((e) => e && e.slug).filter(Boolean)
+        : [];
+      const salesOrdersSlug = allEntitySlugs.includes('sales_orders') ? 'sales_orders' : null;
+      const salesOrderLinesSlug = allEntitySlugs.includes('sales_order_lines') ? 'sales_order_lines' : null;
+      const hasStockMovements = allEntitySlugs.includes('stock_movements');
+      const hasProducts = allEntitySlugs.includes(stockSlug || 'products');
+
+      if (hasProducts && salesOrdersSlug && salesOrderLinesSlug) {
+        const soCommonCfg = {
+          header_entity: salesOrdersSlug,
+          line_entity: salesOrderLinesSlug,
+          stock_entity: stockSlug || 'products',
+          stock_movement_entity: hasStockMovements ? 'stock_movements' : 'stock_movements',
+          parent_field: 'sales_order',
+          product_field: 'product',
+          ordered_field: 'ordered_qty',
+          shipped_field: 'shipped_qty',
+          unit_price_field: 'unit_price',
+          line_total_field: 'line_total',
+          status_field: 'status',
+          stock_quantity_field: reservationsCfg.stock_quantity_field || 'quantity',
+          stock_reserved_field: reservationsCfg.reserved_field || 'reserved_quantity',
+          stock_committed_field: reservationsCfg.committed_field || 'committed_quantity',
+          stock_available_field: reservationsCfg.available_field || 'available_quantity',
+          movement_type_field: 'movement_type',
+          movement_qty_field: 'quantity',
+          movement_product_field: 'product',
+          movement_reference_field: 'reference',
+          allow_negative_stock: false,
+        };
+
+        if (slug === salesOrdersSlug) {
+          addMixin('SalesOrderCommitmentMixin', { ...soCommonCfg, role: 'header' }, 'modules');
+        }
+        if (slug === salesOrderLinesSlug) {
+          addMixin('SalesOrderCommitmentMixin', { ...soCommonCfg, role: 'lines' }, 'modules');
+        }
+      }
     }
 
     const invoiceModuleConfig = (this.modules && this.modules.invoice && typeof this.modules.invoice === 'object')
@@ -381,6 +433,7 @@ module.exports = {
       'InventoryInboundWorkflowMixin',
       'InventoryCycleCountLineMixin',
       'InventoryCycleCountWorkflowMixin',
+      'SalesOrderCommitmentMixin',
       'BatchTrackingMixin',
       'SerialTrackingMixin',
       'AuditMixin',

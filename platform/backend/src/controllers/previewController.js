@@ -1,14 +1,39 @@
 const logger = require('../utils/logger');
 const previewManager = require('../services/previewManager');
+const projectService = require('../services/projectService');
 const SDF = require('../models/SDF');
+const { signIframeToken } = require('../utils/previewToken');
+
+const { ERROR_CODES } = previewManager;
+
+function respondError(res, statusCode, code, message) {
+  return res.status(statusCode).json({ error: message, code });
+}
+
+async function requireOwnership(req, res) {
+  try {
+    await projectService.getProject(req.params.id, req.user.userId);
+    return true;
+  } catch (_err) {
+    respondError(res, 404, ERROR_CODES.NOT_FOUND, 'Project not found');
+    return false;
+  }
+}
 
 async function startPreview(req, res) {
   try {
+    if (!(await requireOwnership(req, res))) return;
+
     const projectId = req.params.id;
 
     const sdfRow = await SDF.findLatestByProject(projectId);
     if (!sdfRow) {
-      return res.status(400).json({ error: 'No SDF found for this project. Generate one first.' });
+      return respondError(
+        res,
+        400,
+        ERROR_CODES.NO_SDF,
+        'No SDF found for this project. Generate one first.',
+      );
     }
 
     const sdf = typeof sdfRow.sdf_json === 'string' ? JSON.parse(sdfRow.sdf_json) : sdfRow.sdf_json;
@@ -16,39 +41,79 @@ async function startPreview(req, res) {
     const result = await previewManager.startPreview(projectId, sdf);
     res.json({ previewId: result.previewId, status: result.status });
   } catch (err) {
-    logger.error(`[previewController] startPreview error: ${err.message}`);
-    const status = err.statusCode || 500;
-    res.status(status).json({ error: err.message || 'Failed to start preview' });
+    const statusCode = err.statusCode || 500;
+    const code = err.code || ERROR_CODES.BUILD_FAILED;
+    logger.error(`[previewController] startPreview error (${code}): ${err.message}`);
+    respondError(res, statusCode, code, err.message || 'Failed to start preview');
   }
 }
 
 async function getPreviewStatus(req, res) {
   try {
+    if (!(await requireOwnership(req, res))) return;
+
     const projectId = req.params.id;
     const preview = previewManager.getPreviewForProject(projectId);
     if (!preview) {
       return res.json({ status: 'none' });
     }
-    const response = { previewId: preview.previewId, status: preview.status };
+
+    const response = {
+      previewId: preview.previewId,
+      status: preview.status,
+      phase: preview.phase || preview.status,
+    };
+
     if (preview.status === 'queued') {
       response.queuePosition = previewManager.getQueuePosition(preview.previewId);
     }
+
+    if (preview.status === 'error') {
+      response.errorCode = preview.errorCode || ERROR_CODES.BUILD_FAILED;
+      response.error = preview.errorMessage || 'Preview failed';
+    }
+
+    if (preview.status === 'running') {
+      response.iframeToken = signIframeToken({
+        userId: req.user.userId,
+        previewId: preview.previewId,
+      });
+    }
+
     res.json(response);
   } catch (err) {
     logger.error(`[previewController] getPreviewStatus error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    respondError(res, 500, ERROR_CODES.BUILD_FAILED, err.message);
   }
 }
 
 async function stopPreview(req, res) {
   try {
+    if (!(await requireOwnership(req, res))) return;
+
     const projectId = req.params.id;
     await previewManager.stopAllForProject(projectId);
     res.json({ status: 'stopped' });
   } catch (err) {
     logger.error(`[previewController] stopPreview error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    respondError(res, 500, ERROR_CODES.BUILD_FAILED, err.message);
   }
 }
 
-module.exports = { startPreview, getPreviewStatus, stopPreview };
+async function heartbeat(req, res) {
+  try {
+    if (!(await requireOwnership(req, res))) return;
+
+    const projectId = req.params.id;
+    const ok = previewManager.touchHeartbeatForProject(projectId);
+    if (!ok) {
+      return respondError(res, 404, ERROR_CODES.NOT_FOUND, 'No active preview');
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error(`[previewController] heartbeat error: ${err.message}`);
+    respondError(res, 500, ERROR_CODES.BUILD_FAILED, err.message);
+  }
+}
+
+module.exports = { startPreview, getPreviewStatus, stopPreview, heartbeat };

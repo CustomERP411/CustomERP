@@ -79,6 +79,21 @@ class EntityField(BaseModel):
     pattern: Optional[str] = Field(default=None, validation_alias=AliasChoices("pattern", "regex"))
     unique: Optional[bool] = Field(default=None)
 
+    # Server-maintained fields:
+    # When True, the field is maintained exclusively by server-side logic
+    # (e.g. reservation/commitment workflows). It MUST be:
+    #   - persisted as a column in the DB
+    #   - emitted as read-only / omitted from create+update validation on the API
+    #   - filtered out of editable inputs in the generated frontend (but may still be listed)
+    # Never writable from UI or API payloads.
+    computed: Optional[bool] = Field(
+        default=None,
+        description=(
+            "If true, the field is maintained by server-side logic and must NOT be accepted "
+            "from UI or API inputs. It is persisted in the DB but read-only to clients."
+        ),
+    )
+
 
 class Entity(BaseModel):
     """Represents a business entity (API resource + UI pages)."""

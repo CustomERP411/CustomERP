@@ -24,10 +24,18 @@ Welcome! This folder contains your complete, ready-to-run ERP system. Everything
 
 ### Linux
 
-1. Extract the ZIP: `unzip your-erp.zip`
+1. Extract the ZIP: `unzip your-erp.zip` (or use your file manager)
 2. Make the script executable: `chmod +x start.sh`
 3. Run it: `./start.sh`
 4. Your browser will open automatically at **http://localhost:3000**
+
+**Tested on (any glibc-based x86_64 distribution):** Ubuntu 22.04+, Debian 12+, Fedora 38+, Arch / Manjaro, openSUSE, Linux Mint, Pop!_OS, Elementary OS.
+
+**Not supported:**
+- **Alpine Linux / musl libc** -- the bundled Node.js runtime requires glibc. Use a glibc distro or the Docker build instead.
+- **ARM64 / aarch64 Linux** (Raspberry Pi, Apple Silicon VMs, most ARM single-board computers) -- this bundle is x86_64 only.
+- **32-bit Linux** (`i386`, `i686`) -- 64-bit only.
+- **NixOS** -- the bundled runtime will not find its loader out of the box. Run via `nix-ld` / `steam-run`, or use the Docker build.
 
 ---
 
@@ -80,8 +88,17 @@ See the macOS section under Getting Started above for how to bypass this on firs
 ### The application does not start
 Make sure you extracted the **entire** ZIP file, not just individual files from inside it. The `runtime` folder, `app` folder, and startup script must all be in the same location.
 
+### Linux: `./start.sh: Permission denied`
+The extracted files lost their executable bit. Run `chmod +x start.sh` (and, if needed, `chmod +x runtime/bin/node`) and try again.
+
+### Linux: `Exec format error` or `cannot execute binary file`
+Your CPU architecture does not match this bundle. This bundle targets **x86_64 Linux only**. ARM64 (Raspberry Pi, Apple Silicon Linux VMs) and 32-bit Linux are not supported.
+
+### Linux: Alpine / musl error from `start.sh`
+The bundled Node.js runtime is built against glibc and cannot run on Alpine / musl. Switch to a glibc-based distribution (Ubuntu, Debian, Fedora, Arch, openSUSE, Mint, Pop!_OS) or use the Docker build instead.
+
 ### Browser does not open automatically
-Open your browser manually and go to **http://localhost:3000**
+Open your browser manually and go to **http://localhost:3000**. On Linux, auto-open uses `xdg-open` and may silently fail on minimal or headless installs.
 
 ---
 

@@ -39,6 +39,9 @@ async function postJson(path, body) {
 
 async function analyzeDescription(description, priorContext = null, options = {}) {
   if (!description || typeof description !== 'string') throw new Error('description must be a string');
+  const selectedModules = Array.isArray(options.selectedModules)
+    ? options.selectedModules.filter((m) => typeof m === 'string' && m.trim()).map((m) => m.trim())
+    : [];
   return await postJson('/ai/analyze', {
     description,
     prior_context: priorContext,
@@ -50,6 +53,7 @@ async function analyzeDescription(description, priorContext = null, options = {}
       ? { prefilled_sdf: options.prefilledSdf }
       : {}),
     ...(options.projectId ? { project_id: options.projectId } : {}),
+    ...(selectedModules.length ? { selected_modules: selectedModules } : {}),
   });
 }
 

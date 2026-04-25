@@ -1,20 +1,20 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Project } from '../../types/project';
-import { LANGUAGE_LABELS, normalizeLanguage } from '../../i18n';
+import { normalizeLanguage } from '../../i18n';
 
 interface ProjectCardProps {
   project: Project;
   onDelete?: (project: Project) => void;
 }
 
-const STATUS_COLORS = {
-  Draft: 'bg-slate-100 text-slate-700',
-  Analyzing: 'bg-blue-100 text-blue-700',
-  Clarifying: 'bg-amber-100 text-amber-700',
-  Ready: 'bg-purple-100 text-purple-700',
-  Generated: 'bg-green-100 text-green-700',
-  Approved: 'bg-emerald-100 text-emerald-700',
+const STATUS_COLORS: Record<Project['status'], string> = {
+  Draft:      'bg-app-surface-hover text-app-text-muted',
+  Analyzing:  'bg-app-info-soft text-app-info',
+  Clarifying: 'bg-app-warning-soft text-app-warning',
+  Ready:      'bg-app-mod-hr-soft text-app-mod-hr',
+  Generated:  'bg-app-mod-invoice-soft text-app-mod-invoice',
+  Approved:   'bg-app-success-soft text-app-success',
 };
 
 export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
@@ -22,24 +22,24 @@ export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
   const projectLang = normalizeLanguage(project.language);
 
   return (
-    <div className="group relative flex flex-col justify-between rounded-xl border bg-white p-5 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
+    <div className="group relative flex flex-col justify-between rounded-xl border border-app-border bg-app-surface p-5 shadow-sm transition-all hover:border-app-accent-blue/40 hover:shadow-md">
       <div>
         <div className="flex items-center justify-between">
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[project.status] || 'bg-slate-100 text-slate-700'}`}>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[project.status] || 'bg-app-surface-hover text-app-text-muted'}`}>
             {t(`projects:status.${project.status}`, { defaultValue: project.status })}
           </span>
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600">
-            {LANGUAGE_LABELS[projectLang]}
+          <span className="rounded-full bg-app-surface-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-app-text-muted">
+            {t(`projects:card.languages.${projectLang}`)}
           </span>
         </div>
 
-        <h3 className="mt-3 text-lg font-semibold text-slate-900 group-hover:text-blue-600">
-          <Link to={`/projects/${project.id}`} className="focus:outline-none hover:underline">
+        <h3 className="mt-3 text-lg font-semibold text-app-text group-hover:text-app-accent-blue truncate">
+          <Link to={`/projects/${project.id}`} className="focus:outline-none hover:underline block truncate" title={project.name}>
             {project.name}
           </Link>
         </h3>
 
-        <div className="mt-4 flex items-center gap-4 text-xs text-slate-500">
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-app-text-muted">
           <div className="flex items-center gap-1">
             <span>{new Date(project.created_at).toLocaleDateString(i18n.language)}</span>
           </div>
@@ -54,15 +54,15 @@ export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t pt-3 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="mt-4 flex items-center justify-between border-t border-app-border pt-3 transition-opacity opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
         <button
           type="button"
           onClick={() => onDelete?.(project)}
-          className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+          className="text-xs font-semibold text-app-danger hover:opacity-80"
         >
           {t('projects:card.delete')}
         </button>
-        <Link to={`/projects/${project.id}`} className="flex items-center gap-1 text-sm font-medium text-blue-600">
+        <Link to={`/projects/${project.id}`} className="flex items-center gap-1 text-sm font-medium text-app-accent-blue">
           {t('projects:card.open')} &rarr;
         </Link>
       </div>

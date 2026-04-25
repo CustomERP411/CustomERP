@@ -2,6 +2,10 @@
   "livePreview": "Canlı Önizleme",
   "approveDownload": "Onayla ve İndir",
   "iframeTitle": "ERP Önizleme",
+  "iframe": {
+    "waitingToken": "Önizlemeye bağlanılıyor…",
+    "retryLink": "Bağlantıyı yenile"
+  },
   "preparingPreview": "Önizleme hazırlanıyor...",
   "mayTake": "Bu bir dakikaya kadar sürebilir",
   "previewFailed": "Önizleme Başarısız",
@@ -28,6 +32,30 @@
     "buildingInterface": "Arayüz oluşturuluyor...",
     "starting": "ERP'niz başlatılıyor..."
   },
+  "modal": {
+    "title": "Önizlemeniz oluşturuluyor",
+    "subtitle": "Lütfen bekleyin — size özel bir canlı ERP hazırlıyoruz.",
+    "queuePosition": "Sırada #{{position}}. sıradasınız",
+    "queueEta": "Yapı başına genellikle ~45 saniye sürer",
+    "queueWaiting": "Boş bir yapı yuvası bekleniyor...",
+    "elapsed": "Geçen süre: {{seconds}} sn",
+    "cancel": "İptal",
+    "cancelConfirm": "Bu önizleme oluşturmayı iptal edilsin mi?",
+    "errorTitle": "Önizleme başarısız",
+    "errorSubtitle": "ERP'nizi oluşturmayı tamamlayamadık.",
+    "retry": "Tekrar Dene",
+    "back": "Projeye dön",
+    "errorDetails": "Hata ayrıntıları"
+  },
+  "phases": {
+    "queued": "Sırada bekliyor",
+    "assembling": "Kod birleştiriliyor",
+    "installing_backend": "Arka uç kuruluyor",
+    "installing_frontend": "Ön uç kuruluyor",
+    "building_frontend": "Arayüz oluşturuluyor",
+    "starting": "Sunucu başlatılıyor",
+    "running": "Hazır"
+  },
   "errors": {
     "previewBuildFailed": "Önizleme oluşturma başarısız. Lütfen tekrar deneyin.",
     "startFailed": "Önizleme başlatılamadı",
@@ -36,7 +64,19 @@
     "unreachable": "Yapay zekâ servisimize geçici olarak ulaşılamıyor. Lütfen birkaç dakika sonra tekrar deneyin.",
     "highDemand": "Şu anda yoğun bir talep yaşıyoruz. Lütfen biraz bekleyin ve tekrar deneyin.",
     "unexpectedFormat": "Yapay zekâ beklenmeyen bir biçim üretti. Lütfen tekrar oluşturmayı deneyin.",
-    "generic": "Oluşturma sırasında bir hata oluştu. Lütfen tekrar deneyin."
+    "generic": "Oluşturma sırasında bir hata oluştu. Lütfen tekrar deneyin.",
+    "queueFull": "Şu anda çok fazla önizleme oluşturuluyor. Lütfen bir dakika sonra tekrar deneyin.",
+    "capacity": "Önizleme sunucusu dolu. Lütfen mevcut bir önizlemeyi kapatın veya kısa süre sonra tekrar deneyin.",
+    "noSdf": "Bu proje için henüz ERP yapısı bulunamadı. Önizlemeden önce oluşturun.",
+    "assembleFailed": "ERP kodu birleştirilemedi. Lütfen tekrar deneyin — tekrarlarsa projeyi düzenleyip yeniden oluşturun.",
+    "npmInstallFailed": "Önizleme için bağımlılıklar kurulamadı. Lütfen birkaç dakika sonra tekrar deneyin.",
+    "frontendBuildFailed": "Önizleme arayüzü oluşturulamadı. ERP'yi yeniden oluşturmayı veya yapıyı düzenlemeyi deneyin.",
+    "portTimeout": "Önizleme sunucusu zamanında başlamadı. Lütfen tekrar deneyin.",
+    "crashed": "Önizleme sunucusu beklenmedik şekilde çöktü. Lütfen tekrar deneyin.",
+    "stale": "Bu önizlemenin süresi doldu. Devam etmek için yeni bir önizleme başlatın.",
+    "notFound": "Önizleme bulunamadı. Lütfen yeni bir önizleme başlatın.",
+    "unauthorized": "Bu önizlemeyi görüntüleme yetkiniz yok.",
+    "spawnFailed": "Önizleme sunucusu başlatılamadı. Lütfen tekrar deneyin."
   },
   "phase": {
     "applying": "Değişiklikler uygulanıyor...",
@@ -44,11 +84,19 @@
     "processingAnswers": "Cevaplarınız işleniyor...",
     "complete": "Tamamlandı"
   },
+  "mobileView": {
+    "wideLayout": "Geniş düzen",
+    "tallLayout": "Dikey düzen",
+    "wideLayoutAria": "Önizlemeyi doksan derece döndür; telefonda tablolar ve kenar çubukları için daha geniş alan",
+    "tallLayoutAria": "Önizlemeyi normal dikey düzende göster"
+  },
   "changePanel": {
     "title": "Değişiklik Talep Et",
     "subtitle": "Değişmesini istediğiniz şeyleri açıklayın; ERP'nizi yeniden oluşturalım.",
     "placeholder": "örn. Ürünlere son kullanma tarihi alanı ekle, fatura düzenini vergiyi ayrı gösterecek şekilde değiştir...",
-    "button": "Değişiklikleri Talep Et"
+    "button": "Değişiklikleri Talep Et",
+    "openSheet": "Değişiklik iste",
+    "closeSheet": "Kapat"
   },
   "downloadModal": {
     "choosePlatform": "Bu ERP'yi çalıştıracağınız işletim sistemini seçin.",
@@ -60,6 +108,13 @@
     "startedBody": "ERP'niz onaylandı ve indirme otomatik olarak başlayacak.",
     "failedTitle": "İndirme başarısız",
     "retry": "Tekrar Dene"
+  },
+  "leaveConfirm": {
+    "title": "Önizlemeden çıkılsın mı?",
+    "buildingMessage": "Şimdi ayrılırsanız bu oluşturma iptal edilecek. Emin misiniz?",
+    "runningMessage": "Ayrıldığınızda önizleme sunucu kaynaklarını serbest bırakmak için kapatılacak.",
+    "stay": "Kal",
+    "leave": "Yine de çık"
   },
   "common": {
     "cancel": "İptal",

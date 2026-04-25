@@ -12,19 +12,19 @@ const AGENT_OPTIONS = ['distributor', 'hr_generator', 'invoice_generator', 'inve
 const QUALITY_OPTIONS = ['good', 'bad', 'needs_edit'] as const;
 
 function qualityColor(q: string | null) {
-  if (q === 'good') return 'bg-emerald-100 text-emerald-800';
-  if (q === 'bad') return 'bg-red-100 text-red-800';
-  if (q === 'needs_edit') return 'bg-amber-100 text-amber-800';
-  return 'bg-slate-100 text-slate-500';
+  if (q === 'good') return 'bg-app-success-soft text-app-success';
+  if (q === 'bad') return 'bg-app-danger-soft text-app-danger';
+  if (q === 'needs_edit') return 'bg-app-warning-soft text-app-warning';
+  return 'bg-app-surface-hover text-app-text-muted';
 }
 
 function agentBadge(agent: string) {
-  if (agent === 'distributor') return 'bg-orange-100 text-orange-700';
-  if (agent.includes('hr')) return 'bg-pink-100 text-pink-700';
-  if (agent.includes('invoice')) return 'bg-cyan-100 text-cyan-700';
-  if (agent.includes('inventory')) return 'bg-lime-100 text-lime-700';
-  if (agent === 'chatbot') return 'bg-teal-100 text-teal-700';
-  return 'bg-slate-100 text-slate-500';
+  if (agent === 'distributor') return 'bg-app-warning-soft text-app-warning';
+  if (agent.includes('hr')) return 'bg-app-mod-hr-soft text-app-mod-hr';
+  if (agent.includes('invoice')) return 'bg-app-mod-invoice-soft text-app-mod-invoice';
+  if (agent.includes('inventory')) return 'bg-app-mod-inventory-soft text-app-mod-inventory';
+  if (agent === 'chatbot') return 'bg-app-info-soft text-app-info';
+  return 'bg-app-surface-hover text-app-text-muted';
 }
 
 function agentLabel(agent: string) {
@@ -198,8 +198,8 @@ export default function TrainingDataPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Stats bar */}
-      <div className="flex flex-wrap items-center gap-4 border-b bg-white px-5 py-3">
-        <h1 className="text-lg font-bold text-slate-800">{t('training.title')}</h1>
+      <div className="flex flex-wrap items-center gap-4 border-b border-app-border bg-app-surface px-5 py-3">
+        <h1 className="text-lg font-bold text-app-text">{t('training.title')}</h1>
         {stats && (
           <>
             <Pill label={t('training.stats.sessions')} value={stats.total_sessions ?? 0} />
@@ -213,7 +213,7 @@ export default function TrainingDataPage() {
         <div className="ml-auto">
           <button
             onClick={() => setShowExport(true)}
-            className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+            className="rounded-lg bg-app-accent-blue px-4 py-1.5 text-sm font-medium text-white hover:bg-app-accent-dark-blue transition-colors"
           >
             {t('training.export')}
           </button>
@@ -222,13 +222,13 @@ export default function TrainingDataPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel: session list */}
-        <div className="flex w-96 flex-shrink-0 flex-col border-r bg-slate-50 overflow-hidden">
+        <div className={`${selectedId ? 'hidden md:flex' : 'flex'} w-full md:w-96 flex-shrink-0 flex-col border-r border-app-border bg-app-surface-muted overflow-hidden`}>
           {/* Filters */}
-          <div className="flex flex-wrap gap-2 border-b px-3 py-2 bg-white">
+          <div className="flex flex-wrap gap-2 border-b border-app-border px-3 py-2 bg-app-surface">
             <select
               value={filterAgent}
               onChange={(e) => { setFilterAgent(e.target.value); setOffset(0); }}
-              className="rounded border px-2 py-1 text-xs"
+              className="rounded border border-app-border bg-app-surface px-2 py-1 text-xs text-app-text"
             >
               <option value="">{t('training.filters.allAgents')}</option>
               {AGENT_OPTIONS.map((a) => <option key={a} value={a}>{agentLabel(a)}</option>)}
@@ -236,7 +236,7 @@ export default function TrainingDataPage() {
             <select
               value={filterQuality}
               onChange={(e) => { setFilterQuality(e.target.value); setOffset(0); }}
-              className="rounded border px-2 py-1 text-xs"
+              className="rounded border border-app-border bg-app-surface px-2 py-1 text-xs text-app-text"
             >
               <option value="">{t('training.filters.allQuality')}</option>
               {QUALITY_OPTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
@@ -244,7 +244,7 @@ export default function TrainingDataPage() {
             <select
               value={filterReviewed}
               onChange={(e) => { setFilterReviewed(e.target.value); setOffset(0); }}
-              className="rounded border px-2 py-1 text-xs"
+              className="rounded border border-app-border bg-app-surface px-2 py-1 text-xs text-app-text"
             >
               <option value="">{t('training.filters.all')}</option>
               <option value="true">{t('training.filters.reviewed')}</option>
@@ -255,16 +255,16 @@ export default function TrainingDataPage() {
           {/* List */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-6 text-center text-sm text-slate-400">{t('training.loading')}</div>
+              <div className="p-6 text-center text-sm text-app-text-subtle">{t('training.loading')}</div>
             ) : sessions.length === 0 ? (
-              <div className="p-6 text-center text-sm text-slate-400">{t('training.noSessions')}</div>
+              <div className="p-6 text-center text-sm text-app-text-subtle">{t('training.noSessions')}</div>
             ) : (
               sessions.map((s) => (
                 <button
                   key={s.session_id}
                   onClick={() => setSelectedId(s.session_id)}
-                  className={`w-full text-left border-b px-3 py-2.5 transition-colors hover:bg-slate-100 ${
-                    selectedId === s.session_id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''
+                  className={`w-full text-left border-b border-app-border px-3 py-2.5 transition-colors hover:bg-app-surface-hover ${
+                    selectedId === s.session_id ? 'bg-app-info-soft border-l-2 border-l-app-accent-blue' : ''
                   }`}
                 >
                   <div className="flex flex-wrap gap-1">
@@ -274,63 +274,74 @@ export default function TrainingDataPage() {
                             {agentLabel(a).replace(' Generator', '')}
                           </span>
                         ))
-                      : <span className="rounded px-1.5 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-500">{t('training.sessionItem.pipeline')}</span>
+                      : <span className="rounded px-1.5 py-0.5 text-[10px] font-bold bg-app-surface-hover text-app-text-muted">{t('training.sessionItem.pipeline')}</span>
                     }
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${qualityColor(s.quality)}`}>
                       {s.quality || t('training.sessionItem.unreviewed')}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-slate-600 line-clamp-2">{s.description_snippet || t('training.sessionItem.noDescription')}</p>
-                  <p className="mt-0.5 text-[10px] text-slate-400">{new Date(s.timestamp).toLocaleString(lang)}</p>
+                  <p className="mt-1 text-xs text-app-text-muted line-clamp-2">{s.description_snippet || t('training.sessionItem.noDescription')}</p>
+                  <p className="mt-0.5 text-[10px] text-app-text-subtle">{new Date(s.timestamp).toLocaleString(lang)}</p>
                 </button>
               ))
             )}
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between border-t bg-white px-3 py-2 text-xs text-slate-500">
+          <div className="flex items-center justify-between border-t border-app-border bg-app-surface px-3 py-2 text-xs text-app-text-muted">
             <span>{t('training.sessionsTotal', { count: total })}</span>
             <div className="flex gap-1">
               <button
                 disabled={offset === 0}
                 onClick={() => setOffset(Math.max(0, offset - limit))}
-                className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-slate-100"
+                className="rounded border border-app-border bg-app-surface px-2 py-0.5 text-app-text disabled:opacity-40 hover:bg-app-surface-hover"
               >{t('training.prev')}</button>
               <button
                 disabled={offset + limit >= total}
                 onClick={() => setOffset(offset + limit)}
-                className="rounded border px-2 py-0.5 disabled:opacity-40 hover:bg-slate-100"
+                className="rounded border border-app-border bg-app-surface px-2 py-0.5 text-app-text disabled:opacity-40 hover:bg-app-surface-hover"
               >{t('training.next')}</button>
             </div>
           </div>
         </div>
 
         {/* Right panel: detail */}
-        <div className="flex-1 overflow-y-auto bg-white">
+        <div className={`${selectedId ? 'flex' : 'hidden md:flex'} flex-1 flex-col overflow-y-auto bg-app-surface min-w-0`}>
           {!selectedId ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            <div className="flex h-full items-center justify-center text-sm text-app-text-subtle">
               {t('training.selectSession')}
             </div>
           ) : detailLoading ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">{t('training.loadingSession')}</div>
+            <div className="flex h-full items-center justify-center text-sm text-app-text-subtle">{t('training.loadingSession')}</div>
           ) : detail ? (
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full min-w-0">
               {/* Tabs */}
-              <div className="flex border-b bg-slate-50 px-4">
+              <div className="flex items-center border-b border-app-border bg-app-surface-muted px-2 sm:px-4 overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(null)}
+                  className="md:hidden mr-1 flex items-center gap-1 px-2 py-2 text-xs font-medium text-app-text-muted hover:text-app-text"
+                  aria-label={t('training.backToList')}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span className="whitespace-nowrap">{t('training.backToList')}</span>
+                </button>
                 {(['overview', 'agents'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setDetailTab(tab)}
                     className={`px-4 py-2.5 text-sm font-medium capitalize transition-colors border-b-2 ${
                       detailTab === tab
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                        ? 'border-app-accent-blue text-app-accent-blue'
+                        : 'border-transparent text-app-text-muted hover:text-app-text'
                     }`}
                   >
                     {tab === 'agents' ? t('training.tabs.agents', { count: detail.step_logs?.filter(s => s.model !== 'deterministic').length || 0 }) : t('training.tabs.overview')}
                   </button>
                 ))}
-                <div className="ml-auto flex items-center gap-2 text-xs text-slate-400 pr-2">
+                <div className="ml-auto flex items-center gap-2 text-xs text-app-text-subtle pr-2">
                   <span>{new Date(detail.timestamp).toLocaleString(lang)}</span>
                 </div>
               </div>
@@ -340,25 +351,25 @@ export default function TrainingDataPage() {
                 {detailTab === 'overview' && (
                   <div className="space-y-4">
                     {sdfValidation && (
-                      <div className={`rounded-lg border p-3 ${sdfValidation.valid ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+                      <div className={`rounded-lg border p-3 ${sdfValidation.valid ? 'border-app-success-border bg-app-success-soft' : 'border-app-danger-border bg-app-danger-soft'}`}>
                         <h3 className="text-sm font-semibold">
                           {sdfValidation.valid ? t('training.overview.sdfValid') : t('training.overview.sdfIssues')}
                         </h3>
                         {!sdfValidation.valid && (
-                          <ul className="mt-1 list-disc pl-5 text-xs text-red-700">
+                          <ul className="mt-1 list-disc pl-5 text-xs text-app-danger">
                             {sdfValidation.issues.map((issue, i) => <li key={i}>{issue}</li>)}
                           </ul>
                         )}
                       </div>
                     )}
 
-                    <div className="rounded-lg border p-3">
-                      <h3 className="text-sm font-semibold text-slate-700 mb-2">{t('training.overview.tokenUsage')}</h3>
+                    <div className="rounded-lg border border-app-border bg-app-surface p-3">
+                      <h3 className="text-sm font-semibold text-app-text mb-2">{t('training.overview.tokenUsage')}</h3>
                       <div className="flex flex-wrap gap-3 text-xs">
                         {Object.entries(detail.token_usage || {}).map(([key, val]) => {
                           if (typeof val !== 'object' || val === null) {
                             return (
-                              <div key={key} className="rounded bg-slate-100 px-2 py-1">
+                              <div key={key} className="rounded bg-app-surface-hover px-2 py-1">
                                 <span className="font-medium">{key}:</span> {val}
                               </div>
                             );
@@ -367,10 +378,10 @@ export default function TrainingDataPage() {
                           const completion = val.completion ?? 0;
                           const totalTok = val.total ?? (prompt + completion);
                           return (
-                            <div key={key} className="rounded bg-slate-100 px-2.5 py-1">
+                            <div key={key} className="rounded bg-app-surface-hover px-2.5 py-1">
                               <span className="font-medium">{key}:</span>{' '}
                               {totalTok.toLocaleString(lang)} {t('training.overview.tokens')}
-                              <span className="ml-1 text-slate-400">{t('training.overview.inOut', { in_: prompt.toLocaleString(lang), out: completion.toLocaleString(lang) })}</span>
+                              <span className="ml-1 text-app-text-subtle">{t('training.overview.inOut', { in_: prompt.toLocaleString(lang), out: completion.toLocaleString(lang) })}</span>
                             </div>
                           );
                         })}
@@ -386,7 +397,7 @@ export default function TrainingDataPage() {
                 {detailTab === 'agents' && (
                   <div className="space-y-4">
                     {(!detail.step_logs || detail.step_logs.filter(s => s.model !== 'deterministic').length === 0) ? (
-                      <p className="text-sm text-slate-400">{t('training.agentsTab.noAgentLogs')}</p>
+                      <p className="text-sm text-app-text-subtle">{t('training.agentsTab.noAgentLogs')}</p>
                     ) : (
                       detail.step_logs.filter(s => s.model !== 'deterministic').map((step, i) => {
                         const isExpanded = expandedSteps.has(i);
@@ -397,26 +408,26 @@ export default function TrainingDataPage() {
                         const sr = stepReviewState[step.agent] || { quality: '', notes: '', corrective: '', edited: '', saving: false };
                         const existingReview = detail.step_reviews?.[step.agent];
                         return (
-                          <div key={i} className="rounded-xl border border-slate-200 overflow-hidden">
+                          <div key={i} className="rounded-xl border border-app-border overflow-hidden">
                             <button
                               onClick={() => toggleStep(i)}
-                              className="flex w-full items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
+                              className="flex w-full items-center justify-between px-4 py-3 bg-app-surface-muted hover:bg-app-surface-hover transition-colors"
                             >
                               <div className="flex items-center gap-2">
                                 <span className={`rounded-lg px-2 py-1 text-xs font-bold ${agentBadge(step.agent)}`}>
                                   {agentLabel(step.agent)}
                                 </span>
-                                <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-mono text-slate-600">{step.model}</span>
-                                <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-500">t={step.temperature}</span>
+                                <span className="rounded bg-app-surface-hover px-1.5 py-0.5 text-[10px] font-mono text-app-text-muted">{step.model}</span>
+                                <span className="rounded bg-app-surface-hover px-1.5 py-0.5 text-[10px] text-app-text-muted">t={step.temperature}</span>
                                 {existingReview?.quality && (
                                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${qualityColor(existingReview.quality)}`}>
                                     {existingReview.quality.replace('_', ' ')}
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-3 text-xs text-slate-500">
+                              <div className="flex items-center gap-3 text-xs text-app-text-muted">
                                 <span className="font-medium">{t('training.agentsTab.tokens', { count: (step.tokens_in + step.tokens_out).toLocaleString(lang) as any })}</span>
-                                <span className="text-slate-400">{t('training.agentsTab.tokensInOut', { in_: step.tokens_in.toLocaleString(lang), out: step.tokens_out.toLocaleString(lang) })}</span>
+                                <span className="text-app-text-subtle">{t('training.agentsTab.tokensInOut', { in_: step.tokens_in.toLocaleString(lang), out: step.tokens_out.toLocaleString(lang) })}</span>
                                 <span>{(step.duration_ms / 1000).toFixed(1)}s</span>
                                 <svg className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -425,9 +436,9 @@ export default function TrainingDataPage() {
                             </button>
 
                             {isExpanded && (
-                              <div className="border-t">
+                              <div className="border-t border-app-border">
                                 {/* Data sections (collapsible) */}
-                                <div className="divide-y">
+                                <div className="divide-y divide-app-border">
                                   {step.prompt_text && (
                                     <SectionToggle
                                       title={t('training.agentsTab.promptSent')}
@@ -436,7 +447,7 @@ export default function TrainingDataPage() {
                                       onToggle={toggleSection}
                                       color="blue"
                                     >
-                                      <pre className="bg-blue-50 p-3 text-xs text-slate-700 overflow-x-auto max-h-[500px] overflow-y-auto whitespace-pre-wrap break-words">
+                                      <pre className="bg-app-info-soft p-3 text-xs text-app-text overflow-x-auto max-h-[500px] overflow-y-auto whitespace-pre-wrap break-words">
                                         {step.prompt_text}
                                       </pre>
                                     </SectionToggle>
@@ -449,7 +460,7 @@ export default function TrainingDataPage() {
                                     onToggle={toggleSection}
                                     color="slate"
                                   >
-                                    <pre className="bg-slate-50 p-3 text-xs text-slate-700 overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-words">
+                                    <pre className="bg-app-surface-muted p-3 text-xs text-app-text overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-words">
                                       {JSON.stringify(step.input_summary, null, 2)}
                                     </pre>
                                   </SectionToggle>
@@ -461,7 +472,7 @@ export default function TrainingDataPage() {
                                     onToggle={toggleSection}
                                     color="emerald"
                                   >
-                                    <pre className="bg-emerald-50 p-3 text-xs text-slate-700 overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-words">
+                                    <pre className="bg-app-success-soft p-3 text-xs text-app-text overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-words">
                                       {JSON.stringify(step.output_parsed, null, 2)}
                                     </pre>
                                   </SectionToggle>
@@ -474,7 +485,7 @@ export default function TrainingDataPage() {
                                       onToggle={toggleSection}
                                       color="amber"
                                     >
-                                      <pre className="bg-amber-50 p-3 text-xs text-slate-600 overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap break-words">
+                                      <pre className="bg-app-warning-soft p-3 text-xs text-app-text-muted overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap break-words">
                                         {step.raw_response}
                                       </pre>
                                     </SectionToggle>
@@ -482,11 +493,11 @@ export default function TrainingDataPage() {
                                 </div>
 
                                 {/* Review — always visible when expanded */}
-                                <div className="border-t bg-white px-4 py-3 space-y-3">
+                                <div className="border-t border-app-border bg-app-surface px-4 py-3 space-y-3">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-slate-700">{t('training.agentsTab.review')}</span>
+                                    <span className="text-xs font-semibold text-app-text">{t('training.agentsTab.review')}</span>
                                     {existingReview?.reviewed_at && (
-                                      <span className="text-[10px] text-slate-400">
+                                      <span className="text-[10px] text-app-text-subtle">
                                         {t('training.agentsTab.lastSaved', { date: new Date(existingReview.reviewed_at).toLocaleDateString(lang) })}
                                       </span>
                                     )}
@@ -499,10 +510,10 @@ export default function TrainingDataPage() {
                                         onClick={() => updateStepReview(step.agent, 'quality', sr.quality === q ? '' : q)}
                                         className={`rounded-lg border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
                                           sr.quality === q
-                                            ? q === 'good' ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                                              : q === 'bad' ? 'border-red-500 bg-red-50 text-red-700'
-                                              : 'border-amber-500 bg-amber-50 text-amber-700'
-                                            : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                                            ? q === 'good' ? 'border-app-success bg-app-success-soft text-app-success'
+                                              : q === 'bad' ? 'border-app-danger bg-app-danger-soft text-app-danger'
+                                              : 'border-app-warning bg-app-warning-soft text-app-warning'
+                                            : 'border-app-border text-app-text-muted hover:border-app-border-strong'
                                         }`}
                                       >{q.replace('_', ' ')}</button>
                                     ))}
@@ -510,7 +521,7 @@ export default function TrainingDataPage() {
                                     <button
                                       onClick={() => handleSaveStepReview(step.agent)}
                                       disabled={!sr.quality || sr.saving}
-                                      className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                      className="rounded-lg bg-app-accent-blue px-4 py-1.5 text-xs font-medium text-white hover:bg-app-accent-dark-blue disabled:opacity-50 transition-colors"
                                     >
                                       {sr.saving ? t('training.agentsTab.saving') : t('training.agentsTab.save')}
                                     </button>
@@ -521,14 +532,14 @@ export default function TrainingDataPage() {
                                       value={sr.notes}
                                       onChange={(e) => updateStepReview(step.agent, 'notes', e.target.value)}
                                       rows={2}
-                                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                      className="w-full rounded-lg border border-app-border-strong px-3 py-2 text-xs focus:border-app-accent-blue focus:outline-none focus:ring-1 focus:ring-app-focus"
                                       placeholder={t('training.agentsTab.notesPlaceholder')}
                                     />
                                     <textarea
                                       value={sr.corrective}
                                       onChange={(e) => updateStepReview(step.agent, 'corrective', e.target.value)}
                                       rows={2}
-                                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                      className="w-full rounded-lg border border-app-border-strong px-3 py-2 text-xs focus:border-app-accent-blue focus:outline-none focus:ring-1 focus:ring-app-focus"
                                       placeholder={t('training.agentsTab.correctivePlaceholder')}
                                     />
                                   </div>
@@ -539,12 +550,12 @@ export default function TrainingDataPage() {
                                         value={sr.edited}
                                         onChange={(e) => updateStepReview(step.agent, 'edited', e.target.value)}
                                         rows={8}
-                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-full rounded-lg border border-app-border-strong px-3 py-2 font-mono text-xs focus:border-app-accent-blue focus:outline-none focus:ring-1 focus:ring-app-focus"
                                         placeholder={t('training.agentsTab.editedPlaceholder')}
                                       />
                                       {sr.edited.trim() && (() => {
-                                        try { JSON.parse(sr.edited); return <p className="mt-1 text-xs text-emerald-600">{t('training.agentsTab.validJson')}</p>; }
-                                        catch { return <p className="mt-1 text-xs text-red-600">{t('training.agentsTab.invalidJson')}</p>; }
+                                        try { JSON.parse(sr.edited); return <p className="mt-1 text-xs text-app-success">{t('training.agentsTab.validJson')}</p>; }
+                                        catch { return <p className="mt-1 text-xs text-app-danger">{t('training.agentsTab.invalidJson')}</p>; }
                                       })()}
                                     </div>
                                   )}
@@ -576,11 +587,11 @@ export default function TrainingDataPage() {
 /* ── Sub-components ─────────────────────────────────────────── */
 
 function Pill({ label, value, color }: { label: string; value: string | number; color?: string }) {
-  const bg = color === 'green' ? 'bg-emerald-100 text-emerald-800'
-    : color === 'red' ? 'bg-red-100 text-red-800'
-    : color === 'amber' ? 'bg-amber-100 text-amber-800'
-    : color === 'blue' ? 'bg-blue-100 text-blue-800'
-    : 'bg-slate-100 text-slate-700';
+  const bg = color === 'green' ? 'bg-app-success-soft text-app-success'
+    : color === 'red' ? 'bg-app-danger-soft text-app-danger'
+    : color === 'amber' ? 'bg-app-warning-soft text-app-warning'
+    : color === 'blue' ? 'bg-app-info-soft text-app-info'
+    : 'bg-app-surface-hover text-app-text';
   return (
     <div className={`rounded-full px-3 py-0.5 text-xs font-medium ${bg}`}>
       {label}: <span className="font-bold">{value}</span>
@@ -597,10 +608,10 @@ function JsonSection({ title, data, defaultExpanded = false }: {
   if (!data) return null;
   const text = JSON.stringify(data, null, 2);
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-lg border border-app-border bg-app-surface">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-app-text hover:bg-app-surface-muted"
       >
         {title}
         <svg className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -608,7 +619,7 @@ function JsonSection({ title, data, defaultExpanded = false }: {
         </svg>
       </button>
       {expanded && (
-        <pre className="border-t bg-slate-50 p-3 text-xs text-slate-700 overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-words">
+        <pre className="border-t border-app-border bg-app-surface-muted p-3 text-xs text-app-text overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-words">
           {text}
         </pre>
       )}
@@ -640,10 +651,10 @@ function SectionToggle({ title, sectionKey, expanded, onToggle, color = 'slate',
   };
 
   const colorMap: Record<string, string> = {
-    blue: 'text-blue-700 bg-blue-50/50',
-    emerald: 'text-emerald-700 bg-emerald-50/50',
-    amber: 'text-amber-700 bg-amber-50/50',
-    slate: 'text-slate-700 bg-slate-50/50',
+    blue: 'text-app-info bg-app-info-soft/50',
+    emerald: 'text-app-success bg-app-success-soft/50',
+    amber: 'text-app-warning bg-app-warning-soft/50',
+    slate: 'text-app-text bg-app-surface-muted/50',
   };
 
   return (

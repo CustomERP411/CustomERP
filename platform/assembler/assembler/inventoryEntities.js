@@ -76,26 +76,37 @@ module.exports = {
     ensureField(stockEntity, { name: stockQtyField, type: 'decimal', label: this._formatAutoName(stockQtyField), required: true, min: 0 });
 
     if (this._isPackEnabled(cfg.reservations) || this._isPackEnabled(cfg.transactions)) {
+      // Reserved / committed / available are maintained by server-side logic
+      // (reservation workflow + sales order commitment mixin). Mark them
+      // computed:true so the generated validator strips them from inbound
+      // payloads and the frontend form hides them from create/edit screens.
+      // They remain visible as columns in list views and in the read-only
+      // "Stock Availability" band on the form.
       ensureField(stockEntity, {
         name: cfg.reservations.reserved_field,
         type: 'decimal',
         label: this._formatAutoName(cfg.reservations.reserved_field),
-        required: true,
+        required: false,
+        computed: true,
+        default: 0,
         min: 0,
       });
       ensureField(stockEntity, {
         name: cfg.reservations.committed_field,
         type: 'decimal',
         label: this._formatAutoName(cfg.reservations.committed_field),
-        required: true,
+        required: false,
+        computed: true,
+        default: 0,
         min: 0,
       });
       ensureField(stockEntity, {
         name: cfg.reservations.available_field,
         type: 'decimal',
         label: this._formatAutoName(cfg.reservations.available_field),
-        required: true,
-        min: 0,
+        required: false,
+        computed: true,
+        default: 0,
       });
     }
 
@@ -439,6 +450,110 @@ module.exports = {
           cfg.cycleCounting.line_variance_field,
           'status',
         ],
+      });
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Sales Orders pack (deterministic synthesis)
+    //
+    // The inventory generator prompt already instructs the LLM to emit
+    // `sales_orders` + `sales_order_lines`, but prompts are not a contract.
+    // Whenever the inventory module is enabled, we guarantee the pack
+    // exists here so the downstream SalesOrderCommitmentMixin and the
+    // committed_quantity derivation always have data to operate on.
+    //
+    // Customer reference points at a `customers` entity when one exists
+    // (shared with invoicing); otherwise falls back to a plain string so
+    // the pack works for inventory-only projects.
+    {
+      const salesOrderSlug = 'sales_orders';
+      const salesOrderLinesSlug = 'sales_order_lines';
+      const customersEntity = bySlug.get('customers');
+      const customerFieldSpec = customersEntity
+        ? { name: 'customer', type: 'reference', label: 'Customer', required: true, reference_entity: 'customers' }
+        : { name: 'customer', type: 'string', label: 'Customer', required: true };
+
+      const salesOrderEntity = ensureEntity(salesOrderSlug, () => ({
+        slug: salesOrderSlug,
+        display_name: 'Sales Orders',
+        display_field: 'order_number',
+        module: 'inventory',
+        ui: { search: true, csv_import: true, csv_export: true, print: true },
+        list: { columns: ['order_number', 'customer', 'order_date', 'status', 'total_amount'] },
+        fields: [],
+        features: { audit_trail: true },
+      }));
+      ensureField(salesOrderEntity, { name: 'order_number', type: 'string', label: 'Order Number', required: true, unique: true });
+      ensureField(salesOrderEntity, customerFieldSpec);
+      ensureField(salesOrderEntity, { name: 'order_date', type: 'date', label: 'Order Date', required: true });
+      ensureField(salesOrderEntity, {
+        name: 'status',
+        type: 'string',
+        label: 'Status',
+        required: true,
+        options: ['draft', 'approved', 'shipped', 'cancelled', 'closed'],
+      });
+      ensureField(salesOrderEntity, { name: 'notes', type: 'text', label: 'Notes', required: false });
+      ensureField(salesOrderEntity, {
+        name: 'total_amount',
+        type: 'decimal',
+        label: 'Total Amount',
+        required: false,
+        computed: true,
+        default: 0,
+        min: 0,
+      });
+
+      const salesOrderLineEntity = ensureEntity(salesOrderLinesSlug, () => ({
+        slug: salesOrderLinesSlug,
+        display_name: 'Sales Order Lines',
+        display_field: 'product',
+        module: 'inventory',
+        ui: { search: true, csv_import: false, csv_export: true, print: false },
+        list: { columns: ['sales_order', 'product', 'ordered_qty', 'shipped_qty', 'unit_price', 'line_total'] },
+        fields: [],
+        features: {},
+      }));
+      ensureField(salesOrderLineEntity, {
+        name: 'sales_order',
+        type: 'reference',
+        label: 'Sales Order',
+        required: true,
+        reference_entity: salesOrderSlug,
+      });
+      ensureField(salesOrderLineEntity, {
+        name: 'product',
+        type: 'reference',
+        label: 'Product',
+        required: true,
+        reference_entity: stockSlug,
+      });
+      ensureField(salesOrderLineEntity, { name: 'ordered_qty', type: 'decimal', label: 'Ordered Qty', required: true, min: 0 });
+      ensureField(salesOrderLineEntity, {
+        name: 'shipped_qty',
+        type: 'decimal',
+        label: 'Shipped Qty',
+        required: false,
+        computed: true,
+        default: 0,
+        min: 0,
+      });
+      ensureField(salesOrderLineEntity, { name: 'unit_price', type: 'decimal', label: 'Unit Price', required: true, min: 0 });
+      ensureField(salesOrderLineEntity, {
+        name: 'line_total',
+        type: 'decimal',
+        label: 'Line Total',
+        required: false,
+        computed: true,
+        default: 0,
+        min: 0,
+      });
+
+      ensureChild(salesOrderEntity, {
+        entity: salesOrderLinesSlug,
+        foreign_key: 'sales_order',
+        label: 'Order Lines',
+        columns: ['product', 'ordered_qty', 'shipped_qty', 'unit_price', 'line_total'],
       });
     }
   },

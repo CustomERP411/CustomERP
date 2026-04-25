@@ -227,14 +227,28 @@ export const projectService = {
     return response.data;
   },
 
-  getPreviewStatus: async (id: string): Promise<{ previewId?: string; status: string; queuePosition?: number }> => {
-    const response = await api.get<{ previewId?: string; status: string; queuePosition?: number }>(`/projects/${id}/preview/status`);
+  getPreviewStatus: async (
+    id: string,
+  ): Promise<{
+    previewId?: string;
+    status: 'none' | 'queued' | 'building' | 'running' | 'error' | 'stopped';
+    phase?: string;
+    queuePosition?: number;
+    errorCode?: string;
+    error?: string;
+    iframeToken?: string;
+  }> => {
+    const response = await api.get(`/projects/${id}/preview/status`);
     return response.data;
   },
 
   stopPreview: async (id: string): Promise<{ status: string }> => {
     const response = await api.delete<{ status: string }>(`/projects/${id}/preview/stop`);
     return response.data;
+  },
+
+  heartbeatPreview: async (id: string): Promise<void> => {
+    await api.post(`/projects/${id}/preview/heartbeat`);
   },
 
   chatWithProject: async (

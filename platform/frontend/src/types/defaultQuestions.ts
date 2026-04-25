@@ -22,6 +22,12 @@ export interface DefaultModuleQuestion {
   required: boolean;
   allow_custom?: boolean;
   options?: string[];
+  /**
+   * Display labels keyed by option value. When present, frontend should render
+   * `option_labels[value] ?? value` so the stored slug stays language-neutral
+   * while the UI shows the locale-appropriate label.
+   */
+  option_labels?: Record<string, string>;
   condition?: DefaultQuestionCondition | null;
   section?: string;
   order_index?: number;

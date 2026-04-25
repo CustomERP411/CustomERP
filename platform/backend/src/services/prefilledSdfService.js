@@ -82,9 +82,9 @@ function buildInventoryEntities(answers) {
   }
 
   if (reservationsEnabled) {
-    productFields.push({ name: 'reserved_quantity', type: 'integer' });
-    productFields.push({ name: 'committed_quantity', type: 'integer' });
-    productFields.push({ name: 'available_quantity', type: 'integer' });
+    productFields.push({ name: 'reserved_quantity', type: 'integer', computed: true, required: false });
+    productFields.push({ name: 'committed_quantity', type: 'integer', computed: true, required: false });
+    productFields.push({ name: 'available_quantity', type: 'integer', computed: true, required: false });
   }
 
   if (batchTracking) {

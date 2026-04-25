@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "home": "Ana sayfa",
+    "howItWorks": "Nasıl çalışır"
+  },
+  "title": "Hakkımızda",
+  "subtitle": "Bilkent Üniversitesi CTIS bitirme projesi olarak başladı; iş tanımlarını çalışan bir ERP sistemine çeviriyoruz.",
+  "mission": {
+    "heading": "Misyonumuz",
+    "body": "Küçük ve orta ölçekli işletmelerin kendi ERP sistemlerini teknik ekip olmadan kurabilmesini sağlamak. CustomERP, işletme sahibinin kendi dilinde yazdığı birkaç paragrafı yapay zekâ destekli bir boru hattından geçirerek tam işlevsel, çalışır durumda bir ERP projesi üretir."
+  },
+  "team": {
+    "heading": "Ekip",
+    "body": "CustomERP, Bilkent Üniversitesi Bilgisayar Teknolojisi ve Bilişim Sistemleri (CTIS) öğrencileri tarafından bitirme projesi olarak geliştirildi.",
+    "ctisLabel": "Bilkent CTIS'i ziyaret et"
+  },
+  "tech": {
+    "heading": "Teknoloji",
+    "body": "Front-end React + TypeScript ile, API tarafı Node.js / Express ile, yapay zekâ boru hattı ise Python FastAPI üzerinde çok ajanlı bir mimariyle yazıldı. Proje açık kaynak; GitHub üzerinde incelenebilir.",
+    "githubLabel": "GitHub'da görüntüle"
+  },
+  "cta": {
+    "heading": "Denemeye hazır mısınız?",
+    "body": "Birkaç cümle ile kendi ERP sisteminizi oluşturun.",
+    "primary": "Ücretsiz başla",
+    "secondary": "Nasıl çalışır?"
+  }
+}

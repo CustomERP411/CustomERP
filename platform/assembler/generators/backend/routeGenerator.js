@@ -74,6 +74,18 @@ module.exports = router;
           `router.post('/:id/post', (req, res) => controller.runAction(req, res, 'postCycleSession', req.params.id, req.body || {}));`
         );
       }
+
+      // Sales order commitment: admin/recompute endpoint on the sales_orders
+      // service. Safe to add unconditionally because the SalesOrderCommitmentMixin
+      // (and therefore recomputeCommitted) is only attached when the
+      // sales_orders + sales_order_lines entities are synthesized — which
+      // only happens inside the inventory module. If the method is missing,
+      // runAction returns a 404 rather than crashing.
+      if (slug === 'sales_orders') {
+        routes.push(
+          `router.post('/recompute-committed', (req, res) => controller.runAction(req, res, 'recomputeCommitted'));`
+        );
+      }
     }
 
     if (moduleKey === 'invoice') {
@@ -147,6 +159,17 @@ module.exports = router;
           `router.post('/:id/leave-balance/adjust', (req, res) => controller.runAction(req, res, 'adjustLeaveBalance', req.params.id, req.body || {}));`
         );
       }
+      // HREmployee companion-user workflow routes. The underlying methods are
+      // injected by HREmployeeMixin and only attached on the employees service,
+      // so they are always safe to expose here when RBAC is enabled — requirePermission
+      // gates them. If RBAC is disabled, the methods still function and simply
+      // skip the permission check.
+      if (slug === employeeSlug) {
+        routes.push(
+          `router.post('/with-user', (req, res) => controller.runAction(req, res, 'createWithCompanionUser', req.body || {}));`,
+          `router.post('/:id/link-user', (req, res) => controller.runAction(req, res, 'linkUser', req.params.id, req.body || {}));`
+        );
+      }
       if (this._isPackEnabled(cfg.attendanceTime) && slug === attendanceSlug) {
         routes.push(
           `router.post('/record', (req, res) => controller.runAction(req, res, 'recordAttendance', req.body || {}));`,
@@ -182,8 +205,8 @@ module.exports = router;
     let rbacSetup = '';
 
     if (this._accessControlEnabled) {
-      rbacImport = `const { rbacLoader, requirePermission } = require('../rbac/rbacMiddleware');\nconst rbacRoutes = require('../rbac/rbacRoutes');\nconst { userEntityGuard } = rbacRoutes;\n`;
-      rbacSetup = `router.use(rbacLoader);\nrouter.use('/auth', rbacRoutes);\nrouter.use('/__erp_users', userEntityGuard());\n`;
+      rbacImport = `const { rbacLoader, requirePermission } = require('../rbac/rbacMiddleware');\nconst rbacRoutes = require('../rbac/rbacRoutes');\nconst { userEntityGuard, userGroupGuard } = rbacRoutes;\n`;
+      rbacSetup = `router.use(rbacLoader);\nrouter.use('/auth', rbacRoutes);\nrouter.use('/__erp_users', userEntityGuard());\nrouter.use('/__erp_user_groups', userGroupGuard());\n`;
     }
 
     entities.forEach(entity => {

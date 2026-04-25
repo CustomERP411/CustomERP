@@ -138,6 +138,7 @@
     "sessionsTotal": "{{count}} toplam",
     "prev": "Önceki",
     "next": "Sonraki",
+    "backToList": "Listeye dön",
     "filters": {
       "allAgents": "Tüm ajanlar",
       "allQuality": "Tüm kalite",

@@ -138,6 +138,7 @@
     "sessionsTotal": "{{count}} total",
     "prev": "Prev",
     "next": "Next",
+    "backToList": "Back to list",
     "filters": {
       "allAgents": "All agents",
       "allQuality": "All quality",

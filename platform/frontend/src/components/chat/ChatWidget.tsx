@@ -46,7 +46,7 @@ export default function ChatWidget() {
         <button
           type="button"
           onClick={toggleChat}
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 hover:scale-105 active:scale-95"
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-app-accent-blue text-white shadow-lg hover:bg-app-accent-dark-blue hover:scale-105 active:scale-95"
           style={pulsing ? { animation: 'chatPulse 1s ease-in-out infinite' } : undefined}
           aria-label={t('openChat')}
         >
@@ -58,11 +58,11 @@ export default function ChatWidget() {
 
       {/* Chat panel */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 flex w-[400px] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
+        <div className="fixed bottom-6 right-3 sm:right-6 z-40 flex w-[calc(100vw-1.5rem)] sm:w-[400px] flex-col rounded-2xl border border-app-border bg-app-surface shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
           style={{ height: '520px', maxHeight: 'calc(100vh - 48px)' }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between rounded-t-2xl border-b bg-indigo-600 px-4 py-3">
+          <div className="flex items-center justify-between rounded-t-2xl border-b bg-app-accent-blue px-4 py-3">
             <div className="flex items-center gap-2">
               <svg className="h-5 w-5 text-white/80" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
@@ -77,7 +77,7 @@ export default function ChatWidget() {
             <button
               type="button"
               onClick={toggleChat}
-              className="rounded-lg p-1 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+              className="rounded-lg p-1 text-white/80 hover:bg-app-surface/10 hover:text-white transition-colors"
               aria-label={t('closeChat')}
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -91,32 +91,32 @@ export default function ChatWidget() {
             {!hasProject && (
               <div className="flex h-full items-center justify-center">
                 <div className="text-center px-4">
-                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                    <svg className="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-app-surface-hover">
+                    <svg className="h-6 w-6 text-app-text-subtle" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-slate-700">{t('empty.title')}</p>
-                  <p className="mt-1 text-xs text-slate-400">{t('empty.subtitle')}</p>
+                  <p className="text-sm font-medium text-app-text">{t('empty.title')}</p>
+                  <p className="mt-1 text-xs text-app-text-subtle">{t('empty.subtitle')}</p>
                 </div>
               </div>
             )}
 
             {hasProject && chatHistory.length === 0 && !chatLoading && (
               <div className="py-6 text-center">
-                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50">
-                  <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-app-info-soft">
+                  <svg className="h-5 w-5 text-app-accent-blue" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
                   </svg>
                 </div>
-                <p className="text-sm text-slate-500">{t('empty.subtitle')}</p>
+                <p className="text-sm text-app-text-muted">{t('empty.subtitle')}</p>
                 <div className="mt-4 flex flex-wrap justify-center gap-1.5">
                   {quickPrompts.map((prompt) => (
                     <button
                       key={prompt.key}
                       type="button"
                       onClick={() => handleSend(prompt.text)}
-                      className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                      className="rounded-full border border-app-border bg-app-surface px-2.5 py-1 text-[11px] text-app-text-muted hover:bg-app-surface-muted hover:border-app-border-strong transition-colors"
                     >
                       {prompt.text}
                     </button>
@@ -129,11 +129,11 @@ export default function ChatWidget() {
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-100 text-slate-800'
+                    ? 'bg-app-accent-blue text-white'
+                    : 'bg-app-surface-hover text-app-text'
                 }`}>
                   {msg.unsupportedFeatures && msg.unsupportedFeatures.length > 0 && (
-                    <div className="mb-2 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-[11px] text-amber-800">
+                    <div className="mb-2 rounded-lg bg-app-warning-soft border border-app-warning-border px-2.5 py-1.5 text-[11px] text-app-warning">
                       <span className="font-semibold">{t('recordedForFuture')}</span>{' '}
                       {msg.unsupportedFeatures.join(', ')}
                     </div>
@@ -145,11 +145,11 @@ export default function ChatWidget() {
 
             {chatLoading && (
               <div className="flex justify-start">
-                <div className="rounded-2xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500">
+                <div className="rounded-2xl bg-app-surface-hover px-3.5 py-2.5 text-sm text-app-text-muted">
                   <span className="inline-flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:150ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-app-text-subtle animate-bounce [animation-delay:0ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-app-text-subtle animate-bounce [animation-delay:150ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-app-text-subtle animate-bounce [animation-delay:300ms]" />
                   </span>
                 </div>
               </div>
@@ -169,13 +169,13 @@ export default function ChatWidget() {
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                 placeholder={hasProject ? t('placeholder') : t('empty.title')}
                 disabled={!hasProject || chatLoading}
-                className="flex-1 rounded-xl border bg-slate-50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                className="flex-1 rounded-xl border bg-app-surface-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-app-focus disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => handleSend()}
                 disabled={!input.trim() || !hasProject || chatLoading}
-                className="rounded-xl bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                className="rounded-xl bg-app-accent-blue px-3 py-2 text-white hover:bg-app-accent-dark-blue disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                 aria-label={t('send')}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

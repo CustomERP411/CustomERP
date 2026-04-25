@@ -12,8 +12,8 @@ export default function ModuleSelector({ selectedModules, onToggleModule }: Modu
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">{t('moduleSelector.title')}</h2>
-        <p className="mt-0.5 text-sm text-slate-500">{t('moduleSelector.subtitle')}</p>
+        <h2 className="text-lg font-semibold text-app-text">{t('moduleSelector.title')}</h2>
+        <p className="mt-0.5 text-sm text-app-text-muted">{t('moduleSelector.subtitle')}</p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {MODULE_KEYS.map((key) => {
@@ -22,11 +22,11 @@ export default function ModuleSelector({ selectedModules, onToggleModule }: Modu
           return (
             <button key={key} type="button" onClick={() => onToggleModule(key)}
               className={`relative flex flex-col items-start gap-3 rounded-xl border-2 p-5 text-left transition-all ${selected ? styles.sel : styles.unsel}`}>
-              {selected && <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white"><IconCheck className="h-3 w-3" /></div>}
+              {selected && <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-app-accent-blue text-white"><IconCheck className="h-3 w-3" /></div>}
               <div className={styles.icon}><Ico /></div>
               <div>
-                <div className="text-sm font-semibold text-slate-900">{meta.label}</div>
-                <div className="mt-0.5 text-xs text-slate-500">{meta.desc}</div>
+                <div className="text-sm font-semibold text-app-text">{meta.label}</div>
+                <div className="mt-0.5 text-xs text-app-text-muted">{meta.desc}</div>
               </div>
             </button>
           );

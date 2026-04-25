@@ -1,14 +1,20 @@
 {
   "nav": {
     "signIn": "Sign In",
-    "getStarted": "Get Started"
+    "signUp": "Sign Up",
+    "about": "About",
+    "howItWorks": "How It Works",
+    "home": "Home",
+    "toggleTheme": "Toggle theme"
   },
   "hero": {
-    "titleLine1": "Build Your Custom ERP",
-    "titleLine2": "Without Writing Code",
-    "subtitle": "Transform your business processes into a fully functional ERP system using just natural language. Powered by AI.",
-    "ctaPrimary": "Start Building Free",
-    "ctaSecondary": "See How It Works"
+    "titleLine1": "From a short description to a live ERP — automatically.",
+    "subtitle": "Describe your business in plain language. We model the modules, workflows, and data so you can ship without a dev team."
+  },
+  "tagline": {
+    "line1": "You describe your company.",
+    "line2": "We translate that into entities, rules, and screens you can use.",
+    "line3": "Hours to a working system — not months of bespoke development."
   },
   "pills": {
     "aiPowered": "AI-Powered",
@@ -23,19 +29,17 @@
     "step2Title": "AI Generates Your System",
     "step2Body": "Our AI analyzes your needs and creates the perfect ERP structure automatically.",
     "step3Title": "Download & Deploy",
-    "step3Body": "Get a ready-to-use container with your custom ERP system.",
-    "quote": "Transform your business processes into a custom ERP system using just natural language.",
-    "quoteAttribution": "— The Assembly Architecture"
+    "step3Body": "Get a ready-to-use container with your custom ERP system."
   },
-  "cta": {
-    "heading": "Ready to Build Your ERP?",
-    "body": "Join businesses already using CustomERP to streamline their operations.",
-    "button": "Get Started for Free"
+  "video": {
+    "comingSoon": "Video coming soon",
+    "eyebrow": "Demo",
+    "heading": "See the platform in action",
+    "body": "Take a short tour and watch CustomERP turn a plain description of your business into a fully working ERP system in minutes.",
+    "cta": "Try it free"
   },
   "footer": {
     "copyright": "© 2026 CustomERP. Bilkent University CTIS Project.",
-    "docs": "Documentation",
-    "github": "GitHub",
-    "contact": "Contact"
+    "github": "GitHub"
   }
 }

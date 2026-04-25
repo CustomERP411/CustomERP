@@ -92,36 +92,36 @@ export default function ProjectListPage() {
   if (loading && projects.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-app-border border-t-app-accent-blue" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{t('projects:title')}</h1>
-          <p className="text-slate-500">{t('projects:subtitle')}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-app-text">{t('projects:title')}</h1>
+          <p className="text-app-text-muted">{t('projects:subtitle')}</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
+        <Button onClick={() => setIsModalOpen(true)} className="w-full sm:w-auto">
           {t('projects:newProject')}
         </Button>
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-600">
+        <div className="rounded-md border border-app-danger-border bg-app-danger-soft p-4 text-sm text-app-danger">
           {error}
         </div>
       )}
 
       {projects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-20 text-center">
-          <div className="rounded-full bg-white p-4 shadow-sm">
-            <div className="h-8 w-8 rounded-full bg-slate-100" />
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-app-border bg-app-surface-muted py-20 text-center">
+          <div className="rounded-full bg-app-surface p-4 shadow-sm">
+            <div className="h-8 w-8 rounded-full bg-app-surface-hover" />
           </div>
-          <h3 className="mt-4 text-lg font-semibold text-slate-900">{t('projects:empty.title')}</h3>
-          <p className="mt-1 text-sm text-slate-500 max-w-sm">{t('projects:empty.subtitle')}</p>
+          <h3 className="mt-4 text-lg font-semibold text-app-text">{t('projects:empty.title')}</h3>
+          <p className="mt-1 text-sm text-app-text-muted max-w-sm">{t('projects:empty.subtitle')}</p>
           <div className="mt-6">
             <Button onClick={() => setIsModalOpen(true)}>{t('projects:empty.cta')}</Button>
           </div>
@@ -141,23 +141,23 @@ export default function ProjectListPage() {
       />
 
       {projectToDelete && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-slate-900">{t('projects:card.delete')}</h3>
-            <p className="mt-2 text-sm text-slate-600">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-app-overlay px-4">
+          <div className="w-full max-w-md rounded-2xl border border-app-border bg-app-surface-elevated p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-app-text">{t('projects:card.delete')}</h3>
+            <p className="mt-2 text-sm text-app-text-muted">
               {t('projects:card.confirmDelete')}{' '}
-              <span className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-900">
+              <span className="mx-1 rounded bg-app-surface-muted px-1.5 py-0.5 font-mono text-xs text-app-text">
                 {projectToDelete.name}
               </span>
             </p>
             <input
               value={deleteConfirmText}
               onChange={(event) => setDeleteConfirmText(event.target.value)}
-              className="mt-4 w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-rose-500"
+              className="mt-4 w-full rounded-lg border border-app-border bg-app-surface-muted px-3 py-2 text-sm text-app-text outline-none focus:ring-2 focus:ring-app-danger/40"
               placeholder={projectToDelete.name}
             />
             {deleteError && (
-              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+              <div className="mt-3 rounded-lg border border-app-danger-border bg-app-danger-soft px-3 py-2 text-xs text-app-danger">
                 {deleteError}
               </div>
             )}
@@ -166,7 +166,7 @@ export default function ProjectListPage() {
                 type="button"
                 onClick={closeDeleteModal}
                 disabled={!!deletingProjectId}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg border border-app-border-strong px-4 py-2 text-sm font-semibold text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {t('common:cancel')}
               </button>
@@ -174,7 +174,7 @@ export default function ProjectListPage() {
                 type="button"
                 onClick={() => { void confirmDeleteProject(); }}
                 disabled={!!deletingProjectId}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg bg-app-danger px-4 py-2 text-sm font-semibold text-app-text-inverse hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {deletingProjectId ? t('projects:card.deleting') : t('projects:card.delete')}
               </button>

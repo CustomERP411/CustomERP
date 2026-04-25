@@ -12,6 +12,7 @@ const {
   buildAuthContext,
   buildLoginPage,
   buildRequireAuth,
+  buildRequirePermission,
   buildUsersAdminPageConnected,
   buildGroupsAdminPageConnected,
   buildPermissionsAdminPageConnected,
@@ -187,6 +188,7 @@ class FrontendGenerator {
     await fs.writeFile(path.join(outputDir, 'src/contexts/AuthContext.tsx'), buildAuthContext());
     await fs.writeFile(path.join(outputDir, 'src/pages/LoginPage.tsx'), buildLoginPage({ language: this._language }));
     await fs.writeFile(path.join(outputDir, 'src/components/RequireAuth.tsx'), buildRequireAuth());
+    await fs.writeFile(path.join(outputDir, 'src/components/RequirePermission.tsx'), buildRequirePermission({ language: this._language }));
     await fs.writeFile(path.join(outputDir, 'src/pages/admin/UsersAdminPage.tsx'), buildUsersAdminPageConnected({ language: this._language }));
     await fs.writeFile(path.join(outputDir, 'src/pages/admin/GroupsAdminPage.tsx'), buildGroupsAdminPageConnected({ language: this._language }));
     await fs.writeFile(path.join(outputDir, 'src/pages/admin/PermissionsAdminPage.tsx'), buildPermissionsAdminPageConnected({ language: this._language }));
@@ -533,28 +535,32 @@ ${rbac
     const wantImport = (e.ui || {}).csv_import !== false;
     const { enableReceive, enableIssue, enableAdjust, canTransfer, enableLabels } = this._resolveEntityOps(e);
     const featurePages = this._resolveEntityFeaturePages(e, moduleKey, flags);
+    const rbac = this._accessControlEnabled;
+    const wrap = (pageJsx) => rbac
+      ? `<RequirePermission permission="${e.slug}.read">${pageJsx}</RequirePermission>`
+      : pageJsx;
 
     return [
-      `          <Route path="/${e.slug}" element={<${cap}Page />} />`,
-      `          <Route path="/${e.slug}/new" element={<${cap}FormPage />} />`,
-      `          <Route path="/${e.slug}/:id/edit" element={<${cap}FormPage />} />`,
-      wantImport ? `          <Route path="/${e.slug}/import" element={<${cap}ImportPage />} />` : '',
-      enableReceive ? `          <Route path="/${e.slug}/receive" element={<${cap}ReceivePage />} />` : '',
-      enableIssue ? `          <Route path="/${e.slug}/issue" element={<${cap}IssuePage />} />` : '',
-      enableAdjust ? `          <Route path="/${e.slug}/adjust" element={<${cap}AdjustPage />} />` : '',
-      canTransfer ? `          <Route path="/${e.slug}/transfer" element={<${cap}TransferPage />} />` : '',
-      enableLabels ? `          <Route path="/${e.slug}/labels" element={<${cap}LabelsPage />} />` : '',
-      featurePages.reservations ? `          <Route path="/${e.slug}/reservations" element={<${cap}ReservationsPage />} />` : '',
-      featurePages.grnPosting ? `          <Route path="/${e.slug}/posting" element={<${cap}PostingPage />} />` : '',
-      featurePages.cycleWorkflow ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
-      featurePages.invoiceWorkflow ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
-      featurePages.invoicePayments ? `          <Route path="/${e.slug}/payments" element={<${cap}PaymentsPage />} />` : '',
-      featurePages.invoiceNotes ? `          <Route path="/${e.slug}/notes" element={<${cap}NotesPage />} />` : '',
-      featurePages.paymentWorkflow ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
-      featurePages.noteWorkflow ? `          <Route path="/${e.slug}/workflow" element={<${cap}WorkflowPage />} />` : '',
-      featurePages.leaveApprovals ? `          <Route path="/${e.slug}/approvals" element={<${cap}ApprovalsPage />} />` : '',
-      featurePages.leaveBalances ? `          <Route path="/${e.slug}/balances" element={<${cap}BalancesPage />} />` : '',
-      featurePages.attendance ? `          <Route path="/${e.slug}/attendance" element={<${cap}AttendancePage />} />` : '',
+      `          <Route path="/${e.slug}" element={${wrap(`<${cap}Page />`)}} />`,
+      `          <Route path="/${e.slug}/new" element={${wrap(`<${cap}FormPage />`)}} />`,
+      `          <Route path="/${e.slug}/:id/edit" element={${wrap(`<${cap}FormPage />`)}} />`,
+      wantImport ? `          <Route path="/${e.slug}/import" element={${wrap(`<${cap}ImportPage />`)}} />` : '',
+      enableReceive ? `          <Route path="/${e.slug}/receive" element={${wrap(`<${cap}ReceivePage />`)}} />` : '',
+      enableIssue ? `          <Route path="/${e.slug}/issue" element={${wrap(`<${cap}IssuePage />`)}} />` : '',
+      enableAdjust ? `          <Route path="/${e.slug}/adjust" element={${wrap(`<${cap}AdjustPage />`)}} />` : '',
+      canTransfer ? `          <Route path="/${e.slug}/transfer" element={${wrap(`<${cap}TransferPage />`)}} />` : '',
+      enableLabels ? `          <Route path="/${e.slug}/labels" element={${wrap(`<${cap}LabelsPage />`)}} />` : '',
+      featurePages.reservations ? `          <Route path="/${e.slug}/reservations" element={${wrap(`<${cap}ReservationsPage />`)}} />` : '',
+      featurePages.grnPosting ? `          <Route path="/${e.slug}/posting" element={${wrap(`<${cap}PostingPage />`)}} />` : '',
+      featurePages.cycleWorkflow ? `          <Route path="/${e.slug}/workflow" element={${wrap(`<${cap}WorkflowPage />`)}} />` : '',
+      featurePages.invoiceWorkflow ? `          <Route path="/${e.slug}/workflow" element={${wrap(`<${cap}WorkflowPage />`)}} />` : '',
+      featurePages.invoicePayments ? `          <Route path="/${e.slug}/payments" element={${wrap(`<${cap}PaymentsPage />`)}} />` : '',
+      featurePages.invoiceNotes ? `          <Route path="/${e.slug}/notes" element={${wrap(`<${cap}NotesPage />`)}} />` : '',
+      featurePages.paymentWorkflow ? `          <Route path="/${e.slug}/workflow" element={${wrap(`<${cap}WorkflowPage />`)}} />` : '',
+      featurePages.noteWorkflow ? `          <Route path="/${e.slug}/workflow" element={${wrap(`<${cap}WorkflowPage />`)}} />` : '',
+      featurePages.leaveApprovals ? `          <Route path="/${e.slug}/approvals" element={${wrap(`<${cap}ApprovalsPage />`)}} />` : '',
+      featurePages.leaveBalances ? `          <Route path="/${e.slug}/balances" element={${wrap(`<${cap}BalancesPage />`)}} />` : '',
+      featurePages.attendance ? `          <Route path="/${e.slug}/attendance" element={${wrap(`<${cap}AttendancePage />`)}} />` : '',
     ].filter(Boolean).join('\n');
   }
 

@@ -5,7 +5,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { projectService } from '../../services/projectService';
 import { useAuth } from '../../context/AuthContext';
-import { LANGUAGE_LABELS, normalizeLanguage } from '../../i18n';
+import { normalizeLanguage } from '../../i18n';
 import type { Project, ProjectLanguage } from '../../types/project';
 
 interface NewProjectModalProps {
@@ -26,7 +26,7 @@ export default function NewProjectModal({ isOpen, onClose, onProjectCreated }: N
   // Silently inherit the user's preferred language, but show a notice so they know
   // which language the project (and its generated ERP) will be locked to.
   const projectLanguage: ProjectLanguage = normalizeLanguage(user?.preferred_language);
-  const languageLabel = LANGUAGE_LABELS[projectLanguage];
+  const languageLabel = t(`projects:card.languages.${projectLanguage}`);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,13 +50,13 @@ export default function NewProjectModal({ isOpen, onClose, onProjectCreated }: N
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm !m-0">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-app-overlay backdrop-blur-sm !m-0">
+      <div className="w-full max-w-md rounded-xl border border-app-border bg-app-surface-elevated p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-900">{t('projects:newModal.title')}</h2>
+          <h2 className="text-xl font-bold text-app-text">{t('projects:newModal.title')}</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            className="text-app-text-subtle hover:text-app-text"
             aria-label={t('common:close')}
           >
             <span aria-hidden="true" className="text-2xl leading-none">×</span>
@@ -73,12 +73,12 @@ export default function NewProjectModal({ isOpen, onClose, onProjectCreated }: N
             autoFocus
           />
 
-          <div className="rounded-md border-l-4 border-blue-500 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-900">
+          <div className="rounded-md border-l-4 border-app-accent-blue bg-app-info-soft px-3 py-2 text-xs leading-relaxed text-app-info">
             {t('projects:newModal.languageNotice', { language: languageLabel })}
           </div>
 
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+            <div className="rounded-md border border-app-danger-border bg-app-danger-soft p-3 text-sm text-app-danger">
               {error}
             </div>
           )}
@@ -88,7 +88,7 @@ export default function NewProjectModal({ isOpen, onClose, onProjectCreated }: N
               {t('projects:newModal.cancel')}
             </Button>
             <Button type="submit" disabled={loading || !name.trim()}>
-              {loading && <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />}
+              {loading && <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-app-border border-t-app-text-inverse" />}
               {loading ? t('projects:newModal.creating') : t('projects:newModal.create')}
             </Button>
           </div>

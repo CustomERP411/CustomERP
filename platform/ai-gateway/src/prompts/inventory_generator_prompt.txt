@@ -39,8 +39,8 @@
 # - A new entity not already in the prefilled SDF that the business clearly needs
 #   Example: business says "we do quality inspections on receiving" -> add a qc_inspections entity
 # - Additional inventory_ops or dashboard config beyond what the wizard set up
-# - A display_name or slug tweak to match the business domain language
-#   Example: business sells tires -> rename products slug to tires, display_name to "Tire"
+# - A display_name tweak to match the business domain language (keep the same slug unless
+#   change instructions explicitly say to rename that slug).
 #
 # What is not an enhancement (avoid these — UNLESS change instructions say otherwise):
 # - Re-creating products, categories, locations, stock_movements that already exist under a different name
@@ -109,9 +109,42 @@
 # Entity object: slug, module ("inventory" or "shared"), fields[], display_name?,
 #   display_field?, ui?, features?, inventory_ops?, labels?
 # Field object: name, type (string|text|integer|decimal|boolean|date|datetime|reference),
-#   label?, required?, reference_entity?, options?, unique?, min?, max?
+#   label?, required?, reference_entity?, options?, unique?, min?, max?, computed?
 # System fields (id, created_at, updated_at) are auto-generated and should not be included.
+
+# IMPORTANT — computed fields on the stock entity:
+# When the module_config enables reservations (module_config.reservations.enabled=true),
+# the stock/product entity MUST include `reserved_quantity`, `committed_quantity`, and
+# `available_quantity` as COMPUTED numeric fields. Server-side logic maintains them; they
+# must never be user-editable inputs.
 #
+# Emit each of them like this:
+#   { "name": "reserved_quantity", "type": "decimal", "label": "Reserved",
+#     "required": false, "computed": true, "min": 0 }
+#   { "name": "committed_quantity", "type": "decimal", "label": "Committed",
+#     "required": false, "computed": true, "min": 0 }
+#   { "name": "available_quantity", "type": "decimal", "label": "Available",
+#     "required": false, "computed": true }
+# Do NOT mark `quantity` / `on_hand` as computed — that is the raw input the user edits.
+
+# CRITICAL — entity slugs required by module_config (assembler validation):
+# Your `module_config` may enable inbound (PO/GRN), reservations, cycle counting, etc.
+# Whenever a pack is enabled in `module_config`, you MUST keep the matching entities in
+# your `entities` array with the EXACT slugs referenced there (defaults below). Do NOT
+# remove, rename, or replace them with different entities (e.g. do NOT substitute
+# `sales_orders` for `purchase_orders`). Enhancements are additive: new fields on these
+# entities, or new separate entities, unless change instructions explicitly remove a slug.
+# Default slugs when packs are on:
+#   inbound: purchase_orders, purchase_order_items, goods_receipts, goods_receipt_items
+#   reservations: stock_reservations (plus stock entity fields reserved_quantity, …)
+#   cycle counting: cycle_count_sessions, cycle_count_lines
+#   stock ledger: stock_movements (when used by the prefilled config)
+
+# CRITICAL — machine values vs display language:
+# JSON keys stay English. For `options` / enums / movement_type values, use ASCII machine
+# values (e.g. "receive", "issue", "draft", "pending"). Put Turkish (or other) user-facing
+# text only in `label`, `placeholder`, `help_text`, and `display_name` on entities/fields.
+
 # inventory_ops example:
 # { "enabled": true, "quantity_field": "on_hand",
 #   "receive": { "enabled": true, "label": "Receive" },

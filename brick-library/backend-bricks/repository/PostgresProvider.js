@@ -561,6 +561,97 @@ class PostgresProvider {
     return this.update(entitySlug, id, patch, client);
   }
 
+  /**
+   * Transactionally adjust committed_quantity (and optionally on_hand) for a
+   * stock row. Pairs with the SalesOrderCommitmentMixin:
+   *
+   *   - approve a sales order:  committedDelta = +ordered_qty - shipped_qty
+   *   - cancel / close:         committedDelta = -remaining
+   *   - ship a line:            quantityDelta = -shipped_delta, committedDelta = -shipped_delta
+   *
+   * Invariants enforced:
+   *   - committed_quantity cannot go negative
+   *   - reserved + committed cannot exceed on-hand (same rule as the
+   *     reservation workflow)
+   *   - on-hand cannot go negative unless `allowNegativeStock: true`
+   *
+   * Also recomputes available_quantity = on_hand - reserved - committed so
+   * the denormalized column stays consistent.
+   */
+  async atomicAdjustCommitted(entitySlug, id, options = {}, client = null) {
+    if (!client) {
+      return this.withTransaction((tx) =>
+        this.atomicAdjustCommitted(entitySlug, id, options, tx)
+      );
+    }
+
+    const quantityField = String(options.quantityField || options.quantity_field || 'quantity');
+    const reservedField = String(options.reservedField || options.reserved_field || 'reserved_quantity');
+    const committedField = String(options.committedField || options.committed_field || 'committed_quantity');
+    const availableField = String(options.availableField || options.available_field || 'available_quantity');
+
+    const quantityDelta = Number(options.quantityDelta || options.quantity_delta || 0);
+    const committedDelta = Number(options.committedDelta || options.committed_delta || 0);
+    const allowNegative =
+      options.allowNegativeStock === true || options.allow_negative_stock === true;
+
+    if (!Number.isFinite(quantityDelta) || !Number.isFinite(committedDelta)) {
+      throw this._buildError('Commitment delta values must be numeric', 400);
+    }
+
+    if (quantityDelta === 0 && committedDelta === 0) {
+      // Nothing to do — still return the current row so callers can chain.
+      return this.findById(entitySlug, id, client);
+    }
+
+    const locked = await this.findByIdForUpdate(entitySlug, id, client);
+    if (!locked) {
+      throw this._buildError('Item not found', 404);
+    }
+
+    const num = (val) => {
+      const parsed = Number(val);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const currentQty = num(locked[quantityField]);
+    const currentReserved = num(locked[reservedField]);
+    const currentCommitted = num(locked[committedField]);
+
+    const nextQty = currentQty + quantityDelta;
+    const nextCommitted = currentCommitted + committedDelta;
+
+    if (nextCommitted < 0) {
+      throw this._buildError('Committed quantity cannot be negative', 400, {
+        committed: nextCommitted,
+      });
+    }
+
+    if (!allowNegative && nextQty < 0) {
+      throw this._buildError('Stock quantity cannot go negative', 409, {
+        quantity: nextQty,
+      });
+    }
+
+    if (currentReserved + nextCommitted > nextQty) {
+      throw this._buildError('Reserved + committed quantities cannot exceed on-hand quantity', 409, {
+        quantity: nextQty,
+        reserved: currentReserved,
+        committed: nextCommitted,
+      });
+    }
+
+    const patch = {
+      [quantityField]: nextQty,
+      [committedField]: nextCommitted,
+    };
+    if (availableField) {
+      patch[availableField] = nextQty - currentReserved - nextCommitted;
+    }
+
+    return this.update(entitySlug, id, patch, client);
+  }
+
   async atomicAdjustLeaveBalance(entitySlug, lookup = {}, options = {}, client = null) {
     if (!client) {
       return this.withTransaction((tx) =>

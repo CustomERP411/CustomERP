@@ -1,0 +1,333 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+ * Theme — single source of truth
+ * ----------------------------------------------------------------------------
+ * Every colour the UI uses is defined as a CSS variable here, then exposed to
+ * Tailwind as a semantic utility (see `tailwind.config.js`). Components MUST
+ * use the semantic classes (`bg-app-surface`, `text-app-text`, etc.) and MUST
+ * NOT add `dark:` variants for theme tokens — light/dark is handled by these
+ * variables flipping under the `.dark` class on <html>.
+ *
+ * Layered surfaces (light/dark are designed as mirrored "shaded" depth stacks):
+ *   bg              — page background (deepest layer)
+ *   surface         — cards, panels, sidebar (one layer up)
+ *   surface-elevated — modals, popovers, dropdowns (two layers up)
+ *   surface-muted   — recessed blocks (summary cards, inputs on a surface)
+ *   surface-sunken  — even more recessed (light-mode page background variant)
+ *   surface-hover   — hover state for clickable surfaces
+ *
+ * Text:
+ *   text            — primary (titles, body)
+ *   text-muted      — secondary (descriptions, labels)
+ *   text-subtle     — tertiary (placeholders, captions, disabled)
+ *   text-inverse    — text on a filled accent button
+ *
+ * Borders:
+ *   border          — default
+ *   border-strong   — emphasized (focus, separators between major regions)
+ *
+ * Accents (PRESERVED from previous palette — do not change without sign-off):
+ *   accent-blue / accent-dark-blue / accent-orange
+ *
+ * Semantic states (success/warning/danger/info) — each has a fg, soft bg, and
+ * border so badges and alerts stay consistent. Module entity colours
+ * (inventory/invoice/hr) follow the same fg / soft / border / ring pattern.
+ * ========================================================================= */
+
+:root {
+  /* Layered surfaces — light mode (warm paper / cream stack, for puzzle-landing harmony) */
+  --app-bg:               #DED3C4;  /* page wash — soft clay behind the jigsaw */
+  --app-surface:          #F5EFE6;
+  --app-surface-elevated: #FFFCF6;
+  --app-surface-muted:    #ECE4D9;
+  --app-surface-sunken:   #CFC2B0;
+  --app-surface-hover:    #E4DBCF;
+
+  /* Text — light mode */
+  --app-text:         #2D2D2D;
+  --app-text-muted:   #5A5248;
+  --app-text-subtle:  #8A7F72;
+  --app-text-inverse: #FFFFFF;
+
+  /* Borders — light mode */
+  --app-border:        #BFA88F;
+  --app-border-strong: #8F7A64;
+
+  /* Overlay — modal backdrops */
+  --app-overlay: rgba(45, 45, 45, 0.4);
+
+  /* Brand accents — light: soft, warm-page-friendly blue */
+  --app-accent-blue:      #5e92c8;
+  --app-accent-dark-blue: #3d6a98;
+  --app-accent-orange:    #6fa8d4;  /* lighter blue; legacy token name (warm UI) */
+
+  /* Focus ring (soft blue) */
+  --app-focus-ring: rgba(94, 146, 200, 0.45);
+
+  /* Semantic states — fg / soft bg / border (light mode, shaded) */
+  --app-success:        #047857;
+  --app-success-soft:   #DCFCE7;
+  --app-success-border: #86EFAC;
+
+  --app-warning:        #B45309;
+  --app-warning-soft:   #FEF3C7;
+  --app-warning-border: #FCD34D;
+
+  --app-danger:         #B91C1C;
+  --app-danger-soft:    #FEE2E2;
+  --app-danger-border:  #FCA5A5;
+
+  --app-info:           #3d6a98;
+  --app-info-soft:      #e8f0f7;
+  --app-info-border:    #a8c0d8;
+
+  /* Module entity colours — lighter, muted tones for the warm light UI */
+  --app-mod-inventory:        #5a7daa;
+  --app-mod-inventory-soft:   #e8eef4;
+  --app-mod-inventory-border: #b0c3d9;
+  --app-mod-inventory-ring:   #d2dce8;
+
+  --app-mod-invoice:        #5a8f7a;
+  --app-mod-invoice-soft:   #e7f0eb;
+  --app-mod-invoice-border: #a8c9b8;
+  --app-mod-invoice-ring:   #c9ddd2;
+
+  --app-mod-hr:        #7a6da5;
+  --app-mod-hr-soft:   #ede9f4;
+  --app-mod-hr-border: #c0b3d4;
+  --app-mod-hr-ring:   #d8d0e8;
+}
+
+.dark {
+  /* Layered surfaces — dark mode (deep blue-tinged neutrals, mirrored shaded stack) */
+  --app-bg:               #0A0F1C;
+  --app-surface:          #131A2C;
+  --app-surface-elevated: #1B2338;
+  --app-surface-muted:    #0F1525;
+  --app-surface-sunken:   #060914;
+  --app-surface-hover:    #202842;
+
+  /* Text — dark mode */
+  --app-text:         #F1F5F9;
+  --app-text-muted:   #94A3B8;
+  --app-text-subtle:  #64748B;
+  --app-text-inverse: #FFFFFF;
+
+  /* Borders — dark mode (subtle, inset feel) */
+  --app-border:        #1F2740;
+  --app-border-strong: #2E3853;
+
+  /* Overlay — modal backdrops */
+  --app-overlay: rgba(0, 0, 0, 0.65);
+
+  /* Focus ring — same accent, slightly stronger to read on dark */
+  --app-focus-ring: rgba(18, 116, 236, 0.55);
+
+  /* Semantic states — dark mode (brighter fg, translucent soft bg) */
+  --app-success:        #34D399;
+  --app-success-soft:   rgba(16, 185, 129, 0.14);
+  --app-success-border: rgba(16, 185, 129, 0.40);
+
+  --app-warning:        #FBBF24;
+  --app-warning-soft:   rgba(245, 158, 11, 0.14);
+  --app-warning-border: rgba(245, 158, 11, 0.40);
+
+  --app-danger:         #F87171;
+  --app-danger-soft:    rgba(239, 68, 68, 0.14);
+  --app-danger-border:  rgba(239, 68, 68, 0.40);
+
+  --app-info:           #60A5FA;
+  --app-info-soft:      rgba(59, 130, 246, 0.14);
+  --app-info-border:    rgba(59, 130, 246, 0.40);
+
+  /* Module entity colours — dark mode */
+  --app-mod-inventory:        #60A5FA;
+  --app-mod-inventory-soft:   rgba(59, 130, 246, 0.16);
+  --app-mod-inventory-border: rgba(59, 130, 246, 0.45);
+  --app-mod-inventory-ring:   rgba(59, 130, 246, 0.30);
+
+  --app-mod-invoice:        #34D399;
+  --app-mod-invoice-soft:   rgba(16, 185, 129, 0.16);
+  --app-mod-invoice-border: rgba(16, 185, 129, 0.45);
+  --app-mod-invoice-ring:   rgba(16, 185, 129, 0.30);
+
+  --app-mod-hr:        #A78BFA;
+  --app-mod-hr-soft:   rgba(139, 92, 246, 0.16);
+  --app-mod-hr-border: rgba(139, 92, 246, 0.45);
+  --app-mod-hr-ring:   rgba(139, 92, 246, 0.30);
+}
+
+@layer base {
+  body {
+    @apply bg-app-bg text-app-text transition-colors duration-200;
+  }
+
+  img.brand-mark {
+    background: transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* ============================================================================
+ * Puzzle board theme — maps the SVG-based puzzle module
+ * (`src/components/puzzle/`) onto the app's semantic tokens. The module
+ * itself is a drop-in set of SVG `<path>` pieces in one root `<svg>`; these
+ * variables re-colour its fills, strokes and labels for light/dark. The
+ * landing page scopes them further via `.landing-board` so other pages can
+ * theme their own boards independently if we ever drop the module elsewhere.
+ * ========================================================================= */
+
+.landing-board {
+  --puzzle-fill:            var(--app-surface);
+  --puzzle-fill-hover:      var(--app-surface-hover);
+  --puzzle-fill-selected:   var(--app-surface-elevated);
+  --puzzle-stroke:          var(--app-border);
+  --puzzle-stroke-hover:    var(--app-accent-blue);
+  --puzzle-stroke-width:        1.5;
+  --puzzle-stroke-width-active: 3;
+  --puzzle-label:           var(--app-text-muted);
+  --puzzle-label-selected:  var(--app-text);
+  --puzzle-knob-hit-hover:  var(--app-focus-ring);
+}
+
+/*
+ * Light: labels / knob hits for the landing jigsaw (SVG <text> only; HTML in
+ * pieces uses app tokens from :root / .dark).
+ */
+html:not(.dark) .landing-board {
+  --puzzle-label: #4a4440;
+  --puzzle-label-selected: #2d2d2d;
+  --puzzle-knob-hit-hover: rgba(94, 146, 200, 0.28);
+}
+
+.dark .landing-board.puzzle-board--landing-gradient {
+  --puzzle-knob-hit-hover: rgba(96, 165, 250, 0.35);
+}
+
+/* Landing jigsaw: back-plate + faces from defs; rim stroke = pointer follow */
+.landing-board.puzzle-board--landing-gradient .puzzle-landing-backplate {
+  pointer-events: none;
+}
+
+.landing-board.puzzle-board--landing-gradient .piece__path {
+  fill-opacity: 1;
+  transition: filter 0.08s ease;
+  filter: none;
+}
+
+.landing-board.puzzle-board--landing-gradient-light .piece--hover .piece__path {
+  filter: brightness(1.03) saturate(1.03);
+}
+
+.landing-board.puzzle-board--landing-gradient-light .piece--selected .piece__path {
+  filter: brightness(1.04) saturate(1.03);
+}
+
+.landing-board.puzzle-board--landing-gradient-light
+  .piece--selected.piece--hover
+  .piece__path {
+  filter: brightness(1.05) saturate(1.04);
+}
+
+.landing-board.puzzle-board--landing-gradient-dark .piece--hover .piece__path {
+  filter: brightness(1.1) saturate(1.05);
+}
+
+.landing-board.puzzle-board--landing-gradient-dark .piece--selected .piece__path {
+  filter: brightness(1.12) saturate(1.05);
+}
+
+.landing-board.puzzle-board--landing-gradient-dark
+  .piece--selected.piece--hover
+  .piece__path {
+  filter: brightness(1.15) saturate(1.06);
+}
+
+.landing-puzzle-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.landing-puzzle-aura {
+  position: absolute;
+  z-index: 0;
+  left: 4%;
+  right: 4%;
+  top: 2%;
+  bottom: 2%;
+  border-radius: 1.75rem;
+  pointer-events: none;
+  background-size: 450% 450%;
+  filter: blur(56px) saturate(1.25);
+  animation: landingAuraDrift 9s ease-in-out infinite;
+}
+
+html:not(.dark) .landing-puzzle-aura {
+  background: linear-gradient(
+    120deg,
+    #fff0d6 0%,
+    #ffd9a0 9%,
+    #a8c0f5 24%,
+    #ffe0b0 40%,
+    #7a9ce8 52%,
+    #f0e0c0 64%,
+    #b0c0f8 80%,
+    #e6c8a0 100%
+  );
+  opacity: 0.42;
+}
+
+.dark .landing-puzzle-aura {
+  background: linear-gradient(
+    125deg,
+    #0a0f1c 0%,
+    #1e3a5f 12%,
+    #121a2e 22%,
+    #2a4a7a 38%,
+    #0d1525 50%,
+    #3b2d5a 64%,
+    #152838 78%,
+    #1a3050 100%
+  );
+  opacity: 0.55;
+  filter: blur(64px) saturate(1.4);
+}
+
+@keyframes landingAuraDrift {
+  0% {
+    background-position: 0% 20%;
+  }
+  25% {
+    background-position: 100% 40%;
+  }
+  50% {
+    background-position: 100% 80%;
+  }
+  75% {
+    background-position: 40% 100%;
+  }
+  100% {
+    background-position: 0% 20%;
+  }
+}
+
+/* In dark mode the hover fill is kept subtle so the accent-blue outline is the
+ * dominant signal on the piece that's being hovered. */
+.dark .landing-board {
+  --puzzle-fill-hover:    var(--app-surface-hover);
+  --puzzle-fill-selected: var(--app-surface-elevated);
+}
+
+@keyframes chatPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(94, 146, 200, 0.55);
+  }
+  50% {
+    transform: scale(1.3);
+    box-shadow: 0 0 0 16px rgba(94, 146, 200, 0);
+  }
+}

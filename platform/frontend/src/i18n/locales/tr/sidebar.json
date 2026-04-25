@@ -9,5 +9,7 @@
   "signedInAs": "Giriş yapan",
   "user": "Kullanıcı",
   "expandSidebar": "Kenar çubuğunu genişlet",
-  "collapseSidebar": "Kenar çubuğunu daralt"
+  "collapseSidebar": "Kenar çubuğunu daralt",
+  "openMenu": "Menüyü aç",
+  "closeMenu": "Menüyü kapat"
 }

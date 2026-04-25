@@ -134,6 +134,7 @@ class MultiAgentService:
         prefilled_sdf: Optional[Dict[str, Any]] = None,
         on_progress: Optional[Callable] = None,
         language: str = "en",
+        selected_modules: Optional[List[str]] = None,
     ) -> PipelineResult:
         errors: List[str] = []
         warnings: List[str] = []
@@ -154,6 +155,7 @@ class MultiAgentService:
                 default_question_answers or {},
                 prefilled_sdf or {},
                 language=language,
+                selected_modules=selected_modules or [],
             )
             dist_ms = int((time.monotonic() - t0) * 1000)
             self._add_tokens(token_usage, "distributor", dist_tokens)
@@ -203,8 +205,20 @@ class MultiAgentService:
                 warnings=warnings,
             )
 
-        modules_needed = distributor_output.modules_needed
+        modules_needed = list(distributor_output.modules_needed or [])
         print(f"[MultiAgentService] Modules needed: {modules_needed}")
+
+        # Orchestration clamp: if the caller supplied an authoritative allowlist,
+        # silently drop any modules the distributor inferred that aren't selected.
+        # Per product decision: no user-facing warning or unsupported_features entry.
+        if selected_modules:
+            allow = {m.strip().lower() for m in selected_modules if isinstance(m, str) and m.strip()}
+            dropped = [m for m in modules_needed if isinstance(m, str) and m.lower() not in allow]
+            if dropped:
+                print(f"[MultiAgentService] Clamp: dropping distributor-inferred modules not in selected_modules: {dropped}")
+            kept = [m for m in modules_needed if isinstance(m, str) and m.lower() in allow]
+            modules_needed = kept
+            distributor_output.modules_needed = kept
 
         # Determine which modules actually need regeneration vs. carry-forward
         context_for = {
@@ -434,11 +448,18 @@ class MultiAgentService:
         default_question_answers: Dict[str, Any],
         prefilled_sdf: Dict[str, Any],
         language: str = "en",
+        selected_modules: Optional[List[str]] = None,
     ) -> tuple[DistributorOutput, GenerationResult, str]:
         default_questions_str = json.dumps(default_question_answers, indent=2) if default_question_answers else ""
         existing_modules_str = self._build_existing_modules_summary(prefilled_sdf)
 
-        prompt = get_distributor_prompt(business_description, default_questions_str, existing_modules_str, language=language)
+        prompt = get_distributor_prompt(
+            business_description,
+            default_questions_str,
+            existing_modules_str,
+            language=language,
+            selected_modules=selected_modules or [],
+        )
         result = await self.distributor_client.generate_with_retry(
             prompt, temperature=self.distributor_client.get_temperature(), response_schema=DistributorOutput,
         )

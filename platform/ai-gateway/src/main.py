@@ -163,6 +163,15 @@ class AnalyzeRequest(BaseModel):
         default="en",
         description="Project language code ('en' or 'tr'). Locks AI output language for this project.",
     )
+    selected_modules: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Authoritative list of modules the user selected in the UI. When provided, "
+            "the distributor MUST only produce entities inside this set; inferred extras "
+            "are silently dropped. Accepted aliases: selected_modules / selectedModules."
+        ),
+        validation_alias=AliasChoices("selected_modules", "selectedModules"),
+    )
 
 
 class EditRequest(BaseModel):
@@ -366,6 +375,7 @@ async def analyze(request: AnalyzeRequest):
             prefilled_sdf=request.prefilled_sdf,
             on_progress=on_progress,
             language=request.language,
+            selected_modules=request.selected_modules,
         )
         on_progress("done", 100, "Complete")
         _log_training_session(
@@ -424,6 +434,7 @@ async def clarify_sdf_endpoint(request: ClarifyRequest):
             default_question_answers=merged_context,
             prefilled_sdf=request.prefilled_sdf,
             language=request.language,
+            selected_modules=request.selected_modules,
         )
         _log_training_session(
             "/ai/clarify",

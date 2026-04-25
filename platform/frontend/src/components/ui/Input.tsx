@@ -6,20 +6,19 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 /**
- * Reusable Input Component
- * Styled with Tailwind CSS
+ * Reusable text input. All colours come from theme tokens (see `src/index.css`).
  */
-const Input = forwardRef<HTMLInputElement, InputProps>(({ 
+const Input = forwardRef<HTMLInputElement, InputProps>(({
   label,
   error,
   type = 'text',
   className = '',
-  ...props 
+  ...props
 }, ref) => {
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-app-text-muted mb-1">
           {label}
         </label>
       )}
@@ -27,19 +26,19 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
         ref={ref}
         type={type}
         className={`
-          w-full px-4 py-2.5 
-          bg-gray-50 border border-gray-300 rounded-lg
-          text-gray-900 placeholder-gray-500
-          focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+          w-full px-4 py-2.5
+          bg-app-surface-muted border border-app-border rounded-lg
+          text-app-text placeholder-app-text-subtle
+          focus:outline-none focus:ring-2 focus:ring-app-focus focus:border-transparent
           transition-all duration-200
           disabled:opacity-50 disabled:cursor-not-allowed
-          ${error ? 'border-red-500 focus:ring-red-500' : ''}
+          ${error ? 'border-app-danger focus:ring-app-danger/40' : ''}
           ${className}
         `}
         {...props}
       />
       {error && (
-        <p className="mt-1 text-sm text-red-600">{error}</p>
+        <p className="mt-1 text-sm text-app-danger">{error}</p>
       )}
     </div>
   );
@@ -48,4 +47,3 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
 Input.displayName = 'Input';
 
 export default Input;
-

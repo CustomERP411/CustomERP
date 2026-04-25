@@ -9,5 +9,7 @@
   "signedInAs": "Signed in as",
   "user": "User",
   "expandSidebar": "Expand sidebar",
-  "collapseSidebar": "Collapse sidebar"
+  "collapseSidebar": "Collapse sidebar",
+  "openMenu": "Open menu",
+  "closeMenu": "Close menu"
 }

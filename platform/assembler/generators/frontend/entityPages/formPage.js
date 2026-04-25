@@ -10,9 +10,23 @@ function buildEntityFormPage({
   statusTransitions,
   hasReservationFields,
   approvalConfig,
+  availabilityLabels,
+  companionUserConfig,
 }) {
   const hasChildren = Array.isArray(childSections) && childSections.length > 0;
   const base = importBase || '..';
+  // Fallback to English if the caller didn't wire localized labels.
+  const labels = availabilityLabels || {
+    title: 'Stock Availability',
+    onHand: 'On Hand',
+    reserved: 'Reserved',
+    committed: 'Committed',
+    available: 'Available',
+    reservedTooltip: 'Quantity held by open sales reservations. Not yet shipped or committed to a confirmed order.',
+    committedTooltip: 'Quantity on approved sales orders that have not been shipped yet.',
+    infoIconAria: 'More information',
+  };
+  const lbl = (s) => escapeJsString(String(s == null ? '' : s));
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -31,6 +45,7 @@ const ENABLE_PRINT = ${enablePrintInvoice ? 'true' : 'false'} as const;
 const STATUS_TRANSITIONS = ${statusTransitions ? JSON.stringify(statusTransitions) : 'null'} as const;
 const HAS_RESERVATION = ${hasReservationFields ? 'true' : 'false'} as const;
 const APPROVAL_CFG = ${approvalConfig ? JSON.stringify(approvalConfig) : 'null'} as const;
+const COMPANION_USER_CFG = ${companionUserConfig ? JSON.stringify(companionUserConfig) : 'null'} as const;
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(ENTITIES.map((e) => [e.slug, e.displayField])) as Record<string, string>;
 
 const getEntityDisplay = (entitySlug: string, row: any) => {
@@ -55,6 +70,17 @@ export default function ${entityName}FormPage() {
   const [childModalMode, setChildModalMode] = useState<'create' | 'edit'>('create');
   const [childModalInitial, setChildModalInitial] = useState<any>({});
   const [statusChanging, setStatusChanging] = useState(false);
+  const [createLogin, setCreateLogin] = useState<boolean>(false);
+  const [companionUsername, setCompanionUsername] = useState<string>('');
+  const [companionEmail, setCompanionEmail] = useState<string>('');
+  const [companionPassword, setCompanionPassword] = useState<string>('');
+  const [companionIsActive, setCompanionIsActive] = useState<boolean>(true);
+  const [companionGroupIds, setCompanionGroupIds] = useState<string[]>([]);
+  const [companionGroups, setCompanionGroups] = useState<any[]>([]);
+  const [linkedUserInfo, setLinkedUserInfo] = useState<{ id: string; username?: string; email?: string } | null>(null);
+
+  const companionEnabled = !!COMPANION_USER_CFG;
+  const hasLinkedUser = companionEnabled && isEdit && !!(initialData && (initialData as any).user_id);
 
   const invoiceEnabled = !!INVOICE_CFG;
   const invoiceCalcCfg = invoiceEnabled && INVOICE_CFG.calculation_engine && INVOICE_CFG.calculation_engine.enabled !== false
@@ -221,11 +247,83 @@ export default function ${entityName}FormPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isEdit]);
 
+  useEffect(() => {
+    if (!companionEnabled) return;
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const res = await api.get('/__erp_groups');
+        if (cancelled) return;
+        setCompanionGroups(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        if (!cancelled) setCompanionGroups([]);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [companionEnabled]);
+
+  useEffect(() => {
+    if (!companionEnabled) return;
+    if (!hasLinkedUser) { setLinkedUserInfo(null); return; }
+    const uid = String((initialData as any).user_id || '');
+    if (!uid) { setLinkedUserInfo(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get('/__erp_users/' + uid);
+        if (cancelled) return;
+        const u = res.data || {};
+        setLinkedUserInfo({ id: uid, username: u.username, email: u.email });
+      } catch {
+        if (!cancelled) setLinkedUserInfo({ id: uid });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hasLinkedUser, initialData, companionEnabled]);
+
+  const buildCompanionPayload = () => ({
+    username: String(companionUsername || '').trim(),
+    email: String(companionEmail || '').trim() || undefined,
+    password: String(companionPassword || ''),
+    is_active: companionIsActive,
+    group_ids: Array.from(new Set(companionGroupIds.filter(Boolean))),
+  });
+
+  const validateCompanion = () => {
+    if (!companionUsername.trim()) {
+      toast({ title: 'Username required', variant: 'error' });
+      return false;
+    }
+    if (String(companionPassword).length < 4) {
+      toast({ title: 'Password too short', description: 'Password must be at least 4 characters', variant: 'error' });
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (data: any) => {
     try {
+      if (companionEnabled && !isEdit && createLogin) {
+        if (!validateCompanion()) return;
+        await api.post('/${entity.slug}/with-user', { employee: data, companion_user: buildCompanionPayload() });
+        toast({ title: 'Created', description: 'Employee and login created', variant: 'success' });
+        navigate('/${entity.slug}');
+        return;
+      }
       if (isEdit) {
         await api.put('/${entity.slug}/' + id, data);
         toast({ title: 'Saved', description: 'Record updated', variant: 'success' });
+        if (companionEnabled && createLogin && !hasLinkedUser) {
+          if (!validateCompanion()) { navigate('/${entity.slug}'); return; }
+          try {
+            await api.post('/${entity.slug}/' + id + '/link-user', buildCompanionPayload());
+            toast({ title: 'Login created', description: 'Linked user account created', variant: 'success' });
+          } catch (err: any) {
+            toast({ title: 'Link user failed', description: err.response?.data?.error || err.message || 'Unknown error', variant: 'error' });
+            return;
+          }
+        }
       } else {
         await api.post('/${entity.slug}', data);
         toast({ title: 'Created', description: 'Record created', variant: 'success' });
@@ -234,6 +332,10 @@ export default function ${entityName}FormPage() {
     } catch (err: any) {
       toast({ title: 'Operation failed', description: err.response?.data?.error || err.message || 'Unknown error', variant: 'error' });
     }
+  };
+
+  const toggleCompanionGroup = (gid: string) => {
+    setCompanionGroupIds((prev) => prev.includes(gid) ? prev.filter((x) => x !== gid) : [...prev, gid]);
   };
 
   const handleStatusChange = async (newStatus: string) => {
@@ -405,25 +507,43 @@ export default function ${entityName}FormPage() {
         <div className="p-4">Loading...</div>
       ) : (
         <div className="space-y-4">
-          {HAS_RESERVATION && isEdit && initialData ? (
+          {HAS_RESERVATION ? (
             <div className="rounded-lg bg-white p-4 shadow">
-              <div className="text-sm font-semibold text-slate-900 mb-3">Stock Availability</div>
+              <div className="text-sm font-semibold text-slate-900 mb-3">${lbl(labels.title)}</div>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-sm">
                 <div>
-                  <div className="text-slate-500">On Hand</div>
-                  <div className="font-semibold text-slate-900">{initialData.quantity ?? '—'}</div>
+                  <div className="text-slate-500">${lbl(labels.onHand)}</div>
+                  <div className="font-semibold text-slate-900">{isEdit ? (initialData?.quantity ?? '—') : 0}</div>
                 </div>
                 <div>
-                  <div className="text-slate-500">Reserved</div>
-                  <div className="font-semibold text-amber-700">{initialData.reserved_quantity ?? 0}</div>
+                  <div className="text-slate-500 inline-flex items-center gap-1">
+                    <span>${lbl(labels.reserved)}</span>
+                    <span
+                      aria-label="${lbl(labels.infoIconAria)}"
+                      title="${lbl(labels.reservedTooltip)}"
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] text-slate-500 cursor-help select-none"
+                    >
+                      i
+                    </span>
+                  </div>
+                  <div className="font-semibold text-amber-700">{isEdit ? (initialData?.reserved_quantity ?? 0) : 0}</div>
                 </div>
                 <div>
-                  <div className="text-slate-500">Committed</div>
-                  <div className="font-semibold text-blue-700">{initialData.committed_quantity ?? 0}</div>
+                  <div className="text-slate-500 inline-flex items-center gap-1">
+                    <span>${lbl(labels.committed)}</span>
+                    <span
+                      aria-label="${lbl(labels.infoIconAria)}"
+                      title="${lbl(labels.committedTooltip)}"
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] text-slate-500 cursor-help select-none"
+                    >
+                      i
+                    </span>
+                  </div>
+                  <div className="font-semibold text-blue-700">{isEdit ? (initialData?.committed_quantity ?? 0) : 0}</div>
                 </div>
                 <div>
-                  <div className="text-slate-500">Available</div>
-                  <div className="font-semibold text-emerald-700">{initialData.available_quantity ?? initialData.quantity ?? 0}</div>
+                  <div className="text-slate-500">${lbl(labels.available)}</div>
+                  <div className="font-semibold text-emerald-700">{isEdit ? (initialData?.available_quantity ?? initialData?.quantity ?? 0) : 0}</div>
                 </div>
               </div>
             </div>
@@ -436,6 +556,98 @@ export default function ${entityName}FormPage() {
               onCancel={() => navigate('/${entity.slug}')}
             />
           </div>
+
+          {companionEnabled && hasLinkedUser ? (
+            <div className="rounded-lg bg-white p-6 shadow">
+              <div className="text-sm font-semibold text-slate-900 mb-2">{COMPANION_USER_CFG!.labels.linkedUser}</div>
+              <div className="text-sm text-slate-700">
+                <span className="font-medium">{linkedUserInfo?.username || linkedUserInfo?.id || '—'}</span>
+                {linkedUserInfo?.email ? <span className="text-slate-500"> · {linkedUserInfo.email}</span> : null}
+              </div>
+              <div className="mt-2 text-xs text-slate-500">{COMPANION_USER_CFG!.labels.linkedUserAlready}</div>
+              <div className="mt-3">
+                <Link to={'/admin/users'} className="text-sm font-semibold text-blue-600 hover:underline">
+                  {COMPANION_USER_CFG!.labels.openInUsers}
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
+          {companionEnabled && !hasLinkedUser ? (
+            <div className="rounded-lg bg-white p-6 shadow">
+              <div className="text-sm font-semibold text-slate-900 mb-2">{COMPANION_USER_CFG!.labels.title}</div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={createLogin}
+                  onChange={(e) => setCreateLogin(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <span>{COMPANION_USER_CFG!.labels.createLogin}</span>
+              </label>
+              {createLogin ? (
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <label className="text-sm">
+                    <span className="text-slate-600">{COMPANION_USER_CFG!.labels.username}</span>
+                    <input
+                      type="text"
+                      value={companionUsername}
+                      onChange={(e) => setCompanionUsername(e.target.value)}
+                      autoComplete="off"
+                      className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-slate-600">Email</span>
+                    <input
+                      type="email"
+                      value={companionEmail}
+                      onChange={(e) => setCompanionEmail(e.target.value)}
+                      autoComplete="off"
+                      className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-slate-600">{COMPANION_USER_CFG!.labels.password}</span>
+                    <input
+                      type="password"
+                      value={companionPassword}
+                      onChange={(e) => setCompanionPassword(e.target.value)}
+                      autoComplete="new-password"
+                      className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 text-sm self-end">
+                    <input
+                      type="checkbox"
+                      checked={companionIsActive}
+                      onChange={(e) => setCompanionIsActive(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <span>{COMPANION_USER_CFG!.labels.active}</span>
+                  </label>
+                  <div className="md:col-span-2 text-sm">
+                    <div className="text-slate-600 mb-1">{COMPANION_USER_CFG!.labels.roles}</div>
+                    <div className="flex flex-wrap gap-3 rounded-md border border-slate-200 p-3 bg-slate-50">
+                      {companionGroups.length === 0 ? (
+                        <span className="text-xs text-slate-500">—</span>
+                      ) : companionGroups.map((g: any) => (
+                        <label key={String(g.id)} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={companionGroupIds.includes(String(g.id))}
+                            onChange={() => toggleCompanionGroup(String(g.id))}
+                            className="h-4 w-4"
+                          />
+                          <span>{g.name || g.id}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {CHILD_SECTIONS.length ? (
             <div className="rounded-lg bg-white p-6 shadow space-y-4">

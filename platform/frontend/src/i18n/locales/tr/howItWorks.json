@@ -1,0 +1,43 @@
+{
+  "nav": {
+    "home": "Ana sayfa",
+    "about": "Hakkımızda"
+  },
+  "title": "Nasıl çalışır?",
+  "subtitle": "İşletmenizi birkaç cümleyle anlatmaktan çalışır durumda bir ERP'ye kadar giden yolu adım adım inceleyin.",
+  "steps": {
+    "step1Title": "1. İşletmenizi anlatın",
+    "step1Body": "Ne tür iş yaptığınızı, hangi modülleri (stok, fatura, İK) istediğinizi ve varsa özel kurallarınızı kendi dilinizde yazarsınız. Teknik bilgi gerektirmez.",
+    "step2Title": "2. Yapay zekâ isteği dağıtır",
+    "step2Body": "Giriş yönlendirici ajan, hangi modüllerin etkin olacağını, hangi varlıkların gerekeceğini ve hangi bilgilerin eksik olduğunu belirler. Gerekirse size kısa netleştirme soruları sorulur.",
+    "step3Title": "3. Modül üreticileri çalışır",
+    "step3Body": "Stok, fatura ve İK modülleri için ayrı uzman ajanlar; alanları, etiketleri, ilişkileri ve iş kurallarını SDF (System Definition File) biçiminde üretir.",
+    "step4Title": "4. Entegratör birleştirir ve doğrular",
+    "step4Body": "Tüm modül çıktıları deterministik bir entegratörde birleştirilir, çapraz referanslar doğrulanır ve ERP montajcısı kod üretebilecek tutarlı bir SDF'ye ulaşıldığından emin olur.",
+    "step5Title": "5. Tek tıkla önizle ve indir",
+    "step5Body": "Üretilen ERP, tarayıcınızdan önizlenebilir; hazır olduğunda Docker ortamına yerleştirilmiş şekilde indirilebilir."
+  },
+  "faq": {
+    "heading": "Sık sorulanlar",
+    "items": [
+      {
+        "q": "Hangi modüller destekleniyor?",
+        "a": "Stok yönetimi (çoklu lokasyon, rezervasyonlar, giriş/çıkış, seri numarası, son kullanma tarihi takibi), fatura (müşteri, faturalama, ödeme, vergi) ve İK (çalışan, departman, izin, mesai)."
+      },
+      {
+        "q": "Hangi diller destekleniyor?",
+        "a": "Şu an Türkçe ve İngilizce destekleniyor. Projeyi oluşturduğunuz dil proje boyunca sabit kalır."
+      },
+      {
+        "q": "Ürettiğim ERP nerede çalışır?",
+        "a": "Üretilen proje, indirebileceğiniz bir Docker Compose paketidir; kendi sunucunuzda ya da yerel makinenizde çalıştırabilirsiniz."
+      }
+    ]
+  },
+  "cta": {
+    "heading": "Deneyelim mi?",
+    "body": "Birkaç cümle ile kendi ERP'nizi oluşturun.",
+    "primary": "Ücretsiz başla",
+    "secondary": "Hakkımızda"
+  }
+}

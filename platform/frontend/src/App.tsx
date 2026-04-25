@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import MobileGate from './components/MobileGate';
+import { ThemeProvider } from './context/ThemeContext';
 import LandingPage from './pages/LandingPage';
+import AboutPage from './pages/AboutPage';
+import HowItWorksPage from './pages/HowItWorksPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProjectListPage from './pages/ProjectListPage';
@@ -18,11 +20,13 @@ import PublicOnlyRoute from './components/PublicOnlyRoute';
 
 function App() {
   return (
-    <MobileGate>
-    <AuthProvider>
-      <Routes>
+    <ThemeProvider>
+      <AuthProvider>
+        <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/login" element={
           <PublicOnlyRoute>
             <LoginPage />
@@ -53,8 +57,8 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
-    </MobileGate>
-  );
+  </ThemeProvider>
+);
 }
 
 export default App;

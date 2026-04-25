@@ -33,7 +33,7 @@ export default function AboutPage() {
           <Section heading={t('team.heading')}>
             <p>{t('team.body')}</p>
             <a
-              href="https://ctis.bilkent.edu.tr"
+              href="https://ctis.bilkent.edu.tr/ctis_seniorProject.php?id=5066"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-3 inline-flex items-center text-[13px] font-semibold text-app-accent-blue hover:text-app-accent-dark-blue"

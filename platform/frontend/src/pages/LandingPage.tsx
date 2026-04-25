@@ -156,7 +156,7 @@ export default function LandingPage() {
         sides: {
           left: { count: 1, type: 'tab' },
           right: { count: 1, type: 'tab' },
-          bottom: { count: 1, type: 'tab' },
+          bottom: { count: 1, type: 'socket' },
         },
       },
       {
@@ -198,7 +198,7 @@ export default function LandingPage() {
             { pos: 0.125, type: 'socket' },
             { pos: 0.3125, type: 'socket' },
             { pos: 0.4375, type: 'tab' },
-            { pos: 0.625, type: 'socket' },
+            { pos: 0.625, type: 'tab' },
             { pos: 0.875, type: 'socket' },
           ],
           right: { count: 1, type: 'tab' },
@@ -379,7 +379,7 @@ export default function LandingPage() {
         sides: {
           top: { count: 1, type: 'socket' },
           right: { count: 1, type: 'tab' },
-          bottom: { count: 1, type: 'tab' },
+          bottom: { count: 1, type: 'socket' },
         },
       },
       {
@@ -398,7 +398,7 @@ export default function LandingPage() {
         x: 0, y: MY_HERO, w: 4 * MCW, h: MH_HERO,
         sides: {
           top: [
-            { pos: 0.25, type: 'socket' },
+            { pos: 0.25, type: 'tab' },
             { pos: 0.75, type: 'socket' },
           ],
           bottom: { count: 1, type: 'tab' },

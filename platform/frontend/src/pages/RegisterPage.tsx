@@ -116,7 +116,7 @@ export default function RegisterPage() {
       <div className="hidden lg:flex lg:w-1/2 bg-app-surface p-10 xl:p-12 flex-col justify-between relative border-r border-app-border">
         <Link
           to="/"
-          className="absolute top-6 right-6 z-10 flex items-center text-app-text-subtle hover:text-app-accent-blue transition-colors"
+          className="absolute top-4 right-6 z-10 flex items-center text-app-text-subtle hover:text-app-accent-blue transition-colors"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

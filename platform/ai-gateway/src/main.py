@@ -172,6 +172,24 @@ class AnalyzeRequest(BaseModel):
         ),
         validation_alias=AliasChoices("selected_modules", "selectedModules"),
     )
+    business_answers: Optional[Dict[str, Dict[str, str]]] = Field(
+        default=None,
+        description=(
+            "Per-question business questionnaire map: { question_id: { question, answer } }. "
+            "Required for the pre-distributor answer reviewer; without it the reviewer is skipped."
+        ),
+        validation_alias=AliasChoices("business_answers", "businessAnswers"),
+    )
+    acknowledged_unsupported_features: List[str] = Field(
+        default_factory=list,
+        description=(
+            "Plain-English feature names the user has acknowledged as unsupported on a previous "
+            "review. Such features will not re-trigger the answer-reviewer halt."
+        ),
+        validation_alias=AliasChoices(
+            "acknowledged_unsupported_features", "acknowledgedUnsupportedFeatures",
+        ),
+    )
 
 
 class EditRequest(BaseModel):
@@ -376,6 +394,8 @@ async def analyze(request: AnalyzeRequest):
             on_progress=on_progress,
             language=request.language,
             selected_modules=request.selected_modules,
+            business_answers=request.business_answers,
+            acknowledged_unsupported_features=request.acknowledged_unsupported_features,
         )
         on_progress("done", 100, "Complete")
         _log_training_session(

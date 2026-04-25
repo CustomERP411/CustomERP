@@ -1,3 +1,5 @@
+const { tFor } = require('../../../i18n/labels');
+
 function buildEntityListPage({
   entity,
   entityName,
@@ -23,8 +25,60 @@ function buildEntityListPage({
   importBase,
   hasReservationFields,
   hasStatusField,
+  language = 'en',
 }) {
   const base = importBase || '..';
+  const t = tFor(language);
+  const I18N = {
+    subtitle: t('list.subtitle'),
+    searchPlaceholder: t('list.searchPlaceholder'),
+    addNew: t('list.addNew'),
+    importCsv: t('list.importCsv'),
+    exportCsv: t('list.exportCsv'),
+    print: 'Print / PDF',
+    receive: t('inventoryOps.receive.submit'),
+    adjust: t('inventoryOps.adjust.submit'),
+    transfer: t('inventoryOps.transfer.submit'),
+    labels: t('labelsPage.title'),
+    actionsColumn: t('list.actionsColumn'),
+    empty: t('list.empty'),
+    loading: t('common.loading'),
+    selected: t('list.selected'),
+    bulkUpdate: t('list.bulkUpdate'),
+    bulkDelete: t('list.bulkDelete'),
+    clear: t('common.clear'),
+    edit: t('list.rowActions.edit'),
+    delete: t('list.rowActions.delete'),
+    prev: t('list.pagination.previous'),
+    next: t('list.pagination.next'),
+    confirmDelete: t('common.confirmDelete'),
+    deleteBlockedTitle: t('list.deleteBlocked.title'),
+    deleteBlockedFallback: t('list.deleteBlocked.body'),
+    bulkUpdateTitle: t('list.bulkUpdate'),
+    bulkUpdateInfo: 'Updating {{count}} record(s). Leave a field blank to keep it unchanged.',
+    sortHint: t('list.sortHint'),
+    clearSorting: 'Clear sorting',
+    showingPage: 'Showing {{from}} to {{to}} of {{total}}',
+    perPage: '{{n}} / page',
+    selectAllAria: 'Select all on this page',
+    selectRowAria: 'Select {{id}}',
+    deletedToast: t('list.toast.deleteSuccess'),
+    deleteFailedToast: t('list.toast.deleteFailed'),
+    bulkDeletedToast: t('list.toast.bulkDeleteSuccess'),
+    bulkDeleteFailedToast: t('list.toast.bulkDeleteFailed'),
+    bulkUpdatedToast: t('list.toast.bulkUpdateSuccess'),
+    bulkUpdateFailedToast: t('list.toast.bulkUpdateFailed'),
+    exportFailedToast: t('list.toast.exportFailed'),
+    loadFailedToast: t('list.toast.loadFailed'),
+    csvExportedToast: 'Exported CSV',
+    cantDeleteRefBy: 'This record is referenced by other records',
+    noSelectionTitle: 'No selection',
+    noSelectionBody: 'Select records first',
+    nothingToUpdateTitle: 'Nothing to update',
+    nothingToUpdateBody: 'Fill at least one field',
+    unknownError: 'Unknown error',
+  };
+  const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '${base}/services/api';
@@ -32,6 +86,10 @@ import { ENTITIES } from '${base}/config/entities';
 import Modal from '${base}/components/ui/Modal';
 import { useToast } from '${base}/components/ui/toast';
 ${enableBulkUpdate ? `import DynamicForm from '${base}/components/DynamicForm';` : ''}
+
+const I18N = ${i18nJson} as const;
+const interpolate = (s: string, params: Record<string, string | number> = {}) =>
+  s.replace(/{{(\\w+)}}/g, (_m, k) => (params[k] !== undefined ? String(params[k]) : ''));
 
 interface ${entityName}Item {
   id: string;
@@ -114,7 +172,7 @@ ${enableBulkUpdate ? `  const [bulkUpdateOpen, setBulkUpdateOpen] = useState(fal
       setItems(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Failed to fetch items:', err);
-      toast({ title: 'Failed to load', description: 'Could not load ${entity.slug}', variant: 'error' });
+      toast({ title: I18N.loadFailedToast, description: I18N.loadFailedToast, variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -280,23 +338,23 @@ ${enableBulkDelete ? `
           throw err;
         }
       }
-      toast({ title: 'Deleted', description: selectedIds.length + ' record(s)', variant: 'success' });
+      toast({ title: I18N.bulkDeletedToast, description: selectedIds.length + ' record(s)', variant: 'success' });
       clearSelection();
       fetchItems();
     } catch (err: any) {
       console.error('Bulk delete failed:', err);
-      toast({ title: 'Bulk delete failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.bulkDeleteFailedToast, description: err?.response?.data?.error || err?.message || I18N.unknownError, variant: 'error' });
     }
   };
 ` : ''}
 ${enableBulkUpdate ? `
   const applyBulkUpdate = async (data: any) => {
     if (selectedIds.length === 0) {
-      toast({ title: 'No selection', description: 'Select records first', variant: 'warning' });
+      toast({ title: I18N.noSelectionTitle, description: I18N.noSelectionBody, variant: 'warning' });
       return;
     }
     if (!data || Object.keys(data).length === 0) {
-      toast({ title: 'Nothing to update', description: 'Fill at least one field', variant: 'warning' });
+      toast({ title: I18N.nothingToUpdateTitle, description: I18N.nothingToUpdateBody, variant: 'warning' });
       return;
     }
 
@@ -304,13 +362,13 @@ ${enableBulkUpdate ? `
       for (const id of selectedIds) {
         await api.put('/${entity.slug}/' + id, data);
       }
-      toast({ title: 'Updated', description: selectedIds.length + ' record(s)', variant: 'success' });
+      toast({ title: I18N.bulkUpdatedToast, description: selectedIds.length + ' record(s)', variant: 'success' });
       setBulkUpdateOpen(false);
       clearSelection();
       fetchItems();
     } catch (err: any) {
       console.error('Bulk update failed:', err);
-      toast({ title: 'Bulk update failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.bulkUpdateFailedToast, description: err?.response?.data?.error || err?.message || I18N.unknownError, variant: 'error' });
     }
   };
 ` : ''}
@@ -328,24 +386,24 @@ ${enableBulkUpdate ? `
   const clearSort = () => setSorts([]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm(I18N.confirmDelete)) return;
     try {
       await api.delete('/${entity.slug}/' + id);
-      toast({ title: 'Deleted', variant: 'success' });
+      toast({ title: I18N.deletedToast, variant: 'success' });
       fetchItems();
     } catch (err: any) {
       const status = err?.response?.status;
       const payload = err?.response?.data;
       if (status === 409 && payload?.dependents) {
         setDeleteBlocked({
-          message: payload.error || 'Cannot delete: record is referenced by other records',
+          message: payload.error || I18N.deleteBlockedFallback,
           dependents: payload.dependents,
         });
-        toast({ title: 'Cannot delete', description: payload.error || 'This record is referenced by other records', variant: 'warning' });
+        toast({ title: I18N.deleteBlockedTitle, description: payload.error || I18N.cantDeleteRefBy, variant: 'warning' });
         return;
       }
       console.error('Delete failed:', err);
-      toast({ title: 'Delete failed', description: payload?.error || 'Could not delete record', variant: 'error' });
+      toast({ title: I18N.deleteFailedToast, description: payload?.error || I18N.deleteFailedToast, variant: 'error' });
     }
   };
 
@@ -376,48 +434,48 @@ ${enableCsvExport ? `  const exportCsv = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast({ title: 'Exported CSV', variant: 'success' });
+    toast({ title: I18N.csvExportedToast, variant: 'success' });
   };` : ''}
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <div className="p-4">{I18N.loading}</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">${escapeJsString(entity.display_name || entityName)}</h1>
-          <p className="text-sm text-slate-600">Manage records with sorting, pagination, and tools.</p>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2 no-print">
 ${enableCsvImport ? `          <Link
             to="/${entity.slug}/import"
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
           >
-            Import CSV
+            {I18N.importCsv}
           </Link>` : ''}
 ${enableCsvExport ? `          <button
             onClick={exportCsv}
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
           >
-            Export CSV
+            {I18N.exportCsv}
           </button>` : ''}
 ${enablePrint ? `          <button
             onClick={() => window.print()}
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
           >
-            Print / PDF
+            {I18N.print}
           </button>` : ''}
 ${enableReceive ? `          <Link
             to="/${entity.slug}/receive"
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
           >
-            Receive
+            {I18N.receive}
           </Link>` : ''}
 ${enableAdjust ? `          <Link
             to="/${entity.slug}/adjust"
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
           >
-            Adjust
+            {I18N.adjust}
           </Link>` : ''}
 ${enableIssue ? `          <Link
             to="/${entity.slug}/issue"
@@ -429,19 +487,19 @@ ${canTransfer ? `          <Link
             to="/${entity.slug}/transfer"
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
           >
-            Transfer
+            {I18N.transfer}
           </Link>` : ''}
 ${enableQrLabels ? `          <Link
             to="/${entity.slug}/labels"
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
           >
-            Labels
+            {I18N.labels}
           </Link>` : ''}
           <Link
             to="/${entity.slug}/new"
             className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
           >
-            + Add New
+            {I18N.addNew}
           </Link>
         </div>
       </div>
@@ -450,14 +508,14 @@ ${enableSearch ? `      <div className="no-print">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search..."
+          placeholder={I18N.searchPlaceholder}
           className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:max-w-md"
         />
       </div>` : ''}
 
 ${enableBulkActions ? `      <div className="no-print rounded-lg border bg-white p-3 shadow-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-slate-700">
-          <span className="font-semibold text-slate-900">{selectedIds.length}</span> selected
+          <span className="font-semibold text-slate-900">{selectedIds.length}</span> {I18N.selected}
         </div>
         <div className="flex flex-wrap gap-2">
 ${enableBulkUpdate ? `          <button
@@ -466,7 +524,7 @@ ${enableBulkUpdate ? `          <button
             disabled={selectedIds.length === 0}
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
           >
-            Bulk update
+            {I18N.bulkUpdate}
           </button>` : ''}
 ${enableBulkDelete ? `          <button
             type="button"
@@ -474,7 +532,7 @@ ${enableBulkDelete ? `          <button
             disabled={selectedIds.length === 0}
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50 disabled:opacity-50"
           >
-            Bulk delete
+            {I18N.bulkDelete}
           </button>` : ''}
           <button
             type="button"
@@ -482,16 +540,14 @@ ${enableBulkDelete ? `          <button
             disabled={selectedIds.length === 0}
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
           >
-            Clear
+            {I18N.clear}
           </button>
         </div>
       </div>` : ''}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between no-print">
         <div className="text-sm text-slate-600">
-          Showing <span className="font-medium text-slate-900">{sortedItems.length === 0 ? 0 : pageStart + 1}</span>
-          {' '}to <span className="font-medium text-slate-900">{pageEnd}</span> of{' '}
-          <span className="font-medium text-slate-900">{sortedItems.length}</span>
+          {interpolate(I18N.showingPage, { from: sortedItems.length === 0 ? 0 : pageStart + 1, to: pageEnd, total: sortedItems.length })}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {sorts.length ? (
@@ -500,7 +556,7 @@ ${enableBulkDelete ? `          <button
               onClick={clearSort}
               className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
             >
-              Clear sorting
+              {I18N.clearSorting}
             </button>
           ) : null}
           <select
@@ -508,9 +564,9 @@ ${enableBulkDelete ? `          <button
             onChange={(e) => setPageSize(Number(e.target.value))}
             className="rounded-md border px-2 py-2 text-sm"
           >
-            <option value={25}>25 / page</option>
-            <option value={50}>50 / page</option>
-            <option value={100}>100 / page</option>
+            <option value={25}>{interpolate(I18N.perPage, { n: 25 })}</option>
+            <option value={50}>{interpolate(I18N.perPage, { n: 50 })}</option>
+            <option value={100}>{interpolate(I18N.perPage, { n: 100 })}</option>
           </select>
           <div className="flex gap-2">
             <button
@@ -519,7 +575,7 @@ ${enableBulkDelete ? `          <button
               disabled={page === 0}
               className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
             >
-              Prev
+              {I18N.prev}
             </button>
             <button
               type="button"
@@ -527,7 +583,7 @@ ${enableBulkDelete ? `          <button
               disabled={pageEnd >= sortedItems.length}
               className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
             >
-              Next
+              {I18N.next}
             </button>
           </div>
         </div>
@@ -535,7 +591,7 @@ ${enableBulkDelete ? `          <button
 
       <Modal
         isOpen={!!deleteBlocked}
-        title="Cannot delete"
+        title={I18N.deleteBlockedTitle}
         onClose={() => setDeleteBlocked(null)}
       >
         <div className="space-y-4">
@@ -565,12 +621,12 @@ ${enableBulkDelete ? `          <button
 
 ${enableBulkUpdate ? `      <Modal
         isOpen={bulkUpdateOpen}
-        title="Bulk update"
+        title={I18N.bulkUpdateTitle}
         onClose={() => setBulkUpdateOpen(false)}
       >
         <div className="space-y-3">
           <div className="text-sm text-slate-700">
-            Updating <span className="font-semibold text-slate-900">{selectedIds.length}</span> record(s). Leave a field blank to keep it unchanged.
+            {interpolate(I18N.bulkUpdateInfo, { count: selectedIds.length })}
           </div>
           <DynamicForm
             fields={BULK_UPDATE_FIELDS as any}
@@ -592,7 +648,7 @@ ${enableBulkActions ? `              <th className="px-6 py-3 text-left text-xs 
                   checked={pageAllSelected}
                   onChange={toggleSelectPage}
                   className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  aria-label="Select all on this page"
+                  aria-label={I18N.selectAllAria}
                 />
               </th>` : ''}
               {tableColumns.map((col: any) => {
@@ -604,7 +660,7 @@ ${enableBulkActions ? `              <th className="px-6 py-3 text-left text-xs 
                       type="button"
                       onClick={() => toggleSort(col.key)}
                       className="inline-flex items-center gap-1 hover:text-slate-900"
-                      title="Click to add/toggle sorting. Earlier sorts have higher priority."
+                      title={I18N.sortHint}
                     >
                       <span>{col.label}</span>
                       {sortIndex >= 0 ? (
@@ -616,7 +672,7 @@ ${enableBulkActions ? `              <th className="px-6 py-3 text-left text-xs 
                   </th>
                 );
               })}
-              <th className="px-6 py-3 text-right no-print">Actions</th>
+              <th className="px-6 py-3 text-right no-print">{I18N.actionsColumn}</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -628,7 +684,7 @@ ${enableBulkActions ? `                <td className="px-6 py-4 whitespace-nowra
                     checked={selectedSet.has(String(item.id))}
                     onChange={() => toggleSelectOne(String(item.id))}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    aria-label={'Select ' + String(item.id)}
+                    aria-label={interpolate(I18N.selectRowAria, { id: String(item.id) })}
                   />
                 </td>` : ''}
                 {tableColumns.map((col: any) => {
@@ -652,7 +708,7 @@ ${enableQuickReceive ? `                    <Link
                       to={'/${entity.slug}/receive?itemId=' + item.id}
                       className="text-emerald-700 hover:underline"
                     >
-                      Receive
+                      {I18N.receive}
                     </Link>` : ''}
 ${enableQuickIssue ? `                    <Link
                       to={'/${entity.slug}/issue?itemId=' + item.id}
@@ -660,14 +716,14 @@ ${enableQuickIssue ? `                    <Link
                     >
                       {ISSUE_LABEL}
                     </Link>` : ''}
-                    <Link to={'/${entity.slug}/' + item.id + '/edit'} className="text-blue-600 hover:underline">Edit</Link>
-                    <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:underline">Delete</button>
+                    <Link to={'/${entity.slug}/' + item.id + '/edit'} className="text-blue-600 hover:underline">{I18N.edit}</Link>
+                    <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:underline">{I18N.delete}</button>
                   </div>
                 </td>
               </tr>
             ))}
             {sortedItems.length === 0 && (
-              <tr><td colSpan={tableColumns.length + 1${enableBulkActions ? ' + 1' : ''}} className="px-6 py-6 text-center text-gray-500">No items yet</td></tr>
+              <tr><td colSpan={tableColumns.length + 1${enableBulkActions ? ' + 1' : ''}} className="px-6 py-6 text-center text-gray-500">{I18N.empty}</td></tr>
             )}
           </tbody>
         </table>

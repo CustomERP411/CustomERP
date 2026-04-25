@@ -226,12 +226,20 @@ class FrontendGenerator {
     };
     await fs.writeFile(path.join(outputDir, 'package.json'), JSON.stringify(packageJson, null, 2));
 
+    const escapeHtml = (s) => String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    const htmlLang = this._t('meta.htmlLang') || this._language;
+    const titleSuffix = this._t('meta.appTitleSuffix');
+    const projectTitle = (sdf && sdf.project_name) ? `${sdf.project_name} · ${titleSuffix}` : `${this._t('topbar.fallbackAppName')} · ${titleSuffix}`;
     const indexHtml = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${escapeHtml(htmlLang)}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Generated ERP</title>
+    <title>${escapeHtml(projectTitle)}</title>
   </head>
   <body>
     <div id="root"></div>
@@ -330,9 +338,13 @@ ${authClose}    </ToastProvider>
 
   async generateTopbar(outputDir, sdf = {}) {
     const projectName = this._escapeJsString(
-      (sdf && sdf.project_name) || 'ERP System'
+      (sdf && sdf.project_name) || this._t('topbar.fallbackAppName')
     );
     const rbac = this._accessControlEnabled;
+    const toggleMenu = this._escapeJsString(this._t('topbar.toggleMenu'));
+    const goBack = this._escapeJsString(this._t('topbar.goBack'));
+    const goForward = this._escapeJsString(this._t('topbar.goForward'));
+    const fallbackUser = this._escapeJsString(this._t('topbar.fallbackUser'));
 
     const topbar = `import { useNavigate } from 'react-router-dom';
 import { useSidebar } from './DashboardLayout';
@@ -340,7 +352,7 @@ ${rbac ? `import { useAuth } from '../../contexts/AuthContext';\n` : ''}
 export default function Topbar() {
   const navigate = useNavigate();
   const { toggle } = useSidebar();
-${rbac ? `  const { user } = useAuth();\n  const displayName = user?.display_name || user?.username || 'User';\n  const initials = displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);\n` : ''}
+${rbac ? `  const { user } = useAuth();\n  const displayName = user?.display_name || user?.username || '${fallbackUser}';\n  const initials = displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);\n` : ''}
   return (
     <header className="sticky top-0 z-30 border-b bg-white/80 backdrop-blur">
       <div className="flex items-center justify-between px-4 py-3 sm:px-6">
@@ -348,7 +360,7 @@ ${rbac ? `  const { user } = useAuth();\n  const displayName = user?.display_nam
           <button
             onClick={toggle}
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Toggle menu"
+            aria-label="${toggleMenu}"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -357,7 +369,7 @@ ${rbac ? `  const { user } = useAuth();\n  const displayName = user?.display_nam
           <button
             onClick={() => navigate(-1)}
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Go back"
+            aria-label="${goBack}"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -366,7 +378,7 @@ ${rbac ? `  const { user } = useAuth();\n  const displayName = user?.display_nam
           <button
             onClick={() => navigate(1)}
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Go forward"
+            aria-label="${goForward}"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -431,7 +443,7 @@ ${rbac
     };
     const scheduledReportsCfg = modules.scheduled_reports || modules.scheduledReports || {};
 
-    const dashboardHome = buildDashboardHome({ lowStockCfg, expiryCfg, activityCfg, enableReportsPage: scheduledReportsCfg.enabled === true, rbac: this._accessControlEnabled });
+    const dashboardHome = buildDashboardHome({ lowStockCfg, expiryCfg, activityCfg, enableReportsPage: scheduledReportsCfg.enabled === true, rbac: this._accessControlEnabled, language: this._language });
     await fs.writeFile(path.join(outputDir, 'src/pages/DashboardHome.tsx'), dashboardHome);
   }
 
@@ -471,11 +483,11 @@ ${rbac
     await this.generateDashboardHome(outputDir, visibleEntities, sdf);
 
     if (enableActivityLog) {
-      await fs.writeFile(path.join(outputDir, 'src/pages/ActivityLogPage.tsx'), buildActivityLogPage());
+      await fs.writeFile(path.join(outputDir, 'src/pages/ActivityLogPage.tsx'), buildActivityLogPage(this._language));
     }
     if (enableReports) {
       const scheduledCfg = modules.scheduled_reports || modules.scheduledReports || {};
-      await fs.writeFile(path.join(outputDir, 'src/pages/ReportsPage.tsx'), buildReportsPage({ scheduledCfg }));
+      await fs.writeFile(path.join(outputDir, 'src/pages/ReportsPage.tsx'), buildReportsPage({ scheduledCfg, language: this._language }));
     }
 
     const featureFlags = { priorityCfg, invoicePriorityCfg, hrPriorityCfg, reservationsEnabled, inboundEnabled, cycleEnabled, invoiceTransactionsEnabled, invoicePaymentsEnabled, invoiceNotesEnabled, hrLeaveEngineEnabled, hrLeaveApprovalsEnabled, hrAttendanceEnabled };
@@ -616,50 +628,52 @@ ${rbac
 
     const availableSlugs = new Set(visibleEntities.map((e) => String(e.slug || '')));
 
+    const tWorkflow = (key) => this._t('sidebar.workflow.' + key);
     const workflowBadges = [];
     if (reservationsEnabled && availableSlugs.has(String(priorityCfg.stockEntity || ''))) {
-      workflowBadges.push({ slug: priorityCfg.stockEntity, sub: 'reservations', label: 'Reservations' });
+      workflowBadges.push({ slug: priorityCfg.stockEntity, sub: 'reservations', label: tWorkflow('reservations') });
     }
     if (inboundEnabled && availableSlugs.has(String(priorityCfg.inbound.grn_entity || ''))) {
-      workflowBadges.push({ slug: priorityCfg.inbound.grn_entity, sub: 'posting', label: 'GRN Posting' });
+      workflowBadges.push({ slug: priorityCfg.inbound.grn_entity, sub: 'posting', label: tWorkflow('grnPosting') });
     }
     if (cycleEnabled && availableSlugs.has(String(priorityCfg.cycleCounting.session_entity || ''))) {
-      workflowBadges.push({ slug: priorityCfg.cycleCounting.session_entity, sub: 'workflow', label: 'Cycle Count' });
+      workflowBadges.push({ slug: priorityCfg.cycleCounting.session_entity, sub: 'workflow', label: tWorkflow('cycleCount') });
     }
     if (invoiceTransactionsEnabled && availableSlugs.has(String(invoicePriorityCfg.invoiceEntity || ''))) {
-      workflowBadges.push({ slug: invoicePriorityCfg.invoiceEntity, sub: 'workflow', label: 'Invoice Workflow' });
+      workflowBadges.push({ slug: invoicePriorityCfg.invoiceEntity, sub: 'workflow', label: tWorkflow('invoiceWorkflow') });
     }
     if (invoicePaymentsEnabled && availableSlugs.has(String(invoicePriorityCfg.invoiceEntity || ''))) {
-      workflowBadges.push({ slug: invoicePriorityCfg.invoiceEntity, sub: 'payments', label: 'Payments' });
+      workflowBadges.push({ slug: invoicePriorityCfg.invoiceEntity, sub: 'payments', label: tWorkflow('payments') });
     }
     if (invoiceNotesEnabled && availableSlugs.has(String(invoicePriorityCfg.invoiceEntity || ''))) {
-      workflowBadges.push({ slug: invoicePriorityCfg.invoiceEntity, sub: 'notes', label: 'Credit/Debit Notes' });
+      workflowBadges.push({ slug: invoicePriorityCfg.invoiceEntity, sub: 'notes', label: tWorkflow('creditDebitNotes') });
     }
     if (invoicePaymentsEnabled && availableSlugs.has(String(invoicePriorityCfg.paymentEntity || ''))) {
-      workflowBadges.push({ slug: invoicePriorityCfg.paymentEntity, sub: 'workflow', label: 'Payment Posting' });
+      workflowBadges.push({ slug: invoicePriorityCfg.paymentEntity, sub: 'workflow', label: tWorkflow('paymentPosting') });
     }
     if (invoiceNotesEnabled && availableSlugs.has(String(invoicePriorityCfg.noteEntity || ''))) {
-      workflowBadges.push({ slug: invoicePriorityCfg.noteEntity, sub: 'workflow', label: 'Note Posting' });
+      workflowBadges.push({ slug: invoicePriorityCfg.noteEntity, sub: 'workflow', label: tWorkflow('notePosting') });
     }
     if (hrLeaveApprovalsEnabled && availableSlugs.has(String(hrPriorityCfg.leaveEntity || ''))) {
-      workflowBadges.push({ slug: hrPriorityCfg.leaveEntity, sub: 'approvals', label: 'Leave Approvals' });
+      workflowBadges.push({ slug: hrPriorityCfg.leaveEntity, sub: 'approvals', label: tWorkflow('leaveApprovals') });
     }
     if (hrLeaveEngineEnabled && availableSlugs.has(String(hrPriorityCfg.employeeEntity || ''))) {
-      workflowBadges.push({ slug: hrPriorityCfg.employeeEntity, sub: 'balances', label: 'Leave Balances' });
+      workflowBadges.push({ slug: hrPriorityCfg.employeeEntity, sub: 'balances', label: tWorkflow('leaveBalances') });
     }
     if (hrAttendanceEnabled && availableSlugs.has(String(hrPriorityCfg.attendanceTime?.attendance_entity || ''))) {
-      workflowBadges.push({ slug: hrPriorityCfg.attendanceTime?.attendance_entity, sub: 'attendance', label: 'Attendance' });
+      workflowBadges.push({ slug: hrPriorityCfg.attendanceTime?.attendance_entity, sub: 'attendance', label: tWorkflow('attendance') });
     }
 
     const moduleMap = this._buildModuleMapFromEntities(visibleEntities);
 
     const toolsLinks = [];
-    if (enableActivityLog) toolsLinks.push({ to: '/activity', label: 'Activity Log' });
-    if (enableReports) toolsLinks.push({ to: '/reports', label: 'Reports' });
+    if (enableActivityLog) toolsLinks.push({ to: '/activity', label: this._t('sidebar.tools.activityLog') });
+    if (enableReports) toolsLinks.push({ to: '/reports', label: this._t('sidebar.tools.reports') });
 
+    const toolsHeading = this._t('sidebar.toolsHeading');
     const toolsBlock = toolsLinks.length > 0 ? `
         <div className="mt-4">
-          <div className="px-3 mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Tools</div>
+          <div className="px-3 mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">${toolsHeading}</div>
 ${toolsLinks.map((t) => `          <Link
             to="${t.to}"
             className={[

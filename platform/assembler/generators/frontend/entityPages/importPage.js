@@ -1,5 +1,12 @@
-function buildEntityImportPage({ entity, entityName, fieldDefs, escapeJsString, importBase }) {
+const { tFor } = require('../../../i18n/labels');
+
+function buildEntityImportPage({ entity, entityName, fieldDefs, escapeJsString, importBase, language = 'en' }) {
   const base = importBase || '..';
+  const t = tFor(language);
+  const entityLabel = String(entity.display_name || entityName);
+  const title = t('importPage.title').replace('{{entity}}', entityLabel);
+  const subtitle = t('importPage.subtitle');
+  const back = t('importPage.back');
   return `import { Link, useNavigate } from 'react-router-dom';
 import ImportCsvTool from '${base}/components/tools/ImportCsvTool';
 
@@ -13,11 +20,11 @@ export default function ${entityName}ImportPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Import CSV — ${escapeJsString(entity.display_name || entityName)}</h1>
-          <p className="text-sm text-slate-600">Use the template and follow the rules.</p>
+          <h1 className="text-2xl font-bold text-slate-900">${escapeJsString(title)}</h1>
+          <p className="text-sm text-slate-600">${escapeJsString(subtitle)}</p>
         </div>
         <Link to="/${entity.slug}" className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 no-print">
-          Back
+          ${escapeJsString(back)}
         </Link>
       </div>
 

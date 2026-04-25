@@ -1,9 +1,45 @@
-function buildReportsPage({ scheduledCfg }) {
+const { tFor } = require('../../i18n/labels');
+
+function buildReportsPage({ scheduledCfg, language = 'en' }) {
   const cfg = scheduledCfg || {};
+  const t = tFor(language);
+  const I18N = {
+    title: t('reportsPage.title'),
+    subtitle: t('reportsPage.subtitle') || 'Compare two dates to see what changed.',
+    back: t('common.back'),
+    loading: t('common.loading'),
+    fromDate: t('reportsPage.fields.from'),
+    toDate: t('reportsPage.fields.to'),
+    focusEntity: t('reportsPage.fields.entity'),
+    focusEntityHint: 'Snapshots must include this entity via modules.scheduled_reports.entity_snapshots.',
+    noSnapshots: 'No report snapshots yet. Backend creates one on startup and on the cron schedule.',
+    noEntitySnapshots: 'This report config does not include any entity snapshots.',
+    changesHeading: 'Changes',
+    fromTo: 'from {{from}} to {{to}}',
+    fieldsAvailable: '{{count}} field(s) available',
+    added: t('reportsPage.diff.added'),
+    removed: t('reportsPage.diff.removed'),
+    changed: t('reportsPage.diff.changed'),
+    countDelta: 'Count Δ',
+    fieldsToCompare: 'Fields to compare',
+    noFieldsConfigured: 'No fields configured for this snapshot.',
+    keepFieldsTip: 'Tip: keep it to ~5-10 fields for readability.',
+    changedRecordsPreview: 'Changed records (preview)',
+    noChanges: t('reportsPage.table.noResults'),
+    columnItem: 'Item',
+    columnId: 'ID',
+    showingChanged: 'Showing 25 of {{count}} changed records.',
+    changeLabel: 'Change',
+  };
+  const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { ENTITIES } from '../config/entities';
+
+const I18N = ${i18nJson} as const;
+const interpolate = (s: string, params: Record<string, string | number> = {}) =>
+  s.replace(/{{(\\w+)}}/g, (_m, k) => (params[k] !== undefined ? String(params[k]) : ''));
 
 const SCHEDULED_REPORTS = ${JSON.stringify(
     {
@@ -224,25 +260,25 @@ export default function ReportsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
-          <p className="text-sm text-slate-600">Compare two dates to see what changed.</p>
+          <h1 className="text-2xl font-bold text-slate-900">{I18N.title}</h1>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <Link to="/" className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 no-print">
-          Back
+          {I18N.back}
         </Link>
       </div>
 
       {loading ? (
-        <div className="p-4">Loading...</div>
+        <div className="p-4">{I18N.loading}</div>
       ) : availableDates.length === 0 ? (
         <div className="rounded-xl border bg-white p-6 text-sm text-slate-600">
-          No report snapshots yet. The backend creates one on startup and on the cron schedule ({SCHEDULED_REPORTS.cron}).
+          {I18N.noSnapshots} ({SCHEDULED_REPORTS.cron})
         </div>
       ) : (
         <div className="space-y-4">
           <div className="no-print grid grid-cols-1 gap-3 rounded-xl border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">From date</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{I18N.fromDate}</div>
               <select value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 text-sm">
                 {availableDates.map((d) => (
                   <option key={d} value={d}>{d}</option>
@@ -250,7 +286,7 @@ export default function ReportsPage() {
               </select>
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">To date</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{I18N.toDate}</div>
               <select value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 text-sm">
                 {availableDates.map((d) => (
                   <option key={d} value={d}>{d}</option>
@@ -258,59 +294,59 @@ export default function ReportsPage() {
               </select>
             </div>
             <div className="sm:col-span-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Focus entity</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{I18N.focusEntity}</div>
               <select value={focusEntity} onChange={(e) => { setFocusEntity(e.target.value); setSelectedFields([]); }} className="mt-1 w-full rounded-md border px-3 py-2 text-sm">
                 {snapshotEntities.map((s) => (
                   <option key={s} value={s}>{ENTITY_NAME_BY_SLUG[s] ? (ENTITY_NAME_BY_SLUG[s] + ' (' + s + ')') : s}</option>
                 ))}
               </select>
               <div className="mt-1 text-xs text-slate-500">
-                Snapshots must include this entity via <code>modules.scheduled_reports.entity_snapshots</code>.
+                {I18N.focusEntityHint}
               </div>
             </div>
           </div>
 
           {snapshotEntities.length === 0 ? (
             <div className="rounded-xl border bg-white p-6 text-sm text-slate-600">
-              This report config does not include any entity snapshots. Add <code>modules.scheduled_reports.entity_snapshots</code> to enable entity diff reports.
+              {I18N.noEntitySnapshots}
             </div>
           ) : !focusEntity ? null : (
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-slate-900">Changes — {focusEntityLabel}</div>
+                  <div className="text-sm font-semibold text-slate-900">{I18N.changesHeading} — {focusEntityLabel}</div>
                   <div className="text-xs text-slate-500">
-                    from {fromDate || '—'} to {toDate || '—'}
+                    {interpolate(I18N.fromTo, { from: fromDate || '—', to: toDate || '—' })}
                   </div>
                 </div>
                 <div className="text-xs text-slate-500">
-                  {availableFields.length} field(s) available
+                  {interpolate(I18N.fieldsAvailable, { count: availableFields.length })}
                 </div>
               </div>
 
               <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-4">
                 <div className="rounded-lg border bg-slate-50 p-3">
-                  <div className="text-xs uppercase tracking-wide text-slate-500">Added</div>
+                  <div className="text-xs uppercase tracking-wide text-slate-500">{I18N.added}</div>
                   <div className="mt-1 text-2xl font-bold text-slate-900">{String(diff.added.length)}</div>
                 </div>
                 <div className="rounded-lg border bg-slate-50 p-3">
-                  <div className="text-xs uppercase tracking-wide text-slate-500">Removed</div>
+                  <div className="text-xs uppercase tracking-wide text-slate-500">{I18N.removed}</div>
                   <div className="mt-1 text-2xl font-bold text-slate-900">{String(diff.removed.length)}</div>
                 </div>
                 <div className="rounded-lg border bg-slate-50 p-3">
-                  <div className="text-xs uppercase tracking-wide text-slate-500">Changed</div>
+                  <div className="text-xs uppercase tracking-wide text-slate-500">{I18N.changed}</div>
                   <div className="mt-1 text-2xl font-bold text-slate-900">{String(diff.changed.length)}</div>
                 </div>
                 <div className="rounded-lg border bg-slate-50 p-3">
-                  <div className="text-xs uppercase tracking-wide text-slate-500">Count Δ</div>
+                  <div className="text-xs uppercase tracking-wide text-slate-500">{I18N.countDelta}</div>
                   <div className="mt-1 text-2xl font-bold text-slate-900">{String(diff.toCount - diff.fromCount)}</div>
                 </div>
               </div>
 
               <div className="mt-4">
-                <div className="text-sm font-semibold text-slate-900">Fields to compare</div>
+                <div className="text-sm font-semibold text-slate-900">{I18N.fieldsToCompare}</div>
                 {availableFields.length === 0 ? (
-                  <div className="mt-1 text-sm text-slate-600">No fields configured for this snapshot.</div>
+                  <div className="mt-1 text-sm text-slate-600">{I18N.noFieldsConfigured}</div>
                 ) : (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {availableFields.map((f) => {
@@ -330,20 +366,20 @@ export default function ReportsPage() {
                     })}
                   </div>
                 )}
-                <div className="mt-1 text-xs text-slate-500">Tip: keep it to ~5–10 fields for readability.</div>
+                <div className="mt-1 text-xs text-slate-500">{I18N.keepFieldsTip}</div>
               </div>
 
               <div className="mt-4">
-                <div className="text-sm font-semibold text-slate-900">Changed records (preview)</div>
+                <div className="text-sm font-semibold text-slate-900">{I18N.changedRecordsPreview}</div>
                 {diff.changed.length === 0 ? (
-                  <div className="mt-2 text-sm text-slate-600">No changes for the selected fields.</div>
+                  <div className="mt-2 text-sm text-slate-600">{I18N.noChanges}</div>
                 ) : (
                   <div className="mt-2 overflow-auto">
                     <table className="min-w-full text-sm">
                       <thead className="text-xs uppercase tracking-wide text-slate-500">
                         <tr>
-                          <th className="py-2 pr-4 text-left">Item</th>
-                          <th className="py-2 pr-4 text-left">ID</th>
+                          <th className="py-2 pr-4 text-left">{I18N.columnItem}</th>
+                          <th className="py-2 pr-4 text-left">{I18N.columnId}</th>
                           {(selectedFields.length ? selectedFields : availableFields).slice(0, 6).map((f) => (
                             <th key={f} className="py-2 pr-4 text-left">{f}</th>
                           ))}
@@ -365,7 +401,7 @@ export default function ReportsPage() {
                                   </div>
                                   {typeof delta === 'number' ? (
                                     <div className={'text-xs ' + (delta > 0 ? 'text-emerald-700' : delta < 0 ? 'text-red-700' : 'text-slate-500')}>
-                                      Change: {delta > 0 ? '+' : ''}{String(delta)}
+                                      {I18N.changeLabel}: {delta > 0 ? '+' : ''}{String(delta)}
                                     </div>
                                   ) : null}
                                 </td>
@@ -376,7 +412,7 @@ export default function ReportsPage() {
                       </tbody>
                     </table>
                     {diff.changed.length > 25 ? (
-                      <div className="mt-2 text-xs text-slate-500">Showing 25 of {diff.changed.length} changed records.</div>
+                      <div className="mt-2 text-xs text-slate-500">{interpolate(I18N.showingChanged, { count: diff.changed.length })}</div>
                     ) : null}
                   </div>
                 )}

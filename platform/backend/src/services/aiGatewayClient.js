@@ -42,6 +42,11 @@ async function analyzeDescription(description, priorContext = null, options = {}
   const selectedModules = Array.isArray(options.selectedModules)
     ? options.selectedModules.filter((m) => typeof m === 'string' && m.trim()).map((m) => m.trim())
     : [];
+  const acknowledgedUnsupportedFeatures = Array.isArray(options.acknowledgedUnsupportedFeatures)
+    ? options.acknowledgedUnsupportedFeatures
+        .filter((f) => typeof f === 'string' && f.trim())
+        .map((f) => f.trim())
+    : [];
   return await postJson('/ai/analyze', {
     description,
     prior_context: priorContext,
@@ -54,6 +59,12 @@ async function analyzeDescription(description, priorContext = null, options = {}
       : {}),
     ...(options.projectId ? { project_id: options.projectId } : {}),
     ...(selectedModules.length ? { selected_modules: selectedModules } : {}),
+    ...(options.businessAnswers && typeof options.businessAnswers === 'object'
+      ? { business_answers: options.businessAnswers }
+      : {}),
+    ...(acknowledgedUnsupportedFeatures.length
+      ? { acknowledged_unsupported_features: acknowledgedUnsupportedFeatures }
+      : {}),
   });
 }
 

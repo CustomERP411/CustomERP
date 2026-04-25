@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { projectService } from '../services/projectService';
 import type { Project } from '../types/project';
-import type { AiGatewaySdf, ClarificationAnswer, ClarificationQuestion } from '../types/aiGateway';
+import type { AiGatewaySdf, AnswerReview, ClarificationAnswer, ClarificationQuestion } from '../types/aiGateway';
 import type {
   DefaultModuleQuestion,
   DefaultQuestionCompletion,
@@ -11,10 +11,11 @@ import type {
 } from '../types/defaultQuestions';
 
 import {
-  MODULE_KEYS, useSteps, useBusinessQuestions,
+  MODULE_KEYS, useSteps, useBusinessQuestions, BUSINESS_QUESTION_IDS,
   SlideIn, IconCheck,
   detectUserPlatform,
 } from '../components/project/projectConstants';
+import ReviewFeedbackModal from '../components/project/ReviewFeedbackModal';
 
 import DefaultQuestions from '../components/project/DefaultQuestions';
 import BusinessQuestions from '../components/project/BusinessQuestions';
@@ -29,7 +30,7 @@ import { normalizeLanguage } from '../i18n';
 export default function ProjectDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation(['projectDetail', 'common', 'errors', 'projects']);
+  const { t, i18n } = useTranslation(['projectDetail', 'common', 'errors', 'projects', 'chatbot']);
   const STEPS = useSteps();
   const BUSINESS_QUESTIONS = useBusinessQuestions();
   const projectId = String(params.id || '');
@@ -68,6 +69,8 @@ export default function ProjectDetailPage() {
   const [genErrorMsg, setGenErrorMsg] = useState('');
   const [genProgress, setGenProgress] = useState<{ step: string; pct: number; detail: string } | null>(null);
   const [bizSkipWarningOpen, setBizSkipWarningOpen] = useState(false);
+  const [answerReview, setAnswerReview] = useState<AnswerReview | null>(null);
+  const [acknowledgedFeatures, setAcknowledgedFeatures] = useState<string[]>([]);
 
   const { setProjectContext, openChat, sendMessage, setPulsing } = useChatContext();
 
@@ -76,8 +79,8 @@ export default function ProjectDetailPage() {
       ? currentAnswer.filter((v) => String(v || '').trim()).join(', ')
       : String(currentAnswer ?? '').trim();
     const prompt = ans
-      ? `I need help with this question: "${questionText}"\nMy current answer is: "${ans}"\nCan you help me improve or expand this answer?`
-      : `I need help answering this question: "${questionText}"\nCan you explain what this means and give me guidance on how to answer it for my business?`;
+      ? t('chatbot:helpPrompt.withAnswer', { question: questionText, answer: ans })
+      : t('chatbot:helpPrompt.empty', { question: questionText });
     openChat();
     void sendMessage(prompt);
   };
@@ -632,9 +635,16 @@ export default function ProjectDetailPage() {
     return () => { cancelled = true; clearTimeout(timeout); };
   }, [loading, generatingKey]);
 
-  const analyze = async () => {
+  const analyze = async (opts?: { acknowledgedFeatures?: string[] }) => {
     if (!projectId) return;
+    const ackedFromOpts = Array.isArray(opts?.acknowledgedFeatures)
+      ? opts!.acknowledgedFeatures.map((f) => f.trim()).filter(Boolean)
+      : [];
     setAnalyzing(true); setError(''); setGenResult(null); setGenErrorMsg(''); setGenProgress(null);
+    if (!ackedFromOpts.length) {
+      // Fresh attempt — wipe any stale review feedback so we don't flash old issues.
+      setAnswerReview(null);
+    }
     setAnalyzePhase(t('projectDetail:phases.savingAnswers'));
     if (generatingKey) try { window.localStorage.setItem(generatingKey, String(Date.now())); } catch { /* ignore */ }
 
@@ -693,23 +703,41 @@ export default function ProjectDetailPage() {
           ),
           access_requirements: [defaultAdminGroup],
         },
+        ...(ackedFromOpts.length ? { acknowledged_unsupported_features: ackedFromOpts } : {}),
       });
       progressCancelled = true;
       setProject(res.project);
+
+      // Pre-distributor answer review halted the pipeline. Show the feedback
+      // modal and stop — there is no SDF or clarification flow to advance yet.
+      if (res.status === 'answer_review_required' && res.answer_review) {
+        setAnswerReview(res.answer_review);
+        clearGeneratingFlag();
+        // Hide the generation progress UI; the review modal takes over.
+        setAnalyzePhase(''); setGenProgress(null); setGenResult(null);
+        return;
+      }
+
       const resQuestions = filterQuestions(res.questions || []);
       setClarifyRound(res.cycle || 1);
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
 
+      // The user successfully proceeded past the reviewer — clear any stale
+      // review state and acknowledged-feature buffer so the next generation
+      // starts from a clean slate.
+      setAnswerReview(null);
+      setAcknowledgedFeatures([]);
+
       // If distributor returned clarifying questions (early pipeline stop), show them in the modal
       if (resQuestions.length > 0 && !res.sdf_complete) {
-        setSdf(res.sdf); setQuestions(resQuestions); setAnswersById({});
+        setSdf(res.sdf || null); setQuestions(resQuestions); setAnswersById({});
         setSdfComplete(false);
         setGenProgress({ step: 'clarifications', pct: 20, detail: t('projectDetail:progress.waitingAnswers') });
         // Keep modal open — questions mode will activate automatically
         return;
       }
 
-      setSdf(res.sdf); setQuestions([]); setAnswersById({});
+      setSdf(res.sdf || null); setQuestions([]); setAnswersById({});
       setSdfComplete(res.sdf_complete || false);
       appendReviewHistory({
         action: 'generated',
@@ -728,6 +756,21 @@ export default function ProjectDetailPage() {
       setGenResult('error');
       setGenErrorMsg(mapGenerationError(err));
     } finally { progressCancelled = true; setAnalyzing(false); }
+  };
+
+  const handleReviewEditAnswers = (questionId?: string | null) => {
+    setAnswerReview(null);
+    setAcknowledgedFeatures([]);
+    if (!questionId) return;
+    const idx = BUSINESS_QUESTION_IDS.findIndex((q) => q.id === questionId);
+    if (idx < 0) return;
+    setBusinessStep(idx);
+  };
+
+  const handleReviewAcknowledge = async (acknowledged: string[]) => {
+    setAcknowledgedFeatures(acknowledged);
+    setAnswerReview(null);
+    await analyze({ acknowledgedFeatures: acknowledged });
   };
 
   const submitModalAnswers = async () => {
@@ -1032,6 +1075,17 @@ export default function ProjectDetailPage() {
         canSubmitAnswers={canSubmitAnswers}
         submittingAnswers={clarifying}
       />
+
+      {answerReview && (
+        <ReviewFeedbackModal
+          review={answerReview}
+          answers={businessAnswers}
+          running={analyzing}
+          onEditQuestion={handleReviewEditAnswers}
+          onAcknowledgeAndContinue={(features) => { void handleReviewAcknowledge(features); }}
+          onClose={() => setAnswerReview(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context/AuthContext';
 import {
   featureRequestService,
   type FeatureRequest,
@@ -25,7 +24,6 @@ function sourceBadge(s: string) {
 }
 
 export default function FeatureRequestsAdminPage() {
-  const { user } = useAuth();
   const { t, i18n } = useTranslation('admin');
   const STATUS_LABELS: Record<FeatureStatus, string> = {
     recorded: t('featureRequests.statusLabels.recorded'),
@@ -110,14 +108,6 @@ export default function FeatureRequestsAdminPage() {
     } catch (e: any) { alert(e?.response?.data?.error || e?.message || t('featureRequests.detail.sendFailed')); }
     finally { setMsgSending(false); }
   };
-
-  if (!user?.is_admin) {
-    return (
-      <div className="mx-auto max-w-2xl py-20 text-center">
-        <h1 className="text-xl font-bold text-app-text">{t('featureRequests.accessDenied')}</h1>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-full flex-col overflow-hidden">

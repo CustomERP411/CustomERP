@@ -149,7 +149,7 @@ export default function GenerationModal({
             <button
               type="button"
               onClick={onClose}
-              className="mt-5 rounded-lg bg-app-surface-sunken px-5 py-2 text-sm font-semibold text-white hover:bg-app-surface-sunken transition-colors"
+              className="mt-5 rounded-lg border border-app-border bg-app-surface px-5 py-2 text-sm font-semibold text-app-text hover:bg-app-surface-hover transition-colors"
             >
               {t('generationModal.close')}
             </button>

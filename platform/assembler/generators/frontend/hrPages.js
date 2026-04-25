@@ -1,10 +1,40 @@
 // platform/assembler/generators/frontend/hrPages.js
+const { tFor } = require('../../i18n/labels');
 
-function buildEmployeeListPage({ entity, entityName, importBase, hrConfig, enableCsvImport, enableCsvExport, fieldDefs, title }) {
+function _hrLabels(language) {
+  const t = tFor(language || 'en');
+  return {
+    importCsv: t('list.importCsv'),
+    exportCsv: t('list.exportCsv'),
+    loading: t('common.loading'),
+    filterAll: t('hrPages.filterAll'),
+    filterPending: t('hrPages.filterPending'),
+    filterApproved: t('hrPages.filterApproved'),
+    filterRejected: t('hrPages.filterRejected'),
+  };
+}
+
+function buildEmployeeListPage({ entity, entityName, importBase, hrConfig, enableCsvImport, enableCsvExport, fieldDefs, title, language = 'en' }) {
   const base = importBase || '..';
   const config = hrConfig && typeof hrConfig === 'object' ? hrConfig : {};
   const pageTitle = title || entityName;
   const fields = Array.isArray(fieldDefs) ? fieldDefs : [];
+  const t = tFor(language);
+  const I18N = {
+    subtitle: t('hrPages.employeesSubtitle'),
+    importCsv: t('list.importCsv'),
+    exportCsv: t('list.exportCsv'),
+    newEmployee: 'New Employee',
+    statusActive: 'Active',
+    statusOnLeave: 'On Leave',
+    statusTerminated: 'Terminated',
+    filterAll: t('hrPages.filterAll'),
+    loading: t('common.loading'),
+    emptyAll: 'No employees yet. Add your first employee to get started.',
+    emptyFilter: 'No employees with status',
+    loadFailed: 'Failed to load employees',
+  };
+  const i18nJson = JSON.stringify(I18N, null, 2);
 
   const csvFieldNames = fields.length
     ? `['id', ${fields.map((f) => `'${f.name}'`).join(', ')}]`
@@ -16,7 +46,12 @@ import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
 import EmployeeCard from '${base}/components/modules/hr/EmployeeCard';
 
-const STATUS_OPTIONS = ['Active', 'On Leave', 'Terminated'];
+const STATUS_OPTIONS = [
+  { key: 'Active', label: ${JSON.stringify(I18N.statusActive)} },
+  { key: 'On Leave', label: ${JSON.stringify(I18N.statusOnLeave)} },
+  { key: 'Terminated', label: ${JSON.stringify(I18N.statusTerminated)} },
+];
+const I18N = ${i18nJson} as const;
 ${enableCsvExport ? `const CSV_HEADERS = ${csvFieldNames};` : ''}
 
 export default function ${entityName}Page() {
@@ -35,7 +70,7 @@ export default function ${entityName}Page() {
           setItems(Array.isArray(res.data) ? res.data : []);
         }
       } catch (e) {
-        if (!cancelled) toast({ title: 'Failed to load employees', variant: 'error' });
+        if (!cancelled) toast({ title: I18N.loadFailed, variant: 'error' });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -60,12 +95,12 @@ ${enableCsvExport ? `  const exportCsv = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">${pageTitle}</h1>
-          <p className="text-sm text-slate-600">Manage employee records and information.</p>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
-${enableCsvImport ? `          <Link to="/${entity.slug}/import" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Import CSV</Link>` : ''}
-${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Export CSV</button>` : ''}
-          <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">New Employee</Link>
+${enableCsvImport ? `          <Link to="/${entity.slug}/import" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{I18N.importCsv}</Link>` : ''}
+${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{I18N.exportCsv}</button>` : ''}
+          <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">{I18N.newEmployee}</Link>
         </div>
       </div>
 
@@ -74,26 +109,26 @@ ${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg
           onClick={() => setStatusFilter('all')}
           className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
         >
-          All
+          {I18N.filterAll}
         </button>
         {STATUS_OPTIONS.map((status) => (
           <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === status ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
+            key={status.key}
+            onClick={() => setStatusFilter(status.key)}
+            className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === status.key ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
           >
-            {status}
+            {status.label}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div className="p-4">Loading…</div>
+        <div className="p-4">{I18N.loading}</div>
       ) : filteredItems.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-white p-10 text-center text-sm text-slate-500">
           {statusFilter === 'all' 
-            ? 'No employees yet. Add your first employee to get started.' 
-            : \`No employees with status "\${statusFilter}".\`}
+            ? I18N.emptyAll
+            : \`\${I18N.emptyFilter} "\${statusFilter}".\`}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -112,11 +147,22 @@ ${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg
 `;
 }
 
-function buildDepartmentListPage({ entity, entityName, importBase, hrConfig, enableCsvImport, enableCsvExport, fieldDefs, title }) {
+function buildDepartmentListPage({ entity, entityName, importBase, hrConfig, enableCsvImport, enableCsvExport, fieldDefs, title, language = 'en' }) {
   const base = importBase || '..';
   const config = hrConfig && typeof hrConfig === 'object' ? hrConfig : {};
   const pageTitle = title || entityName;
   const fields = Array.isArray(fieldDefs) ? fieldDefs : [];
+  const t = tFor(language);
+  const I18N = {
+    subtitle: t('hrPages.departmentsSubtitle'),
+    importCsv: t('list.importCsv'),
+    exportCsv: t('list.exportCsv'),
+    newDepartment: 'New Department',
+    loading: t('common.loading'),
+    empty: 'No departments yet. Create your first department to get started.',
+    loadFailed: 'Failed to load departments',
+  };
+  const i18nJson = JSON.stringify(I18N, null, 2);
 
   const csvFieldNames = fields.length
     ? `['id', ${fields.map((f) => `'${f.name}'`).join(', ')}]`
@@ -128,6 +174,7 @@ import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
 import DepartmentCard from '${base}/components/modules/hr/DepartmentCard';
 
+const I18N = ${i18nJson} as const;
 ${enableCsvExport ? `const CSV_HEADERS = ${csvFieldNames};` : ''}
 
 export default function ${entityName}Page() {
@@ -145,7 +192,7 @@ export default function ${entityName}Page() {
           setItems(Array.isArray(res.data) ? res.data : []);
         }
       } catch (e) {
-        if (!cancelled) toast({ title: 'Failed to load departments', variant: 'error' });
+        if (!cancelled) toast({ title: I18N.loadFailed, variant: 'error' });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -166,20 +213,20 @@ ${enableCsvExport ? `  const exportCsv = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">${pageTitle}</h1>
-          <p className="text-sm text-slate-600">Manage organizational departments.</p>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
-${enableCsvImport ? `          <Link to="/${entity.slug}/import" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Import CSV</Link>` : ''}
-${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Export CSV</button>` : ''}
-          <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">New Department</Link>
+${enableCsvImport ? `          <Link to="/${entity.slug}/import" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{I18N.importCsv}</Link>` : ''}
+${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{I18N.exportCsv}</button>` : ''}
+          <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">{I18N.newDepartment}</Link>
         </div>
       </div>
 
       {loading ? (
-        <div className="p-4">Loading…</div>
+        <div className="p-4">{I18N.loading}</div>
       ) : items.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-white p-10 text-center text-sm text-slate-500">
-          No departments yet. Create your first department to get started.
+          {I18N.empty}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -198,11 +245,28 @@ ${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg
 `;
 }
 
-function buildLeaveListPage({ entity, entityName, importBase, hrConfig, enableCsvImport, enableCsvExport, fieldDefs, title }) {
+function buildLeaveListPage({ entity, entityName, importBase, hrConfig, enableCsvImport, enableCsvExport, fieldDefs, title, language = 'en' }) {
   const base = importBase || '..';
   const config = hrConfig && typeof hrConfig === 'object' ? hrConfig : {};
   const pageTitle = title || entityName;
   const fields = Array.isArray(fieldDefs) ? fieldDefs : [];
+  const t = tFor(language);
+  const I18N = {
+    subtitle: t('hrPages.leaveSubtitle'),
+    importCsv: t('list.importCsv'),
+    exportCsv: t('list.exportCsv'),
+    newRequest: 'New Leave Request',
+    pendingApproval: 'pending approval',
+    filterAll: t('hrPages.filterAll'),
+    filterPending: t('hrPages.filterPending'),
+    filterApproved: t('hrPages.filterApproved'),
+    filterRejected: t('hrPages.filterRejected'),
+    loading: t('common.loading'),
+    emptyAll: 'No leave requests yet. Submit your first leave request to get started.',
+    emptyFilter: 'No leave requests with status',
+    loadFailed: 'Failed to load leave requests',
+  };
+  const i18nJson = JSON.stringify(I18N, null, 2);
 
   const csvFieldNames = fields.length
     ? `['id', ${fields.map((f) => `'${f.name}'`).join(', ')}]`
@@ -214,7 +278,12 @@ import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
 import LeaveRequestCard from '${base}/components/modules/hr/LeaveRequestCard';
 
-const STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected'];
+const STATUS_OPTIONS = [
+  { key: 'Pending', label: ${JSON.stringify(I18N.filterPending)} },
+  { key: 'Approved', label: ${JSON.stringify(I18N.filterApproved)} },
+  { key: 'Rejected', label: ${JSON.stringify(I18N.filterRejected)} },
+];
+const I18N = ${i18nJson} as const;
 ${enableCsvExport ? `const CSV_HEADERS = ${csvFieldNames};` : ''}
 
 export default function ${entityName}Page() {
@@ -233,7 +302,7 @@ export default function ${entityName}Page() {
           setItems(Array.isArray(res.data) ? res.data : []);
         }
       } catch (e) {
-        if (!cancelled) toast({ title: 'Failed to load leave requests', variant: 'error' });
+        if (!cancelled) toast({ title: I18N.loadFailed, variant: 'error' });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -260,15 +329,15 @@ ${enableCsvExport ? `  const exportCsv = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">${pageTitle}</h1>
-          <p className="text-sm text-slate-600">Track and manage employee leave requests.</p>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
           {pendingCount > 0 ? (
-            <p className="mt-1 text-sm font-semibold text-amber-700">{pendingCount} pending approval</p>
+            <p className="mt-1 text-sm font-semibold text-amber-700">{pendingCount} {I18N.pendingApproval}</p>
           ) : null}
         </div>
         <div className="flex items-center gap-2">
-${enableCsvImport ? `          <Link to="/${entity.slug}/import" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Import CSV</Link>` : ''}
-${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Export CSV</button>` : ''}
-          <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">New Leave Request</Link>
+${enableCsvImport ? `          <Link to="/${entity.slug}/import" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{I18N.importCsv}</Link>` : ''}
+${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{I18N.exportCsv}</button>` : ''}
+          <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">{I18N.newRequest}</Link>
         </div>
       </div>
 
@@ -277,26 +346,26 @@ ${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg
           onClick={() => setStatusFilter('all')}
           className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
         >
-          All
+          {I18N.filterAll}
         </button>
         {STATUS_OPTIONS.map((status) => (
           <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === status ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
+            key={status.key}
+            onClick={() => setStatusFilter(status.key)}
+            className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === status.key ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
           >
-            {status}
+            {status.label}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div className="p-4">Loading…</div>
+        <div className="p-4">{I18N.loading}</div>
       ) : filteredItems.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-white p-10 text-center text-sm text-slate-500">
           {statusFilter === 'all' 
-            ? 'No leave requests yet. Submit your first leave request to get started.' 
-            : \`No leave requests with status "\${statusFilter}".\`}
+            ? I18N.emptyAll
+            : \`\${I18N.emptyFilter} "\${statusFilter}".\`}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

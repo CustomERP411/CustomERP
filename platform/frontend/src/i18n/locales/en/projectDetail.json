@@ -480,5 +480,29 @@
     "revisionFailed": "Revision request failed",
     "generateFailed": "Generate failed",
     "standaloneFailed": "Standalone generation failed"
+  },
+  "answerReview": {
+    "titleBlocking": "Let's tighten up your answers",
+    "titleAcknowledge": "A few features aren't supported yet",
+    "subtitleBlocking": "Our reviewer found issues that would lead to a poor generation. Please address them and try again.",
+    "subtitleAcknowledge": "You can still proceed — anything you acknowledge below will be logged as a feature request and skipped for now.",
+    "generalGroup": "General",
+    "generalLabel": "General feedback",
+    "questionLabel": "Question",
+    "yourAnswer": "Your answer",
+    "noAnswer": "(no answer provided)",
+    "suggestion": "Suggestion",
+    "editButton": "Edit",
+    "editAnswers": "Edit answers",
+    "acknowledgeAndGenerate": "Acknowledge & generate",
+    "acknowledgeFeature": "Log \"{{feature}}\" as a feature request and continue without it",
+    "dismiss": "Dismiss",
+    "kind": {
+      "gibberish": "Unclear",
+      "too_short": "Too short",
+      "all_basics_empty": "Missing basics",
+      "mismatch": "Mismatch",
+      "unsupported_feature": "Not supported yet"
+    }
   }
 }

@@ -472,5 +472,29 @@
     "revisionFailed": "Revizyon isteği başarısız oldu",
     "generateFailed": "Oluşturma başarısız oldu",
     "standaloneFailed": "Bağımsız sürüm oluşturma başarısız oldu"
+  },
+  "answerReview": {
+    "titleBlocking": "Cevaplarınızı biraz netleştirelim",
+    "titleAcknowledge": "Birkaç özellik henüz desteklenmiyor",
+    "subtitleBlocking": "İncelememiz, üretimi olumsuz etkileyecek sorunlar buldu. Lütfen düzeltip tekrar deneyin.",
+    "subtitleAcknowledge": "Yine de devam edebilirsiniz — aşağıda kabul ettikleriniz özellik isteği olarak kaydedilip şimdilik atlanacak.",
+    "generalGroup": "Genel",
+    "generalLabel": "Genel geri bildirim",
+    "questionLabel": "Soru",
+    "yourAnswer": "Cevabınız",
+    "noAnswer": "(cevap verilmedi)",
+    "suggestion": "Öneri",
+    "editButton": "Düzenle",
+    "editAnswers": "Cevapları düzenle",
+    "acknowledgeAndGenerate": "Kabul et ve oluştur",
+    "acknowledgeFeature": "\"{{feature}}\" özelliğini istek olarak kaydet ve onsuz devam et",
+    "dismiss": "Kapat",
+    "kind": {
+      "gibberish": "Belirsiz",
+      "too_short": "Çok kısa",
+      "all_basics_empty": "Temel bilgiler eksik",
+      "mismatch": "Tutarsızlık",
+      "unsupported_feature": "Henüz desteklenmiyor"
+    }
   }
 }

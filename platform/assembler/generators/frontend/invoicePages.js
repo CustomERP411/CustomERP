@@ -1,4 +1,6 @@
-function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, invoicePriorityCfg, enableCsvImport, enableCsvExport, fieldDefs, title }) {
+const { tFor } = require('../../i18n/labels');
+
+function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, invoicePriorityCfg, enableCsvImport, enableCsvExport, fieldDefs, title, language = 'en' }) {
   const base = importBase || '..';
   const config = invoiceConfig && typeof invoiceConfig === 'object' ? invoiceConfig : {};
   const currency = String(config.currency || 'USD');
@@ -11,6 +13,19 @@ function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, i
     : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
   const pageTitle = title || entityName;
   const fields = Array.isArray(fieldDefs) ? fieldDefs : [];
+  const t = tFor(language);
+  const I18N = {
+    subtitle: t('invoicePages.subtitle'),
+    importCsv: t('list.importCsv'),
+    exportCsv: t('list.exportCsv'),
+    newInvoice: 'New Invoice',
+    filterAll: t('invoicePages.filterAll'),
+    loading: t('common.loading'),
+    emptyAll: 'No invoices yet. Create your first invoice to get started.',
+    emptyFilter: 'No invoices with status',
+    loadFailed: t('invoiceWorkflow.loadFailed'),
+  };
+  const i18nJson = JSON.stringify(I18N, null, 2);
 
   const csvFieldNames = fields.length
     ? `['id', ${fields.map((f) => `'${f.name}'`).join(', ')}]`
@@ -24,6 +39,7 @@ import InvoiceCard from '${base}/components/modules/invoice/InvoiceCard';
 
 const currency = '${currency}';
 const STATUS_OPTIONS = ${JSON.stringify(statusOptions)};
+const I18N = ${i18nJson} as const;
 ${enableCsvExport ? `const CSV_HEADERS = ${csvFieldNames};` : ''}
 
 export default function ${entityName}Page() {
@@ -42,7 +58,7 @@ export default function ${entityName}Page() {
           setItems(Array.isArray(res.data) ? res.data : []);
         }
       } catch (e) {
-        if (!cancelled) toast({ title: 'Failed to load invoices', variant: 'error' });
+        if (!cancelled) toast({ title: I18N.loadFailed, variant: 'error' });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -67,12 +83,12 @@ ${enableCsvExport ? `  const exportCsv = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">${pageTitle}</h1>
-          <p className="text-sm text-slate-600">Track invoices and billing totals.</p>
+          <p className="text-sm text-slate-600">{I18N.subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
-${enableCsvImport ? `          <Link to="/${entity.slug}/import" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Import CSV</Link>` : ''}
-${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Export CSV</button>` : ''}
-          <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">New Invoice</Link>
+${enableCsvImport ? `          <Link to="/${entity.slug}/import" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{I18N.importCsv}</Link>` : ''}
+${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{I18N.exportCsv}</button>` : ''}
+          <Link to="/${entity.slug}/new" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">{I18N.newInvoice}</Link>
         </div>
       </div>
 
@@ -81,7 +97,7 @@ ${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg
           onClick={() => setStatusFilter('all')}
           className={\`rounded-lg px-3 py-2 text-sm font-semibold \${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}\`}
         >
-          All
+          {I18N.filterAll}
         </button>
         {STATUS_OPTIONS.map((status) => (
           <button
@@ -95,12 +111,12 @@ ${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg
       </div>
 
       {loading ? (
-        <div className="p-4">Loading…</div>
+        <div className="p-4">{I18N.loading}</div>
       ) : filteredItems.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-white p-10 text-center text-sm text-slate-500">
           {statusFilter === 'all' 
-            ? 'No invoices yet. Create your first invoice to get started.' 
-            : \`No invoices with status "\${statusFilter}".\`}
+            ? I18N.emptyAll
+            : \`\${I18N.emptyFilter} "\${statusFilter}".\`}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

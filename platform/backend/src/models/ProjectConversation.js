@@ -10,12 +10,15 @@ class ProjectConversation {
     accessRequirements = null,
     descriptionSnapshot = null,
     defaultQuestionAnswers = null,
+    answerReview = null,
+    acknowledgedUnsupportedFeatures = null,
   }) {
     const result = await db.query(
       `INSERT INTO project_conversations
          (project_id, sdf_version, mode, business_answers, selected_modules,
-          access_requirements, description_snapshot, default_question_answers)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          access_requirements, description_snapshot, default_question_answers,
+          answer_review, acknowledged_unsupported_features)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         projectId,
@@ -26,9 +29,24 @@ class ProjectConversation {
         accessRequirements ? JSON.stringify(accessRequirements) : null,
         descriptionSnapshot,
         defaultQuestionAnswers ? JSON.stringify(defaultQuestionAnswers) : null,
+        answerReview ? JSON.stringify(answerReview) : null,
+        acknowledgedUnsupportedFeatures && acknowledgedUnsupportedFeatures.length
+          ? JSON.stringify(acknowledgedUnsupportedFeatures)
+          : null,
       ]
     );
     return this._transform(result.rows[0]);
+  }
+
+  static async updateAnswerReview(conversationId, answerReview) {
+    const result = await db.query(
+      `UPDATE project_conversations
+       SET answer_review = $1
+       WHERE conversation_id = $2
+       RETURNING *`,
+      [answerReview ? JSON.stringify(answerReview) : null, conversationId]
+    );
+    return result.rows[0] ? this._transform(result.rows[0]) : null;
   }
 
   static async findByProject(projectId) {
@@ -75,6 +93,8 @@ class ProjectConversation {
       access_requirements: row.access_requirements,
       description_snapshot: row.description_snapshot,
       default_question_answers: row.default_question_answers,
+      answer_review: row.answer_review,
+      acknowledged_unsupported_features: row.acknowledged_unsupported_features,
       created_at: row.created_at,
     };
   }

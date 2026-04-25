@@ -1,4 +1,42 @@
-function buildDashboardHome({ lowStockCfg, expiryCfg, activityCfg, enableReportsPage, rbac }) {
+const { tFor, moduleDisplayNames } = require('../../i18n/labels');
+
+function buildDashboardHome({ lowStockCfg, expiryCfg, activityCfg, enableReportsPage, rbac, language = 'en' }) {
+  const t = tFor(language);
+  const moduleNames = moduleDisplayNames(language);
+
+  // All user-facing strings go through this dictionary so the generated TSX
+  // never has to worry about escaping quotes or apostrophes — values are
+  // emitted as JSON literals.
+  const I18N = {
+    greetingDefault: t('dashboard.greetingDefault'),
+    greetingWithName: t('dashboard.greetingWithName'),
+    recordsLabel: t('dashboard.recordsLabel'),
+    totalRecordsLine: t('dashboard.totalRecordsLine'),
+    lowStockTitle: t('dashboard.lowStock.title'),
+    lowStockSubtitle: t('dashboard.lowStock.subtitle'),
+    lowStockEmpty: t('dashboard.lowStock.empty'),
+    lowStockQty: t('dashboard.lowStock.qtyLabel'),
+    lowStockReorder: t('dashboard.lowStock.reorderLabel'),
+    lowStockSuggest: t('dashboard.lowStock.suggestLabel'),
+    expiryTitle: t('dashboard.expiry.title'),
+    expirySubtitle: t('dashboard.expiry.subtitle'),
+    expiryEmpty: t('dashboard.expiry.empty'),
+    expiryLabel: t('dashboard.expiry.expiryLabel'),
+    expiryDays: t('dashboard.expiry.daysLabel'),
+    activityTitle: t('dashboard.activity.title'),
+    activitySubtitle: t('dashboard.activity.subtitle'),
+    activityView: t('dashboard.activity.view'),
+    activityLoading: t('dashboard.activity.loading'),
+    activityEmpty: t('dashboard.activity.empty'),
+    activityReportsHint: t('dashboard.activity.reportsHint'),
+    reportsLabel: t('sidebar.tools.reports'),
+    emptyAccessTitle: t('dashboard.emptyAccess.title'),
+    emptyAccessBody: t('dashboard.emptyAccess.body'),
+  };
+
+  const i18nJson = JSON.stringify(I18N, null, 2);
+  const moduleNamesJson = JSON.stringify(moduleNames, null, 2);
+
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
@@ -10,11 +48,9 @@ const EXPIRY = ${JSON.stringify(expiryCfg, null, 2)} as const;
 const ACTIVITY = ${JSON.stringify(activityCfg, null, 2)} as const;
 const ENABLE_REPORTS_PAGE = ${enableReportsPage ? 'true' : 'false'} as const;
 
-const MODULE_DISPLAY_NAMES: Record<string, string> = {
-  inventory: 'Inventory',
-  invoice: 'Invoicing',
-  hr: 'HR & People',
-};
+const I18N = ${i18nJson} as const;
+
+const MODULE_DISPLAY_NAMES: Record<string, string> = ${moduleNamesJson};
 
 const MODULE_ACCENT: Record<string, string> = {
   inventory: 'border-t-blue-500',
@@ -32,6 +68,14 @@ const getEntityDisplay = (entitySlug: string, row: any) => {
   return String(v ?? '');
 };
 
+const interpolate = (tpl: string, vars: Record<string, string | number>): string => {
+  let out = tpl;
+  for (const [k, v] of Object.entries(vars)) {
+    out = out.split('{{' + k + '}}').join(String(v));
+  }
+  return out;
+};
+
 const toNumber = (v: any): number | null => {
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
   if (v === null || v === undefined) return null;
@@ -45,7 +89,14 @@ const toNumber = (v: any): number | null => {
 };
 
 export default function DashboardHome() {
-${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ? \`Welcome back, \${user.display_name.split(' ')[0]}\` : 'Dashboard';\n` : '  const greeting = \'Dashboard\';\n'}
+${rbac
+  ? `  const { user, isSuperadmin, hasPermission } = useAuth();
+  const greeting = user?.display_name
+    ? interpolate(I18N.greetingWithName, { name: user.display_name.split(' ')[0] })
+    : I18N.greetingDefault;
+  const canRead = (slug: string) => isSuperadmin || hasPermission(slug + '.read');\n`
+  : `  const greeting = I18N.greetingDefault;
+  const canRead = (_slug: string) => true;\n`}
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loadingCounts, setLoadingCounts] = useState(true);
 
@@ -58,7 +109,17 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
   const [auditItems, setAuditItems] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
 
-  const visibleEntities = useMemo(() => ENTITIES.filter((e) => !e.isChild), []);
+  const visibleEntities = useMemo(
+    () => ENTITIES.filter((e) => !e.isChild).filter((e) => canRead(e.slug)),
+${rbac
+  ? `    [isSuperadmin, hasPermission],`
+  : `    [],`}
+  );
+
+  const showLowStock = LOW_STOCK.enabled && canRead(LOW_STOCK.entity);
+  const showExpiry = EXPIRY.enabled && canRead(EXPIRY.entity);
+  const showActivity = ACTIVITY.enabled && canRead('__audit_logs');
+  const showAnyAlerts = showLowStock || showExpiry || showActivity;
 
   useEffect(() => {
     const run = async () => {
@@ -77,7 +138,7 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
           })()
         );
 
-        if (LOW_STOCK.enabled) {
+        if (showLowStock) {
           setLoadingLowStock(true);
           tasks.push(
             (async () => {
@@ -99,7 +160,7 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
           );
         }
 
-        if (EXPIRY.enabled) {
+        if (showExpiry) {
           setLoadingExpiry(true);
           tasks.push(
             (async () => {
@@ -120,7 +181,7 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
           );
         }
 
-        if (ACTIVITY.enabled) {
+        if (showActivity) {
           setLoadingAudit(true);
           tasks.push(
             (async () => {
@@ -141,7 +202,7 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
       }
     };
     run();
-  }, [visibleEntities]);
+  }, [visibleEntities, showLowStock, showExpiry, showActivity]);
 
   const reorderSuggestion = useMemo(() => {
     const multiplier = Number(LOW_STOCK.suggestion_multiplier ?? 1);
@@ -179,6 +240,10 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
   }, [visibleEntities]);
 
   const totalRecords = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  const totalRecordsLine = interpolate(I18N.totalRecordsLine, {
+    total: totalRecords.toLocaleString(),
+    count: visibleEntities.length,
+  });
 
   return (
     <div className="space-y-6">
@@ -187,13 +252,20 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
           <h1 className="text-xl font-bold text-slate-900">{greeting}</h1>
           {!loadingCounts && (
             <p className="mt-0.5 text-sm text-slate-500">
-              {totalRecords.toLocaleString()} total records across {visibleEntities.length} sections
+              {totalRecordsLine}
             </p>
           )}
         </div>
       </div>
 
-      {entityGroups.length === 1 ? (
+      {visibleEntities.length === 0 ? (
+        <div className="rounded-xl border bg-white p-8 text-center shadow-sm">
+          <div className="text-sm font-semibold text-slate-900">{I18N.emptyAccessTitle}</div>
+          <p className="mt-1 text-sm text-slate-500">
+            {I18N.emptyAccessBody}
+          </p>
+        </div>
+      ) : entityGroups.length === 1 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {entityGroups[0].entities.map((e) => (
             <Link
@@ -205,7 +277,7 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
               <div className="mt-2 text-2xl font-bold text-slate-900">
                 {loadingCounts ? '...' : String(counts[e.slug] ?? 0)}
               </div>
-              <div className="mt-0.5 text-xs text-slate-400">records</div>
+              <div className="mt-0.5 text-xs text-slate-400">{I18N.recordsLabel}</div>
             </Link>
           ))}
         </div>
@@ -226,7 +298,7 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
                   <div className="mt-2 text-2xl font-bold text-slate-900">
                     {loadingCounts ? '...' : String(counts[e.slug] ?? 0)}
                   </div>
-                  <div className="mt-0.5 text-xs text-slate-400">records</div>
+                  <div className="mt-0.5 text-xs text-slate-400">{I18N.recordsLabel}</div>
                 </Link>
               ))}
             </div>
@@ -234,16 +306,16 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
         ))
       )}
 
-      {(LOW_STOCK.enabled || EXPIRY.enabled || ACTIVITY.enabled) ? (
+      {showAnyAlerts ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {LOW_STOCK.enabled ? (
+          {showLowStock ? (
             <InventoryAlertCard
-              title="Low stock"
-              subtitle={'Top ' + String(LOW_STOCK.limit) + ' items'}
+              title={I18N.lowStockTitle}
+              subtitle={interpolate(I18N.lowStockSubtitle, { count: LOW_STOCK.limit })}
               actionHref={'/' + LOW_STOCK.entity}
               loading={loadingLowStock}
               isEmpty={lowStockItems.length === 0}
-              emptyLabel="No low stock items."
+              emptyLabel={I18N.lowStockEmpty}
             >
               <ul className="space-y-2">
                 {lowStockItems.map((it: any) => (
@@ -251,11 +323,11 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-slate-900">{getEntityDisplay(LOW_STOCK.entity, it)}</div>
                       <div className="text-xs text-slate-500">
-                        qty {String(it?.[LOW_STOCK.quantity_field] ?? 0)} · reorder {String(it?.[LOW_STOCK.reorder_point_field] ?? 0)}
+                        {I18N.lowStockQty} {String(it?.[LOW_STOCK.quantity_field] ?? 0)} · {I18N.lowStockReorder} {String(it?.[LOW_STOCK.reorder_point_field] ?? 0)}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-slate-500">suggest</div>
+                      <div className="text-xs text-slate-500">{I18N.lowStockSuggest}</div>
                       <div className="text-sm font-semibold text-slate-900">{String(reorderSuggestion[String(it.id)] ?? 0)}</div>
                     </div>
                   </li>
@@ -264,14 +336,14 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
             </InventoryAlertCard>
           ) : null}
 
-          {EXPIRY.enabled ? (
+          {showExpiry ? (
             <InventoryAlertCard
-              title="Expiry alerts"
-              subtitle={'Within ' + String(EXPIRY.within_days) + ' days'}
+              title={I18N.expiryTitle}
+              subtitle={interpolate(I18N.expirySubtitle, { count: EXPIRY.within_days })}
               actionHref={'/' + EXPIRY.entity}
               loading={loadingExpiry}
               isEmpty={expiryItems.length === 0}
-              emptyLabel="No expiring items."
+              emptyLabel={I18N.expiryEmpty}
             >
               <ul className="space-y-2">
                 {expiryItems.map((it: any) => {
@@ -281,10 +353,10 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
                     <li key={it.id} className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium text-slate-900">{getEntityDisplay(EXPIRY.entity, it)}</div>
-                        <div className="text-xs text-slate-500">expiry {String(it?.[EXPIRY.expiry_field] ?? '')}</div>
+                        <div className="text-xs text-slate-500">{I18N.expiryLabel} {String(it?.[EXPIRY.expiry_field] ?? '')}</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-xs text-slate-500">days</div>
+                        <div className="text-xs text-slate-500">{I18N.expiryDays}</div>
                         <div className={'text-sm font-semibold ' + (days !== null && days <= 0 ? 'text-red-600' : 'text-slate-900')}>
                           {days === null ? '—' : String(days)}
                         </div>
@@ -296,22 +368,22 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
             </InventoryAlertCard>
           ) : null}
 
-          {ACTIVITY.enabled ? (
+          {showActivity ? (
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-slate-900">Activity</div>
-                  <div className="text-xs text-slate-500">Recent changes</div>
+                  <div className="text-sm font-semibold text-slate-900">{I18N.activityTitle}</div>
+                  <div className="text-xs text-slate-500">{I18N.activitySubtitle}</div>
                 </div>
                 <Link to="/activity" className="text-sm font-semibold text-blue-600 hover:underline">
-                  View
+                  {I18N.activityView}
                 </Link>
               </div>
               <div className="mt-3">
                 {loadingAudit ? (
-                  <div className="text-sm text-slate-500">Loading...</div>
+                  <div className="text-sm text-slate-500">{I18N.activityLoading}</div>
                 ) : auditItems.length === 0 ? (
-                  <div className="text-sm text-slate-500">No activity yet.</div>
+                  <div className="text-sm text-slate-500">{I18N.activityEmpty}</div>
                 ) : (
                   <ul className="space-y-2">
                     {auditItems.map((it: any) => (
@@ -330,7 +402,7 @@ ${rbac ? `  const { user } = useAuth();\n  const greeting = user?.display_name ?
               </div>
               {ENABLE_REPORTS_PAGE ? (
                 <div className="mt-3 text-xs text-slate-500">
-                  Daily summaries are available in <Link to="/reports" className="font-semibold text-blue-600 hover:underline">Reports</Link>.
+                  {I18N.activityReportsHint} <Link to="/reports" className="font-semibold text-blue-600 hover:underline">{I18N.reportsLabel}</Link>.
                 </div>
               ) : null}
             </div>

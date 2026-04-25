@@ -1,4 +1,35 @@
 {
+  "meta": {
+    "htmlLang": "tr",
+    "appTitleSuffix": "ERP"
+  },
+  "common": {
+    "loading": "Yükleniyor...",
+    "back": "Geri",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "saving": "Kaydediliyor...",
+    "delete": "Sil",
+    "confirm": "Onayla",
+    "confirmDelete": "Bu kaydı silmek istediğinize emin misiniz?",
+    "clear": "Temizle",
+    "close": "Kapat",
+    "select": "Seç",
+    "search": "Ara",
+    "actions": "İşlemler",
+    "yes": "Evet",
+    "no": "Hayır",
+    "ok": "Tamam"
+  },
+  "topbar": {
+    "welcome": "Hoş geldiniz",
+    "logout": "Çıkış yap",
+    "fallbackUser": "Kullanıcı",
+    "fallbackAppName": "ERP Sistemi",
+    "toggleMenu": "Menüyü aç/kapat",
+    "goBack": "Geri git",
+    "goForward": "İleri git"
+  },
   "sidebar": {
     "dashboard": "Panel",
     "settings": "Ayarlar",
@@ -6,11 +37,441 @@
     "roles": "Roller",
     "permissions": "İzinler",
     "signOut": "Çıkış Yap",
+    "toolsHeading": "Araçlar",
+    "tools": {
+      "activityLog": "Etkinlik Günlüğü",
+      "reports": "Raporlar"
+    },
+    "workflow": {
+      "heading": "İş Akışı",
+      "invoiceWorkflow": "Fatura İş Akışı",
+      "leaveApprovals": "İzin Onayları",
+      "attendance": "Devam Takibi",
+      "leaveBalances": "İzin Bakiyeleri",
+      "reservations": "Rezervasyonlar",
+      "grnPosting": "Mal Kabul Kaydı",
+      "cycleCount": "Sayım",
+      "payments": "Ödemeler",
+      "creditDebitNotes": "İade/Borç Dekontları",
+      "paymentPosting": "Ödeme Kaydı",
+      "notePosting": "Dekont Kaydı"
+    },
     "modules": {
       "inventory": "Envanter",
       "invoice": "Faturalama",
       "hr": "İK & Personel",
       "shared": "Paylaşılan"
+    }
+  },
+  "dashboard": {
+    "greetingWithName": "Tekrar hoş geldin, {{name}}",
+    "greetingDefault": "Panel",
+    "recordsLabel": "kayıt",
+    "totalRecordsLine": "{{count}} bölümde toplam {{total}} kayıt",
+    "moduleNames": {
+      "inventory": "Envanter",
+      "invoice": "Faturalama",
+      "hr": "İK & Personel",
+      "shared": "Paylaşılan"
+    },
+    "lowStock": {
+      "title": "Düşük stok",
+      "subtitle": "İlk {{count}} ürün",
+      "qtyLabel": "miktar",
+      "reorderLabel": "yeniden sipariş",
+      "suggestLabel": "öneri",
+      "empty": "Düşük stoklu ürün yok."
+    },
+    "expiry": {
+      "title": "Son kullanma uyarıları",
+      "subtitle": "{{count}} gün içinde",
+      "expiryLabel": "son kullanma",
+      "daysLabel": "gün",
+      "empty": "Süresi dolmak üzere olan ürün yok."
+    },
+    "activity": {
+      "title": "Etkinlik",
+      "subtitle": "Son değişiklikler",
+      "view": "Görüntüle",
+      "loading": "Yükleniyor...",
+      "empty": "Henüz etkinlik yok.",
+      "reportsHint": "Günlük özetler şu sayfada mevcut:"
+    },
+    "emptyAccess": {
+      "title": "Erişilebilir modül yok",
+      "body": "Henüz hiçbir modülü görüntüleme izniniz yok. Lütfen yöneticinizle iletişime geçin."
+    }
+  },
+  "list": {
+    "subtitle": "Kayıtları sıralama, sayfalama ve araçlarla yönetin.",
+    "searchPlaceholder": "Ara...",
+    "addNew": "+ Yeni Ekle",
+    "importCsv": "CSV İçe Aktar",
+    "exportCsv": "CSV Dışa Aktar",
+    "actionsColumn": "İşlemler",
+    "empty": "Kayıt bulunamadı.",
+    "loading": "Yükleniyor...",
+    "sortHint": "Sıralamak için sütun başlıklarına tıklayın.",
+    "selected": "{{count}} seçildi",
+    "bulkUpdate": "Toplu güncelle",
+    "bulkDelete": "Toplu sil",
+    "rowActions": {
+      "view": "Görüntüle",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "duplicate": "Çoğalt"
+    },
+    "pagination": {
+      "previous": "Önceki",
+      "next": "Sonraki",
+      "page": "Sayfa {{page}} / {{total}}",
+      "rowsPerPage": "Sayfa başına satır"
+    },
+    "deleteBlocked": {
+      "title": "Silinemez",
+      "body": "Bu kayıt başka kayıtlar tarafından kullanılıyor. Önce onları kaldırın veya güncelleyin.",
+      "ok": "Tamam"
+    },
+    "toast": {
+      "deleteSuccess": "Kayıt silindi.",
+      "deleteFailed": "Kayıt silinemedi.",
+      "bulkDeleteSuccess": "{{count}} kayıt silindi.",
+      "bulkDeleteFailed": "Kayıtlar silinemedi.",
+      "bulkUpdateSuccess": "{{count}} kayıt güncellendi.",
+      "bulkUpdateFailed": "Kayıtlar güncellenemedi.",
+      "exportFailed": "CSV dışa aktarılamadı.",
+      "loadFailed": "Kayıtlar yüklenemedi."
+    }
+  },
+  "form": {
+    "titleEdit": "{{entity}} Düzenle",
+    "titleCreate": "{{entity}} Oluştur",
+    "subtitle": "Aşağıdaki alanları doldurun.",
+    "save": "Kaydet",
+    "saving": "Kaydediliyor...",
+    "cancel": "İptal",
+    "delete": "Sil",
+    "confirmDeleteTitle": "Kaydı sil",
+    "confirmDeleteBody": "Bu kaydı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
+    "lineItems": {
+      "heading": "Satır kalemleri",
+      "addRow": "+ Satır ekle",
+      "removeRow": "Kaldır",
+      "empty": "Henüz satır kalemi yok.",
+      "subtotal": "Ara toplam"
+    },
+    "invoiceTotals": {
+      "heading": "Toplamlar",
+      "subtotal": "Ara toplam",
+      "tax": "Vergi",
+      "discount": "İndirim",
+      "total": "Toplam"
+    },
+    "childModal": {
+      "addTitle": "{{entity}} Ekle",
+      "editTitle": "{{entity}} Düzenle",
+      "save": "Kaydet",
+      "cancel": "İptal"
+    },
+    "toast": {
+      "saveSuccess": "Kaydedildi.",
+      "saveFailed": "Kaydedilemedi.",
+      "deleteSuccess": "Silindi.",
+      "deleteFailed": "Silinemedi.",
+      "loadFailed": "Kayıt yüklenemedi."
+    }
+  },
+  "importPage": {
+    "title": "{{entity}} CSV içe aktar",
+    "subtitle": "Bir CSV dosyası yükleyin. İlk satır, alan adlarıyla eşleşen sütun başlıklarını içermelidir.",
+    "back": "Geri",
+    "downloadTemplate": "Şablon indir",
+    "uploading": "Yükleniyor...",
+    "uploadFailed": "Yükleme başarısız.",
+    "imported": "{{count}} satır içe aktarıldı.",
+    "errors": "Hatalar"
+  },
+  "inventoryOps": {
+    "receive": {
+      "title": "Stok Girişi",
+      "subtitle": "Gelen envanteri kaydedin.",
+      "submit": "Giriş Yap",
+      "successToast": "Stok girişi yapıldı.",
+      "failureToast": "Stok girişi kaydedilemedi."
+    },
+    "issue": {
+      "title": "Stok Çıkışı",
+      "subtitle": "Depodan çıkan stoğu kaydedin.",
+      "submit": "Çıkış Yap",
+      "successToast": "Stok çıkışı yapıldı.",
+      "failureToast": "Stok çıkışı kaydedilemedi."
+    },
+    "adjust": {
+      "title": "Stok Düzeltme",
+      "subtitle": "Mevcut miktarları manuel olarak düzeltin.",
+      "submit": "Düzelt",
+      "successToast": "Stok düzeltildi.",
+      "failureToast": "Stok düzeltilemedi."
+    },
+    "transfer": {
+      "title": "Stok Transferi",
+      "subtitle": "Konumlar arasında stok aktarın.",
+      "submit": "Transfer Et",
+      "successToast": "Stok transfer edildi.",
+      "failureToast": "Stok transfer edilemedi."
+    }
+  },
+  "activityLog": {
+    "title": "Etkinlik Günlüğü",
+    "subtitle": "Sistem genelindeki değişikliklerin kaydı.",
+    "searchPlaceholder": "Etkinlik ara...",
+    "columns": {
+      "when": "Zaman",
+      "user": "Kullanıcı",
+      "action": "İşlem",
+      "entity": "Varlık",
+      "message": "Mesaj"
+    },
+    "empty": "Henüz etkinlik kaydı yok."
+  },
+  "reportsPage": {
+    "title": "Raporlar",
+    "subtitle": "Günlük özetler ve kayıtlı raporlar.",
+    "fields": {
+      "from": "Başlangıç",
+      "to": "Bitiş",
+      "type": "Rapor türü",
+      "entity": "Varlık"
+    },
+    "hints": {
+      "selectRange": "Sonuçları görmek için bir tarih aralığı seçin."
+    },
+    "diff": {
+      "added": "Eklendi",
+      "removed": "Silindi",
+      "changed": "Değiştirildi"
+    },
+    "table": {
+      "noResults": "Seçilen filtreler için sonuç yok."
+    },
+    "emptyTitle": "Rapor seçilmedi",
+    "emptyBody": "Veri görmek için bir rapor türü seçin."
+  },
+  "invoiceWorkflow": {
+    "title": "{{entity}} İş Akışı",
+    "subtitle": "Sıkı fatura yaşam döngüsü işlemlerini çalıştırın (kesim/iptal).",
+    "selectInvoice": "Fatura Seç",
+    "noInvoices": "Fatura yok",
+    "statusFlow": "Durum akışı",
+    "issue": "Faturayı Kes",
+    "cancel": "Faturayı İptal Et",
+    "selectedHeading": "Seçili Fatura",
+    "selectInvoiceHint": "Detayları görmek için bir fatura seçin.",
+    "loadFailed": "Faturalar yüklenemedi",
+    "actionFailed": "İşlem başarısız",
+    "issued": "Fatura kesildi",
+    "cancelled": "Fatura iptal edildi",
+    "confirmIssue": "Seçili fatura kesilsin mi?",
+    "confirmCancel": "Seçili fatura iptal edilsin mi?",
+    "actions": {
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "send": "Gönder",
+      "markPaid": "Ödendi olarak işaretle"
+    },
+    "empty": "Bu durumda fatura yok."
+  },
+  "invoicePayments": {
+    "title": "{{entity}} Ödemeleri",
+    "subtitle": "Tahsisleri kaydedin ve gözden geçirin (tam/kısmi ödemeler).",
+    "invoice": "Fatura",
+    "noInvoices": "Fatura yok",
+    "outstanding": "Bakiye",
+    "recordHeading": "Ödeme Kaydet",
+    "amount": "Tutar",
+    "paymentMethod": "Ödeme yöntemi",
+    "paymentDate": "Ödeme tarihi",
+    "noteOptional": "Not (opsiyonel)",
+    "record": "Kaydet",
+    "paymentsHeading": "Seçili fatura için ödemeler",
+    "selectInvoice": "Bir fatura seçin.",
+    "noPayments": "Henüz ödeme tahsis edilmedi.",
+    "amountMustBePositive": "Tutar sıfırdan büyük olmalı",
+    "paymentRecorded": "Ödeme kaydedildi",
+    "loadFailed": "Ödemeler yüklenemedi",
+    "recordFailed": "Ödeme kaydedilemedi",
+    "status": "Durum",
+    "unallocated": "Tahsis edilmemiş",
+    "allocated": "Tahsis edilen",
+    "paymentLabel": "Ödeme",
+    "unknown": "Bilinmiyor"
+  },
+  "invoiceNotes": {
+    "title": "{{entity}} Dekontları",
+    "subtitle": "Bir faturaya karşı iade/borç dekontu kesin.",
+    "invoice": "Fatura",
+    "createHeading": "Dekont Oluştur",
+    "noteType": "Dekont türü",
+    "credit": "İade",
+    "debit": "Borç",
+    "amount": "Tutar",
+    "taxTotal": "Vergi toplamı",
+    "issueDate": "Kesim tarihi",
+    "reason": "Sebep",
+    "note": "Not",
+    "create": "Dekont oluştur",
+    "loadFailed": "Dekontlar yüklenemedi",
+    "created": "Dekont oluşturuldu",
+    "createFailed": "Dekont oluşturulamadı",
+    "notesHeading": "Seçili fatura için dekontlar",
+    "noNotes": "Henüz dekont kaydı yok.",
+    "selectInvoice": "Bir fatura seçin."
+  },
+  "leaveApprovals": {
+    "title": "İzin Onayları",
+    "subtitle": "Talepleri inceleyin, onaylayın/reddedin ve onay denetim alanlarını tutarlı tutun.",
+    "pending": "Bekleyen",
+    "showPendingOnly": "Sadece Bekleyenler",
+    "showAllStatuses": "Tüm Durumlar",
+    "backTo": "{{entity}} sayfasına dön",
+    "noRequests": "İncelenecek izin talebi yok.",
+    "loadFailed": "Talepler yüklenemedi",
+    "approved": "İzin talebi onaylandı",
+    "rejected": "İzin talebi reddedildi",
+    "cancelled": "İzin talebi iptal edildi",
+    "rejectionPrompt": "Opsiyonel red gerekçesi:",
+    "confirmDecision": "Seçili izin talebi {{action}}sın mı?",
+    "actionFailed": "{{action}} başarısız",
+    "columns": {
+      "employee": "Çalışan",
+      "type": "Tür",
+      "start": "Başlangıç",
+      "end": "Bitiş",
+      "days": "Gün",
+      "status": "Durum",
+      "actions": "İşlemler"
+    },
+    "actions": {
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "cancel": "İptal et"
+    },
+    "empty": "Bekleyen izin talebi yok."
+  },
+  "attendance": {
+    "title": "Devam Kayıtları",
+    "subtitle": "Devam alın ve mesai saatlerini puantajla senkron tutun.",
+    "backTo": "{{entity}} sayfasına dön",
+    "recordHeading": "Devam Kaydı",
+    "noEmployees": "Çalışan yok",
+    "notePlaceholder": "Not (opsiyonel)",
+    "record": "Kaydet",
+    "recentHeading": "Son Kayıtlar",
+    "noEntries": "Devam kaydı bulunamadı.",
+    "loadFailed": "Devam bağlamı yüklenemedi",
+    "recorded": "Devam kaydedildi",
+    "recordFailed": "Devam kaydedilemedi",
+    "recomputed": "Devam yeniden hesaplandı",
+    "recomputeFailed": "Yeniden hesaplama başarısız",
+    "selectEmployeeFirst": "Önce bir çalışan seçin",
+    "recalculate": "Yeniden Hesapla",
+    "statusOptions": {
+      "present": "Geldi",
+      "absent": "Gelmedi",
+      "halfDay": "Yarım Gün",
+      "onLeave": "İzinli"
+    },
+    "columns": {
+      "employee": "Çalışan",
+      "date": "Tarih",
+      "checkIn": "Giriş",
+      "checkOut": "Çıkış",
+      "hours": "Mesai Saati",
+      "status": "Durum",
+      "actions": "İşlemler"
+    },
+    "empty": "Devam kaydı yok."
+  },
+  "leaveBalances": {
+    "title": "İzin Bakiyeleri",
+    "subtitle": "Çalışan izin bakiyeleri için tahakkuk ve manuel düzeltmeleri yönetin.",
+    "backTo": "{{entity}} sayfasına dön",
+    "employee": "Çalışan",
+    "noEmployees": "Çalışan yok",
+    "selected": "Seçilen",
+    "accrueAdjustHeading": "Tahakkuk / Düzelt",
+    "leaveTypePlaceholder": "İzin türü",
+    "yearPlaceholder": "Yıl",
+    "amountPlaceholder": "Tutar (+/-)",
+    "notePlaceholder": "Not",
+    "accrue": "Tahakkuk Et",
+    "adjust": "Düzelt",
+    "currentHeading": "Mevcut Bakiyeler",
+    "noBalances": "Seçili çalışan için bakiye bulunamadı.",
+    "amountMustBeNonZero": "Tutar sıfırdan farklı olmalı",
+    "accrued": "Bakiye tahakkuk ettirildi",
+    "adjusted": "Bakiye düzeltildi",
+    "accrueFailed": "Tahakkuk başarısız",
+    "adjustFailed": "Düzeltme başarısız",
+    "loadEmployeesFailed": "Çalışanlar yüklenemedi",
+    "loadBalancesFailed": "İzin bakiyeleri yüklenemedi",
+    "columns": {
+      "employee": "Çalışan",
+      "type": "Tür",
+      "year": "Yıl",
+      "accrued": "Tahakkuk",
+      "consumed": "Kullanılan",
+      "available": "Mevcut",
+      "balance": "Bakiye"
+    },
+    "empty": "İzin bakiyesi yok."
+  },
+  "hrPages": {
+    "employeesTitle": "Çalışanlar",
+    "employeesSubtitle": "Personel kayıtlarını yönetin.",
+    "departmentsTitle": "Departmanlar",
+    "departmentsSubtitle": "Ekipleri organize edin.",
+    "leaveTitle": "İzin Talepleri",
+    "leaveSubtitle": "İzin taleplerini takip edin.",
+    "filterAll": "Tümü",
+    "filterPending": "Bekleyen",
+    "filterApproved": "Onaylanan",
+    "filterRejected": "Reddedilen"
+  },
+  "invoicePages": {
+    "title": "Faturalar",
+    "subtitle": "Müşteri faturalarını yönetin.",
+    "filterAll": "Tümü",
+    "filterDraft": "Taslak",
+    "filterSent": "Gönderilen",
+    "filterPaid": "Ödenen",
+    "filterOverdue": "Gecikmiş",
+    "filterCancelled": "İptal Edilen"
+  },
+  "auth": {
+    "login": {
+      "title": "Giriş Yap",
+      "subtitle": "Tekrar hoş geldiniz. Devam etmek için giriş yapın.",
+      "username": "Kullanıcı adı",
+      "password": "Şifre",
+      "submit": "Giriş yap",
+      "submitting": "Giriş yapılıyor...",
+      "invalidCredentials": "Geçersiz kullanıcı adı veya şifre.",
+      "genericError": "Giriş başarısız. Lütfen tekrar deneyin."
+    }
+  },
+  "forbidden": {
+    "title": "Erişim engellendi",
+    "body": "Bu sayfayı görüntüleme izniniz yok.",
+    "goHome": "Panele git",
+    "neededPermission": "Gereken izin: {{permission}}"
+  },
+  "fieldLabels": {
+    "inventory": {
+      "batch": "Parti Numarası",
+      "expiry": "Son Kullanma Tarihi",
+      "serial": "Seri Numarası",
+      "location": "Konum"
     }
   },
   "labelsPage": {
@@ -75,7 +536,41 @@
     "permissionModule": "Modül",
     "cannotDeactivateSelf": "Kendi hesabınızı devre dışı bırakamazsınız",
     "cannotDemoteSelf": "Kendi superadmin rolünüzü kaldıramazsınız",
-    "lastSuperadmin": "Sistemde kalan tek superadmin bu"
+    "lastSuperadmin": "Sistemde kalan tek superadmin bu",
+    "loading": "Yükleniyor...",
+    "defaultLogin": "Varsayılan giriş:",
+    "actionCreate": "Ekle",
+    "actionRead": "Görüntüle",
+    "actionUpdate": "Düzenle",
+    "actionDelete": "Sil",
+    "memberSingular": "üye",
+    "memberPlural": "üye",
+    "noDescription": "Açıklama yok",
+    "searchRoles": "Rol ara...",
+    "descriptionOptional": "Açıklama (opsiyonel)",
+    "whatCanThisRoleDo": "Bu rol neler yapabilir?",
+    "hideAdvanced": "Gelişmiş ayarları gizle",
+    "showAdvanced": "Gelişmiş ayarları göster",
+    "manageRolesSub": "Rolleri ve her rolün neler yapabileceğini yönetin.",
+    "close": "Kapat",
+    "permissionsManagementTitle": "İzin Yönetimi",
+    "permissionsManagementSubtitle": "Mevcut izinleri inceleyin ve yönetin.",
+    "addPermission": "İzin Ekle",
+    "showGlobalOnly": "Yalnızca global izinleri göster",
+    "editPermission": "İzni Düzenle",
+    "createPermission": "İzin Oluştur",
+    "permission": "İzin",
+    "scope": "Kapsam",
+    "scopeModule": "Modül",
+    "scopeGlobal": "Global",
+    "usedByGroups": "Kullanan roller"
+  },
+  "rbacForbidden": {
+    "loading": "Yükleniyor...",
+    "title": "Erişim reddedildi",
+    "body": "Bu sayfayı görüntüleme izniniz yok.",
+    "missing": "Eksik izin",
+    "back": "Geri dön"
   },
   "companionUser": {
     "title": "Bu çalışan için giriş hesabı",
@@ -89,10 +584,6 @@
     "openInUsers": "Kullanıcılar sayfasında aç",
     "usernameRequired": "Kullanıcı adı gereklidir",
     "passwordTooShort": "Şifre en az 4 karakter olmalı"
-  },
-  "topbar": {
-    "welcome": "Hoş geldiniz",
-    "logout": "Çıkış yap"
   },
   "stockAvailability": {
     "title": "Stok Durumu",

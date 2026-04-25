@@ -1,16 +1,33 @@
 // Field definitions and utility methods (split from FrontendGenerator)
 const path = require('path');
+const fs = require('fs').promises;
 const { tFor } = require('../../i18n/labels');
 const { pickTrFieldLabel } = require('../../i18n/glossaryI18n');
 const { resolveEffectiveRequired } = require('../shared/fieldRequired');
 
 module.exports = {
   async generateDynamicForm(outputDir) {
-    // Prefer frontend-bricks template (keeps generator modular).
-    await this.brickRepo.copyFile(
-      'frontend-bricks/components/DynamicForm.tsx',
-      path.join(outputDir, 'src/components/DynamicForm.tsx')
-    );
+    const t = tFor(this._language || 'en');
+    const labels = {
+      cancel: t('dynamicForm.cancel'),
+      save: t('dynamicForm.save'),
+      selectPlaceholder: t('dynamicForm.selectPlaceholder'),
+      validation: {
+        required: t('dynamicForm.validation.required'),
+        minLength: t('dynamicForm.validation.minLength'),
+        maxLength: t('dynamicForm.validation.maxLength'),
+        number: t('dynamicForm.validation.number'),
+        min: t('dynamicForm.validation.min'),
+        max: t('dynamicForm.validation.max'),
+        oneOf: t('dynamicForm.validation.oneOf'),
+        invalid: t('dynamicForm.validation.invalid'),
+      },
+    };
+    const template = await this.brickRepo.getTemplate('DynamicForm.tsx');
+    const content = template.replace('__DYNAMIC_FORM_I18N__', `${JSON.stringify(labels, null, 2)} as const`);
+    const dest = path.join(outputDir, 'src/components/DynamicForm.tsx');
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    await fs.writeFile(dest, content);
   },
 
   _resolveFieldLabelForForm(field) {

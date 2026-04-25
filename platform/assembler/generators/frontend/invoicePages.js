@@ -18,11 +18,11 @@ function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, i
     subtitle: t('invoicePages.subtitle'),
     importCsv: t('list.importCsv'),
     exportCsv: t('list.exportCsv'),
-    newInvoice: 'New Invoice',
+    newInvoice: t('invoicePages.newInvoice'),
     filterAll: t('invoicePages.filterAll'),
     loading: t('common.loading'),
-    emptyAll: 'No invoices yet. Create your first invoice to get started.',
-    emptyFilter: 'No invoices with status',
+    emptyAll: t('invoicePages.emptyAll'),
+    emptyFilter: t('invoicePages.emptyFilter'),
     loadFailed: t('invoiceWorkflow.loadFailed'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);

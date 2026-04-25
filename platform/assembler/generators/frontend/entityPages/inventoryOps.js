@@ -27,7 +27,7 @@ function _commonInvLabels(language) {
     invalidTransferBody: t('inventoryOps.errors.invalidTransferBody') || 'From and To locations must be different',
     insufficientStockTitle: t('inventoryOps.errors.insufficientStock') || 'Insufficient stock',
     insufficientStockBody: t('inventoryOps.errors.insufficientStockBody') || 'This would make stock negative. Adjust stock or enable negative stock for this operation.',
-    unknownError: 'Unknown error',
+    unknownError: t('common.unknownError'),
   };
 }
 

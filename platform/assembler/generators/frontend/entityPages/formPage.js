@@ -63,6 +63,23 @@ function buildEntityFormPage({
     deleteLineFailed: t('form.lineItems.deleteFailed'),
     childAddTitlePrefix: t('form.childModal.addPrefix'),
     childEditTitlePrefix: t('form.childModal.editPrefix'),
+    unknownError: t('common.unknownError'),
+    companionUsernameRequired: t('companionUser.usernameRequired'),
+    companionPasswordTooShort: t('companionUser.passwordTooShort'),
+    companionPasswordTooShortDesc: t('companionUser.passwordTooShortDesc'),
+    companionCreatedWithLogin: t('companionUser.createdWithLogin'),
+    companionLoginCreated: t('companionUser.loginCreated'),
+    companionLinkedUserCreated: t('companionUser.linkedUserCreated'),
+    companionLinkUserFailed: t('companionUser.linkUserFailed'),
+    statusChangeConfirm: t('workflowMessages.statusChangeConfirm'),
+    statusUpdated: t('workflowMessages.statusUpdated'),
+    statusChanged: t('workflowMessages.statusChanged'),
+    statusUpdateFailed: t('workflowMessages.statusUpdateFailed'),
+    approveConfirm: t('workflowMessages.approveConfirm'),
+    rejectConfirm: t('workflowMessages.rejectConfirm'),
+    requestApproved: t('workflowMessages.requestApproved'),
+    requestRejected: t('workflowMessages.requestRejected'),
+    operationFailed: t('workflowMessages.operationFailed'),
     statusArrow: '→',
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
@@ -347,11 +364,11 @@ export default function ${entityName}FormPage() {
 
   const validateCompanion = () => {
     if (!companionUsername.trim()) {
-      toast({ title: 'Username required', variant: 'error' });
+      toast({ title: I18N.companionUsernameRequired, variant: 'error' });
       return false;
     }
     if (String(companionPassword).length < 4) {
-      toast({ title: 'Password too short', description: 'Password must be at least 4 characters', variant: 'error' });
+      toast({ title: I18N.companionPasswordTooShort, description: I18N.companionPasswordTooShortDesc, variant: 'error' });
       return false;
     }
     return true;
@@ -362,7 +379,7 @@ export default function ${entityName}FormPage() {
       if (companionEnabled && !isEdit && createLogin) {
         if (!validateCompanion()) return;
         await api.post('/${entity.slug}/with-user', { employee: data, companion_user: buildCompanionPayload() });
-        toast({ title: 'Created', description: 'Employee and login created', variant: 'success' });
+        toast({ title: I18N.saveSuccessTitle, description: I18N.companionCreatedWithLogin, variant: 'success' });
         navigate('/${entity.slug}');
         return;
       }
@@ -373,9 +390,9 @@ export default function ${entityName}FormPage() {
           if (!validateCompanion()) { navigate('/${entity.slug}'); return; }
           try {
             await api.post('/${entity.slug}/' + id + '/link-user', buildCompanionPayload());
-            toast({ title: 'Login created', description: 'Linked user account created', variant: 'success' });
+            toast({ title: I18N.companionLoginCreated, description: I18N.companionLinkedUserCreated, variant: 'success' });
           } catch (err: any) {
-            toast({ title: 'Link user failed', description: err.response?.data?.error || err.message || 'Unknown error', variant: 'error' });
+            toast({ title: I18N.companionLinkUserFailed, description: err.response?.data?.error || err.message || I18N.unknownError, variant: 'error' });
             return;
           }
         }
@@ -385,7 +402,7 @@ export default function ${entityName}FormPage() {
       }
       navigate('/${entity.slug}');
     } catch (err: any) {
-      toast({ title: I18N.saveFailedTitle, description: err.response?.data?.error || err.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.saveFailedTitle, description: err.response?.data?.error || err.message || I18N.unknownError, variant: 'error' });
     }
   };
 
@@ -395,15 +412,15 @@ export default function ${entityName}FormPage() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!isEdit || !id) return;
-    if (!confirm(\`Change status to \${newStatus}?\`)) return;
+    if (!confirm(interpolate(I18N.statusChangeConfirm, { status: newStatus }))) return;
     setStatusChanging(true);
     try {
       await api.put('/${entity.slug}/' + id, { status: newStatus });
-      toast({ title: 'Status updated', description: \`Status changed to \${newStatus}\`, variant: 'success' });
+      toast({ title: I18N.statusUpdated, description: interpolate(I18N.statusChanged, { status: newStatus }), variant: 'success' });
       const res = await api.get('/${entity.slug}/' + id);
       setInitialData(res.data || {});
     } catch (err: any) {
-      toast({ title: 'Status update failed', description: err.response?.data?.error || err.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.statusUpdateFailed, description: err.response?.data?.error || err.message || I18N.unknownError, variant: 'error' });
     } finally {
       setStatusChanging(false);
     }
@@ -412,15 +429,15 @@ export default function ${entityName}FormPage() {
   const handleApproval = async (action: 'approve' | 'reject') => {
     if (!isEdit || !id || !APPROVAL_CFG) return;
     const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
-    if (!confirm(\`\${action === 'approve' ? 'Approve' : 'Reject'} this request?\`)) return;
+    if (!confirm(action === 'approve' ? I18N.approveConfirm : I18N.rejectConfirm)) return;
     setStatusChanging(true);
     try {
       await api.put('/${entity.slug}/' + id, { status: newStatus });
-      toast({ title: \`Request \${action === 'approve' ? 'approved' : 'rejected'}\`, variant: 'success' });
+      toast({ title: action === 'approve' ? I18N.requestApproved : I18N.requestRejected, variant: 'success' });
       const res = await api.get('/${entity.slug}/' + id);
       setInitialData(res.data || {});
     } catch (err: any) {
-      toast({ title: 'Operation failed', description: err.response?.data?.error || err.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.operationFailed, description: err.response?.data?.error || err.message || I18N.unknownError, variant: 'error' });
     } finally {
       setStatusChanging(false);
     }
@@ -473,13 +490,13 @@ export default function ${entityName}FormPage() {
         toast({ title: I18N.saveSuccessTitle, description: I18N.lineItemSaved, variant: 'success' });
       } else {
         await api.post('/' + childSlug, payload);
-        toast({ title: 'Created', description: 'Line item added', variant: 'success' });
+        toast({ title: I18N.saveSuccessTitle, description: I18N.lineItemAdded, variant: 'success' });
       }
       setChildModalOpen(false);
       setChildModalSection(null);
       await fetchChildItems();
     } catch (err: any) {
-      toast({ title: I18N.lineItemFailed, description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.lineItemFailed, description: err?.response?.data?.error || err?.message || I18N.unknownError, variant: 'error' });
     }
   };
 

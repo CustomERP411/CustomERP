@@ -19,7 +19,8 @@
     "actions": "İşlemler",
     "yes": "Evet",
     "no": "Hayır",
-    "ok": "Tamam"
+    "ok": "Tamam",
+    "unknownError": "Bilinmeyen hata"
   },
   "topbar": {
     "welcome": "Hoş geldiniz",
@@ -221,6 +222,21 @@
       "loadFailedDesc": "Kayıt yüklenemedi"
     }
   },
+  "dynamicForm": {
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "selectPlaceholder": "Seç...",
+    "validation": {
+      "required": "{{field}} zorunludur",
+      "minLength": "{{field}} en az {{n}} karakter olmalıdır",
+      "maxLength": "{{field}} en fazla {{n}} karakter olmalıdır",
+      "number": "{{field}} sayı olmalıdır",
+      "min": "{{field}} en az {{n}} olmalıdır",
+      "max": "{{field}} en fazla {{n}} olmalıdır",
+      "oneOf": "{{field}} şu değerlerden biri olmalıdır: {{values}}",
+      "invalid": "{{field}} geçersiz"
+    }
+  },
   "importPage": {
     "title": "{{entity}} CSV içe aktar",
     "subtitle": "Bir CSV dosyası yükleyin. İlk satır, alan adlarıyla eşleşen sütun başlıklarını içermelidir.",
@@ -260,6 +276,30 @@
       "submit": "Transfer Et",
       "successToast": "Stok transfer edildi.",
       "failureToast": "Stok transfer edilemedi."
+    },
+    "fields": {
+      "item": "Ürün",
+      "location": "Konum",
+      "locationOptional": "Konum (opsiyonel)",
+      "fromLocation": "Kaynak konum",
+      "toLocation": "Hedef konum",
+      "quantity": "Miktar",
+      "quantityChange": "Miktar değişimi",
+      "movementDate": "Hareket tarihi",
+      "referenceNumber": "Referans no (opsiyonel)",
+      "note": "Not (opsiyonel)",
+      "reasonCode": "Sebep kodu"
+    },
+    "errors": {
+      "selectItem": "Bir ürün seçin",
+      "qtyPositive": "Miktar 0'dan büyük olmalıdır",
+      "qtyNonZero": "Miktar değişimi sıfırdan farklı olmalıdır",
+      "qtyChangeHint": "Artış için +, azalış için - kullanın",
+      "selectBothLocations": "İki konumu da seçin",
+      "invalidTransfer": "Geçersiz transfer",
+      "invalidTransferBody": "Kaynak ve hedef konum farklı olmalıdır",
+      "insufficientStock": "Yetersiz stok",
+      "insufficientStockBody": "Bu işlem stoğu negatife düşürür. Stoğu düzeltin veya bu işlem için negatif stoğa izin verin."
     }
   },
   "activityLog": {
@@ -278,6 +318,21 @@
   "reportsPage": {
     "title": "Raporlar",
     "subtitle": "Günlük özetler ve kayıtlı raporlar.",
+    "focusEntityHint": "Anlık görüntüler bu varlığı modules.scheduled_reports.entity_snapshots içinde içermelidir.",
+    "noSnapshots": "Henüz rapor anlık görüntüsü yok. Backend başlangıçta ve zamanlanmış görevde bir tane oluşturur.",
+    "noEntitySnapshots": "Bu rapor yapılandırması varlık anlık görüntüsü içermiyor.",
+    "changesHeading": "Değişiklikler",
+    "fromTo": "{{from}} ile {{to}} arası",
+    "fieldsAvailable": "{{count}} alan mevcut",
+    "countDelta": "Sayı farkı",
+    "fieldsToCompare": "Karşılaştırılacak alanlar",
+    "noFieldsConfigured": "Bu anlık görüntü için alan yapılandırılmamış.",
+    "keepFieldsTip": "İpucu: okunabilirlik için yaklaşık 5-10 alan kullanın.",
+    "changedRecordsPreview": "Değişen kayıtlar (önizleme)",
+    "columnItem": "Kalem",
+    "columnId": "ID",
+    "showingChanged": "{{count}} değişen kayıttan 25 tanesi gösteriliyor.",
+    "changeLabel": "Değişiklik",
     "fields": {
       "from": "Başlangıç",
       "to": "Bitiş",
@@ -482,6 +537,9 @@
   "invoicePages": {
     "title": "Faturalar",
     "subtitle": "Müşteri faturalarını yönetin.",
+    "newInvoice": "Yeni Fatura",
+    "emptyAll": "Henüz fatura yok. Başlamak için ilk faturayı oluşturun.",
+    "emptyFilter": "Bu durumda fatura yok:",
     "filterAll": "Tümü",
     "filterDraft": "Taslak",
     "filterSent": "Gönderilen",
@@ -623,8 +681,24 @@
     "linkedUser": "Bağlı kullanıcı",
     "linkedUserAlready": "Bu çalışanın zaten bağlı bir kullanıcı hesabı var.",
     "openInUsers": "Kullanıcılar sayfasında aç",
-    "usernameRequired": "Kullanıcı adı gereklidir",
-    "passwordTooShort": "Şifre en az 4 karakter olmalı"
+    "usernameRequired": "Kullanıcı adı zorunludur",
+    "passwordTooShort": "Şifre çok kısa",
+    "passwordTooShortDesc": "Şifre en az 4 karakter olmalıdır",
+    "createdWithLogin": "Çalışan ve giriş hesabı oluşturuldu",
+    "loginCreated": "Giriş hesabı oluşturuldu",
+    "linkedUserCreated": "Bağlı kullanıcı hesabı oluşturuldu",
+    "linkUserFailed": "Kullanıcı bağlama başarısız"
+  },
+  "workflowMessages": {
+    "statusChangeConfirm": "Durum {{status}} olarak değiştirilsin mi?",
+    "statusUpdated": "Durum güncellendi",
+    "statusChanged": "Durum {{status}} olarak değiştirildi",
+    "statusUpdateFailed": "Durum güncellenemedi",
+    "approveConfirm": "Bu talep onaylansın mı?",
+    "rejectConfirm": "Bu talep reddedilsin mi?",
+    "requestApproved": "Talep onaylandı",
+    "requestRejected": "Talep reddedildi",
+    "operationFailed": "İşlem başarısız"
   },
   "stockAvailability": {
     "title": "Stok Durumu",

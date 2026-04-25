@@ -258,14 +258,14 @@ export default function ProjectDetailPage() {
         );
         const modulesFromConversation = normalizeModuleList(conversationWithModules?.selected_modules);
         const businessAnswersFromConversation = normalizeBusinessAnswerMap(conversationWithBusinessAnswers?.business_answers);
-        // If the latest conversation halted at the answer reviewer, restore
-        // its review payload so the user is brought back into the same modal
-        // they saw before — instead of the project silently looking "Reviewing"
-        // with no feedback. Only the most-recent conversation matters here.
-        const latestConversation = conversations[0];
-        const pendingReview = (latestConversation?.answer_review ?? null) as AnswerReview | null;
-        const pendingAcked = Array.isArray(latestConversation?.acknowledged_unsupported_features)
-          ? (latestConversation!.acknowledged_unsupported_features as string[])
+        // If the project halted at the answer reviewer, restore the newest
+        // persisted review payload so the user is brought back into the same
+        // modal they saw before. Do not assume conversations[0] has it: a
+        // later non-review row can exist after other actions.
+        const latestReviewConversation = conversations.find((entry) => entry?.answer_review);
+        const pendingReview = (latestReviewConversation?.answer_review ?? null) as AnswerReview | null;
+        const pendingAcked = Array.isArray(latestReviewConversation?.acknowledged_unsupported_features)
+          ? (latestReviewConversation!.acknowledged_unsupported_features as string[])
           : [];
         const modulesFromLatestSdf = (() => {
           const moduleConfig = (latest?.sdf as any)?.modules;
@@ -307,11 +307,19 @@ export default function ProjectDetailPage() {
         // project is stuck mid-generation (Analyzing). The server SDF is the
         // source of truth -- we should never hide it because local business
         // answers are missing from localStorage.
+        const reviewBlocked = p.status === 'Reviewing';
         const generationFailed = p.status === 'Analyzing';
-        if (latest?.sdf && !generationFailed) {
+        if (latest?.sdf && !generationFailed && !reviewBlocked) {
           setSdf(latest.sdf);
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
           setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
+        } else if (reviewBlocked) {
+          setSdf(null);
+          setSdfVersion(null);
+          setQuestions([]);
+          setAnswersById({});
+          setSdfComplete(false);
+          setDraftJson('');
         }
         // Project halted at the pre-distributor answer reviewer on the last
         // build attempt. Re-open the feedback modal so the user is told what
@@ -739,6 +747,12 @@ export default function ProjectDetailPage() {
       // Pre-distributor answer review halted the pipeline. Show the feedback
       // modal and stop — there is no SDF or clarification flow to advance yet.
       if (res.status === 'answer_review_required' && res.answer_review) {
+        setSdf(null);
+        setSdfVersion(null);
+        setQuestions([]);
+        setAnswersById({});
+        setSdfComplete(false);
+        setDraftJson('');
         setAnswerReview(res.answer_review);
         clearGeneratingFlag();
         // Hide the generation progress UI; the review modal takes over.
@@ -789,10 +803,15 @@ export default function ProjectDetailPage() {
   const handleReviewEditAnswers = (questionId?: string | null) => {
     setAnswerReview(null);
     setAcknowledgedFeatures([]);
-    if (!questionId) return;
+    if (!questionId) {
+      setBusinessStep(0);
+      setTimeout(() => stepRefs[2]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      return;
+    }
     const idx = BUSINESS_QUESTION_IDS.findIndex((q) => q.id === questionId);
     if (idx < 0) return;
     setBusinessStep(idx);
+    setTimeout(() => stepRefs[2]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const handleReviewAcknowledge = async (acknowledged: string[]) => {

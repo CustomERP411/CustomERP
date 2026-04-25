@@ -9,6 +9,20 @@ const SDF = require('../models/SDF');
 const ProjectConversation = require('../models/ProjectConversation');
 const { parseModulesInput } = require('./projectHelpers');
 
+function shouldHaltForAnswerReview(sdf) {
+  const review = sdf && typeof sdf === 'object' ? sdf.answer_review : null;
+  if (!review || typeof review !== 'object') return false;
+  if (sdf.halted_reason === 'answer_review') return true;
+
+  const issues = Array.isArray(review.issues) ? review.issues : [];
+  const hasBlocking = issues.some((issue) => issue && issue.severity === 'block');
+  const hasUnacknowledgedUnsupported = issues.some(
+    (issue) => issue && issue.kind === 'unsupported_feature' && issue.severity === 'acknowledgeable'
+  );
+
+  return review.is_clear_to_proceed === false || hasBlocking || hasUnacknowledgedUnsupported;
+}
+
 exports.analyzeProject = async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -90,7 +104,7 @@ exports.analyzeProject = async (req, res) => {
     // version, do NOT persist clarifications, do NOT record feature requests
     // for issues the user hasn't acknowledged yet. Just return the review so
     // the frontend can surface feedback.
-    if (sdf?.halted_reason === 'answer_review' && sdf?.answer_review) {
+    if (shouldHaltForAnswerReview(sdf)) {
       if (conversation?.id) {
         await ProjectConversation.updateAnswerReview(conversation.id, sdf.answer_review)
           .catch((err) => logger.error('Failed to persist answer_review on conversation:', err));

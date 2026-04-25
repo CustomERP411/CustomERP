@@ -1,6 +1,8 @@
 // Field definitions and utility methods (split from FrontendGenerator)
 const path = require('path');
 const { tFor } = require('../../i18n/labels');
+const { pickTrFieldLabel } = require('../../i18n/glossaryI18n');
+const { resolveEffectiveRequired } = require('../shared/fieldRequired');
 
 module.exports = {
   async generateDynamicForm(outputDir) {
@@ -9,6 +11,28 @@ module.exports = {
       'frontend-bricks/components/DynamicForm.tsx',
       path.join(outputDir, 'src/components/DynamicForm.tsx')
     );
+  },
+
+  _resolveFieldLabelForForm(field) {
+    const auto = this._formatLabel(field.name);
+    const fromSdf = field.label != null && field.label !== '' ? String(field.label) : null;
+    let text = fromSdf != null && fromSdf !== '' ? fromSdf : auto;
+    if (this._language === 'tr') {
+      const tr = pickTrFieldLabel(field.name, fromSdf);
+      if (tr) text = tr;
+    }
+    return this._escapeJsString(text);
+  },
+
+  _resolveColumnLabel(colName, defField) {
+    const auto = this._formatLabel(colName);
+    const fromSdf = defField && defField.label != null && defField.label !== '' ? String(defField.label) : null;
+    let text = fromSdf != null && fromSdf !== '' ? fromSdf : auto;
+    if (this._language === 'tr') {
+      const tr = pickTrFieldLabel(colName, fromSdf);
+      if (tr) text = tr;
+    }
+    return this._escapeJsString(text);
   },
 
   _generateFieldDefinitions(fields, features, allEntities) {
@@ -52,7 +76,8 @@ module.exports = {
         // Fast tap-friendly UX for small enums, dropdown for larger.
         widget = options.length <= 4 ? 'RadioGroup' : 'Select';
       }
-      const label = this._escapeJsString(field.label ? String(field.label) : this._formatLabel(field.name));
+      const label = this._resolveFieldLabelForForm(field);
+      const required = resolveEffectiveRequired(field);
 
       const extraParts = [];
 
@@ -101,7 +126,7 @@ module.exports = {
       }
 
       const extraProps = extraParts.length ? `, ${extraParts.join(', ')}` : '';
-      defs.push(`  { name: '${field.name}', label: '${label}', type: '${field.type}', widget: '${widget}', required: ${field.required || false}${extraProps} },`);
+      defs.push(`  { name: '${field.name}', label: '${label}', type: '${field.type}', widget: '${widget}', required: ${required}${extraProps} },`);
     }
 
     const t = tFor(this._language || 'en');

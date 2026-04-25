@@ -108,6 +108,26 @@
     "addNew": "+ Add New",
     "importCsv": "Import CSV",
     "exportCsv": "Export CSV",
+    "print": "Print / PDF",
+    "clearSorting": "Clear sorting",
+    "showingPage": "Showing {{from}} to {{to}} of {{total}}",
+    "perPage": "{{n}} / page",
+    "csvExported": "Exported CSV",
+    "cannotDelete": "This record is referenced by other records",
+    "noSelection": {
+      "title": "No selection",
+      "body": "Select records first"
+    },
+    "nothingToUpdate": {
+      "title": "Nothing to update",
+      "body": "Fill at least one field"
+    },
+    "unknownError": "Unknown error",
+    "bulkUpdateInfo": "Updating {{count}} record(s). Leave a field blank to keep it unchanged.",
+    "aria": {
+      "selectAll": "Select all on this page",
+      "selectRow": "Select {{id}}"
+    },
     "actionsColumn": "Actions",
     "empty": "No records found.",
     "loading": "Loading...",
@@ -115,6 +135,8 @@
     "selected": "{{count}} selected",
     "bulkUpdate": "Bulk update",
     "bulkDelete": "Bulk delete",
+    "confirmBulkDelete": "Delete {{count}} record(s)?",
+    "recordsCountSuffix": "{{count}} record(s)",
     "rowActions": {
       "view": "View",
       "edit": "Edit",
@@ -147,6 +169,8 @@
     "titleEdit": "Edit {{entity}}",
     "titleCreate": "Create {{entity}}",
     "subtitle": "Fill in the details below.",
+    "print": "Print / PDF",
+    "add": "Add",
     "save": "Save",
     "saving": "Saving...",
     "cancel": "Cancel",
@@ -158,27 +182,43 @@
       "addRow": "+ Add row",
       "removeRow": "Remove",
       "empty": "No line items yet.",
-      "subtotal": "Subtotal"
+      "subtotal": "Subtotal",
+      "help": "Add and manage child rows linked to this record.",
+      "saveFirst": "Save this record first to add line items.",
+      "saved": "Line item updated",
+      "added": "Line item added",
+      "failed": "Failed to save line item",
+      "loadFailed": "Failed to load line items",
+      "confirmDelete": "Delete this line item?",
+      "deleteFailed": "Delete failed"
     },
     "invoiceTotals": {
       "heading": "Totals",
       "subtotal": "Subtotal",
       "tax": "Tax",
       "discount": "Discount",
-      "total": "Total"
+      "total": "Total",
+      "additionalCharges": "Additional charges",
+      "lineEngine": "Line-level calculation engine",
+      "taxRateLabel": "Tax rate: {{rate}}%"
     },
     "childModal": {
       "addTitle": "Add {{entity}}",
       "editTitle": "Edit {{entity}}",
       "save": "Save",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "addPrefix": "Add",
+      "editPrefix": "Edit"
     },
     "toast": {
       "saveSuccess": "Saved.",
       "saveFailed": "Failed to save.",
       "deleteSuccess": "Deleted.",
       "deleteFailed": "Failed to delete.",
-      "loadFailed": "Failed to load record."
+      "loadFailed": "Failed to load record.",
+      "recordUpdated": "Record updated",
+      "recordCreated": "Record created",
+      "loadFailedDesc": "Could not load record"
     }
   },
   "importPage": {
@@ -203,6 +243,7 @@
       "title": "Issue Stock",
       "subtitle": "Record stock leaving the warehouse.",
       "submit": "Issue",
+      "sell": "Sell",
       "successToast": "Stock issued.",
       "failureToast": "Failed to record issue."
     },

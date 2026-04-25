@@ -1,6 +1,6 @@
 import api from './api';
 import type { Project, CreateProjectRequest } from '../types/project';
-import type { AnalyzeProjectResponse, ClarificationAnswer, AiGatewaySdf } from '../types/aiGateway';
+import type { AnalyzeProjectResponse, AnswerReview, ClarificationAnswer, AiGatewaySdf } from '../types/aiGateway';
 import type { DefaultQuestionStateResponse, SaveDefaultAnswersRequest } from '../types/defaultQuestions';
 import type { ReviewHistoryItem } from '../components/project/ReviewApprovalPanel';
 
@@ -52,6 +52,8 @@ export interface ProjectConversationRecord {
   access_requirements: unknown[] | null;
   description_snapshot: string | null;
   default_question_answers: Record<string, unknown> | null;
+  answer_review: AnswerReview | null;
+  acknowledged_unsupported_features: string[] | null;
   created_at: string;
 }
 

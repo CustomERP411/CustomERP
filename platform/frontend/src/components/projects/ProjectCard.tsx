@@ -11,6 +11,7 @@ interface ProjectCardProps {
 const STATUS_COLORS: Record<Project['status'], string> = {
   Draft:      'bg-app-surface-hover text-app-text-muted',
   Analyzing:  'bg-app-info-soft text-app-info',
+  Reviewing:  'bg-app-danger-soft text-app-danger',
   Clarifying: 'bg-app-warning-soft text-app-warning',
   Ready:      'bg-app-mod-hr-soft text-app-mod-hr',
   Generated:  'bg-app-mod-invoice-soft text-app-mod-invoice',

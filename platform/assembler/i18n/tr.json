@@ -108,6 +108,26 @@
     "addNew": "+ Yeni Ekle",
     "importCsv": "CSV İçe Aktar",
     "exportCsv": "CSV Dışa Aktar",
+    "print": "Yazdır / PDF",
+    "clearSorting": "Sıralamayı temizle",
+    "showingPage": "{{total}} kayıttan {{from}}–{{to}} arası gösteriliyor",
+    "perPage": "Sayfa başına {{n}}",
+    "csvExported": "CSV dışa aktarıldı",
+    "cannotDelete": "Bu kayıt başka kayıtlar tarafından kullanılıyor",
+    "noSelection": {
+      "title": "Seçim yok",
+      "body": "Önce kayıtları seçin"
+    },
+    "nothingToUpdate": {
+      "title": "Güncellenecek bir şey yok",
+      "body": "En az bir alan doldurun"
+    },
+    "unknownError": "Bilinmeyen hata",
+    "bulkUpdateInfo": "{{count}} kayıt güncelleniyor. Değiştirmek istemediğiniz alanları boş bırakın.",
+    "aria": {
+      "selectAll": "Bu sayfadakilerin tümünü seç",
+      "selectRow": "Seç: {{id}}"
+    },
     "actionsColumn": "İşlemler",
     "empty": "Kayıt bulunamadı.",
     "loading": "Yükleniyor...",
@@ -115,6 +135,8 @@
     "selected": "{{count}} seçildi",
     "bulkUpdate": "Toplu güncelle",
     "bulkDelete": "Toplu sil",
+    "confirmBulkDelete": "{{count}} kayıt silinsin mi?",
+    "recordsCountSuffix": "{{count}} kayıt",
     "rowActions": {
       "view": "Görüntüle",
       "edit": "Düzenle",
@@ -147,6 +169,8 @@
     "titleEdit": "{{entity}} Düzenle",
     "titleCreate": "{{entity}} Oluştur",
     "subtitle": "Aşağıdaki alanları doldurun.",
+    "print": "Yazdır / PDF",
+    "add": "Ekle",
     "save": "Kaydet",
     "saving": "Kaydediliyor...",
     "cancel": "İptal",
@@ -158,27 +182,43 @@
       "addRow": "+ Satır ekle",
       "removeRow": "Kaldır",
       "empty": "Henüz satır kalemi yok.",
-      "subtotal": "Ara toplam"
+      "subtotal": "Ara toplam",
+      "help": "Bu kayda bağlı alt satırları ekleyin ve yönetin.",
+      "saveFirst": "Satır eklemek için önce bu kaydı kaydedin.",
+      "saved": "Satır kalemi güncellendi",
+      "added": "Satır kalemi eklendi",
+      "failed": "Satır kalemi kaydedilemedi",
+      "loadFailed": "Satır kalemleri yüklenemedi",
+      "confirmDelete": "Bu satır kalemini silmek istiyor musunuz?",
+      "deleteFailed": "Silinemedi"
     },
     "invoiceTotals": {
       "heading": "Toplamlar",
       "subtotal": "Ara toplam",
       "tax": "Vergi",
       "discount": "İndirim",
-      "total": "Toplam"
+      "total": "Toplam",
+      "additionalCharges": "Ek masraflar",
+      "lineEngine": "Satır bazlı hesaplama",
+      "taxRateLabel": "Vergi oranı: %{{rate}}"
     },
     "childModal": {
       "addTitle": "{{entity}} Ekle",
       "editTitle": "{{entity}} Düzenle",
       "save": "Kaydet",
-      "cancel": "İptal"
+      "cancel": "İptal",
+      "addPrefix": "Ekle",
+      "editPrefix": "Düzenle"
     },
     "toast": {
       "saveSuccess": "Kaydedildi.",
       "saveFailed": "Kaydedilemedi.",
       "deleteSuccess": "Silindi.",
       "deleteFailed": "Silinemedi.",
-      "loadFailed": "Kayıt yüklenemedi."
+      "loadFailed": "Kayıt yüklenemedi.",
+      "recordUpdated": "Kayıt güncellendi",
+      "recordCreated": "Kayıt oluşturuldu",
+      "loadFailedDesc": "Kayıt yüklenemedi"
     }
   },
   "importPage": {
@@ -202,7 +242,8 @@
     "issue": {
       "title": "Stok Çıkışı",
       "subtitle": "Depodan çıkan stoğu kaydedin.",
-      "submit": "Çıkış Yap",
+      "submit": "Stok Çıkışı Yap",
+      "sell": "Satış",
       "successToast": "Stok çıkışı yapıldı.",
       "failureToast": "Stok çıkışı kaydedilemedi."
     },

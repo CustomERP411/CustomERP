@@ -258,6 +258,15 @@ export default function ProjectDetailPage() {
         );
         const modulesFromConversation = normalizeModuleList(conversationWithModules?.selected_modules);
         const businessAnswersFromConversation = normalizeBusinessAnswerMap(conversationWithBusinessAnswers?.business_answers);
+        // If the latest conversation halted at the answer reviewer, restore
+        // its review payload so the user is brought back into the same modal
+        // they saw before — instead of the project silently looking "Reviewing"
+        // with no feedback. Only the most-recent conversation matters here.
+        const latestConversation = conversations[0];
+        const pendingReview = (latestConversation?.answer_review ?? null) as AnswerReview | null;
+        const pendingAcked = Array.isArray(latestConversation?.acknowledged_unsupported_features)
+          ? (latestConversation!.acknowledged_unsupported_features as string[])
+          : [];
         const modulesFromLatestSdf = (() => {
           const moduleConfig = (latest?.sdf as any)?.modules;
           if (!moduleConfig || typeof moduleConfig !== 'object') return [];
@@ -304,6 +313,25 @@ export default function ProjectDetailPage() {
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
           setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
         }
+        // Project halted at the pre-distributor answer reviewer on the last
+        // build attempt. Re-open the feedback modal so the user is told what
+        // to fix instead of seeing a silent "Reviewing" badge with no UI.
+        if (!cancelled && p.status === 'Reviewing' && pendingReview) {
+          setAnswerReview(pendingReview);
+          setAcknowledgedFeatures(pendingAcked);
+          // Pre-position the wizard on the first offending business question
+          // so "Edit answers" lands directly there. currentStep is derived from
+          // selectedModules / defaultCompletion / businessComplete / sdf — with
+          // no sdf and complete answers it lands on the Review step (3); the
+          // modal sits on top of that, and dismissing routes back via
+          // handleReviewEditAnswers / business questions step.
+          const firstWithIssue = (pendingReview.issues || []).find((i) => i.question_id);
+          if (firstWithIssue?.question_id) {
+            const idx = BUSINESS_QUESTION_IDS.findIndex((q) => q.id === firstWithIssue.question_id);
+            if (idx >= 0) setBusinessStep(idx);
+          }
+        }
+
         const serverHistory = await projectService.getReviewHistory(projectId).catch(() => ({ history: [] }));
         if (!cancelled && serverHistory.history.length > 0) {
           setReviewHistory(serverHistory.history);

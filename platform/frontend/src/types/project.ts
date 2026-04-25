@@ -3,7 +3,7 @@ export type ProjectLanguage = 'en' | 'tr';
 export interface Project {
   id: string;
   name: string;
-  status: 'Draft' | 'Analyzing' | 'Clarifying' | 'Ready' | 'Generated' | 'Approved';
+  status: 'Draft' | 'Analyzing' | 'Reviewing' | 'Clarifying' | 'Ready' | 'Generated' | 'Approved';
   description?: string | null;
   mode?: 'chat' | 'build';
   language?: ProjectLanguage;

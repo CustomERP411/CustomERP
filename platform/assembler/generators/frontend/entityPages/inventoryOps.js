@@ -256,7 +256,7 @@ import { useToast } from '${base}/components/ui/toast';
 const INV = ${JSON.stringify(invCfg, null, 2)} as const;
 const ENTITY_SLUG = '${entity.slug}' as const;
 const ENTITY_LOCATION_FIELD = ${entityLocationField ? `'${entityLocationField}'` : 'null'} as any;
-const ISSUE_LABEL = '${escapeJsString(issueLabel || 'Sell')}' as const;
+const ISSUE_LABEL = '${escapeJsString(issueLabel || t('inventoryOps.issue.sell'))}' as const;
 const I18N = ${I18N_JSON} as const;
 
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(

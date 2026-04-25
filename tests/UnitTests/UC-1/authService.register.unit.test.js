@@ -211,11 +211,9 @@ describe('UC-1 / authService.register', () => {
   });
 
   // TC-UC1-025
-<<<<<<< HEAD
+
   test('TC-UC1-025 — rejects with 400 when the email already belongs to an existing account', async () => {
-=======
-  test('rejects with 400 when the email already belongs to an active account', async () => {
->>>>>>> 33244c9000cdd963ff00a04f6c07c12d90ca98e3
+
     query.mockResolvedValueOnce({
       rows: [
         {

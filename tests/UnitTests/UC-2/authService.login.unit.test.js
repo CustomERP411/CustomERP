@@ -85,11 +85,8 @@ describe('UC-2 / authService.login', () => {
   });
 
   // TC-UC2-012
-<<<<<<< HEAD
   test('TC-UC2-012 — rejects soft-deleted accounts with a "deactivated" 401 message', async () => {
-=======
-  test('rejects soft-deleted accounts with 401, ACCOUNT_DELETED, and a re-signup hint', async () => {
->>>>>>> 33244c9000cdd963ff00a04f6c07c12d90ca98e3
+
     query.mockResolvedValueOnce({
       rows: [userRow({ deleted_at: new Date('2026-02-01T00:00:00Z') })],
     });

@@ -8,7 +8,7 @@ import {
 } from '../services/trainingService';
 import ExportModal from '../components/training/ExportModal';
 
-const AGENT_OPTIONS = ['distributor', 'hr_generator', 'invoice_generator', 'inventory_generator', 'chatbot'];
+const AGENT_OPTIONS = ['reviewer', 'distributor', 'hr_generator', 'invoice_generator', 'inventory_generator', 'chatbot'];
 const QUALITY_OPTIONS = ['good', 'bad', 'needs_edit'] as const;
 
 function qualityColor(q: string | null) {
@@ -19,6 +19,7 @@ function qualityColor(q: string | null) {
 }
 
 function agentBadge(agent: string) {
+  if (agent === 'reviewer') return 'bg-app-info-soft text-app-info';
   if (agent === 'distributor') return 'bg-app-warning-soft text-app-warning';
   if (agent.includes('hr')) return 'bg-app-mod-hr-soft text-app-mod-hr';
   if (agent.includes('invoice')) return 'bg-app-mod-invoice-soft text-app-mod-invoice';

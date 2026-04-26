@@ -124,6 +124,20 @@
       "alertsEmpty": "Şu anda önemli uyarı yok.",
       "open": "Aç"
     },
+    "graph": {
+      "title": "Zamana göre değişim",
+      "subtitle": "Bir kayıt bölümü ve değer seçerek tarihler arasında nasıl değiştiğini görün.",
+      "entity": "Kayıt bölümü",
+      "metric": "Değer",
+      "startDate": "Başlangıç tarihi",
+      "endDate": "Bitiş tarihi",
+      "countMetric": "Kayıt sayısı",
+      "currentValue": "Güncel değer",
+      "changesInRange": "seçilen aralıktaki değişiklik",
+      "noData": "Bu seçim için değişiklik bulunamadı.",
+      "selectEntity": "Kayıt bölümü seçin",
+      "total": "toplam"
+    },
     "emptyAccess": {
       "title": "Erişilebilir modül yok",
       "body": "Henüz hiçbir modülü görüntüleme izniniz yok. Lütfen yöneticinizle iletişime geçin."

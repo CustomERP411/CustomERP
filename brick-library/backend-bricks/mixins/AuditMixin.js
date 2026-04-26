@@ -11,8 +11,17 @@ module.exports = {
         ? __auditConfig.audit_fields
         : (Array.isArray(__auditConfig.auditFields) ? __auditConfig.auditFields : []);
       const __auditMeta = { id: result.id };
-      if (__auditFields.length) {
-        __auditFields.forEach(field => {
+      const __auditMetaFields = __auditFields.length
+        ? __auditFields
+        : Array.from(new Set([
+            ...Object.keys(data || {}),
+            ...Object.keys(result || {})
+          ])).filter(field => {
+            const value = result && Object.prototype.hasOwnProperty.call(result, field) ? result[field] : data?.[field];
+            return value === null || ['string', 'number', 'boolean'].includes(typeof value);
+          });
+      if (__auditMetaFields.length) {
+        __auditMetaFields.forEach(field => {
           if (result && Object.prototype.hasOwnProperty.call(result, field)) {
             __auditMeta[field] = result[field];
           } else if (data && Object.prototype.hasOwnProperty.call(data, field)) {
@@ -49,8 +58,17 @@ module.exports = {
         ? __auditConfig.audit_fields
         : (Array.isArray(__auditConfig.auditFields) ? __auditConfig.auditFields : []);
       const __auditMeta = { id };
-      if (__auditFields.length) {
-        __auditFields.forEach(field => {
+      const __auditMetaFields = __auditFields.length
+        ? __auditFields
+        : Array.from(new Set([
+            ...Object.keys(data || {}),
+            ...Object.keys(result || {})
+          ])).filter(field => {
+            const value = result && Object.prototype.hasOwnProperty.call(result, field) ? result[field] : data?.[field];
+            return value === null || ['string', 'number', 'boolean'].includes(typeof value);
+          });
+      if (__auditMetaFields.length) {
+        __auditMetaFields.forEach(field => {
           if (result && Object.prototype.hasOwnProperty.call(result, field)) {
             __auditMeta[field] = result[field];
           } else if (data && Object.prototype.hasOwnProperty.call(data, field)) {

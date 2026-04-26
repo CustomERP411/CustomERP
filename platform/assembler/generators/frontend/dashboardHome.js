@@ -1,6 +1,6 @@
-const { tFor } = require('../../i18n/labels');
+﻿const { tFor } = require('../../i18n/labels');
 
-function buildDashboardHome({ lowStockCfg, expiryCfg, activityCfg, enableReportsPage, rbac, language = 'en' }) {
+function buildDashboardHome({ activityCfg, rbac, language = 'en' }) {
   const t = tFor(language);
 
   const I18N = {
@@ -8,41 +8,21 @@ function buildDashboardHome({ lowStockCfg, expiryCfg, activityCfg, enableReports
     greetingWithName: t('dashboard.greetingWithName'),
     recordsLabel: t('dashboard.recordsLabel'),
     totalRecordsLine: t('dashboard.totalRecordsLine'),
-    lowStockTitle: t('dashboard.lowStock.title'),
-    lowStockQty: t('dashboard.lowStock.qtyLabel'),
-    lowStockReorder: t('dashboard.lowStock.reorderLabel'),
-    expiryTitle: t('dashboard.expiry.title'),
-    expiryLabel: t('dashboard.expiry.expiryLabel'),
-    expiryDays: t('dashboard.expiry.daysLabel'),
-    activityView: t('dashboard.activity.view'),
-    activityLoading: t('dashboard.activity.loading'),
-    activityReportsHint: t('dashboard.activity.reportsHint'),
-    reportsLabel: t('sidebar.tools.reports'),
+    loading: t('dashboard.activity.loading'),
     emptyAccessTitle: t('dashboard.emptyAccess.title'),
     emptyAccessBody: t('dashboard.emptyAccess.body'),
-    saveDashboard: t('dashboard.widgets.save'),
-    dashboardSaved: t('dashboard.widgets.saved'),
-    range: t('dashboard.widgets.range'),
-    recentChanges: t('dashboard.widgets.recentChanges'),
-    changedAreas: t('dashboard.widgets.changedAreas'),
-    alerts: t('dashboard.widgets.alerts'),
-    recordOverview: t('dashboard.widgets.recordOverview'),
-    showAs: t('dashboard.widgets.showAs'),
-    hidden: t('dashboard.widgets.hidden'),
-    cards: t('dashboard.widgets.cards'),
-    list: t('dashboard.widgets.list'),
-    bars: t('dashboard.widgets.bars'),
-    last7: t('dashboard.widgets.last7'),
-    last30: t('dashboard.widgets.last30'),
-    last90: t('dashboard.widgets.last90'),
-    last365: t('dashboard.widgets.last365'),
-    allTime: t('dashboard.widgets.allTime'),
-    noChanges: t('dashboard.widgets.noChanges'),
-    created: t('dashboard.widgets.created'),
-    updated: t('dashboard.widgets.updated'),
-    deleted: t('dashboard.widgets.deleted'),
-    alertsEmpty: t('dashboard.widgets.alertsEmpty'),
-    open: t('dashboard.widgets.open'),
+    graphTitle: t('dashboard.graph.title'),
+    graphSubtitle: t('dashboard.graph.subtitle'),
+    graphEntity: t('dashboard.graph.entity'),
+    graphMetric: t('dashboard.graph.metric'),
+    graphStartDate: t('dashboard.graph.startDate'),
+    graphEndDate: t('dashboard.graph.endDate'),
+    graphCountMetric: t('dashboard.graph.countMetric'),
+    graphCurrentValue: t('dashboard.graph.currentValue'),
+    graphChangesInRange: t('dashboard.graph.changesInRange'),
+    graphNoData: t('dashboard.graph.noData'),
+    graphSelectEntity: t('dashboard.graph.selectEntity'),
+    graphTotal: t('dashboard.graph.total'),
   };
 
   return `import { useEffect, useMemo, useState } from 'react';
@@ -50,54 +30,21 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { ENTITIES } from '../config/entities';
 ${rbac ? `import { useAuth } from '../contexts/AuthContext';\n` : ''}
-const LOW_STOCK = ${JSON.stringify(lowStockCfg, null, 2)} as const;
-const EXPIRY = ${JSON.stringify(expiryCfg, null, 2)} as const;
 const ACTIVITY = ${JSON.stringify(activityCfg, null, 2)} as const;
-const ENABLE_REPORTS_PAGE = ${enableReportsPage ? 'true' : 'false'} as const;
 const RBAC_ENABLED = ${rbac ? 'true' : 'false'} as const;
-
 const I18N = ${JSON.stringify(I18N, null, 2)} as const;
-type WidgetKey = 'recentChanges' | 'changedAreas' | 'alerts' | 'recordOverview';
-type WidgetMode = 'hidden' | 'cards' | 'list' | 'bars';
-type DashboardRange = '7' | '30' | '90' | '365' | 'all';
-type WidgetSetting = { mode: WidgetMode; range?: DashboardRange };
-type DashboardConfig = { widgets: Record<WidgetKey, WidgetSetting> };
 
-const DEFAULT_CONFIG: DashboardConfig = {
-  widgets: {
-    recentChanges: { mode: 'list', range: '7' },
-    changedAreas: { mode: 'bars', range: '7' },
-    alerts: { mode: 'list' },
-    recordOverview: { mode: 'cards' },
-  },
+type EntityItem = typeof ENTITIES[number];
+type ChartPoint = { label: string; value: number };
+type GraphPrefs = {
+  entity?: string;
+  metric?: string;
+  startDate?: string;
+  endDate?: string;
 };
+type DashboardPrefs = GraphPrefs & { graph?: GraphPrefs };
 
-const RANGES: Array<{ value: DashboardRange; label: string }> = [
-  { value: '7', label: I18N.last7 },
-  { value: '30', label: I18N.last30 },
-  { value: '90', label: I18N.last90 },
-  { value: '365', label: I18N.last365 },
-  { value: 'all', label: I18N.allTime },
-];
-
-const MODES: Array<{ value: WidgetMode; label: string }> = [
-  { value: 'hidden', label: I18N.hidden },
-  { value: 'cards', label: I18N.cards },
-  { value: 'list', label: I18N.list },
-  { value: 'bars', label: I18N.bars },
-];
-
-const ACTION_LABELS: Record<string, string> = {
-  create: I18N.created,
-  created: I18N.created,
-  update: I18N.updated,
-  updated: I18N.updated,
-  delete: I18N.deleted,
-  deleted: I18N.deleted,
-};
-
-const ENTITY_BY_SLUG = Object.fromEntries(ENTITIES.map((e) => [e.slug, e])) as Record<string, typeof ENTITIES[number]>;
-const DISPLAY_FIELD_BY_ENTITY = Object.fromEntries(ENTITIES.map((e) => [e.slug, e.displayField])) as Record<string, string>;
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 
 const interpolate = (tpl: string, vars: Record<string, string | number>): string => {
   let out = tpl;
@@ -105,37 +52,18 @@ const interpolate = (tpl: string, vars: Record<string, string | number>): string
   return out;
 };
 
-const mergeConfig = (raw: any): DashboardConfig => {
-  const oldGlobalRange = ['7', '30', '90', '365', 'all'].includes(String(raw?.range))
-    ? String(raw.range) as DashboardRange
-    : undefined;
-  const widgets = { ...DEFAULT_CONFIG.widgets };
-  for (const key of Object.keys(widgets) as WidgetKey[]) {
-    const value = raw?.widgets?.[key];
-    const base = DEFAULT_CONFIG.widgets[key];
-    if (typeof value === 'string' && ['hidden', 'cards', 'list', 'bars'].includes(value)) {
-      widgets[key] = { ...base, mode: value as WidgetMode, range: base.range ? (oldGlobalRange || base.range) : undefined };
-      continue;
-    }
-    if (value && typeof value === 'object') {
-      const mode = ['hidden', 'cards', 'list', 'bars'].includes(String(value.mode))
-        ? String(value.mode) as WidgetMode
-        : base.mode;
-      const range = ['7', '30', '90', '365', 'all'].includes(String(value.range))
-        ? String(value.range) as DashboardRange
-        : (base.range ? (oldGlobalRange || base.range) : undefined);
-      widgets[key] = { ...base, mode, ...(range ? { range } : {}) };
-    } else if (base.range && oldGlobalRange) {
-      widgets[key] = { ...base, range: oldGlobalRange };
-    }
-  }
-  return { widgets };
+const toInputDate = (date: Date) => date.toISOString().slice(0, 10);
+const todayInput = () => toInputDate(new Date());
+const daysAgoInput = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return toInputDate(d);
 };
 
-const toNumber = (v: any): number | null => {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
-  if (v === null || v === undefined) return null;
-  const n = Number(String(v).trim().replace(/,/g, '.'));
+const toNumber = (value: any): number | null => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(String(value).trim().replace(/,/g, '.'));
   return Number.isFinite(n) ? n : null;
 };
 
@@ -144,14 +72,125 @@ const rowTime = (row: any): number => {
   return Number.isFinite(t) ? t : 0;
 };
 
-const getEntityDisplay = (entitySlug: string, row: any) => {
-  const df = DISPLAY_FIELD_BY_ENTITY[entitySlug] || 'name';
-  const v = row?.[df] ?? row?.name ?? row?.sku ?? row?.code ?? row?.id;
-  return String(v ?? '');
+const parseMeta = (row: any): Record<string, any> => {
+  const raw = row?.meta;
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw;
+  try {
+    const parsed = JSON.parse(String(raw));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
 };
 
-const entityName = (slug: string) => ENTITY_BY_SLUG[slug]?.displayName || slug.replace(/_/g, ' ');
-const actionName = (action: string) => ACTION_LABELS[String(action || '').toLowerCase()] || String(action || '');
+const isNumericField = (field: { name: string; type?: string }) => {
+  const type = String(field.type || '').toLowerCase();
+  const name = String(field.name || '').toLowerCase();
+  if (['number', 'integer', 'int', 'float', 'double', 'decimal', 'currency', 'money'].includes(type)) return true;
+  return /(amount|balance|cost|price|qty|quantity|total|rate|value|count|hours|days)/.test(name);
+};
+
+const metricLabel = (entity: EntityItem | undefined, metric: string) => {
+  if (metric === 'count') return I18N.graphCountMetric;
+  return entity?.fields?.find((field) => field.name === metric)?.label || metric.replace(/_/g, ' ');
+};
+
+const buildBuckets = (startDate: string, endDate: string) => {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T23:59:59');
+  const startTs = start.getTime();
+  const endTs = end.getTime();
+  if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || endTs < startTs) return [];
+  const dayMs = 24 * 60 * 60 * 1000;
+  const days = Math.max(1, Math.ceil((endTs - startTs) / dayMs) + 1);
+  const bucketCount = Math.min(60, days);
+  const step = Math.max(dayMs, Math.ceil((endTs - startTs + 1) / bucketCount));
+  const buckets: Array<{ end: number; label: string }> = [];
+  for (let i = 0; i < bucketCount; i += 1) {
+    const bucketEnd = i === bucketCount - 1 ? endTs : Math.min(endTs, startTs + step * (i + 1) - 1);
+    buckets.push({ end: bucketEnd, label: DATE_FORMATTER.format(new Date(bucketEnd)) });
+  }
+  return buckets;
+};
+
+function buildSeries(rows: any[], entitySlug: string, metric: string, startDate: string, endDate: string): ChartPoint[] {
+  const buckets = buildBuckets(startDate, endDate);
+  if (!entitySlug || buckets.length === 0) return [];
+  const relevant = rows
+    .filter((row) => String(row?.entity || '') === entitySlug)
+    .filter((row) => rowTime(row) > 0 && rowTime(row) <= buckets[buckets.length - 1].end)
+    .sort((a, b) => rowTime(a) - rowTime(b));
+
+  const active = new Set<string>();
+  const values = new Map<string, number>();
+  let pointer = 0;
+
+  return buckets.map((bucket) => {
+    while (pointer < relevant.length && rowTime(relevant[pointer]) <= bucket.end) {
+      const row = relevant[pointer];
+      const id = String(row?.entity_id || parseMeta(row).id || '');
+      const action = String(row?.action || '').toUpperCase();
+      if (id) {
+        if (action === 'DELETE') {
+          active.delete(id);
+          values.delete(id);
+        } else if (action === 'CREATE') {
+          active.add(id);
+        }
+        if (metric !== 'count' && action !== 'DELETE') {
+          const meta = parseMeta(row);
+          const n = toNumber(meta[metric]);
+          if (n !== null) values.set(id, n);
+        }
+      }
+      pointer += 1;
+    }
+    const value = metric === 'count'
+      ? active.size
+      : Array.from(values.values()).reduce((sum, n) => sum + n, 0);
+    return { label: bucket.label, value };
+  });
+}
+
+function LineChart({ points }: { points: ChartPoint[] }) {
+  const width = 720;
+  const height = 260;
+  const padding = 28;
+  const max = Math.max(1, ...points.map((point) => point.value));
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+  const coords = points.map((point, index) => {
+    const x = padding + (points.length <= 1 ? plotWidth : (index / (points.length - 1)) * plotWidth);
+    const y = padding + plotHeight - (point.value / max) * plotHeight;
+    return { ...point, x, y };
+  });
+  const line = coords.map((point) => String(point.x) + ',' + String(point.y)).join(' ');
+  const area = coords.length ? String(padding) + ',' + String(height - padding) + ' ' + line + ' ' + String(width - padding) + ',' + String(height - padding) : '';
+  const tickIndexes = Array.from(new Set([0, Math.floor((coords.length - 1) / 2), coords.length - 1])).filter((i) => i >= 0 && coords[i]);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <svg viewBox={'0 0 ' + width + ' ' + height} className="h-72 w-full" role="img" aria-label={I18N.graphTitle}>
+        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#cbd5e1" strokeWidth="1" />
+        <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#cbd5e1" strokeWidth="1" />
+        {area ? <polygon points={area} fill="#dbeafe" opacity="0.8" /> : null}
+        {line ? <polyline points={line} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" /> : null}
+        {coords.map((point, index) => (
+          <g key={index}>
+            <circle cx={point.x} cy={point.y} r="4" fill="#1d4ed8" />
+            {index === coords.length - 1 ? <text x={point.x} y={Math.max(14, point.y - 10)} textAnchor="middle" className="fill-slate-700 text-xs font-semibold">{point.value.toLocaleString()}</text> : null}
+          </g>
+        ))}
+        {tickIndexes.map((index) => (
+          <text key={index} x={coords[index].x} y={height - 6} textAnchor="middle" className="fill-slate-500 text-xs">{coords[index].label}</text>
+        ))}
+        <text x={8} y={padding + 4} className="fill-slate-500 text-xs">{max.toLocaleString()}</text>
+        <text x={12} y={height - padding - 4} className="fill-slate-500 text-xs">0</text>
+      </svg>
+    </div>
+  );
+}
 
 export default function DashboardHome() {
 ${rbac
@@ -162,38 +201,43 @@ ${rbac
   const canRead = (slug: string) => isSuperadmin || hasPermission(slug + '.read');\n`
   : `  const greeting = I18N.greetingDefault;
   const canRead = (_slug: string) => true;\n`}
-  const [config, setConfig] = useState<DashboardConfig>(DEFAULT_CONFIG);
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loadingCounts, setLoadingCounts] = useState(true);
-  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
-  const [expiryItems, setExpiryItems] = useState<any[]>([]);
   const [auditItems, setAuditItems] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [selectedEntity, setSelectedEntity] = useState('');
+  const [selectedMetric, setSelectedMetric] = useState('count');
+  const [startDate, setStartDate] = useState(() => daysAgoInput(30));
+  const [endDate, setEndDate] = useState(() => todayInput());
 
   const visibleEntities = useMemo(
     () => ENTITIES.filter((e) => !e.isChild).filter((e) => canRead(e.slug)),
 ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
   );
 
-  const showLowStock = LOW_STOCK.enabled && canRead(LOW_STOCK.entity);
-  const showExpiry = EXPIRY.enabled && canRead(EXPIRY.entity);
   const showActivity = ACTIVITY.enabled && canRead('__audit_logs');
 
   useEffect(() => {
     let cancelled = false;
     const loadPrefs = async () => {
       try {
+        let raw: DashboardPrefs | null = null;
         if (RBAC_ENABLED) {
           const res = await api.get('/auth/dashboard/preferences');
-          if (!cancelled) setConfig(mergeConfig(res.data?.config));
+          raw = (res.data?.config || null) as DashboardPrefs | null;
         } else {
-          const raw = window.localStorage.getItem('erp.dashboard.preferences');
-          if (!cancelled) setConfig(mergeConfig(raw ? JSON.parse(raw) : null));
+          const stored = window.localStorage.getItem('erp.dashboard.preferences');
+          raw = stored ? JSON.parse(stored) : null;
         }
+        if (cancelled) return;
+        const graph = raw?.graph || raw;
+        if (typeof graph?.entity === 'string') setSelectedEntity(graph.entity);
+        if (typeof graph?.metric === 'string') setSelectedMetric(graph.metric);
+        if (typeof graph?.startDate === 'string') setStartDate(graph.startDate);
+        if (typeof graph?.endDate === 'string') setEndDate(graph.endDate);
       } catch {
-        if (!cancelled) setConfig(DEFAULT_CONFIG);
+        // Preferences are optional; defaults are good enough if loading fails.
       } finally {
         if (!cancelled) setPrefsLoaded(true);
       }
@@ -203,13 +247,48 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
   }, []);
 
   useEffect(() => {
+    if (!visibleEntities.length) {
+      setSelectedEntity('');
+      return;
+    }
+    if (!visibleEntities.some((entity) => entity.slug === selectedEntity)) {
+      setSelectedEntity(visibleEntities[0].slug);
+      setSelectedMetric('count');
+    }
+  }, [visibleEntities, selectedEntity]);
+
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    const prefs = {
+      graph: {
+        entity: selectedEntity,
+        metric: selectedMetric,
+        startDate,
+        endDate,
+      },
+    };
+    const timer = window.setTimeout(() => {
+      if (RBAC_ENABLED) {
+        api.put('/auth/dashboard/preferences', { config: prefs }).catch(() => undefined);
+      } else {
+        window.localStorage.setItem('erp.dashboard.preferences', JSON.stringify(prefs));
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [prefsLoaded, selectedEntity, selectedMetric, startDate, endDate]);
+
+  useEffect(() => {
     const run = async () => {
       setLoadingCounts(true);
       try {
         const entries = await Promise.all(
-          visibleEntities.map(async (e) => {
-            const res = await api.get('/' + e.slug);
-            return [e.slug, Array.isArray(res.data) ? res.data.length : 0] as const;
+          visibleEntities.map(async (entity) => {
+            try {
+              const res = await api.get('/' + entity.slug);
+              return [entity.slug, Array.isArray(res.data) ? res.data.length : 0] as const;
+            } catch {
+              return [entity.slug, 0] as const;
+            }
           })
         );
         setCounts(Object.fromEntries(entries));
@@ -221,315 +300,47 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
   }, [visibleEntities]);
 
   useEffect(() => {
-    const tasks: Promise<any>[] = [];
-    if (showLowStock) {
-      tasks.push((async () => {
-        const res = await api.get('/' + LOW_STOCK.entity);
-        const rows = Array.isArray(res.data) ? res.data : [];
-        const qf = LOW_STOCK.quantity_field;
-        const rf = LOW_STOCK.reorder_point_field;
-        setLowStockItems(rows.filter((r: any) => {
-          const q = toNumber(r?.[qf]);
-          const rp = toNumber(r?.[rf]);
-          return q !== null && rp !== null && q <= rp;
-        }).sort((a: any, b: any) => (toNumber(a?.[qf]) ?? 0) - (toNumber(b?.[qf]) ?? 0)).slice(0, LOW_STOCK.limit));
-      })());
-    } else {
-      setLowStockItems([]);
+    if (!showActivity) {
+      setAuditItems([]);
+      return;
     }
-
-    if (showExpiry) {
-      tasks.push((async () => {
-        const res = await api.get('/' + EXPIRY.entity);
-        const rows = Array.isArray(res.data) ? res.data : [];
-        const horizon = Date.now() + EXPIRY.within_days * 24 * 60 * 60 * 1000;
-        setExpiryItems(rows.filter((r: any) => {
-          const t = new Date(String(r?.[EXPIRY.expiry_field] || '')).getTime();
-          return Number.isFinite(t) && t <= horizon;
-        }).sort((a: any, b: any) => new Date(String(a?.[EXPIRY.expiry_field] || '')).getTime() - new Date(String(b?.[EXPIRY.expiry_field] || '')).getTime()).slice(0, EXPIRY.limit));
-      })());
-    } else {
-      setExpiryItems([]);
-    }
-
-    if (showActivity) {
+    let cancelled = false;
+    const run = async () => {
       setLoadingAudit(true);
-      tasks.push((async () => {
+      try {
         const res = await api.get('/__audit_logs');
         const rows = Array.isArray(res.data) ? res.data : [];
-        setAuditItems(rows.filter((r: any) => !r?.entity || canRead(String(r.entity))).sort((a: any, b: any) => rowTime(b) - rowTime(a)));
-      })().finally(() => setLoadingAudit(false)));
-    } else {
-      setAuditItems([]);
-    }
+        if (!cancelled) setAuditItems(rows.filter((row: any) => !row?.entity || canRead(String(row.entity))));
+      } finally {
+        if (!cancelled) setLoadingAudit(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [showActivity]);
 
-    Promise.all(tasks).catch(() => undefined);
-  }, [showLowStock, showExpiry, showActivity]);
+  const selectedEntityInfo = visibleEntities.find((entity) => entity.slug === selectedEntity);
+  const numericFields = (selectedEntityInfo?.fields || []).filter(isNumericField);
+  const metricOptions = [{ name: 'count', label: I18N.graphCountMetric }, ...numericFields.map((field) => ({ name: field.name, label: field.label }))];
 
-  const auditForRange = (range: DashboardRange = '7') => {
-    if (range === 'all') return auditItems;
-    const cutoff = Date.now() - Number(range) * 24 * 60 * 60 * 1000;
-    return auditItems.filter((row) => {
-      const t = rowTime(row);
-      return t > 0 && t >= cutoff;
-    });
-  };
-
-  const buildChangeStats = (rows: any[]) => {
-    const map: Record<string, { entity: string; total: number; create: number; update: number; delete: number }> = {};
-    for (const row of rows) {
-      const slug = String(row?.entity || 'other');
-      const action = String(row?.action || '').toLowerCase();
-      if (!map[slug]) map[slug] = { entity: slug, total: 0, create: 0, update: 0, delete: 0 };
-      map[slug].total += 1;
-      if (action.includes('delete')) map[slug].delete += 1;
-      else if (action.includes('update')) map[slug].update += 1;
-      else map[slug].create += 1;
-    }
-    return Object.values(map).sort((a, b) => b.total - a.total);
-  };
+  useEffect(() => {
+    if (!metricOptions.some((option) => option.name === selectedMetric)) setSelectedMetric('count');
+  }, [selectedEntity, selectedMetric, metricOptions.length]);
 
   const totalRecords = Object.values(counts).reduce((sum, n) => sum + n, 0);
   const totalRecordsLine = interpolate(I18N.totalRecordsLine, { total: totalRecords.toLocaleString(), count: visibleEntities.length });
-
-  const alertRows = useMemo(() => {
-    const rows: Array<{ key: string; title: string; body: string; href: string }> = [];
-    for (const it of lowStockItems) {
-      rows.push({
-        key: 'low-' + String(it?.id),
-        title: I18N.lowStockTitle + ': ' + getEntityDisplay(LOW_STOCK.entity, it),
-        body: I18N.lowStockQty + ' ' + String(it?.[LOW_STOCK.quantity_field] ?? 0) + ' · ' + I18N.lowStockReorder + ' ' + String(it?.[LOW_STOCK.reorder_point_field] ?? 0),
-        href: '/' + LOW_STOCK.entity,
-      });
-    }
-    for (const it of expiryItems) {
-      const t = new Date(String(it?.[EXPIRY.expiry_field] || '')).getTime();
-      const days = Number.isFinite(t) ? Math.ceil((t - Date.now()) / (24 * 60 * 60 * 1000)) : null;
-      rows.push({
-        key: 'exp-' + String(it?.id),
-        title: I18N.expiryTitle + ': ' + getEntityDisplay(EXPIRY.entity, it),
-        body: I18N.expiryLabel + ' ' + String(it?.[EXPIRY.expiry_field] ?? '') + ' · ' + I18N.expiryDays + ' ' + (days === null ? '-' : String(days)),
-        href: '/' + EXPIRY.entity,
-      });
-    }
-    return rows;
-  }, [lowStockItems, expiryItems]);
-
-  const updateWidgetMode = (key: WidgetKey, mode: WidgetMode) => {
-    setSaved(false);
-    setConfig((c) => ({ ...c, widgets: { ...c.widgets, [key]: { ...c.widgets[key], mode } } }));
-  };
-
-  const updateWidgetRange = (key: WidgetKey, range: DashboardRange) => {
-    setSaved(false);
-    setConfig((c) => ({ ...c, widgets: { ...c.widgets, [key]: { ...c.widgets[key], range } } }));
-  };
-
-  const savePrefs = async () => {
-    if (RBAC_ENABLED) {
-      await api.put('/auth/dashboard/preferences', { config });
-    } else {
-      window.localStorage.setItem('erp.dashboard.preferences', JSON.stringify(config));
-    }
-    setSaved(true);
-  };
-
-  const renderWidgetFrame = (key: WidgetKey, title: string, children: any, options: { range?: boolean } = {}) => (
-    <section className="rounded-xl border bg-white p-4 shadow-sm">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <div className="text-sm font-semibold text-slate-900">{title}</div>
-        <div className="flex flex-wrap items-end gap-2">
-          {options.range ? (
-            <label className="text-xs text-slate-500">
-              {I18N.range}
-              <select value={config.widgets[key].range || '7'} onChange={(e) => updateWidgetRange(key, e.target.value as DashboardRange)} className="mt-1 rounded-lg border bg-white px-2 py-1 text-sm text-slate-800">
-                {RANGES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
-            </label>
-          ) : null}
-          <label className="text-xs text-slate-500">
-            {I18N.showAs}
-            <select value={config.widgets[key].mode} onChange={(e) => updateWidgetMode(key, e.target.value as WidgetMode)} className="mt-1 rounded-lg border bg-white px-2 py-1 text-sm text-slate-800">
-              {MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-          </label>
-          <button onClick={savePrefs} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">{saved ? I18N.dashboardSaved : I18N.saveDashboard}</button>
-        </div>
-      </div>
-      {children}
-    </section>
+  const series = useMemo(
+    () => buildSeries(auditItems, selectedEntity, selectedMetric, startDate, endDate),
+    [auditItems, selectedEntity, selectedMetric, startDate, endDate]
   );
-
-  const renderBars = (rows: Array<{ key: string; label: string; value: number; href?: string }>) => (
-    <div className="space-y-2">
-      {rows.map((row) => {
-        const localMax = Math.max(1, ...rows.map((r) => r.value || 0));
-        return (
-        <Link key={row.key} to={row.href || '#'} className="block">
-          <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>{row.label}</span>
-            <span className="font-semibold">{row.value}</span>
-          </div>
-          <div className="mt-1 h-2 rounded-full bg-slate-100">
-            <div className="h-2 rounded-full bg-indigo-500" style={{ width: Math.max(4, Math.round((row.value / localMax) * 100)) + '%' }} />
-          </div>
-        </Link>
-        );
-      })}
-    </div>
-  );
-
-  const renderRecordOverview = () => {
-    const mode = config.widgets.recordOverview.mode;
-    if (visibleEntities.length === 0) return null;
-    if (mode === 'hidden') return renderWidgetFrame('recordOverview', I18N.recordOverview, null);
-    if (mode === 'bars') {
-      return renderWidgetFrame('recordOverview', I18N.recordOverview, renderBars(visibleEntities.map((e) => ({ key: e.slug, label: e.displayName, value: counts[e.slug] || 0, href: '/' + e.slug }))));
-    }
-    if (mode === 'list') {
-      return renderWidgetFrame('recordOverview', I18N.recordOverview, (
-        <ul className="divide-y divide-slate-100">
-          {visibleEntities.map((e) => (
-            <li key={e.slug} className="flex items-center justify-between py-2 text-sm">
-              <Link to={'/' + e.slug} className="font-medium text-slate-800 hover:underline">{e.displayName}</Link>
-              <span className="text-slate-500">{loadingCounts ? '...' : String(counts[e.slug] || 0)}</span>
-            </li>
-          ))}
-        </ul>
-      ));
-    }
-    return renderWidgetFrame('recordOverview', I18N.recordOverview, (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {visibleEntities.map((e) => (
-          <Link key={e.slug} to={'/' + e.slug} className="rounded-lg border border-slate-200 p-3 transition hover:shadow-sm">
-            <div className="text-sm font-semibold text-slate-900">{e.displayName}</div>
-            <div className="mt-2 text-2xl font-bold text-slate-900">{loadingCounts ? '...' : String(counts[e.slug] || 0)}</div>
-            <div className="text-xs text-slate-400">{I18N.recordsLabel}</div>
-          </Link>
-        ))}
-      </div>
-    ));
-  };
-
-  const renderRecentChanges = () => {
-    const mode = config.widgets.recentChanges.mode;
-    if (!showActivity) return null;
-    if (mode === 'hidden') return renderWidgetFrame('recentChanges', I18N.recentChanges, null, { range: true });
-    const filteredAudit = auditForRange(config.widgets.recentChanges.range || '7');
-    const top = filteredAudit.slice(0, ACTIVITY.limit || 8);
-    if (loadingAudit) return renderWidgetFrame('recentChanges', I18N.recentChanges, <div className="text-sm text-slate-500">{I18N.activityLoading}</div>, { range: true });
-    if (!top.length) return renderWidgetFrame('recentChanges', I18N.recentChanges, <div className="text-sm text-slate-500">{I18N.noChanges}</div>, { range: true });
-    if (mode === 'bars') {
-      const byAction = ['create', 'update', 'delete'].map((action) => ({
-        key: action,
-        label: ACTION_LABELS[action],
-        value: filteredAudit.filter((r) => String(r?.action || '').toLowerCase().includes(action)).length,
-      }));
-      return renderWidgetFrame('recentChanges', I18N.recentChanges, renderBars(byAction), { range: true });
-    }
-    if (mode === 'cards') {
-      return renderWidgetFrame('recentChanges', I18N.recentChanges, (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {['create', 'update', 'delete'].map((action) => (
-            <div key={action} className="rounded-lg border border-slate-200 p-3">
-              <div className="text-xs text-slate-500">{ACTION_LABELS[action]}</div>
-              <div className="mt-1 text-2xl font-bold text-slate-900">{filteredAudit.filter((r) => String(r?.action || '').toLowerCase().includes(action)).length}</div>
-            </div>
-          ))}
-        </div>
-      ), { range: true });
-    }
-    return renderWidgetFrame('recentChanges', I18N.recentChanges, (
-      <ul className="space-y-2">
-        {top.map((it: any) => (
-          <li key={it.id} className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="truncate text-sm font-medium text-slate-900">{actionName(String(it?.action || ''))} · {entityName(String(it?.entity || ''))}</div>
-              <div className="truncate text-xs text-slate-500">{String(it?.message || '')}</div>
-            </div>
-            <div className="text-right text-xs text-slate-500">{String(it?.at || it?.created_at || '')}</div>
-          </li>
-        ))}
-      </ul>
-    ), { range: true });
-  };
-
-  const renderChangedAreas = () => {
-    const mode = config.widgets.changedAreas.mode;
-    if (!showActivity) return null;
-    if (mode === 'hidden') return renderWidgetFrame('changedAreas', I18N.changedAreas, null, { range: true });
-    const filteredAudit = auditForRange(config.widgets.changedAreas.range || '7');
-    const changeStats = buildChangeStats(filteredAudit);
-    if (!changeStats.length) return renderWidgetFrame('changedAreas', I18N.changedAreas, <div className="text-sm text-slate-500">{I18N.noChanges}</div>, { range: true });
-    if (mode === 'bars') {
-      return renderWidgetFrame('changedAreas', I18N.changedAreas, renderBars(changeStats.map((s) => ({ key: s.entity, label: entityName(s.entity), value: s.total, href: '/' + s.entity }))), { range: true });
-    }
-    if (mode === 'cards') {
-      return renderWidgetFrame('changedAreas', I18N.changedAreas, (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {changeStats.map((s) => (
-            <Link key={s.entity} to={'/' + s.entity} className="rounded-lg border border-slate-200 p-3 transition hover:shadow-sm">
-              <div className="text-sm font-semibold text-slate-900">{entityName(s.entity)}</div>
-              <div className="mt-1 text-2xl font-bold text-slate-900">{s.total}</div>
-              <div className="text-xs text-slate-500">{I18N.created}: {s.create} · {I18N.updated}: {s.update} · {I18N.deleted}: {s.delete}</div>
-            </Link>
-          ))}
-        </div>
-      ), { range: true });
-    }
-    return renderWidgetFrame('changedAreas', I18N.changedAreas, (
-      <ul className="divide-y divide-slate-100">
-        {changeStats.map((s) => (
-          <li key={s.entity} className="flex items-center justify-between py-2 text-sm">
-            <Link to={'/' + s.entity} className="font-medium text-slate-800 hover:underline">{entityName(s.entity)}</Link>
-            <span className="text-slate-500">{s.total}</span>
-          </li>
-        ))}
-      </ul>
-    ), { range: true });
-  };
-
-  const renderAlerts = () => {
-    const mode = config.widgets.alerts.mode;
-    if (!showLowStock && !showExpiry) return null;
-    if (mode === 'hidden') return renderWidgetFrame('alerts', I18N.alerts, null);
-    if (!alertRows.length) return renderWidgetFrame('alerts', I18N.alerts, <div className="text-sm text-slate-500">{I18N.alertsEmpty}</div>);
-    if (mode === 'cards') {
-      return renderWidgetFrame('alerts', I18N.alerts, (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {alertRows.map((row) => (
-            <Link key={row.key} to={row.href} className="rounded-lg border border-amber-200 bg-amber-50 p-3 transition hover:shadow-sm">
-              <div className="text-sm font-semibold text-amber-900">{row.title}</div>
-              <div className="mt-1 text-xs text-amber-800">{row.body}</div>
-            </Link>
-          ))}
-        </div>
-      ));
-    }
-    if (mode === 'bars') {
-      const bars: Array<{ key: string; label: string; value: number; href: string }> = [];
-      if (showLowStock) bars.push({ key: 'low', label: I18N.lowStockTitle, value: lowStockItems.length, href: '/' + LOW_STOCK.entity });
-      if (showExpiry) bars.push({ key: 'expiry', label: I18N.expiryTitle, value: expiryItems.length, href: '/' + EXPIRY.entity });
-      return renderWidgetFrame('alerts', I18N.alerts, renderBars(bars));
-    }
-    return renderWidgetFrame('alerts', I18N.alerts, (
-      <ul className="space-y-2">
-        {alertRows.map((row) => (
-          <li key={row.key} className="flex items-start justify-between gap-3 rounded-lg border border-slate-100 p-2">
-            <div>
-              <div className="text-sm font-semibold text-slate-900">{row.title}</div>
-              <div className="text-xs text-slate-500">{row.body}</div>
-            </div>
-            <Link to={row.href} className="text-xs font-semibold text-blue-600 hover:underline">{I18N.open}</Link>
-          </li>
-        ))}
-      </ul>
-    ));
-  };
-
-  if (!prefsLoaded) {
-    return <div className="text-sm text-slate-500">{I18N.activityLoading}</div>;
-  }
+  const currentValue = series.length ? series[series.length - 1].value : 0;
+  const changesInRange = auditItems.filter((row) => {
+    const t = rowTime(row);
+    const start = new Date(startDate + 'T00:00:00').getTime();
+    const end = new Date(endDate + 'T23:59:59').getTime();
+    return String(row?.entity || '') === selectedEntity && t >= start && t <= end;
+  }).length;
+  const hasGraphData = series.some((point) => point.value !== 0) || changesInRange > 0;
 
   return (
     <div className="space-y-6">
@@ -547,18 +358,73 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
         </div>
       ) : (
         <>
-          {renderRecentChanges()}
-          {renderChangedAreas()}
-          {renderAlerts()}
-          {renderRecordOverview()}
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {visibleEntities.map((entity) => (
+              <Link key={entity.slug} to={'/' + entity.slug} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                <div className="text-sm font-semibold text-slate-900">{entity.displayName}</div>
+                <div className="mt-4 text-3xl font-bold text-slate-950">{loadingCounts ? '...' : (counts[entity.slug] || 0).toLocaleString()}</div>
+                <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">{I18N.recordsLabel}</div>
+              </Link>
+            ))}
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">{I18N.graphTitle}</h2>
+                <p className="mt-1 text-sm text-slate-500">{I18N.graphSubtitle}</p>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="text-xs font-medium text-slate-500">
+                  {I18N.graphEntity}
+                  <select value={selectedEntity} onChange={(e) => { setSelectedEntity(e.target.value); setSelectedMetric('count'); }} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900">
+                    {visibleEntities.map((entity) => <option key={entity.slug} value={entity.slug}>{entity.displayName}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs font-medium text-slate-500">
+                  {I18N.graphMetric}
+                  <select value={selectedMetric} onChange={(e) => setSelectedMetric(e.target.value)} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900">
+                    {metricOptions.map((option) => <option key={option.name} value={option.name}>{option.label}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs font-medium text-slate-500">
+                  {I18N.graphStartDate}
+                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900" />
+                </label>
+                <label className="text-xs font-medium text-slate-500">
+                  {I18N.graphEndDate}
+                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900" />
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <div className="text-xs font-medium text-slate-500">{I18N.graphCurrentValue}</div>
+                <div className="mt-1 text-2xl font-bold text-slate-950">{loadingAudit ? '...' : currentValue.toLocaleString()}</div>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <div className="text-xs font-medium text-slate-500">{I18N.graphMetric}</div>
+                <div className="mt-1 text-base font-semibold text-slate-950">{metricLabel(selectedEntityInfo, selectedMetric)}</div>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <div className="text-xs font-medium text-slate-500">{I18N.graphChangesInRange}</div>
+                <div className="mt-1 text-2xl font-bold text-slate-950">{loadingAudit ? '...' : changesInRange.toLocaleString()}</div>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              {loadingAudit ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-10 text-center text-sm text-slate-500">{I18N.loading}</div>
+              ) : hasGraphData ? (
+                <LineChart points={series} />
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm text-slate-500">{showActivity ? I18N.graphNoData : I18N.graphSelectEntity}</div>
+              )}
+            </div>
+          </section>
         </>
       )}
-
-      {ENABLE_REPORTS_PAGE ? (
-        <div className="text-xs text-slate-500">
-          {I18N.activityReportsHint} <Link to="/reports" className="font-semibold text-blue-600 hover:underline">{I18N.reportsLabel}</Link>.
-        </div>
-      ) : null}
     </div>
   );
 }

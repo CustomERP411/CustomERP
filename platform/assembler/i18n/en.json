@@ -124,6 +124,20 @@
       "alertsEmpty": "No important alerts right now.",
       "open": "Open"
     },
+    "graph": {
+      "title": "Changes over time",
+      "subtitle": "Choose a record area and value to see how it changed between dates.",
+      "entity": "Record area",
+      "metric": "Value",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "countMetric": "Record count",
+      "currentValue": "Current value",
+      "changesInRange": "changes in range",
+      "noData": "No changes found for this selection.",
+      "selectEntity": "Select a record area",
+      "total": "total"
+    },
     "emptyAccess": {
       "title": "No accessible modules",
       "body": "You don't have permission to view any modules yet. Please contact your administrator."

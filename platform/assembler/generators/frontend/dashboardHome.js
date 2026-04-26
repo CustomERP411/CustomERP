@@ -15,6 +15,8 @@ function buildDashboardHome({ activityCfg, rbac, language = 'en' }) {
     graphSubtitle: t('dashboard.graph.subtitle'),
     graphEntity: t('dashboard.graph.entity'),
     graphMetric: t('dashboard.graph.metric'),
+    graphMultiplier: t('dashboard.graph.multiplier'),
+    graphNoMultiplier: t('dashboard.graph.noMultiplier'),
     graphStartDate: t('dashboard.graph.startDate'),
     graphEndDate: t('dashboard.graph.endDate'),
     graphCountMetric: t('dashboard.graph.countMetric'),
@@ -39,6 +41,7 @@ type ChartPoint = { label: string; value: number };
 type GraphPrefs = {
   entity?: string;
   metric?: string;
+  multiplier?: string;
   startDate?: string;
   endDate?: string;
 };
@@ -96,6 +99,12 @@ const metricLabel = (entity: EntityItem | undefined, metric: string) => {
   return entity?.fields?.find((field) => field.name === metric)?.label || metric.replace(/_/g, ' ');
 };
 
+const combinedMetricLabel = (entity: EntityItem | undefined, metric: string, multiplier: string) => {
+  const base = metricLabel(entity, metric);
+  if (!multiplier) return base;
+  return base + ' x ' + metricLabel(entity, multiplier);
+};
+
 const buildBuckets = (startDate: string, endDate: string) => {
   const start = new Date(startDate + 'T00:00:00');
   const end = new Date(endDate + 'T23:59:59');
@@ -114,7 +123,7 @@ const buildBuckets = (startDate: string, endDate: string) => {
   return buckets;
 };
 
-function buildSeries(rows: any[], entitySlug: string, metric: string, startDate: string, endDate: string): ChartPoint[] {
+function buildSeries(rows: any[], entitySlug: string, metric: string, multiplier: string, startDate: string, endDate: string): ChartPoint[] {
   const buckets = buildBuckets(startDate, endDate);
   if (!entitySlug || buckets.length === 0) return [];
   const relevant = rows
@@ -123,7 +132,8 @@ function buildSeries(rows: any[], entitySlug: string, metric: string, startDate:
     .sort((a, b) => rowTime(a) - rowTime(b));
 
   const active = new Set<string>();
-  const values = new Map<string, number>();
+  const metricValues = new Map<string, number>();
+  const multiplierValues = new Map<string, number>();
   let pointer = 0;
 
   return buckets.map((bucket) => {
@@ -138,17 +148,25 @@ function buildSeries(rows: any[], entitySlug: string, metric: string, startDate:
         } else if (action === 'CREATE') {
           active.add(id);
         }
-        if (metric !== 'count' && action !== 'DELETE') {
+        if (action !== 'DELETE') {
           const meta = parseMeta(row);
-          const n = toNumber(meta[metric]);
-          if (n !== null) values.set(id, n);
+          if (metric !== 'count') {
+            const n = toNumber(meta[metric]);
+            if (n !== null) metricValues.set(id, n);
+          }
+          if (multiplier) {
+            const n = toNumber(meta[multiplier]);
+            if (n !== null) multiplierValues.set(id, n);
+          }
         }
       }
       pointer += 1;
     }
-    const value = metric === 'count'
-      ? active.size
-      : Array.from(values.values()).reduce((sum, n) => sum + n, 0);
+    const value = Array.from(active).reduce((sum, id) => {
+      const base = metric === 'count' ? 1 : (metricValues.get(id) ?? 0);
+      const factor = multiplier ? (multiplierValues.get(id) ?? 0) : 1;
+      return sum + base * factor;
+    }, 0);
     return { label: bucket.label, value };
   });
 }
@@ -208,6 +226,7 @@ ${rbac
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState('');
   const [selectedMetric, setSelectedMetric] = useState('count');
+  const [selectedMultiplier, setSelectedMultiplier] = useState('');
   const [startDate, setStartDate] = useState(() => daysAgoInput(30));
   const [endDate, setEndDate] = useState(() => todayInput());
 
@@ -234,6 +253,7 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
         const graph = raw?.graph || raw;
         if (typeof graph?.entity === 'string') setSelectedEntity(graph.entity);
         if (typeof graph?.metric === 'string') setSelectedMetric(graph.metric);
+        if (typeof graph?.multiplier === 'string') setSelectedMultiplier(graph.multiplier);
         if (typeof graph?.startDate === 'string') setStartDate(graph.startDate);
         if (typeof graph?.endDate === 'string') setEndDate(graph.endDate);
       } catch {
@@ -254,6 +274,7 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
     if (!visibleEntities.some((entity) => entity.slug === selectedEntity)) {
       setSelectedEntity(visibleEntities[0].slug);
       setSelectedMetric('count');
+      setSelectedMultiplier('');
     }
   }, [visibleEntities, selectedEntity]);
 
@@ -263,6 +284,7 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
       graph: {
         entity: selectedEntity,
         metric: selectedMetric,
+        multiplier: selectedMultiplier,
         startDate,
         endDate,
       },
@@ -275,7 +297,7 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
       }
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [prefsLoaded, selectedEntity, selectedMetric, startDate, endDate]);
+  }, [prefsLoaded, selectedEntity, selectedMetric, selectedMultiplier, startDate, endDate]);
 
   useEffect(() => {
     const run = async () => {
@@ -322,16 +344,18 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
   const selectedEntityInfo = visibleEntities.find((entity) => entity.slug === selectedEntity);
   const numericFields = (selectedEntityInfo?.fields || []).filter(isNumericField);
   const metricOptions = [{ name: 'count', label: I18N.graphCountMetric }, ...numericFields.map((field) => ({ name: field.name, label: field.label }))];
+  const multiplierOptions = [{ name: '', label: I18N.graphNoMultiplier }, ...numericFields.map((field) => ({ name: field.name, label: field.label }))];
 
   useEffect(() => {
     if (!metricOptions.some((option) => option.name === selectedMetric)) setSelectedMetric('count');
-  }, [selectedEntity, selectedMetric, metricOptions.length]);
+    if (!multiplierOptions.some((option) => option.name === selectedMultiplier)) setSelectedMultiplier('');
+  }, [selectedEntity, selectedMetric, selectedMultiplier, metricOptions.length, multiplierOptions.length]);
 
   const totalRecords = Object.values(counts).reduce((sum, n) => sum + n, 0);
   const totalRecordsLine = interpolate(I18N.totalRecordsLine, { total: totalRecords.toLocaleString(), count: visibleEntities.length });
   const series = useMemo(
-    () => buildSeries(auditItems, selectedEntity, selectedMetric, startDate, endDate),
-    [auditItems, selectedEntity, selectedMetric, startDate, endDate]
+    () => buildSeries(auditItems, selectedEntity, selectedMetric, selectedMultiplier, startDate, endDate),
+    [auditItems, selectedEntity, selectedMetric, selectedMultiplier, startDate, endDate]
   );
   const currentValue = series.length ? series[series.length - 1].value : 0;
   const changesInRange = auditItems.filter((row) => {
@@ -374,11 +398,17 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
                 <h2 className="text-lg font-semibold text-slate-950">{I18N.graphTitle}</h2>
                 <p className="mt-1 text-sm text-slate-500">{I18N.graphSubtitle}</p>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <label className="text-xs font-medium text-slate-500">
                   {I18N.graphEntity}
-                  <select value={selectedEntity} onChange={(e) => { setSelectedEntity(e.target.value); setSelectedMetric('count'); }} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900">
+                  <select value={selectedEntity} onChange={(e) => { setSelectedEntity(e.target.value); setSelectedMetric('count'); setSelectedMultiplier(''); }} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900">
                     {visibleEntities.map((entity) => <option key={entity.slug} value={entity.slug}>{entity.displayName}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs font-medium text-slate-500">
+                  {I18N.graphMultiplier}
+                  <select value={selectedMultiplier} onChange={(e) => setSelectedMultiplier(e.target.value)} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900">
+                    {multiplierOptions.map((option) => <option key={option.name || '__none'} value={option.name}>{option.label}</option>)}
                   </select>
                 </label>
                 <label className="text-xs font-medium text-slate-500">
@@ -405,7 +435,7 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
               </div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                 <div className="text-xs font-medium text-slate-500">{I18N.graphMetric}</div>
-                <div className="mt-1 text-base font-semibold text-slate-950">{metricLabel(selectedEntityInfo, selectedMetric)}</div>
+                <div className="mt-1 text-base font-semibold text-slate-950">{combinedMetricLabel(selectedEntityInfo, selectedMetric, selectedMultiplier)}</div>
               </div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                 <div className="text-xs font-medium text-slate-500">{I18N.graphChangesInRange}</div>

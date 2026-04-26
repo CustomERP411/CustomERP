@@ -17,7 +17,7 @@ class ProjectAssembler {
 
   async assemble(projectId, sdf, options = {}) {
     const standalone = !!options.standalone;
-    const language = normalizeLanguage(options.language);
+    const language = normalizeLanguage(options.language || sdf?.language || sdf?.locale);
     const outputDir = path.join(this.outputPath, projectId);
     const backendDir = standalone ? path.join(outputDir, 'app') : path.join(outputDir, 'backend');
     const frontendDir = path.join(outputDir, 'frontend');

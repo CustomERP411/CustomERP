@@ -129,6 +129,8 @@
       "subtitle": "Bir kayıt bölümü ve değer seçerek tarihler arasında nasıl değiştiğini görün.",
       "entity": "Kayıt bölümü",
       "metric": "Değer",
+      "multiplier": "Çarpan",
+      "noMultiplier": "Çarpan yok",
       "startDate": "Başlangıç tarihi",
       "endDate": "Bitiş tarihi",
       "countMetric": "Kayıt sayısı",

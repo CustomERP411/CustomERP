@@ -129,6 +129,8 @@
       "subtitle": "Choose a record area and value to see how it changed between dates.",
       "entity": "Record area",
       "metric": "Value",
+      "multiplier": "Multiply by",
+      "noMultiplier": "No multiplier",
       "startDate": "Start date",
       "endDate": "End date",
       "countMetric": "Record count",

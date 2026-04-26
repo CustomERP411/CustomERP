@@ -85,6 +85,15 @@ function buildEntityFormPage({
   const i18nJson = JSON.stringify(I18N, null, 2);
   const hasChildren = Array.isArray(childSections) && childSections.length > 0;
   const base = importBase || '..';
+  const childSectionsCode = `[${(childSections || []).map((section) => `{
+  childSlug: ${JSON.stringify(section.childSlug || '')},
+  foreignKey: ${JSON.stringify(section.foreignKey || '')},
+  label: ${JSON.stringify(section.label || '')},
+  columns: ${JSON.stringify(section.columns || [], null, 2)},
+  formFields: [
+${section.formFields || ''}
+  ],
+}`).join(',\n')}]`;
   const labels = availabilityLabels || {
     title: t('stockAvailability.title'),
     onHand: t('stockAvailability.onHand'),
@@ -108,7 +117,7 @@ const fieldDefinitions = [
 ${fieldDefs}
 ];
 
-const CHILD_SECTIONS = ${JSON.stringify(childSections || [], null, 2)} as const;
+const CHILD_SECTIONS = ${childSectionsCode} as const;
 const INVOICE_CFG = ${invoiceConfig ? JSON.stringify(invoiceConfig) : 'null'} as const;
 const ENABLE_PRINT = ${enablePrintInvoice ? 'true' : 'false'} as const;
 const STATUS_TRANSITIONS = ${statusTransitions ? JSON.stringify(statusTransitions) : 'null'} as const;

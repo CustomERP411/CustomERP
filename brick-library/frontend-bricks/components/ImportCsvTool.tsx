@@ -20,12 +20,21 @@ interface ImportCsvToolProps {
   onDone?: () => void;
 }
 
+interface ImportResult {
+  rowNumber: number;
+  status: 'success' | 'error';
+  action: 'create' | 'update';
+  label: string;
+  message: string;
+}
+
 export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: ImportCsvToolProps) {
   const { toast } = useToast();
   const [fileName, setFileName] = useState<string>('');
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [importResults, setImportResults] = useState<ImportResult[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
 
@@ -39,6 +48,27 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
   const requiredHeaders = useMemo(() => {
     return fields.filter((f) => f.required).map((f) => f.name);
   }, [fields]);
+
+  const failedResults = useMemo(() => importResults.filter((result) => result.status === 'error'), [importResults]);
+  const successfulResults = useMemo(() => importResults.filter((result) => result.status === 'success'), [importResults]);
+  const failureReport = useMemo(() => {
+    if (failedResults.length === 0) return '';
+    return [
+      'CSV import failed rows for ' + entitySlug + ':',
+      ...failedResults.map((result) => {
+        return (
+          'Row ' +
+          result.rowNumber +
+          ' (' +
+          result.action +
+          ', ' +
+          result.label +
+          '): ' +
+          result.message
+        );
+      }),
+    ].join('\n');
+  }, [entitySlug, failedResults]);
 
   const downloadTemplate = () => {
     const header = expectedHeaders.join(',');
@@ -59,6 +89,7 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
     setErrors([]);
     setWarnings([]);
     setRows([]);
+    setImportResults([]);
 
     Papa.parse<Record<string, any>>(file, {
       header: true,
@@ -130,6 +161,37 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
     return out;
   };
 
+  const getRowLabel = (row: Record<string, any>, payload?: Record<string, any>) => {
+    const source = payload || row;
+    const value = source['sku'] || source['name'] || source['id'] || row['sku'] || row['name'] || row['id'];
+    return value ? String(value) : 'no identifier';
+  };
+
+  const getErrorMessage = (e: any) => {
+    const data = e?.response?.data;
+    const fieldErrors = data?.field_errors || data?.fieldErrors;
+    if (fieldErrors && typeof fieldErrors === 'object') {
+      return Object.entries(fieldErrors)
+        .map(([field, message]) => field + ': ' + String(message))
+        .join('; ');
+    }
+    if (typeof data?.error === 'string') return data.error;
+    if (typeof data?.message === 'string') return data.message;
+    if (typeof data === 'string') return data;
+    if (e?.message) return e.message;
+    return 'Unknown error';
+  };
+
+  const copyFailureReport = async () => {
+    if (!failureReport) return;
+    try {
+      await navigator.clipboard.writeText(failureReport);
+      toast({ title: 'Error report copied', variant: 'success' });
+    } catch {
+      toast({ title: 'Could not copy error report', variant: 'error' });
+    }
+  };
+
   const importRows = async () => {
     if (rows.length === 0) {
       toast({ title: 'No rows to import', variant: 'warning' });
@@ -141,34 +203,51 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
     }
 
     setIsImporting(true);
+    setImportResults([]);
     setProgress({ done: 0, total: rows.length });
     try {
       let done = 0;
-      for (const row of rows) {
-        const payload = transformRow(row);
-        if (payload.id) {
-          const id = String(payload.id);
-          delete payload.id;
-          try {
-            await api.put('/' + entitySlug + '/' + id, payload);
-          } catch (e: any) {
-            if (e?.response?.status === 404) {
-              await api.post('/' + entitySlug, payload);
-            } else {
-              throw e;
+      const nextResults: ImportResult[] = [];
+      for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index];
+        const rowNumber = index + 2;
+        let action: ImportResult['action'] = 'create';
+        let label = getRowLabel(row);
+        try {
+          const payload = transformRow(row);
+          action = payload.id ? 'update' : 'create';
+          label = getRowLabel(row, payload);
+          if (payload.id) {
+            const id = String(payload.id);
+            delete payload.id;
+            try {
+              await api.put('/' + entitySlug + '/' + id, payload);
+            } catch (e: any) {
+              if (e?.response?.status === 404) {
+                await api.post('/' + entitySlug, payload);
+              } else {
+                throw e;
+              }
             }
+          } else {
+            await api.post('/' + entitySlug, payload);
           }
-        } else {
-          await api.post('/' + entitySlug, payload);
+          nextResults.push({ rowNumber, status: 'success', action, label, message: 'Imported' });
+        } catch (e: any) {
+          nextResults.push({ rowNumber, status: 'error', action, label, message: getErrorMessage(e) });
         }
         done += 1;
         setProgress({ done, total: rows.length });
+        setImportResults([...nextResults]);
       }
 
-      toast({ title: 'Import completed', description: String(rows.length) + ' rows processed', variant: 'success' });
-      onDone?.();
-      setRows([]);
-      setFileName('');
+      const failures = nextResults.filter((result) => result.status === 'error').length;
+      const successes = nextResults.length - failures;
+      toast({
+        title: failures ? 'Import completed with errors' : 'Import completed',
+        description: String(successes) + ' imported, ' + String(failures) + ' failed',
+        variant: failures ? 'warning' : 'success',
+      });
     } catch (e: any) {
       toast({ title: 'Import failed', description: e?.message || 'Unknown error', variant: 'error' });
     } finally {
@@ -246,6 +325,55 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
         </div>
       ) : null}
 
+      {importResults.length > 0 ? (
+        <div className="rounded-lg border p-3 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="font-semibold text-slate-900">Import results</div>
+              <div className="text-xs text-slate-500">
+                {successfulResults.length} imported, {failedResults.length} failed
+              </div>
+            </div>
+            {failedResults.length > 0 ? (
+              <button
+                type="button"
+                onClick={copyFailureReport}
+                className="rounded-md bg-white px-3 py-1.5 text-xs font-medium text-slate-900 shadow-sm ring-1 ring-slate-200 hover:bg-slate-100"
+              >
+                Copy error report
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-3 max-h-64 overflow-auto rounded-md border">
+            {importResults.map((result) => (
+              <div
+                key={result.rowNumber}
+                className={
+                  'border-b px-3 py-2 last:border-b-0 ' +
+                  (result.status === 'success' ? 'bg-emerald-50 text-emerald-900' : 'bg-red-50 text-red-900')
+                }
+              >
+                <div className="font-medium">
+                  Row {result.rowNumber}: {result.status === 'success' ? 'Imported' : 'Failed'} ({result.action})
+                </div>
+                <div className="text-xs">
+                  {result.label} - {result.message}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {failedResults.length > 0 ? (
+            <textarea
+              className="mt-3 h-28 w-full rounded-md border border-slate-200 bg-slate-50 p-2 font-mono text-xs text-slate-800"
+              readOnly
+              value={failureReport}
+            />
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-between">
         {isImporting ? (
           <div className="text-sm text-slate-600">
@@ -263,6 +391,15 @@ export default function ImportCsvTool({ entitySlug, fields, onCancel, onDone }: 
           >
             Cancel
           </button>
+          {importResults.length > 0 && !isImporting && onDone ? (
+            <button
+              type="button"
+              onClick={onDone}
+              className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+            >
+              Done
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={importRows}

@@ -96,9 +96,16 @@ async function downloadNodeBinary(platform) {
   return platform.startsWith('windows') ? path.dirname(cachedBin) : path.join(extractDir, 'bin');
 }
 
-async function replaceBetterSqlitePrebuilt(appDir, targetOs, targetArch) {
+async function replaceBetterSqlitePrebuilt(appDir, targetOs, targetArch, { requireSuccess = false } = {}) {
   const pkgDir = path.join(appDir, 'node_modules', 'better-sqlite3');
-  if (!fs.existsSync(pkgDir)) return;
+  if (!fs.existsSync(pkgDir)) {
+    if (requireSuccess) {
+      throw new Error(
+        '[STANDALONE] better-sqlite3 is missing from node_modules; cannot build Linux bundle.'
+      );
+    }
+    return;
+  }
 
   const pkgJson = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
   const version = pkgJson.version;
@@ -137,12 +144,25 @@ async function replaceBetterSqlitePrebuilt(appDir, targetOs, targetArch) {
       console.log('[STANDALONE] Native module replaced successfully.');
       return;
     }
+    if (requireSuccess) {
+      throw new Error(
+        '[STANDALONE] Downloaded better-sqlite3 archive did not contain the expected native binary.'
+      );
+    }
     console.warn('[STANDALONE] Downloaded archive did not contain expected binary.');
   } catch (err) {
     await fsp.unlink(tmpFile).catch(() => {});
+    if (requireSuccess) {
+      throw err;
+    }
     console.warn(`[STANDALONE] Download failed: ${err.message.split('\n')[0]}`);
   }
 
+  if (requireSuccess) {
+    throw new Error(
+      '[STANDALONE] Could not install glibc better-sqlite3 prebuild for Linux; standalone bundle is invalid.'
+    );
+  }
   console.warn('[STANDALONE] Could not replace native module for target platform. The bundle may not work.');
 }
 
@@ -166,10 +186,13 @@ async function buildStandaloneBundle({ assembledDir, platform, projectName }) {
     maxBuffer: 10 * 1024 * 1024,
   });
 
-  // 1b. Replace native addons with correct prebuilt binaries for the target platform
+  // 1b. Replace native addons with correct prebuilt binaries for the target platform.
+  // Always for cross-OS/arch builds, and always for linux-x64: npm on Alpine (musl) would
+  // otherwise leave a musl .node while we ship glibc Node — same arch so not "cross" there.
   const isCrossBuild = info.os !== process.platform || info.arch !== process.arch;
-  if (isCrossBuild) {
-    await replaceBetterSqlitePrebuilt(appDir, info.os, info.arch);
+  const shouldReplaceSqlite = isCrossBuild || platform === 'linux-x64';
+  if (shouldReplaceSqlite) {
+    await replaceBetterSqlitePrebuilt(appDir, info.os, info.arch, { requireSuccess: platform === 'linux-x64' });
   }
 
   // 2. npm install + build frontend

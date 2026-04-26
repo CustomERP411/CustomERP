@@ -337,8 +337,24 @@
       "user": "User",
       "action": "Action",
       "entity": "Entity",
+      "recordId": "Record ID",
       "message": "Message"
     },
+    "actions": {
+      "CREATE": "Added",
+      "UPDATE": "Changed",
+      "DELETE": "Deleted",
+      "LOGIN": "Logged in",
+      "LOGOUT": "Logged out"
+    },
+    "messages": {
+      "CREATE": "{{user}} added {{entity}} {{record}}",
+      "UPDATE": "{{user}} changed {{entity}} {{record}}",
+      "DELETE": "{{user}} deleted {{entity}} {{record}}",
+      "LOGIN": "{{user}} logged in",
+      "LOGOUT": "{{user}} logged out"
+    },
+    "unknownUser": "System",
     "empty": "No activity recorded yet."
   },
   "reportsPage": {

@@ -60,8 +60,8 @@ module.exports = {
     if (features.serial_tracking) addMixin('SerialTrackingMixin');
     // Audit trail:
     // - If entity.features.audit_trail is explicitly set (true/false), respect it.
-    // - Otherwise, if modules.activity_log.enabled is true, audit ALL non-system entities by default
-    //   (or only the listed entity slugs if modules.activity_log.entities is provided).
+    // - Otherwise, if access control or modules.activity_log is enabled, audit
+    //   ALL non-system entities by default (or only listed slugs if provided).
     const isSystemEntity = slug.startsWith('__') || (entity && entity.system && entity.system.hidden);
 
     let auditEnabled = false;
@@ -70,8 +70,9 @@ module.exports = {
       if (hasAuditFlag) {
         auditEnabled = features.audit_trail === true;
       } else {
+        const access = (this.modules && this.modules.access_control) || {};
         const activity = (this.modules && (this.modules.activity_log || this.modules.activityLog)) || {};
-        if (activity.enabled === true) {
+        if (activity.enabled === true || access.enabled !== false) {
           const list = Array.isArray(activity.entities) ? activity.entities : [];
           auditEnabled = list.length ? list.includes(slug) : true;
         }

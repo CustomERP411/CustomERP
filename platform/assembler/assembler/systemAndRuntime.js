@@ -7,7 +7,10 @@ module.exports = {
     const entities = Array.isArray(userEntities) ? [...userEntities] : [];
     const modules = (sdf && sdf.modules) ? sdf.modules : {};
 
+    const acConfig = modules.access_control || {};
+    const acEnabled = acConfig.enabled !== false;
     const wantsActivityLog =
+      acEnabled ||
       modules?.activity_log?.enabled === true ||
       entities.some((e) => e && e.features && e.features.audit_trail);
 
@@ -24,12 +27,15 @@ module.exports = {
         module: 'shared',
         system: { hidden: true },
         ui: { search: true, csv_import: false, csv_export: false, print: false },
-        list: { columns: ['at', 'action', 'entity', 'entity_id', 'message'] },
+        list: { columns: ['at', 'username', 'action', 'entity', 'entity_id', 'message'] },
         fields: [
           { name: 'at', type: 'string', label: 'At', required: true },
           { name: 'action', type: 'string', label: 'Action', required: true },
           { name: 'entity', type: 'string', label: 'Entity', required: true },
           { name: 'entity_id', type: 'string', label: 'Entity ID', required: false },
+          { name: 'user_id', type: 'string', label: 'User ID', required: false },
+          { name: 'username', type: 'string', label: 'Username', required: false },
+          { name: 'user_display_name', type: 'string', label: 'User Display Name', required: false },
           { name: 'message', type: 'string', label: 'Message', required: false },
           { name: 'meta', type: 'text', label: 'Meta', required: false },
         ],
@@ -455,6 +461,18 @@ PGPASSWORD=erppassword
 
     const acModConfig = (sdf && sdf.modules && sdf.modules.access_control) || {};
     const acEnabled = acModConfig.enabled !== false;
+    const activityModConfig = (sdf && sdf.modules && (sdf.modules.activity_log || sdf.modules.activityLog)) || {};
+    const activityEntities = Array.isArray(activityModConfig.entities)
+      ? activityModConfig.entities
+      : (backendEntities || [])
+          .filter((e) => e && !String(e.slug || '').startsWith('__') && !(e.system && e.system.hidden) && !(e.features && e.features.audit_trail === false))
+          .map((e) => e.slug);
+    systemConfig.modules.activity_log = {
+      enabled: acEnabled || activityModConfig.enabled === true || (backendEntities || []).some((e) => e && e.slug === '__audit_logs'),
+      target_slug: '__audit_logs',
+      entities: activityEntities,
+      actions: ['CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT'],
+    };
     if (acEnabled) {
       const entitySlugs = (backendEntities || []).map((e) => e && e.slug).filter(Boolean);
       const userGroups = Array.isArray(acModConfig.groups) ? acModConfig.groups : [];

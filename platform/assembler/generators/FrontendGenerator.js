@@ -436,7 +436,7 @@ ${rbac
       limit: typeof expiryCfgRaw.limit === 'number' ? expiryCfgRaw.limit : 10,
     };
     const activityCfg = {
-      enabled: activityCfgRaw.enabled === true,
+      enabled: activityCfgRaw.enabled === true || this._accessControlEnabled,
       limit: typeof activityCfgRaw.limit === 'number' ? activityCfgRaw.limit : 15,
     };
     const scheduledReportsCfg = modules.scheduled_reports || modules.scheduledReports || {};
@@ -448,7 +448,9 @@ ${rbac
   async generateApp(outputDir, entities, sdf = {}) {
     const visibleEntities = (entities || []).filter((e) => e && !String(e.slug || '').startsWith('__') && !(e.system && e.system.hidden));
     const modules = sdf && sdf.modules ? sdf.modules : {};
-    const enableActivityLog = (modules.activity_log || modules.activityLog || {}).enabled === true;
+    const allEntities = Array.isArray(sdf.entities) ? sdf.entities : entities || [];
+    const hasAuditLogsEntity = allEntities.some((e) => String(e?.slug || '') === '__audit_logs');
+    const enableActivityLog = this._accessControlEnabled || hasAuditLogsEntity || (modules.activity_log || modules.activityLog || {}).enabled === true;
     const enableReports = (modules.scheduled_reports || modules.scheduledReports || {}).enabled === true;
     const priorityCfg = this._getInventoryPriorityAConfig(sdf);
     const invoicePriorityCfg = this._getInvoicePriorityAConfig(sdf);
@@ -463,7 +465,6 @@ ${rbac
     const hrLeaveApprovalsEnabled = this._isPackEnabled(hrPriorityCfg.leaveApprovals);
     const hrAttendanceEnabled = this._isPackEnabled(hrPriorityCfg.attendanceTime);
 
-    const allEntities = Array.isArray(sdf.entities) ? sdf.entities : entities || [];
     const childSlugs = [...this._computeChildSlugs(allEntities)];
     const sharedModulesMap = this._computeSharedModules(allEntities);
 
@@ -498,7 +499,11 @@ ${rbac
     const imports = visibleEntities.map((e) => this._buildEntityImports(e, featureFlags)).join('\n');
 
     const toolRoutes = [
-      enableActivityLog ? `        <Route path="/activity" element={<ActivityLogPage />} />` : '',
+      enableActivityLog ? (
+        this._accessControlEnabled
+          ? `        <Route path="/activity" element={<RequirePermission permission="__audit_logs.read"><ActivityLogPage /></RequirePermission>} />`
+          : `        <Route path="/activity" element={<ActivityLogPage />} />`
+      ) : '',
       enableReports ? `        <Route path="/reports" element={<ReportsPage />} />` : '',
     ].filter(Boolean).join('\n');
 
@@ -621,7 +626,9 @@ ${rbac
     const hrAttendanceEnabled = this._isPackEnabled(hrPriorityCfg.attendanceTime);
 
     const modules = sdf && sdf.modules ? sdf.modules : {};
-    const enableActivityLog = (modules.activity_log || modules.activityLog || {}).enabled === true;
+    const allEntities = Array.isArray(sdf.entities) ? sdf.entities : visibleEntities || [];
+    const hasAuditLogsEntity = allEntities.some((e) => String(e?.slug || '') === '__audit_logs');
+    const enableActivityLog = this._accessControlEnabled || hasAuditLogsEntity || (modules.activity_log || modules.activityLog || {}).enabled === true;
     const enableReports = (modules.scheduled_reports || modules.scheduledReports || {}).enabled === true;
 
     const availableSlugs = new Set(visibleEntities.map((e) => String(e.slug || '')));
@@ -665,14 +672,14 @@ ${rbac
     const moduleMap = this._buildModuleMapFromEntities(visibleEntities);
 
     const toolsLinks = [];
-    if (enableActivityLog) toolsLinks.push({ to: '/activity', label: this._t('sidebar.tools.activityLog') });
+    if (enableActivityLog) toolsLinks.push({ to: '/activity', label: this._t('sidebar.tools.activityLog'), permission: '__audit_logs.read' });
     if (enableReports) toolsLinks.push({ to: '/reports', label: this._t('sidebar.tools.reports') });
 
     const toolsHeading = this._t('sidebar.toolsHeading');
     const toolsBlock = toolsLinks.length > 0 ? `
         <div className="mt-4">
           <div className="px-3 mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">${toolsHeading}</div>
-${toolsLinks.map((t) => `          <Link
+${toolsLinks.map((t) => `          ${this._accessControlEnabled && t.permission ? `{(isSuperadmin || hasPermission('${t.permission}')) && (` : ''}<Link
             to="${t.to}"
             className={[
               'mb-1 block rounded-lg px-3 py-2 text-sm font-medium',
@@ -680,7 +687,7 @@ ${toolsLinks.map((t) => `          <Link
             ].join(' ')}
           >
             ${t.label}
-          </Link>`).join('\n')}
+          </Link>${this._accessControlEnabled && t.permission ? `)}` : ''}`).join('\n')}
         </div>` : '';
 
     const sidebarContent = buildSidebar({

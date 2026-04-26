@@ -86,6 +86,7 @@
     "__erp_permissions": "İzinler",
     "__erp_user_groups": "Kullanıcı Rolleri",
     "__erp_group_permissions": "Rol İzinleri",
+    "__audit_logs": "Etkinlik Günlüğü",
     "users": "Kullanıcılar",
     "groups": "Gruplar",
     "permissions": "İzinler"

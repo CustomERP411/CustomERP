@@ -6,6 +6,7 @@ module.exports = {
       // AuditMixin: Log creation
       const __auditAt = new Date().toISOString();
       const __auditConfig = this.mixinConfig?.audit || {};
+      const __auditUser = context?.user || this.__requestContext?.user || {};
       const __auditFields = Array.isArray(__auditConfig.audit_fields)
         ? __auditConfig.audit_fields
         : (Array.isArray(__auditConfig.auditFields) ? __auditConfig.auditFields : []);
@@ -28,7 +29,10 @@ module.exports = {
           action: 'CREATE',
           entity: this.slug,
           entity_id: result.id,
-          message: \`Created \${this.slug}\`,
+          user_id: __auditUser.userId || __auditUser.id || null,
+          username: __auditUser.username || null,
+          user_display_name: __auditUser.display_name || __auditUser.displayName || __auditUser.username || null,
+          message: '',
           meta: JSON.stringify(__auditMeta)
         });
       } catch (e) {
@@ -40,6 +44,7 @@ module.exports = {
       // AuditMixin: Log update
       const __auditAt = new Date().toISOString();
       const __auditConfig = this.mixinConfig?.audit || {};
+      const __auditUser = context?.user || this.__requestContext?.user || {};
       const __auditFields = Array.isArray(__auditConfig.audit_fields)
         ? __auditConfig.audit_fields
         : (Array.isArray(__auditConfig.auditFields) ? __auditConfig.auditFields : []);
@@ -60,7 +65,10 @@ module.exports = {
           action: 'UPDATE',
           entity: this.slug,
           entity_id: id,
-          message: \`Updated \${this.slug}\`,
+          user_id: __auditUser.userId || __auditUser.id || null,
+          username: __auditUser.username || null,
+          user_display_name: __auditUser.display_name || __auditUser.displayName || __auditUser.username || null,
+          message: '',
           meta: JSON.stringify(__auditMeta)
         });
       } catch (e) {
@@ -71,6 +79,7 @@ module.exports = {
     'AFTER_DELETE_LOGGING': `
       // AuditMixin: Log deletion
       const __auditAt = new Date().toISOString();
+      const __auditUser = context?.user || this.__requestContext?.user || {};
       console.log(\`[AUDIT] Deleted \${this.slug} ID \${id} at \${__auditAt}\`);
       try {
         await this.repository.create('__audit_logs', {
@@ -78,7 +87,10 @@ module.exports = {
           action: 'DELETE',
           entity: this.slug,
           entity_id: id,
-          message: \`Deleted \${this.slug}\`,
+          user_id: __auditUser.userId || __auditUser.id || null,
+          username: __auditUser.username || null,
+          user_display_name: __auditUser.display_name || __auditUser.displayName || __auditUser.username || null,
+          message: '',
           meta: JSON.stringify({ id })
         });
       } catch (e) {

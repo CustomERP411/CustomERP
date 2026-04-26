@@ -20,7 +20,6 @@ function buildDashboardHome({ lowStockCfg, expiryCfg, activityCfg, enableReports
     reportsLabel: t('sidebar.tools.reports'),
     emptyAccessTitle: t('dashboard.emptyAccess.title'),
     emptyAccessBody: t('dashboard.emptyAccess.body'),
-    settings: t('dashboard.widgets.settings'),
     saveDashboard: t('dashboard.widgets.save'),
     dashboardSaved: t('dashboard.widgets.saved'),
     range: t('dashboard.widgets.range'),
@@ -61,24 +60,17 @@ const I18N = ${JSON.stringify(I18N, null, 2)} as const;
 type WidgetKey = 'recentChanges' | 'changedAreas' | 'alerts' | 'recordOverview';
 type WidgetMode = 'hidden' | 'cards' | 'list' | 'bars';
 type DashboardRange = '7' | '30' | '90' | '365' | 'all';
-type DashboardConfig = { range: DashboardRange; widgets: Record<WidgetKey, WidgetMode> };
+type WidgetSetting = { mode: WidgetMode; range?: DashboardRange };
+type DashboardConfig = { widgets: Record<WidgetKey, WidgetSetting> };
 
 const DEFAULT_CONFIG: DashboardConfig = {
-  range: '7',
   widgets: {
-    recentChanges: 'list',
-    changedAreas: 'bars',
-    alerts: 'list',
-    recordOverview: 'cards',
+    recentChanges: { mode: 'list', range: '7' },
+    changedAreas: { mode: 'bars', range: '7' },
+    alerts: { mode: 'list' },
+    recordOverview: { mode: 'cards' },
   },
 };
-
-const WIDGETS: Array<{ key: WidgetKey; label: string }> = [
-  { key: 'recentChanges', label: I18N.recentChanges },
-  { key: 'changedAreas', label: I18N.changedAreas },
-  { key: 'alerts', label: I18N.alerts },
-  { key: 'recordOverview', label: I18N.recordOverview },
-];
 
 const RANGES: Array<{ value: DashboardRange; label: string }> = [
   { value: '7', label: I18N.last7 },
@@ -114,13 +106,30 @@ const interpolate = (tpl: string, vars: Record<string, string | number>): string
 };
 
 const mergeConfig = (raw: any): DashboardConfig => {
-  const range = ['7', '30', '90', '365', 'all'].includes(String(raw?.range)) ? String(raw.range) as DashboardRange : DEFAULT_CONFIG.range;
+  const oldGlobalRange = ['7', '30', '90', '365', 'all'].includes(String(raw?.range))
+    ? String(raw.range) as DashboardRange
+    : undefined;
   const widgets = { ...DEFAULT_CONFIG.widgets };
   for (const key of Object.keys(widgets) as WidgetKey[]) {
     const value = raw?.widgets?.[key];
-    if (['hidden', 'cards', 'list', 'bars'].includes(String(value))) widgets[key] = value;
+    const base = DEFAULT_CONFIG.widgets[key];
+    if (typeof value === 'string' && ['hidden', 'cards', 'list', 'bars'].includes(value)) {
+      widgets[key] = { ...base, mode: value as WidgetMode, range: base.range ? (oldGlobalRange || base.range) : undefined };
+      continue;
+    }
+    if (value && typeof value === 'object') {
+      const mode = ['hidden', 'cards', 'list', 'bars'].includes(String(value.mode))
+        ? String(value.mode) as WidgetMode
+        : base.mode;
+      const range = ['7', '30', '90', '365', 'all'].includes(String(value.range))
+        ? String(value.range) as DashboardRange
+        : (base.range ? (oldGlobalRange || base.range) : undefined);
+      widgets[key] = { ...base, mode, ...(range ? { range } : {}) };
+    } else if (base.range && oldGlobalRange) {
+      widgets[key] = { ...base, range: oldGlobalRange };
+    }
   }
-  return { range, widgets };
+  return { widgets };
 };
 
 const toNumber = (v: any): number | null => {
@@ -257,18 +266,18 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
     Promise.all(tasks).catch(() => undefined);
   }, [showLowStock, showExpiry, showActivity]);
 
-  const filteredAudit = useMemo(() => {
-    if (config.range === 'all') return auditItems;
-    const cutoff = Date.now() - Number(config.range) * 24 * 60 * 60 * 1000;
+  const auditForRange = (range: DashboardRange = '7') => {
+    if (range === 'all') return auditItems;
+    const cutoff = Date.now() - Number(range) * 24 * 60 * 60 * 1000;
     return auditItems.filter((row) => {
       const t = rowTime(row);
       return t > 0 && t >= cutoff;
     });
-  }, [auditItems, config.range]);
+  };
 
-  const changeStats = useMemo(() => {
+  const buildChangeStats = (rows: any[]) => {
     const map: Record<string, { entity: string; total: number; create: number; update: number; delete: number }> = {};
-    for (const row of filteredAudit) {
+    for (const row of rows) {
       const slug = String(row?.entity || 'other');
       const action = String(row?.action || '').toLowerCase();
       if (!map[slug]) map[slug] = { entity: slug, total: 0, create: 0, update: 0, delete: 0 };
@@ -278,11 +287,10 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
       else map[slug].create += 1;
     }
     return Object.values(map).sort((a, b) => b.total - a.total);
-  }, [filteredAudit]);
+  };
 
   const totalRecords = Object.values(counts).reduce((sum, n) => sum + n, 0);
   const totalRecordsLine = interpolate(I18N.totalRecordsLine, { total: totalRecords.toLocaleString(), count: visibleEntities.length });
-  const maxCount = Math.max(1, ...visibleEntities.map((e) => counts[e.slug] || 0), ...changeStats.map((s) => s.total));
 
   const alertRows = useMemo(() => {
     const rows: Array<{ key: string; title: string; body: string; href: string }> = [];
@@ -309,7 +317,12 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
 
   const updateWidgetMode = (key: WidgetKey, mode: WidgetMode) => {
     setSaved(false);
-    setConfig((c) => ({ ...c, widgets: { ...c.widgets, [key]: mode } }));
+    setConfig((c) => ({ ...c, widgets: { ...c.widgets, [key]: { ...c.widgets[key], mode } } }));
+  };
+
+  const updateWidgetRange = (key: WidgetKey, range: DashboardRange) => {
+    setSaved(false);
+    setConfig((c) => ({ ...c, widgets: { ...c.widgets, [key]: { ...c.widgets[key], range } } }));
   };
 
   const savePrefs = async () => {
@@ -321,38 +334,60 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
     setSaved(true);
   };
 
-  const renderWidgetFrame = (title: string, children: any) => (
+  const renderWidgetFrame = (key: WidgetKey, title: string, children: any, options: { range?: boolean } = {}) => (
     <section className="rounded-xl border bg-white p-4 shadow-sm">
-      <div className="mb-3 text-sm font-semibold text-slate-900">{title}</div>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div className="text-sm font-semibold text-slate-900">{title}</div>
+        <div className="flex flex-wrap items-end gap-2">
+          {options.range ? (
+            <label className="text-xs text-slate-500">
+              {I18N.range}
+              <select value={config.widgets[key].range || '7'} onChange={(e) => updateWidgetRange(key, e.target.value as DashboardRange)} className="mt-1 rounded-lg border bg-white px-2 py-1 text-sm text-slate-800">
+                {RANGES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+            </label>
+          ) : null}
+          <label className="text-xs text-slate-500">
+            {I18N.showAs}
+            <select value={config.widgets[key].mode} onChange={(e) => updateWidgetMode(key, e.target.value as WidgetMode)} className="mt-1 rounded-lg border bg-white px-2 py-1 text-sm text-slate-800">
+              {MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </label>
+          <button onClick={savePrefs} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">{saved ? I18N.dashboardSaved : I18N.saveDashboard}</button>
+        </div>
+      </div>
       {children}
     </section>
   );
 
   const renderBars = (rows: Array<{ key: string; label: string; value: number; href?: string }>) => (
     <div className="space-y-2">
-      {rows.map((row) => (
+      {rows.map((row) => {
+        const localMax = Math.max(1, ...rows.map((r) => r.value || 0));
+        return (
         <Link key={row.key} to={row.href || '#'} className="block">
           <div className="flex items-center justify-between text-xs text-slate-600">
             <span>{row.label}</span>
             <span className="font-semibold">{row.value}</span>
           </div>
           <div className="mt-1 h-2 rounded-full bg-slate-100">
-            <div className="h-2 rounded-full bg-indigo-500" style={{ width: Math.max(4, Math.round((row.value / maxCount) * 100)) + '%' }} />
+            <div className="h-2 rounded-full bg-indigo-500" style={{ width: Math.max(4, Math.round((row.value / localMax) * 100)) + '%' }} />
           </div>
         </Link>
-      ))}
+        );
+      })}
     </div>
   );
 
   const renderRecordOverview = () => {
-    const mode = config.widgets.recordOverview;
-    if (mode === 'hidden') return null;
+    const mode = config.widgets.recordOverview.mode;
     if (visibleEntities.length === 0) return null;
+    if (mode === 'hidden') return renderWidgetFrame('recordOverview', I18N.recordOverview, null);
     if (mode === 'bars') {
-      return renderWidgetFrame(I18N.recordOverview, renderBars(visibleEntities.map((e) => ({ key: e.slug, label: e.displayName, value: counts[e.slug] || 0, href: '/' + e.slug }))));
+      return renderWidgetFrame('recordOverview', I18N.recordOverview, renderBars(visibleEntities.map((e) => ({ key: e.slug, label: e.displayName, value: counts[e.slug] || 0, href: '/' + e.slug }))));
     }
     if (mode === 'list') {
-      return renderWidgetFrame(I18N.recordOverview, (
+      return renderWidgetFrame('recordOverview', I18N.recordOverview, (
         <ul className="divide-y divide-slate-100">
           {visibleEntities.map((e) => (
             <li key={e.slug} className="flex items-center justify-between py-2 text-sm">
@@ -363,7 +398,7 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
         </ul>
       ));
     }
-    return renderWidgetFrame(I18N.recordOverview, (
+    return renderWidgetFrame('recordOverview', I18N.recordOverview, (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {visibleEntities.map((e) => (
           <Link key={e.slug} to={'/' + e.slug} className="rounded-lg border border-slate-200 p-3 transition hover:shadow-sm">
@@ -377,21 +412,23 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
   };
 
   const renderRecentChanges = () => {
-    const mode = config.widgets.recentChanges;
-    if (mode === 'hidden' || !showActivity) return null;
+    const mode = config.widgets.recentChanges.mode;
+    if (!showActivity) return null;
+    if (mode === 'hidden') return renderWidgetFrame('recentChanges', I18N.recentChanges, null, { range: true });
+    const filteredAudit = auditForRange(config.widgets.recentChanges.range || '7');
     const top = filteredAudit.slice(0, ACTIVITY.limit || 8);
-    if (loadingAudit) return renderWidgetFrame(I18N.recentChanges, <div className="text-sm text-slate-500">{I18N.activityLoading}</div>);
-    if (!top.length) return renderWidgetFrame(I18N.recentChanges, <div className="text-sm text-slate-500">{I18N.noChanges}</div>);
+    if (loadingAudit) return renderWidgetFrame('recentChanges', I18N.recentChanges, <div className="text-sm text-slate-500">{I18N.activityLoading}</div>, { range: true });
+    if (!top.length) return renderWidgetFrame('recentChanges', I18N.recentChanges, <div className="text-sm text-slate-500">{I18N.noChanges}</div>, { range: true });
     if (mode === 'bars') {
       const byAction = ['create', 'update', 'delete'].map((action) => ({
         key: action,
         label: ACTION_LABELS[action],
         value: filteredAudit.filter((r) => String(r?.action || '').toLowerCase().includes(action)).length,
       }));
-      return renderWidgetFrame(I18N.recentChanges, renderBars(byAction));
+      return renderWidgetFrame('recentChanges', I18N.recentChanges, renderBars(byAction), { range: true });
     }
     if (mode === 'cards') {
-      return renderWidgetFrame(I18N.recentChanges, (
+      return renderWidgetFrame('recentChanges', I18N.recentChanges, (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {['create', 'update', 'delete'].map((action) => (
             <div key={action} className="rounded-lg border border-slate-200 p-3">
@@ -400,9 +437,9 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
             </div>
           ))}
         </div>
-      ));
+      ), { range: true });
     }
-    return renderWidgetFrame(I18N.recentChanges, (
+    return renderWidgetFrame('recentChanges', I18N.recentChanges, (
       <ul className="space-y-2">
         {top.map((it: any) => (
           <li key={it.id} className="flex items-start justify-between gap-3">
@@ -414,18 +451,21 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
           </li>
         ))}
       </ul>
-    ));
+    ), { range: true });
   };
 
   const renderChangedAreas = () => {
-    const mode = config.widgets.changedAreas;
-    if (mode === 'hidden' || !showActivity) return null;
-    if (!changeStats.length) return renderWidgetFrame(I18N.changedAreas, <div className="text-sm text-slate-500">{I18N.noChanges}</div>);
+    const mode = config.widgets.changedAreas.mode;
+    if (!showActivity) return null;
+    if (mode === 'hidden') return renderWidgetFrame('changedAreas', I18N.changedAreas, null, { range: true });
+    const filteredAudit = auditForRange(config.widgets.changedAreas.range || '7');
+    const changeStats = buildChangeStats(filteredAudit);
+    if (!changeStats.length) return renderWidgetFrame('changedAreas', I18N.changedAreas, <div className="text-sm text-slate-500">{I18N.noChanges}</div>, { range: true });
     if (mode === 'bars') {
-      return renderWidgetFrame(I18N.changedAreas, renderBars(changeStats.map((s) => ({ key: s.entity, label: entityName(s.entity), value: s.total, href: '/' + s.entity }))));
+      return renderWidgetFrame('changedAreas', I18N.changedAreas, renderBars(changeStats.map((s) => ({ key: s.entity, label: entityName(s.entity), value: s.total, href: '/' + s.entity }))), { range: true });
     }
     if (mode === 'cards') {
-      return renderWidgetFrame(I18N.changedAreas, (
+      return renderWidgetFrame('changedAreas', I18N.changedAreas, (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {changeStats.map((s) => (
             <Link key={s.entity} to={'/' + s.entity} className="rounded-lg border border-slate-200 p-3 transition hover:shadow-sm">
@@ -435,9 +475,9 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
             </Link>
           ))}
         </div>
-      ));
+      ), { range: true });
     }
-    return renderWidgetFrame(I18N.changedAreas, (
+    return renderWidgetFrame('changedAreas', I18N.changedAreas, (
       <ul className="divide-y divide-slate-100">
         {changeStats.map((s) => (
           <li key={s.entity} className="flex items-center justify-between py-2 text-sm">
@@ -446,15 +486,16 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
           </li>
         ))}
       </ul>
-    ));
+    ), { range: true });
   };
 
   const renderAlerts = () => {
-    const mode = config.widgets.alerts;
-    if (mode === 'hidden' || (!showLowStock && !showExpiry)) return null;
-    if (!alertRows.length) return renderWidgetFrame(I18N.alerts, <div className="text-sm text-slate-500">{I18N.alertsEmpty}</div>);
+    const mode = config.widgets.alerts.mode;
+    if (!showLowStock && !showExpiry) return null;
+    if (mode === 'hidden') return renderWidgetFrame('alerts', I18N.alerts, null);
+    if (!alertRows.length) return renderWidgetFrame('alerts', I18N.alerts, <div className="text-sm text-slate-500">{I18N.alertsEmpty}</div>);
     if (mode === 'cards') {
-      return renderWidgetFrame(I18N.alerts, (
+      return renderWidgetFrame('alerts', I18N.alerts, (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {alertRows.map((row) => (
             <Link key={row.key} to={row.href} className="rounded-lg border border-amber-200 bg-amber-50 p-3 transition hover:shadow-sm">
@@ -469,9 +510,9 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
       const bars: Array<{ key: string; label: string; value: number; href: string }> = [];
       if (showLowStock) bars.push({ key: 'low', label: I18N.lowStockTitle, value: lowStockItems.length, href: '/' + LOW_STOCK.entity });
       if (showExpiry) bars.push({ key: 'expiry', label: I18N.expiryTitle, value: expiryItems.length, href: '/' + EXPIRY.entity });
-      return renderWidgetFrame(I18N.alerts, renderBars(bars));
+      return renderWidgetFrame('alerts', I18N.alerts, renderBars(bars));
     }
-    return renderWidgetFrame(I18N.alerts, (
+    return renderWidgetFrame('alerts', I18N.alerts, (
       <ul className="space-y-2">
         {alertRows.map((row) => (
           <li key={row.key} className="flex items-start justify-between gap-3 rounded-lg border border-slate-100 p-2">
@@ -496,26 +537,6 @@ ${rbac ? `    [isSuperadmin, hasPermission],` : `    [],`}
         <div>
           <h1 className="text-xl font-bold text-slate-900">{greeting}</h1>
           {!loadingCounts && <p className="mt-0.5 text-sm text-slate-500">{totalRecordsLine}</p>}
-        </div>
-        <div className="rounded-xl border bg-white p-3 shadow-sm">
-          <div className="mb-2 text-sm font-semibold text-slate-900">{I18N.settings}</div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            <label className="text-xs text-slate-500">
-              {I18N.range}
-              <select value={config.range} onChange={(e) => { setSaved(false); setConfig((c) => ({ ...c, range: e.target.value as DashboardRange })); }} className="mt-1 w-full rounded-lg border bg-white px-2 py-1 text-sm text-slate-800">
-                {RANGES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
-            </label>
-            {WIDGETS.map((w) => (
-              <label key={w.key} className="text-xs text-slate-500">
-                {w.label}
-                <select value={config.widgets[w.key]} onChange={(e) => updateWidgetMode(w.key, e.target.value as WidgetMode)} className="mt-1 w-full rounded-lg border bg-white px-2 py-1 text-sm text-slate-800">
-                  {MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-                </select>
-              </label>
-            ))}
-          </div>
-          <button onClick={savePrefs} className="mt-3 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">{saved ? I18N.dashboardSaved : I18N.saveDashboard}</button>
         </div>
       </div>
 

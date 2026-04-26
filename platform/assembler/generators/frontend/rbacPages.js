@@ -21,7 +21,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasPermission: (key: string) => boolean;
 }
 
@@ -72,7 +72,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadProfile(data.token);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (state.token) {
+      try {
+        await API.post('/auth/logout', {}, {
+          headers: { Authorization: 'Bearer ' + state.token },
+        });
+      } catch {
+        // Always clear local auth state even if the server-side audit write fails.
+      }
+    }
     setToken(null);
     setState({ user: null, token: null, permissions: [], isSuperadmin: false, loading: false });
   };
@@ -286,7 +295,7 @@ export default function RequirePermission({ permission, children }: { permission
 function buildUsersAdminPageConnected({ language } = {}) {
   const t = tFor(language);
   const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  return `import { useEffect, useState, useCallback } from 'react';
+  return `import { useEffect, useState, useCallback, useRef } from 'react';
 import { API, useAuth } from '../../contexts/AuthContext';
 
 interface UserRow {
@@ -317,6 +326,7 @@ export default function UsersAdminPageConnected() {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [form, setForm] = useState({ username: '', email: '', display_name: '', password: '', is_active: true, group_ids: [] as string[] });
+  const firstInputRef = useRef<HTMLInputElement | null>(null);
 
   const load = useCallback(async () => {
     const [u, g, m] = await Promise.all([
@@ -330,6 +340,20 @@ export default function UsersAdminPageConnected() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowForm(false); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusTimer = window.setTimeout(() => { firstInputRef.current?.focus(); }, 30);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+      window.clearTimeout(focusTimer);
+    };
+  }, [showForm]);
 
   const groupMap = new Map(groups.map((g) => [g.id, g.name]));
   const userGroups = (userId: string) =>
@@ -436,72 +460,91 @@ export default function UsersAdminPageConnected() {
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="${t('rbac.searchUsers')}" className="w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500" />
 
       {showForm && (
-        <div className="rounded-xl border bg-white p-5 shadow-sm space-y-3">
-          <h3 className="font-semibold text-slate-900">{editingUser ? '${esc(t('rbac.editUser'))}' : '${esc(t('rbac.createUser'))}'}</h3>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="${t('rbac.username')}" className="rounded-lg border px-3 py-2 text-sm" />
-            <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="${t('rbac.email')}" className="rounded-lg border px-3 py-2 text-sm" />
-            <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="${t('rbac.displayName')}" className="rounded-lg border px-3 py-2 text-sm" />
-            <input type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editingUser ? '${esc(t('rbac.passwordKeep'))}' : '${esc(t('rbac.password'))}'} className="rounded-lg border px-3 py-2 text-sm" />
-          </div>
-          <div className="space-y-1">
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.is_active}
-                disabled={(isEditingSelf && form.is_active) || (isLastActiveSuperadmin && form.is_active)}
-                onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 disabled:opacity-50"
-              />
-              ${t('rbac.active')}
-            </label>
-            {isEditingSelf && form.is_active && (
-              <p className="text-xs italic text-slate-500">${esc(t('rbac.cannotDeactivateSelf'))}</p>
-            )}
-            {!isEditingSelf && isLastActiveSuperadmin && form.is_active && (
-              <p className="text-xs italic text-slate-500">${esc(t('rbac.lastSuperadmin'))}</p>
-            )}
-          </div>
-          <div>
-            <div className="mb-1 text-sm font-medium text-slate-700">${t('rbac.roles')}</div>
-            <div className="flex flex-wrap gap-2">
-              {groups.map((g) => {
-                const isSuperGroup = superadminGroupId !== null && g.id === superadminGroupId;
-                const isChecked = form.group_ids.includes(g.id);
-                const lockSelf = isEditingSelf && isSuperGroup && isChecked;
-                const lockLast = isSuperGroup && isChecked && isLastActiveSuperadmin;
-                const disabled = lockSelf || lockLast;
-                return (
-                  <label key={g.id} className="inline-flex flex-col text-sm">
-                    <span className="inline-flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        disabled={disabled}
-                        onChange={(e) => {
-                          setForm((f) => ({
-                            ...f,
-                            group_ids: e.target.checked ? [...f.group_ids, g.id] : f.group_ids.filter((id) => id !== g.id),
-                          }));
-                        }}
-                        className="h-4 w-4 rounded border-slate-300 disabled:opacity-50"
-                      />
-                      {g.name}
-                    </span>
-                    {lockSelf && (
-                      <span className="ml-5 text-[11px] italic text-slate-500">${esc(t('rbac.cannotDemoteSelf'))}</span>
-                    )}
-                    {!lockSelf && lockLast && (
-                      <span className="ml-5 text-[11px] italic text-slate-500">${esc(t('rbac.lastSuperadmin'))}</span>
-                    )}
-                  </label>
-                );
-              })}
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowForm(false); }}
+        >
+          <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <h3 className="font-semibold text-slate-900">{editingUser ? '${esc(t('rbac.editUser'))}' : '${esc(t('rbac.createUser'))}'}</h3>
+              <button
+                type="button"
+                aria-label="${esc(t('rbac.close'))}"
+                onClick={() => setShowForm(false)}
+                className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+              </button>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">${t('rbac.save')}</button>
-            <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">${t('rbac.cancel')}</button>
+            <div className="max-h-[70vh] overflow-y-auto px-5 py-4 space-y-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <input ref={firstInputRef} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="${t('rbac.username')}" className="rounded-lg border px-3 py-2 text-sm" />
+                <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="${t('rbac.email')}" className="rounded-lg border px-3 py-2 text-sm" />
+                <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="${t('rbac.displayName')}" className="rounded-lg border px-3 py-2 text-sm" />
+                <input type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editingUser ? '${esc(t('rbac.passwordKeep'))}' : '${esc(t('rbac.password'))}'} className="rounded-lg border px-3 py-2 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    disabled={(isEditingSelf && form.is_active) || (isLastActiveSuperadmin && form.is_active)}
+                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                    className="h-4 w-4 rounded border-slate-300 disabled:opacity-50"
+                  />
+                  ${t('rbac.active')}
+                </label>
+                {isEditingSelf && form.is_active && (
+                  <p className="text-xs italic text-slate-500">${esc(t('rbac.cannotDeactivateSelf'))}</p>
+                )}
+                {!isEditingSelf && isLastActiveSuperadmin && form.is_active && (
+                  <p className="text-xs italic text-slate-500">${esc(t('rbac.lastSuperadmin'))}</p>
+                )}
+              </div>
+              <div>
+                <div className="mb-1 text-sm font-medium text-slate-700">${t('rbac.roles')}</div>
+                <div className="flex flex-wrap gap-2">
+                  {groups.map((g) => {
+                    const isSuperGroup = superadminGroupId !== null && g.id === superadminGroupId;
+                    const isChecked = form.group_ids.includes(g.id);
+                    const lockSelf = isEditingSelf && isSuperGroup && isChecked;
+                    const lockLast = isSuperGroup && isChecked && isLastActiveSuperadmin;
+                    const disabled = lockSelf || lockLast;
+                    return (
+                      <label key={g.id} className="inline-flex flex-col text-sm">
+                        <span className="inline-flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={disabled}
+                            onChange={(e) => {
+                              setForm((f) => ({
+                                ...f,
+                                group_ids: e.target.checked ? [...f.group_ids, g.id] : f.group_ids.filter((id) => id !== g.id),
+                              }));
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 disabled:opacity-50"
+                          />
+                          {g.name}
+                        </span>
+                        {lockSelf && (
+                          <span className="ml-5 text-[11px] italic text-slate-500">${esc(t('rbac.cannotDemoteSelf'))}</span>
+                        )}
+                        {!lockSelf && lockLast && (
+                          <span className="ml-5 text-[11px] italic text-slate-500">${esc(t('rbac.lastSuperadmin'))}</span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+              <button onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white">${t('rbac.cancel')}</button>
+              <button onClick={handleSubmit} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">${t('rbac.save')}</button>
+            </div>
           </div>
         </div>
       )}
@@ -808,7 +851,7 @@ export default function GroupsAdminPageConnected() {
 
       {showForm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
           role="dialog"
           aria-modal="true"
           onClick={(e) => { if (e.target === e.currentTarget) setShowForm(false); }}

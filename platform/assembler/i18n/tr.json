@@ -337,8 +337,24 @@
       "user": "Kullanıcı",
       "action": "İşlem",
       "entity": "Varlık",
+      "recordId": "Kayıt ID",
       "message": "Mesaj"
     },
+    "actions": {
+      "CREATE": "Eklendi",
+      "UPDATE": "Değiştirildi",
+      "DELETE": "Silindi",
+      "LOGIN": "Giriş yaptı",
+      "LOGOUT": "Çıkış yaptı"
+    },
+    "messages": {
+      "CREATE": "{{user}}, {{entity}} {{record}} kaydını ekledi",
+      "UPDATE": "{{user}}, {{entity}} {{record}} kaydını değiştirdi",
+      "DELETE": "{{user}}, {{entity}} {{record}} kaydını sildi",
+      "LOGIN": "{{user}} giriş yaptı",
+      "LOGOUT": "{{user}} çıkış yaptı"
+    },
+    "unknownUser": "Sistem",
     "empty": "Henüz etkinlik kaydı yok."
   },
   "reportsPage": {

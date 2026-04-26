@@ -29,13 +29,14 @@ function buildEntityListPage({
 }) {
   const base = importBase || '..';
   const t = tFor(language);
+  const issueSellFallback = t('inventoryOps.issue.sell');
   const I18N = {
     subtitle: t('list.subtitle'),
     searchPlaceholder: t('list.searchPlaceholder'),
     addNew: t('list.addNew'),
     importCsv: t('list.importCsv'),
     exportCsv: t('list.exportCsv'),
-    print: 'Print / PDF',
+    print: t('list.print'),
     receive: t('inventoryOps.receive.submit'),
     adjust: t('inventoryOps.adjust.submit'),
     transfer: t('inventoryOps.transfer.submit'),
@@ -46,6 +47,8 @@ function buildEntityListPage({
     selected: t('list.selected'),
     bulkUpdate: t('list.bulkUpdate'),
     bulkDelete: t('list.bulkDelete'),
+    confirmBulkDelete: t('list.confirmBulkDelete'),
+    recordsCountSuffix: t('list.recordsCountSuffix'),
     clear: t('common.clear'),
     edit: t('list.rowActions.edit'),
     delete: t('list.rowActions.delete'),
@@ -55,13 +58,13 @@ function buildEntityListPage({
     deleteBlockedTitle: t('list.deleteBlocked.title'),
     deleteBlockedFallback: t('list.deleteBlocked.body'),
     bulkUpdateTitle: t('list.bulkUpdate'),
-    bulkUpdateInfo: 'Updating {{count}} record(s). Leave a field blank to keep it unchanged.',
+    bulkUpdateInfo: t('list.bulkUpdateInfo'),
     sortHint: t('list.sortHint'),
-    clearSorting: 'Clear sorting',
-    showingPage: 'Showing {{from}} to {{to}} of {{total}}',
-    perPage: '{{n}} / page',
-    selectAllAria: 'Select all on this page',
-    selectRowAria: 'Select {{id}}',
+    clearSorting: t('list.clearSorting'),
+    showingPage: t('list.showingPage'),
+    perPage: t('list.perPage'),
+    selectAllAria: t('list.aria.selectAll'),
+    selectRowAria: t('list.aria.selectRow'),
     deletedToast: t('list.toast.deleteSuccess'),
     deleteFailedToast: t('list.toast.deleteFailed'),
     bulkDeletedToast: t('list.toast.bulkDeleteSuccess'),
@@ -70,13 +73,13 @@ function buildEntityListPage({
     bulkUpdateFailedToast: t('list.toast.bulkUpdateFailed'),
     exportFailedToast: t('list.toast.exportFailed'),
     loadFailedToast: t('list.toast.loadFailed'),
-    csvExportedToast: 'Exported CSV',
-    cantDeleteRefBy: 'This record is referenced by other records',
-    noSelectionTitle: 'No selection',
-    noSelectionBody: 'Select records first',
-    nothingToUpdateTitle: 'Nothing to update',
-    nothingToUpdateBody: 'Fill at least one field',
-    unknownError: 'Unknown error',
+    csvExportedToast: t('list.csvExported'),
+    cantDeleteRefBy: t('list.cannotDelete'),
+    noSelectionTitle: t('list.noSelection.title'),
+    noSelectionBody: t('list.noSelection.body'),
+    nothingToUpdateTitle: t('list.nothingToUpdate.title'),
+    nothingToUpdateBody: t('list.nothingToUpdate.body'),
+    unknownError: t('list.unknownError'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
@@ -142,7 +145,7 @@ const getEntityDisplay = (entitySlug: string, row: any) => {
   return String(v ?? '');
 };
 
-const ISSUE_LABEL = '${escapeJsString(issueLabel || 'Sell')}' as const;
+const ISSUE_LABEL = '${escapeJsString(issueLabel || issueSellFallback)}' as const;
 
 const getStatusBadgeClass = (status: string) => {
   const s = status.toLowerCase().replace(/[_\s]+/g, '');
@@ -319,7 +322,7 @@ ${enableBulkActions ? `  const selectedSet = new Set(selectedIds);
 ${enableBulkDelete ? `
   const bulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm('Delete ' + selectedIds.length + ' record(s)?')) return;
+    if (!confirm(interpolate(I18N.confirmBulkDelete, { count: selectedIds.length }))) return;
     try {
       for (const id of selectedIds) {
         try {
@@ -329,16 +332,16 @@ ${enableBulkDelete ? `
           const payload = err?.response?.data;
           if (status === 409 && payload?.dependents) {
             setDeleteBlocked({
-              message: payload.error || 'Cannot delete: record is referenced by other records',
+              message: payload.error || I18N.cantDeleteRefBy,
               dependents: payload.dependents,
             });
-            toast({ title: 'Cannot delete', description: payload.error || 'This record is referenced by other records', variant: 'warning' });
+            toast({ title: I18N.deleteBlockedTitle, description: payload.error || I18N.cantDeleteRefBy, variant: 'warning' });
             return;
           }
           throw err;
         }
       }
-      toast({ title: I18N.bulkDeletedToast, description: selectedIds.length + ' record(s)', variant: 'success' });
+      toast({ title: I18N.bulkDeletedToast, description: interpolate(I18N.recordsCountSuffix, { count: selectedIds.length }), variant: 'success' });
       clearSelection();
       fetchItems();
     } catch (err: any) {

@@ -12,6 +12,26 @@ function comparePassword(plain, hash) {
   }
 }
 
+async function writeAuthAudit(action, user) {
+  try {
+    if (!user || !user.id) return;
+    const repo = getProvider();
+    await repo.create('__audit_logs', {
+      at: new Date().toISOString(),
+      action,
+      entity: '__erp_users',
+      entity_id: user.id,
+      user_id: user.id,
+      username: user.username || null,
+      user_display_name: user.display_name || user.displayName || user.username || null,
+      message: '',
+      meta: JSON.stringify({ user_id: user.id, username: user.username || null }),
+    });
+  } catch (err) {
+    console.warn('[AUTH-AUDIT] Failed to persist auth audit log:', err?.message || err);
+  }
+}
+
 router.get('/default-credentials', async (req, res) => {
   try {
     const repo = getProvider();
@@ -47,6 +67,7 @@ router.post('/login', async (req, res) => {
     }
 
     const token = signToken({ userId: user.id, username: user.username });
+    await writeAuthAudit('LOGIN', user);
 
     return res.json({
       token,
@@ -59,6 +80,21 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('[AUTH] Login error:', err.message || err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/logout', rbacLoader, async (req, res) => {
+  try {
+    if (!req.erpUser) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    const repo = getProvider();
+    const user = await repo.findById('__erp_users', req.erpUser.userId);
+    await writeAuthAudit('LOGOUT', user || { id: req.erpUser.userId, username: req.erpUser.username });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[AUTH] Logout error:', err.message || err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -126,6 +162,58 @@ router.post('/change-password', rbacLoader, async (req, res) => {
     return res.json({ message: 'Password changed successfully' });
   } catch (err) {
     console.error('[AUTH] change-password error:', err.message || err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/dashboard/preferences', rbacLoader, async (req, res) => {
+  try {
+    if (!req.erpUser) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const repo = getProvider();
+    const rows = await repo.findAll('__erp_dashboard_preferences', { user_id: req.erpUser.userId });
+    const row = rows && rows[0];
+    if (!row || !row.config) {
+      return res.json({ config: null });
+    }
+
+    try {
+      return res.json({ config: JSON.parse(String(row.config)) });
+    } catch (_) {
+      return res.json({ config: null });
+    }
+  } catch (err) {
+    console.error('[AUTH] dashboard preferences read error:', err.message || err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/dashboard/preferences', rbacLoader, async (req, res) => {
+  try {
+    if (!req.erpUser) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const config = req.body && Object.prototype.hasOwnProperty.call(req.body, 'config')
+      ? req.body.config
+      : req.body;
+    const serialized = JSON.stringify(config || {});
+    const repo = getProvider();
+    const existing = await repo.findAll('__erp_dashboard_preferences', { user_id: req.erpUser.userId });
+    let row = existing && existing[0];
+    if (row) {
+      row = await repo.update('__erp_dashboard_preferences', row.id, { config: serialized });
+    } else {
+      row = await repo.create('__erp_dashboard_preferences', {
+        user_id: req.erpUser.userId,
+        config: serialized,
+      });
+    }
+    return res.json({ config: JSON.parse(String(row.config || serialized)) });
+  } catch (err) {
+    console.error('[AUTH] dashboard preferences write error:', err.message || err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

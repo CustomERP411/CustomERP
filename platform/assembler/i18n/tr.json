@@ -19,7 +19,8 @@
     "actions": "İşlemler",
     "yes": "Evet",
     "no": "Hayır",
-    "ok": "Tamam"
+    "ok": "Tamam",
+    "unknownError": "Bilinmeyen hata"
   },
   "topbar": {
     "welcome": "Hoş geldiniz",
@@ -97,6 +98,48 @@
       "empty": "Henüz etkinlik yok.",
       "reportsHint": "Günlük özetler şu sayfada mevcut:"
     },
+    "widgets": {
+      "settings": "Panel ayarları",
+      "save": "Paneli kaydet",
+      "saved": "Panel kaydedildi",
+      "range": "Tarih aralığı",
+      "recentChanges": "Son değişiklikler",
+      "changedAreas": "Değişen alanlar",
+      "alerts": "Önemli uyarılar",
+      "recordOverview": "Kayıt özeti",
+      "showAs": "Gösterim",
+      "hidden": "Gizli",
+      "cards": "Sayı kartları",
+      "list": "Liste",
+      "bars": "Basit çubuklar",
+      "last7": "Son 7 gün",
+      "last30": "Son 30 gün",
+      "last90": "Son 90 gün",
+      "last365": "Son 365 gün",
+      "allTime": "Tüm zamanlar",
+      "noChanges": "Bu aralıkta değişiklik yok.",
+      "created": "oluşturuldu",
+      "updated": "güncellendi",
+      "deleted": "silindi",
+      "alertsEmpty": "Şu anda önemli uyarı yok.",
+      "open": "Aç"
+    },
+    "graph": {
+      "title": "Zamana göre değişim",
+      "subtitle": "Bir kayıt bölümü ve değer seçerek tarihler arasında nasıl değiştiğini görün.",
+      "entity": "Kayıt bölümü",
+      "metric": "Değer",
+      "multiplier": "Çarpan",
+      "noMultiplier": "Çarpan yok",
+      "startDate": "Başlangıç tarihi",
+      "endDate": "Bitiş tarihi",
+      "countMetric": "Kayıt sayısı",
+      "currentValue": "Güncel değer",
+      "changesInRange": "seçilen aralıktaki değişiklik",
+      "noData": "Bu seçim için değişiklik bulunamadı.",
+      "selectEntity": "Kayıt bölümü seçin",
+      "total": "toplam"
+    },
     "emptyAccess": {
       "title": "Erişilebilir modül yok",
       "body": "Henüz hiçbir modülü görüntüleme izniniz yok. Lütfen yöneticinizle iletişime geçin."
@@ -108,6 +151,26 @@
     "addNew": "+ Yeni Ekle",
     "importCsv": "CSV İçe Aktar",
     "exportCsv": "CSV Dışa Aktar",
+    "print": "Yazdır / PDF",
+    "clearSorting": "Sıralamayı temizle",
+    "showingPage": "{{total}} kayıttan {{from}}–{{to}} arası gösteriliyor",
+    "perPage": "Sayfa başına {{n}}",
+    "csvExported": "CSV dışa aktarıldı",
+    "cannotDelete": "Bu kayıt başka kayıtlar tarafından kullanılıyor",
+    "noSelection": {
+      "title": "Seçim yok",
+      "body": "Önce kayıtları seçin"
+    },
+    "nothingToUpdate": {
+      "title": "Güncellenecek bir şey yok",
+      "body": "En az bir alan doldurun"
+    },
+    "unknownError": "Bilinmeyen hata",
+    "bulkUpdateInfo": "{{count}} kayıt güncelleniyor. Değiştirmek istemediğiniz alanları boş bırakın.",
+    "aria": {
+      "selectAll": "Bu sayfadakilerin tümünü seç",
+      "selectRow": "Seç: {{id}}"
+    },
     "actionsColumn": "İşlemler",
     "empty": "Kayıt bulunamadı.",
     "loading": "Yükleniyor...",
@@ -115,6 +178,8 @@
     "selected": "{{count}} seçildi",
     "bulkUpdate": "Toplu güncelle",
     "bulkDelete": "Toplu sil",
+    "confirmBulkDelete": "{{count}} kayıt silinsin mi?",
+    "recordsCountSuffix": "{{count}} kayıt",
     "rowActions": {
       "view": "Görüntüle",
       "edit": "Düzenle",
@@ -147,6 +212,8 @@
     "titleEdit": "{{entity}} Düzenle",
     "titleCreate": "{{entity}} Oluştur",
     "subtitle": "Aşağıdaki alanları doldurun.",
+    "print": "Yazdır / PDF",
+    "add": "Ekle",
     "save": "Kaydet",
     "saving": "Kaydediliyor...",
     "cancel": "İptal",
@@ -158,27 +225,58 @@
       "addRow": "+ Satır ekle",
       "removeRow": "Kaldır",
       "empty": "Henüz satır kalemi yok.",
-      "subtotal": "Ara toplam"
+      "subtotal": "Ara toplam",
+      "help": "Bu kayda bağlı alt satırları ekleyin ve yönetin.",
+      "saveFirst": "Satır eklemek için önce bu kaydı kaydedin.",
+      "saved": "Satır kalemi güncellendi",
+      "added": "Satır kalemi eklendi",
+      "failed": "Satır kalemi kaydedilemedi",
+      "loadFailed": "Satır kalemleri yüklenemedi",
+      "confirmDelete": "Bu satır kalemini silmek istiyor musunuz?",
+      "deleteFailed": "Silinemedi"
     },
     "invoiceTotals": {
       "heading": "Toplamlar",
       "subtotal": "Ara toplam",
       "tax": "Vergi",
       "discount": "İndirim",
-      "total": "Toplam"
+      "total": "Toplam",
+      "additionalCharges": "Ek masraflar",
+      "lineEngine": "Satır bazlı hesaplama",
+      "taxRateLabel": "Vergi oranı: %{{rate}}"
     },
     "childModal": {
       "addTitle": "{{entity}} Ekle",
       "editTitle": "{{entity}} Düzenle",
       "save": "Kaydet",
-      "cancel": "İptal"
+      "cancel": "İptal",
+      "addPrefix": "Ekle",
+      "editPrefix": "Düzenle"
     },
     "toast": {
       "saveSuccess": "Kaydedildi.",
       "saveFailed": "Kaydedilemedi.",
       "deleteSuccess": "Silindi.",
       "deleteFailed": "Silinemedi.",
-      "loadFailed": "Kayıt yüklenemedi."
+      "loadFailed": "Kayıt yüklenemedi.",
+      "recordUpdated": "Kayıt güncellendi",
+      "recordCreated": "Kayıt oluşturuldu",
+      "loadFailedDesc": "Kayıt yüklenemedi"
+    }
+  },
+  "dynamicForm": {
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "selectPlaceholder": "Seç...",
+    "validation": {
+      "required": "{{field}} zorunludur",
+      "minLength": "{{field}} en az {{n}} karakter olmalıdır",
+      "maxLength": "{{field}} en fazla {{n}} karakter olmalıdır",
+      "number": "{{field}} sayı olmalıdır",
+      "min": "{{field}} en az {{n}} olmalıdır",
+      "max": "{{field}} en fazla {{n}} olmalıdır",
+      "oneOf": "{{field}} şu değerlerden biri olmalıdır: {{values}}",
+      "invalid": "{{field}} geçersiz"
     }
   },
   "importPage": {
@@ -202,7 +300,8 @@
     "issue": {
       "title": "Stok Çıkışı",
       "subtitle": "Depodan çıkan stoğu kaydedin.",
-      "submit": "Çıkış Yap",
+      "submit": "Stok Çıkışı Yap",
+      "sell": "Satış",
       "successToast": "Stok çıkışı yapıldı.",
       "failureToast": "Stok çıkışı kaydedilemedi."
     },
@@ -219,6 +318,30 @@
       "submit": "Transfer Et",
       "successToast": "Stok transfer edildi.",
       "failureToast": "Stok transfer edilemedi."
+    },
+    "fields": {
+      "item": "Ürün",
+      "location": "Konum",
+      "locationOptional": "Konum (opsiyonel)",
+      "fromLocation": "Kaynak konum",
+      "toLocation": "Hedef konum",
+      "quantity": "Miktar",
+      "quantityChange": "Miktar değişimi",
+      "movementDate": "Hareket tarihi",
+      "referenceNumber": "Referans no (opsiyonel)",
+      "note": "Not (opsiyonel)",
+      "reasonCode": "Sebep kodu"
+    },
+    "errors": {
+      "selectItem": "Bir ürün seçin",
+      "qtyPositive": "Miktar 0'dan büyük olmalıdır",
+      "qtyNonZero": "Miktar değişimi sıfırdan farklı olmalıdır",
+      "qtyChangeHint": "Artış için +, azalış için - kullanın",
+      "selectBothLocations": "İki konumu da seçin",
+      "invalidTransfer": "Geçersiz transfer",
+      "invalidTransferBody": "Kaynak ve hedef konum farklı olmalıdır",
+      "insufficientStock": "Yetersiz stok",
+      "insufficientStockBody": "Bu işlem stoğu negatife düşürür. Stoğu düzeltin veya bu işlem için negatif stoğa izin verin."
     }
   },
   "activityLog": {
@@ -230,13 +353,44 @@
       "user": "Kullanıcı",
       "action": "İşlem",
       "entity": "Varlık",
+      "recordId": "Kayıt ID",
       "message": "Mesaj"
     },
+    "actions": {
+      "CREATE": "Eklendi",
+      "UPDATE": "Değiştirildi",
+      "DELETE": "Silindi",
+      "LOGIN": "Giriş yaptı",
+      "LOGOUT": "Çıkış yaptı"
+    },
+    "messages": {
+      "CREATE": "{{user}}, {{entity}} {{record}} kaydını ekledi",
+      "UPDATE": "{{user}}, {{entity}} {{record}} kaydını değiştirdi",
+      "DELETE": "{{user}}, {{entity}} {{record}} kaydını sildi",
+      "LOGIN": "{{user}} giriş yaptı",
+      "LOGOUT": "{{user}} çıkış yaptı"
+    },
+    "unknownUser": "Sistem",
     "empty": "Henüz etkinlik kaydı yok."
   },
   "reportsPage": {
     "title": "Raporlar",
     "subtitle": "Günlük özetler ve kayıtlı raporlar.",
+    "focusEntityHint": "Anlık görüntüler bu varlığı modules.scheduled_reports.entity_snapshots içinde içermelidir.",
+    "noSnapshots": "Henüz rapor anlık görüntüsü yok. Backend başlangıçta ve zamanlanmış görevde bir tane oluşturur.",
+    "noEntitySnapshots": "Bu rapor yapılandırması varlık anlık görüntüsü içermiyor.",
+    "changesHeading": "Değişiklikler",
+    "fromTo": "{{from}} ile {{to}} arası",
+    "fieldsAvailable": "{{count}} alan mevcut",
+    "countDelta": "Sayı farkı",
+    "fieldsToCompare": "Karşılaştırılacak alanlar",
+    "noFieldsConfigured": "Bu anlık görüntü için alan yapılandırılmamış.",
+    "keepFieldsTip": "İpucu: okunabilirlik için yaklaşık 5-10 alan kullanın.",
+    "changedRecordsPreview": "Değişen kayıtlar (önizleme)",
+    "columnItem": "Kalem",
+    "columnId": "ID",
+    "showingChanged": "{{count}} değişen kayıttan 25 tanesi gösteriliyor.",
+    "changeLabel": "Değişiklik",
     "fields": {
       "from": "Başlangıç",
       "to": "Bitiş",
@@ -441,6 +595,9 @@
   "invoicePages": {
     "title": "Faturalar",
     "subtitle": "Müşteri faturalarını yönetin.",
+    "newInvoice": "Yeni Fatura",
+    "emptyAll": "Henüz fatura yok. Başlamak için ilk faturayı oluşturun.",
+    "emptyFilter": "Bu durumda fatura yok:",
     "filterAll": "Tümü",
     "filterDraft": "Taslak",
     "filterSent": "Gönderilen",
@@ -563,7 +720,15 @@
     "scope": "Kapsam",
     "scopeModule": "Modül",
     "scopeGlobal": "Global",
-    "usedByGroups": "Kullanan roller"
+    "usedByGroups": "Kullanan roller",
+    "seedSuperadminDescription": "Tüm alanlara ve işlemlere tam erişim",
+    "seedAdminDescription": "Kurulumdan sonra ERP'yi yönetebilir",
+    "seedModuleAdminGroupSuffix": "Yöneticisi",
+    "seedModuleAdminDescription": "{{module}} alanını yönetebilir",
+    "seedPermissionDescription": "{{entity}} kayıtlarında {{action}} işlemi yapabilir",
+    "seedCustomPermissionDescription": "Özel izin: {{key}}",
+    "permissionGroupToggle": "{{entity}}: {{actions}}",
+    "permissionUnknownEntity": "Diğer izinler"
   },
   "rbacForbidden": {
     "loading": "Yükleniyor...",
@@ -582,8 +747,24 @@
     "linkedUser": "Bağlı kullanıcı",
     "linkedUserAlready": "Bu çalışanın zaten bağlı bir kullanıcı hesabı var.",
     "openInUsers": "Kullanıcılar sayfasında aç",
-    "usernameRequired": "Kullanıcı adı gereklidir",
-    "passwordTooShort": "Şifre en az 4 karakter olmalı"
+    "usernameRequired": "Kullanıcı adı zorunludur",
+    "passwordTooShort": "Şifre çok kısa",
+    "passwordTooShortDesc": "Şifre en az 4 karakter olmalıdır",
+    "createdWithLogin": "Çalışan ve giriş hesabı oluşturuldu",
+    "loginCreated": "Giriş hesabı oluşturuldu",
+    "linkedUserCreated": "Bağlı kullanıcı hesabı oluşturuldu",
+    "linkUserFailed": "Kullanıcı bağlama başarısız"
+  },
+  "workflowMessages": {
+    "statusChangeConfirm": "Durum {{status}} olarak değiştirilsin mi?",
+    "statusUpdated": "Durum güncellendi",
+    "statusChanged": "Durum {{status}} olarak değiştirildi",
+    "statusUpdateFailed": "Durum güncellenemedi",
+    "approveConfirm": "Bu talep onaylansın mı?",
+    "rejectConfirm": "Bu talep reddedilsin mi?",
+    "requestApproved": "Talep onaylandı",
+    "requestRejected": "Talep reddedildi",
+    "operationFailed": "İşlem başarısız"
   },
   "stockAvailability": {
     "title": "Stok Durumu",

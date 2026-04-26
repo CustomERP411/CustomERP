@@ -10,6 +10,27 @@ const SDF = require('../models/SDF');
 const ProjectConversation = require('../models/ProjectConversation');
 const { parseModulesInput } = require('./projectHelpers');
 
+function shouldHaltForAnswerReview(sdf) {
+  const review = sdf && typeof sdf === 'object' ? sdf.answer_review : null;
+  if (!review || typeof review !== 'object') return false;
+  if (sdf.halted_reason === 'answer_review') return true;
+
+  const issues = Array.isArray(review.issues) ? review.issues : [];
+  const hasBlocking = issues.some((issue) => issue && issue.severity === 'block');
+  const hasUnacknowledgedUnsupported = issues.some(
+    (issue) => issue && issue.kind === 'unsupported_feature' && issue.severity === 'acknowledgeable'
+  );
+
+  return review.is_clear_to_proceed === false || hasBlocking || hasUnacknowledgedUnsupported;
+}
+
+function normalizeAcknowledgedFeatures(body) {
+  const raw = body?.acknowledged_unsupported_features || body?.acknowledgedUnsupportedFeatures || [];
+  return Array.isArray(raw)
+    ? raw.filter((f) => typeof f === 'string' && f.trim()).map((f) => f.trim())
+    : [];
+}
+
 exports.analyzeProject = async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -105,7 +126,7 @@ exports.analyzeProject = async (req, res) => {
     // version, do NOT persist clarifications, do NOT record feature requests
     // for issues the user hasn't acknowledged yet. Just return the review so
     // the frontend can surface feedback.
-    if (sdf?.halted_reason === 'answer_review' && sdf?.answer_review) {
+    if (shouldHaltForAnswerReview(sdf)) {
       if (conversation?.id) {
         await ProjectConversation.updateAnswerReview(conversation.id, sdf.answer_review)
           .catch((err) => logger.error('Failed to persist answer_review on conversation:', err));
@@ -318,6 +339,7 @@ exports.chatWithProject = async (req, res) => {
 };
 
 exports.regenerateProject = async (req, res) => {
+  let statusBeforeRegenerate = null;
   try {
     const userId = req.user.userId;
     const projectId = req.params.id;
@@ -327,11 +349,29 @@ exports.regenerateProject = async (req, res) => {
     }
 
     const project = await projectService.getProject(projectId, userId);
+    statusBeforeRegenerate = project.status || null;
     const latestSdfRow = await SDF.findLatestByProject(project.id);
     if (!latestSdfRow?.sdf_json) {
       return res.status(400).json({ error: 'No existing SDF found for this project. Generate one first.' });
     }
     const existingSdf = typeof latestSdfRow.sdf_json === 'string' ? JSON.parse(latestSdfRow.sdf_json) : latestSdfRow.sdf_json;
+    const acknowledgedUnsupportedFeatures = normalizeAcknowledgedFeatures(req.body);
+
+    const changeReview = await aiGatewayClient.editSdf({
+      businessDescription: project.description || '',
+      currentSdf: existingSdf,
+      instructions: changeInstructions.trim(),
+      language: project.language,
+      acknowledgedUnsupportedFeatures,
+      reviewOnly: true,
+    });
+    if (changeReview?.status === 'change_review_required') {
+      return res.json({
+        status: 'change_review_required',
+        project,
+        answer_review: changeReview.answer_review,
+      });
+    }
 
     const requestedModules = parseModulesInput(Object.keys(existingSdf?.modules || {}));
     const questionnaireState = await moduleQuestionnaireService.getQuestionnaireState({
@@ -374,6 +414,13 @@ exports.regenerateProject = async (req, res) => {
         userPrompt: changeInstructions.trim(),
       }).catch((e) => logger.warn('Failed to record regeneration unsupported features:', e.message));
     }
+    if (acknowledgedUnsupportedFeatures.length > 0) {
+      featureRequestService.recordFeatures({
+        userId, projectId, source: 'sdf_regeneration_request',
+        features: acknowledgedUnsupportedFeatures,
+        userPrompt: changeInstructions.trim(),
+      }).catch((e) => logger.warn('Failed to record acknowledged regeneration features:', e.message));
+    }
 
     const nextStatus = persistedQuestions.length ? 'Clarifying' : 'Ready';
     const updatedProject = await projectService.updateProject(projectId, userId, { status: nextStatus });
@@ -388,6 +435,10 @@ exports.regenerateProject = async (req, res) => {
       cycle: currentCycle,
     });
   } catch (err) {
+    if (statusBeforeRegenerate && req.params?.id && req.user?.userId) {
+      projectService.updateProject(req.params.id, req.user.userId, { status: statusBeforeRegenerate })
+        .catch((e) => logger.warn('Failed to restore project status after regeneration error:', e.message));
+    }
     logger.error('Regenerate project error:', err);
     const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;
     res.status(status).json({ error: err.message || 'Internal server error' });

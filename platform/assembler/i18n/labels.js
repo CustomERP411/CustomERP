@@ -18,7 +18,9 @@ const DEFAULT_LANGUAGE = 'en';
 
 function normalizeLanguage(language) {
   const raw = String(language || '').toLowerCase().trim();
-  return SUPPORTED_LANGUAGES.includes(raw) ? raw : DEFAULT_LANGUAGE;
+  if (SUPPORTED_LANGUAGES.includes(raw)) return raw;
+  const prefix = raw.split('-')[0];
+  return SUPPORTED_LANGUAGES.includes(prefix) ? prefix : DEFAULT_LANGUAGE;
 }
 
 function lookup(dict, keyPath) {

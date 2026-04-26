@@ -21,13 +21,18 @@ class {{EntityName}}Controller {
     return error.statusCode || error.status || fallback;
   }
 
+  _requestContext(req) {
+    return { user: req.erpUser || null };
+  }
+
   async runAction(req, res, methodName, ...args) {
     try {
       const method = this.service && this.service[methodName];
       if (typeof method !== 'function') {
         return res.status(404).json({ error: `Action '${methodName}' is not available` });
       }
-      const result = await method.apply(this.service, args);
+      this.service.__requestContext = this._requestContext(req);
+      const result = await method.apply(this.service, [...args, this._requestContext(req)]);
       if (result === undefined) {
         return res.status(204).send();
       }
@@ -35,6 +40,8 @@ class {{EntityName}}Controller {
     } catch (error) {
       const status = this._resolveStatus(error, 400);
       return res.status(status).json(this._errorPayload(error));
+    } finally {
+      if (this.service) this.service.__requestContext = null;
     }
   }
 
@@ -59,7 +66,7 @@ class {{EntityName}}Controller {
 
   async create(req, res) {
     try {
-      const item = await this.service.create(req.body);
+      const item = await this.service.create(req.body, this._requestContext(req));
       res.status(201).json(item);
     } catch (error) {
       const status = this._resolveStatus(error, 400);
@@ -69,7 +76,7 @@ class {{EntityName}}Controller {
 
   async update(req, res) {
     try {
-      const item = await this.service.update(req.params.id, req.body);
+      const item = await this.service.update(req.params.id, req.body, this._requestContext(req));
       if (!item) return res.status(404).json({ error: 'Not found' });
       res.json(item);
     } catch (error) {
@@ -80,7 +87,7 @@ class {{EntityName}}Controller {
 
   async delete(req, res) {
     try {
-      const result = await this.service.delete(req.params.id);
+      const result = await this.service.delete(req.params.id, this._requestContext(req));
       if (!result) return res.status(404).json({ error: 'Not found' });
       res.status(204).send();
     } catch (error) {

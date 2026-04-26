@@ -10,6 +10,8 @@ interface Props {
   answers: Record<string, string>;
   /** True while the analyze re-submit is in flight (after Acknowledge & generate). */
   running: boolean;
+  variant?: 'business_answers' | 'change_request';
+  requestText?: string;
   /**
    * Edit a specific question. The page should close the modal and jump the
    * stepper to the offending question.
@@ -31,7 +33,7 @@ interface QuestionGroup {
 }
 
 export default function ReviewFeedbackModal({
-  review, answers, running, onEditQuestion, onAcknowledgeAndContinue, onClose,
+  review, answers, running, variant = 'business_answers', requestText = '', onEditQuestion, onAcknowledgeAndContinue, onClose,
 }: Props) {
   const { t } = useTranslation('projectDetail');
   const businessQuestions = useBusinessQuestions();
@@ -47,8 +49,8 @@ export default function ReviewFeedbackModal({
     const byQid = new Map<string, QuestionGroup>();
     const general: QuestionGroup = {
       questionId: null,
-      questionText: t('answerReview.generalGroup'),
-      answer: '',
+      questionText: variant === 'change_request' ? t('changeReview.requestLabel') : t('answerReview.generalGroup'),
+      answer: variant === 'change_request' ? requestText : '',
       issues: [],
     };
     for (const issue of review.issues) {
@@ -81,7 +83,7 @@ export default function ReviewFeedbackModal({
     }
     for (const g of byQid.values()) ordered.push(g);
     return ordered;
-  }, [review.issues, answers, questionTextById, businessQuestions, t]);
+  }, [review.issues, answers, questionTextById, businessQuestions, t, variant, requestText]);
 
   const blockingIssues = useMemo(
     () => review.issues.filter((i) => i.severity === 'block'),
@@ -147,14 +149,14 @@ export default function ReviewFeedbackModal({
           </div>
           <h3 className="text-base font-semibold text-app-text">
             {blockingIssues.length
-              ? t('answerReview.titleBlocking')
-              : t('answerReview.titleAcknowledge')}
+              ? (variant === 'change_request' ? t('changeReview.titleBlocking') : t('answerReview.titleBlocking'))
+              : (variant === 'change_request' ? t('changeReview.titleAcknowledge') : t('answerReview.titleAcknowledge'))}
           </h3>
           <p className="mt-1 text-sm text-app-text-muted">
             {review.summary || (
               blockingIssues.length
-                ? t('answerReview.subtitleBlocking')
-                : t('answerReview.subtitleAcknowledge')
+                ? (variant === 'change_request' ? t('changeReview.subtitleBlocking') : t('answerReview.subtitleBlocking'))
+                : (variant === 'change_request' ? t('changeReview.subtitleAcknowledge') : t('answerReview.subtitleAcknowledge'))
             )}
           </p>
         </div>
@@ -188,9 +190,10 @@ export default function ReviewFeedbackModal({
                 )}
               </div>
 
-              {g.questionId && (
+              {(g.questionId || (variant === 'change_request' && g.answer)) && (
                 <div className="text-xs text-app-text-subtle">
-                  <span className="font-semibold">{t('answerReview.yourAnswer')}: </span>
+                  <span className="font-semibold">
+                    {variant === 'change_request' ? t('changeReview.yourRequest') : t('answerReview.yourAnswer')}: </span>
                   <span className="italic">
                     {g.answer.trim() || t('answerReview.noAnswer')}
                   </span>
@@ -225,7 +228,7 @@ export default function ReviewFeedbackModal({
             disabled={running}
             className="rounded-lg border border-app-border bg-app-surface px-5 py-2 text-sm font-semibold text-app-text hover:bg-app-surface-hover disabled:opacity-50"
           >
-            {t('answerReview.editAnswers')}
+            {variant === 'change_request' ? t('changeReview.editRequest') : t('answerReview.editAnswers')}
           </button>
           {blockingIssues.length === 0 && unsupportedFeatures.length > 0 && (
             <button
@@ -240,7 +243,7 @@ export default function ReviewFeedbackModal({
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               )}
-              {t('answerReview.acknowledgeAndGenerate')}
+              {variant === 'change_request' ? t('changeReview.acknowledgeAndApply') : t('answerReview.acknowledgeAndGenerate')}
             </button>
           )}
           {blockingIssues.length > 0 && (

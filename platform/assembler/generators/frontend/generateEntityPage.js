@@ -20,6 +20,8 @@ const {
 const { buildReservationsPage, buildGrnPostingPage, buildCycleWorkflowPage } = require('./inventoryPriorityPages');
 const { buildInvoiceWorkflowPage, buildInvoicePaymentsPage, buildInvoiceNotesPage, buildPaymentWorkflowPage, buildNoteWorkflowPage } = require('./invoicePriorityPages');
 const { buildLeaveApprovalsPage, buildLeaveBalancesPage, buildAttendanceEntriesPage } = require('./hrPriorityPages');
+const { tFor } = require('../../i18n/labels');
+const { pickTrEntityDisplayName } = require('../../i18n/glossaryI18n');
 
 module.exports = {
   async generateEntityPage(outputDir, entity, allEntities, sdf = {}) {
@@ -60,6 +62,7 @@ module.exports = {
 
     const entityName = this._capitalize(entity.slug);
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
+    const t = tFor(this._language || 'en');
 
     const fieldDefs = this._generateFieldDefinitions(fields, entity.features || {}, allEntities);
 
@@ -87,7 +90,7 @@ module.exports = {
       issueCfg.display_name ||
       issueCfg.displayName ||
       issueCfg.name ||
-      'Sell';
+      t('inventoryOps.issue.sell');
     const quickCfg = inv.quick_actions || inv.quickActions || {};
     const quickAll = quickCfg === true;
     const enableQuickReceive =
@@ -173,7 +176,7 @@ module.exports = {
     const tableColumns = finalColumns
       .map((colName) => {
         const defField = fields.find((f) => f && f.name === colName);
-        const label = this._escapeJsString(defField && defField.label ? String(defField.label) : this._formatLabel(colName));
+        const label = this._resolveColumnLabel(colName, defField);
         return `    { key: '${colName}', label: '${label}' },`;
       })
       .join('\n');
@@ -276,7 +279,7 @@ module.exports = {
 
         const columnDefs = cols.map((colName) => {
           const defField = childFields.find((f) => f && f.name === colName);
-          const label = this._escapeJsString(defField && defField.label ? String(defField.label) : this._formatLabel(colName));
+          const label = this._resolveColumnLabel(colName, defField);
           const rawOptions = defField ? (defField.options ?? defField.enum ?? defField.allowed_values ?? defField.allowedValues) : null;
           const options = Array.isArray(rawOptions) ? rawOptions.map((x) => String(x)).map((s) => s.trim()).filter(Boolean) : null;
           const isReference = defField && (defField.type === 'reference' || String(defField.name || '').endsWith('_id') || String(defField.name || '').endsWith('_ids'));
@@ -310,10 +313,19 @@ module.exports = {
           allEntities
         );
 
+        const childSectionLabel = (() => {
+          if (ch.label) return String(ch.label);
+          if (this._language === 'tr') {
+            const picked = pickTrEntityDisplayName(childSlug, childEntity.display_name);
+            if (picked) return picked;
+          }
+          return String(childEntity.display_name || this._formatLabel(childSlug));
+        })();
+
         childSections.push({
           childSlug,
           foreignKey,
-          label: String(ch.label || childEntity.display_name || this._formatLabel(childSlug)),
+          label: childSectionLabel,
           columns: columnDefs,
           formFields: childFormFields,
         });

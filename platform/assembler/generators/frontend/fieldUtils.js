@@ -1,14 +1,55 @@
 // Field definitions and utility methods (split from FrontendGenerator)
 const path = require('path');
+const fs = require('fs').promises;
 const { tFor } = require('../../i18n/labels');
+const { pickTrFieldLabel } = require('../../i18n/glossaryI18n');
+const { resolveEffectiveRequired } = require('../shared/fieldRequired');
 
 module.exports = {
   async generateDynamicForm(outputDir) {
-    // Prefer frontend-bricks template (keeps generator modular).
-    await this.brickRepo.copyFile(
-      'frontend-bricks/components/DynamicForm.tsx',
-      path.join(outputDir, 'src/components/DynamicForm.tsx')
-    );
+    const t = tFor(this._language || 'en');
+    const labels = {
+      cancel: t('dynamicForm.cancel'),
+      save: t('dynamicForm.save'),
+      selectPlaceholder: t('dynamicForm.selectPlaceholder'),
+      validation: {
+        required: t('dynamicForm.validation.required'),
+        minLength: t('dynamicForm.validation.minLength'),
+        maxLength: t('dynamicForm.validation.maxLength'),
+        number: t('dynamicForm.validation.number'),
+        min: t('dynamicForm.validation.min'),
+        max: t('dynamicForm.validation.max'),
+        oneOf: t('dynamicForm.validation.oneOf'),
+        invalid: t('dynamicForm.validation.invalid'),
+      },
+    };
+    const template = await this.brickRepo.getTemplate('DynamicForm.tsx');
+    const content = template.replace('__DYNAMIC_FORM_I18N__', `${JSON.stringify(labels, null, 2)} as const`);
+    const dest = path.join(outputDir, 'src/components/DynamicForm.tsx');
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    await fs.writeFile(dest, content);
+  },
+
+  _resolveFieldLabelForForm(field) {
+    const auto = this._formatLabel(field.name);
+    const fromSdf = field.label != null && field.label !== '' ? String(field.label) : null;
+    let text = fromSdf != null && fromSdf !== '' ? fromSdf : auto;
+    if (this._language === 'tr') {
+      const tr = pickTrFieldLabel(field.name, fromSdf);
+      if (tr) text = tr;
+    }
+    return this._escapeJsString(text);
+  },
+
+  _resolveColumnLabel(colName, defField) {
+    const auto = this._formatLabel(colName);
+    const fromSdf = defField && defField.label != null && defField.label !== '' ? String(defField.label) : null;
+    let text = fromSdf != null && fromSdf !== '' ? fromSdf : auto;
+    if (this._language === 'tr') {
+      const tr = pickTrFieldLabel(colName, fromSdf);
+      if (tr) text = tr;
+    }
+    return this._escapeJsString(text);
   },
 
   _generateFieldDefinitions(fields, features, allEntities) {
@@ -52,7 +93,8 @@ module.exports = {
         // Fast tap-friendly UX for small enums, dropdown for larger.
         widget = options.length <= 4 ? 'RadioGroup' : 'Select';
       }
-      const label = this._escapeJsString(field.label ? String(field.label) : this._formatLabel(field.name));
+      const label = this._resolveFieldLabelForForm(field);
+      const required = resolveEffectiveRequired(field);
 
       const extraParts = [];
 
@@ -101,7 +143,7 @@ module.exports = {
       }
 
       const extraProps = extraParts.length ? `, ${extraParts.join(', ')}` : '';
-      defs.push(`  { name: '${field.name}', label: '${label}', type: '${field.type}', widget: '${widget}', required: ${field.required || false}${extraProps} },`);
+      defs.push(`  { name: '${field.name}', label: '${label}', type: '${field.type}', widget: '${widget}', required: ${required}${extraProps} },`);
     }
 
     const t = tFor(this._language || 'en');

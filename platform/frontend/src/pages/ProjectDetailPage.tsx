@@ -27,6 +27,14 @@ import GenerationModal from '../components/project/GenerationModal';
 import { useChatContext } from '../context/ChatContext';
 import { normalizeLanguage } from '../i18n';
 
+const SDF_VISIBLE_STATUSES = new Set<Project['status']>(['Ready', 'Generated', 'Approved', 'Clarifying']);
+const SDF_FINAL_STATUSES = new Set<Project['status']>(['Ready', 'Generated', 'Approved']);
+
+type PendingChangeReview = {
+  source: 'ai_edit' | 'review_revision';
+  instructions: string;
+};
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
@@ -70,6 +78,8 @@ export default function ProjectDetailPage() {
   const [genProgress, setGenProgress] = useState<{ step: string; pct: number; detail: string } | null>(null);
   const [bizSkipWarningOpen, setBizSkipWarningOpen] = useState(false);
   const [answerReview, setAnswerReview] = useState<AnswerReview | null>(null);
+  const [changeReview, setChangeReview] = useState<AnswerReview | null>(null);
+  const [pendingChangeReview, setPendingChangeReview] = useState<PendingChangeReview | null>(null);
   const [, setAcknowledgedFeatures] = useState<string[]>([]);
 
   const { setProjectContext, openChat, sendMessage, setPulsing } = useChatContext();
@@ -258,6 +268,15 @@ export default function ProjectDetailPage() {
         );
         const modulesFromConversation = normalizeModuleList(conversationWithModules?.selected_modules);
         const businessAnswersFromConversation = normalizeBusinessAnswerMap(conversationWithBusinessAnswers?.business_answers);
+        // If the project halted at the answer reviewer, restore the newest
+        // persisted review payload so the user is brought back into the same
+        // modal they saw before. Do not assume conversations[0] has it: a
+        // later non-review row can exist after other actions.
+        const latestReviewConversation = conversations.find((entry) => entry?.answer_review);
+        const pendingReview = (latestReviewConversation?.answer_review ?? null) as AnswerReview | null;
+        const pendingAcked = Array.isArray(latestReviewConversation?.acknowledged_unsupported_features)
+          ? (latestReviewConversation!.acknowledged_unsupported_features as string[])
+          : [];
         const modulesFromLatestSdf = (() => {
           const moduleConfig = (latest?.sdf as any)?.modules;
           if (!moduleConfig || typeof moduleConfig !== 'object') return [];
@@ -294,20 +313,46 @@ export default function ProjectDetailPage() {
             if (!isNaN(idx) && idx >= 0 && idx < BUSINESS_QUESTIONS.length) setBusinessStep(idx);
           }
         } catch { /* ignore */ }
-        // Always restore the SDF if one exists on the server, unless the
-        // project is stuck mid-generation (Analyzing). The server SDF is the
-        // source of truth -- we should never hide it because local business
-        // answers are missing from localStorage.
-        const generationFailed = p.status === 'Analyzing';
-        if (latest?.sdf && !generationFailed) {
+        // Only restore SDFs in lifecycle states where an ERP has actually been
+        // generated or is being clarified. Module-question prefill can exist
+        // without the user pressing Generate, so a raw latest SDF row is not
+        // enough to show the post-generation panel.
+        const shouldRestoreSdf = SDF_VISIBLE_STATUSES.has(p.status);
+        if (latest?.sdf && shouldRestoreSdf) {
           setSdf(latest.sdf);
           setSdfVersion(typeof latest.sdf_version === 'number' ? latest.sdf_version : null);
           setQuestions(filterQuestions(Array.isArray(latest.sdf.clarifications_needed) ? latest.sdf.clarifications_needed : []));
+        } else {
+          setSdf(null);
+          setSdfVersion(null);
+          setQuestions([]);
+          setAnswersById({});
+          setSdfComplete(false);
+          setDraftJson('');
         }
+        // Project halted at the pre-distributor answer reviewer on the last
+        // build attempt. Re-open the feedback modal so the user is told what
+        // to fix instead of seeing a silent "Reviewing" badge with no UI.
+        if (!cancelled && p.status === 'Reviewing' && pendingReview) {
+          setAnswerReview(pendingReview);
+          setAcknowledgedFeatures(pendingAcked);
+          // Pre-position the wizard on the first offending business question
+          // so "Edit answers" lands directly there. currentStep is derived from
+          // selectedModules / defaultCompletion / businessComplete / sdf — with
+          // no sdf and complete answers it lands on the Review step (3); the
+          // modal sits on top of that, and dismissing routes back via
+          // handleReviewEditAnswers / business questions step.
+          const firstWithIssue = (pendingReview.issues || []).find((i) => i.question_id);
+          if (firstWithIssue?.question_id) {
+            const idx = BUSINESS_QUESTION_IDS.findIndex((q) => q.id === firstWithIssue.question_id);
+            if (idx >= 0) setBusinessStep(idx);
+          }
+        }
+
         const serverHistory = await projectService.getReviewHistory(projectId).catch(() => ({ history: [] }));
         if (!cancelled && serverHistory.history.length > 0) {
           setReviewHistory(serverHistory.history);
-        } else if (!cancelled && latest?.sdf && !generationFailed) {
+        } else if (!cancelled && latest?.sdf && shouldRestoreSdf) {
           setReviewHistory([{
             id: `baseline-${latest.sdf_version || 0}`,
             action: 'generated',
@@ -441,14 +486,15 @@ export default function ProjectDetailPage() {
     [selectedModules.length, defaultQuestions.length, defaultAnswersDirty],
   );
   const canSubmitAnswers = useMemo(() => !!sdf && questions.length > 0 && questions.every((q) => (answersById[q.id] || '').trim().length > 0), [sdf, questions, answersById]);
+  const canShowPostGeneration = !!sdf && !!project && SDF_FINAL_STATUSES.has(project.status);
 
   const currentStep = useMemo(() => {
-    if (sdf) return 4;
+    if (canShowPostGeneration) return 4;
     if (!selectedModules.length) return 0;
     if (!defaultCompletion?.is_complete) return 1;
     if (!businessComplete) return 2;
     return 3;
-  }, [selectedModules, defaultCompletion, businessComplete, sdf]);
+  }, [selectedModules, defaultCompletion, businessComplete, canShowPostGeneration]);
 
   // Scroll to the user's progress point on initial page load.
   // If modules were loaded from saved state, wait for question data (defaultCompletion)
@@ -565,9 +611,10 @@ export default function ProjectDetailPage() {
         answers: defaultQuestions.map((q) => ({ question_id: q.id, answer: defaultAnswersById[q.id] ?? (q.type === 'multi_choice' ? [] : '') })),
       });
       applyDefaultQuestionState(payload);
+      if (payload.project) setProject(payload.project);
       // Clear stale SDF so the user must complete business questions before
       // the post-generation panel re-appears.
-      if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); }
+      if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); setDraftJson(''); }
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.saveAnswersFailed')); }
     finally { setSavingDefaultAnswers(false); }
   };
@@ -711,6 +758,12 @@ export default function ProjectDetailPage() {
       // Pre-distributor answer review halted the pipeline. Show the feedback
       // modal and stop — there is no SDF or clarification flow to advance yet.
       if (res.status === 'answer_review_required' && res.answer_review) {
+        setSdf(null);
+        setSdfVersion(null);
+        setQuestions([]);
+        setAnswersById({});
+        setSdfComplete(false);
+        setDraftJson('');
         setAnswerReview(res.answer_review);
         clearGeneratingFlag();
         // Hide the generation progress UI; the review modal takes over.
@@ -761,16 +814,40 @@ export default function ProjectDetailPage() {
   const handleReviewEditAnswers = (questionId?: string | null) => {
     setAnswerReview(null);
     setAcknowledgedFeatures([]);
-    if (!questionId) return;
+    if (!questionId) {
+      setBusinessStep(0);
+      setTimeout(() => stepRefs[2]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      return;
+    }
     const idx = BUSINESS_QUESTION_IDS.findIndex((q) => q.id === questionId);
     if (idx < 0) return;
     setBusinessStep(idx);
+    setTimeout(() => stepRefs[2]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const handleReviewAcknowledge = async (acknowledged: string[]) => {
     setAcknowledgedFeatures(acknowledged);
     setAnswerReview(null);
     await analyze({ acknowledgedFeatures: acknowledged });
+  };
+
+  const handleChangeReviewEdit = () => {
+    if (pendingChangeReview?.source === 'ai_edit') {
+      setAiEditText(pendingChangeReview.instructions);
+    }
+    setChangeReview(null);
+    setPendingChangeReview(null);
+  };
+
+  const handleChangeReviewAcknowledge = async (acknowledged: string[]) => {
+    if (!pendingChangeReview) return;
+    setChangeReview(null);
+    const pending = pendingChangeReview;
+    if (pending.source === 'ai_edit') {
+      await applyAiEdit(acknowledged);
+    } else {
+      await requestRevisionFromReview(pending.instructions, acknowledged);
+    }
   };
 
   const submitModalAnswers = async () => {
@@ -840,11 +917,22 @@ export default function ProjectDetailPage() {
     finally { setSaving(false); }
   };
 
-  const applyAiEdit = async () => {
-    if (!projectId || !aiEditText.trim()) return;
+  const applyAiEdit = async (acknowledgedUnsupportedFeatures?: string[]) => {
+    const instructions = pendingChangeReview?.source === 'ai_edit'
+      ? pendingChangeReview.instructions
+      : aiEditText.trim();
+    if (!projectId || !instructions.trim()) return;
     setSaving(true); setError('');
     try {
-      const res = await projectService.aiEditSdf(projectId, aiEditText.trim(), sdf || undefined);
+      const res = await projectService.aiEditSdf(projectId, instructions.trim(), sdf || undefined, acknowledgedUnsupportedFeatures);
+      if (res.status === 'change_review_required' && res.answer_review) {
+        setChangeReview(res.answer_review);
+        setPendingChangeReview({ source: 'ai_edit', instructions: instructions.trim() });
+        setProject(res.project);
+        return;
+      }
+      setChangeReview(null);
+      setPendingChangeReview(null);
       setProject(res.project); setSdf(res.sdf ?? null); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setAiEditText('');
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
       appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.aiRevision') });
@@ -874,14 +962,24 @@ export default function ProjectDetailPage() {
     finally { setReviewActionRunning(false); }
   };
 
-  const requestRevisionFromReview = async (instructions: string) => {
+  const requestRevisionFromReview = async (instructions: string, acknowledgedUnsupportedFeatures?: string[]) => {
     if (!projectId || !instructions.trim()) return;
     setReviewActionRunning(true); setError('');
     try {
-      const res = await projectService.requestRevision(projectId, instructions.trim());
-      setProject(res.project); setSdf(res.sdf); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
+      const res = await projectService.requestRevision(projectId, instructions.trim(), undefined, acknowledgedUnsupportedFeatures);
+      if (res.status === 'change_review_required' && res.answer_review) {
+        setChangeReview(res.answer_review);
+        setPendingChangeReview({ source: 'review_revision', instructions: instructions.trim() });
+        setProject(res.project);
+        return;
+      }
+      setChangeReview(null);
+      setPendingChangeReview(null);
+      setProject(res.project); setSdf(res.sdf ?? null); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
-      appendReviewHistory({ action: 'revision_requested', version: res.approval.sdf_version, status: null, note: instructions.trim() });
+      if (res.approval) {
+        appendReviewHistory({ action: 'revision_requested', version: res.approval.sdf_version, status: null, note: instructions.trim() });
+      }
       appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.aiRevisionFromReview') });
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.revisionFailed')); }
     finally { setReviewActionRunning(false); }
@@ -966,7 +1064,7 @@ export default function ProjectDetailPage() {
 
       <div className={languageBlocked ? 'pointer-events-none select-none opacity-[0.55]' : ''}>
       {/* Step Progress Bar — hidden after generation */}
-      {!sdf && (
+      {!canShowPostGeneration && (
         <div className="-mx-2 overflow-x-auto px-2 sm:mx-0 sm:px-0">
           <nav className="flex items-center gap-1 min-w-max sm:min-w-0">
             {STEPS.map((label, i) => {
@@ -1040,8 +1138,8 @@ export default function ProjectDetailPage() {
 
       {/* Step 4: Post-generation (Download & Run) */}
       <div ref={stepRefs[4]} className="scroll-mt-6">
-        <SlideIn show={!!sdf} className="space-y-8">
-          {sdf && (
+        <SlideIn show={canShowPostGeneration} className="space-y-8">
+          {canShowPostGeneration && sdf && (
             <PostGenerationPanel
             sdf={sdf} preview={preview}
             projectStatus={project.status} sdfVersion={sdfVersion} reviewHistory={reviewHistory} running={running}
@@ -1084,6 +1182,19 @@ export default function ProjectDetailPage() {
           onEditQuestion={handleReviewEditAnswers}
           onAcknowledgeAndContinue={(features) => { void handleReviewAcknowledge(features); }}
           onClose={() => setAnswerReview(null)}
+        />
+      )}
+
+      {changeReview && pendingChangeReview && (
+        <ReviewFeedbackModal
+          review={changeReview}
+          answers={{}}
+          running={saving || reviewActionRunning}
+          variant="change_request"
+          requestText={pendingChangeReview.instructions}
+          onEditQuestion={handleChangeReviewEdit}
+          onAcknowledgeAndContinue={(features) => { void handleChangeReviewAcknowledge(features); }}
+          onClose={() => { setChangeReview(null); setPendingChangeReview(null); }}
         />
       )}
     </div>

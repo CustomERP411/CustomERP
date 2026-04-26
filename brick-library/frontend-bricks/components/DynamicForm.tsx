@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { ENTITIES } from '../config/entities';
 
+const I18N = __DYNAMIC_FORM_I18N__;
+
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(
   ENTITIES.map((e) => [e.slug, e.displayField])
 ) as Record<string, string>;
@@ -77,35 +79,35 @@ export default function DynamicForm({ fields, initialData = {}, onSubmit, onCanc
   };
 
   const validateField = (field: FieldDefinition, value: any): string | null => {
-    if (field.required && isEmpty(field, value)) return field.label + ' is required';
+    if (field.required && isEmpty(field, value)) return I18N.validation.required.replace('{{field}}', field.label);
     if (value === undefined || value === null || String(value).trim() === '') return null;
 
     const str = String(value);
     if (typeof field.minLength === 'number' && str.length < field.minLength)
-      return field.label + ' must be at least ' + field.minLength + ' characters';
+      return I18N.validation.minLength.replace('{{field}}', field.label).replace('{{n}}', String(field.minLength));
     if (typeof field.maxLength === 'number' && str.length > field.maxLength)
-      return field.label + ' must be at most ' + field.maxLength + ' characters';
+      return I18N.validation.maxLength.replace('{{field}}', field.label).replace('{{n}}', String(field.maxLength));
 
     const isNumericType = ['integer', 'decimal', 'number'].includes(field.type);
     if (isNumericType) {
       const num = typeof value === 'number' ? value : Number(value);
-      if (Number.isNaN(num)) return field.label + ' must be a number';
-      if (typeof field.min === 'number' && num < field.min) return field.label + ' must be ≥ ' + field.min;
-      if (typeof field.max === 'number' && num > field.max) return field.label + ' must be ≤ ' + field.max;
+      if (Number.isNaN(num)) return I18N.validation.number.replace('{{field}}', field.label);
+      if (typeof field.min === 'number' && num < field.min) return I18N.validation.min.replace('{{field}}', field.label).replace('{{n}}', String(field.min));
+      if (typeof field.max === 'number' && num > field.max) return I18N.validation.max.replace('{{field}}', field.label).replace('{{n}}', String(field.max));
     }
 
     if (Array.isArray(field.options) && field.options.length > 0) {
       const allowed = new Set(field.options.map(String));
       if (!allowed.has(str)) {
         const preview = field.options.slice(0, 8).join(', ');
-        return field.label + ' must be one of: ' + preview;
+        return I18N.validation.oneOf.replace('{{field}}', field.label).replace('{{values}}', preview);
       }
     }
 
     if (typeof field.pattern === 'string' && field.pattern.length) {
       try {
         const re = new RegExp(field.pattern);
-        if (!re.test(str)) return field.label + ' is invalid';
+        if (!re.test(str)) return I18N.validation.invalid.replace('{{field}}', field.label);
       } catch {}
     }
 
@@ -175,7 +177,7 @@ export default function DynamicForm({ fields, initialData = {}, onSubmit, onCanc
             onChange={(e) => setField(field, e.target.value)}
             className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {field.required ? null : <option value="">Select...</option>}
+            {field.required ? null : <option value="">{I18N.selectPlaceholder}</option>}
             {options.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
@@ -227,7 +229,7 @@ export default function DynamicForm({ fields, initialData = {}, onSubmit, onCanc
             }}
             className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {field.multiple ? null : <option value="">Select...</option>}
+            {field.multiple ? null : <option value="">{I18N.selectPlaceholder}</option>}
             {refOptions.map((opt: any) => (
               <option key={opt.id} value={opt.id}>
                 {field.referenceEntity ? getEntityDisplay(field.referenceEntity, opt) : opt.name || opt.sku || opt.id}
@@ -287,10 +289,10 @@ export default function DynamicForm({ fields, initialData = {}, onSubmit, onCanc
       ))}
       <div className="flex justify-end space-x-3 pt-4">
         <button type="button" onClick={onCancel} className="px-4 py-2 border rounded hover:bg-gray-50">
-          Cancel
+          {I18N.cancel}
         </button>
         <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-          Save
+          {I18N.save}
         </button>
       </div>
     </form>

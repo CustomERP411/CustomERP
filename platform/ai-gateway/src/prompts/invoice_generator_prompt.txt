@@ -137,4 +137,7 @@ Shared Entities: {shared_entities}
 # SDF schema reference:
 {sdf_schema_reference}
 
+# Localization & required flags (MUST)
+# - Every field MUST set `label` to the project-language translation of the field's purpose. Do NOT omit `label` and do NOT leave it as the English title-cased slug. Mark `required: true` for primary identifiers (name/code/sku), foreign keys on transactional rows (e.g. `*_id` on order lines / movements), quantity, `unit_price`, and date fields on transactions.
+
 # Your JSON output (start from the prefilled SDF, apply change instructions if any, then add enhancements):

@@ -365,7 +365,7 @@
     "readyTitle": "ERP'niz hazır",
     "readyBody": "ERP'nizi canlı önizleyin, deneyin ve ihtiyaç duyduğunuz değişiklikleri talep edin.",
     "moduleFallback": "Modül",
-    "dataTypes": "{{count}} veri tipi",
+    "dataTypes": "{{count}} kayıt bölümü",
     "previewBtn": "ERP'mi Önizle",
     "hideDevDetails": "Geliştirici ayrıntılarını gizle",
     "showDevDetails": "Geliştirici ayrıntılarını göster"
@@ -496,5 +496,15 @@
       "mismatch": "Tutarsızlık",
       "unsupported_feature": "Henüz desteklenmiyor"
     }
+  },
+  "changeReview": {
+    "titleBlocking": "Bu değişikliği netleştirelim",
+    "titleAcknowledge": "Bu değişiklik henüz üretemediğimiz bir özellik içeriyor",
+    "subtitleBlocking": "ERP'nizi güncellemeden önce değişiklik isteğinin daha net olması gerekiyor.",
+    "subtitleAcknowledge": "Desteklenmeyen kısmı atlayarak devam edebilirsiniz. Bunu özellik isteği olarak kaydedip mevcut ERP'nizi koruyacağız.",
+    "requestLabel": "İstenen değişiklik",
+    "yourRequest": "İsteğiniz",
+    "editRequest": "İsteği düzenle",
+    "acknowledgeAndApply": "Bu özellik olmadan devam et"
   }
 }

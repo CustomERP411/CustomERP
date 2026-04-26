@@ -1,6 +1,6 @@
 import api from './api';
 import type { Project, CreateProjectRequest } from '../types/project';
-import type { AnalyzeProjectResponse, ClarificationAnswer, AiGatewaySdf } from '../types/aiGateway';
+import type { AnalyzeProjectResponse, AnswerReview, ClarificationAnswer, AiGatewaySdf } from '../types/aiGateway';
 import type { DefaultQuestionStateResponse, SaveDefaultAnswersRequest } from '../types/defaultQuestions';
 import type { ReviewHistoryItem } from '../components/project/ReviewApprovalPanel';
 
@@ -28,10 +28,14 @@ export interface ReviewActionResponse {
   };
 }
 
-export interface RevisionResponse extends ReviewActionResponse {
-  sdf: AiGatewaySdf;
-  sdf_version: number;
-  questions: unknown[];
+export interface RevisionResponse {
+  project: Project;
+  approval?: ReviewActionResponse['approval'];
+  sdf?: AiGatewaySdf;
+  sdf_version?: number;
+  questions?: unknown[];
+  status?: 'change_review_required';
+  answer_review?: AnswerReview;
 }
 
 export interface ChatWithProjectResponse {
@@ -52,6 +56,8 @@ export interface ProjectConversationRecord {
   access_requirements: unknown[] | null;
   description_snapshot: string | null;
   default_question_answers: Record<string, unknown> | null;
+  answer_review: AnswerReview | null;
+  acknowledged_unsupported_features: string[] | null;
   created_at: string;
 }
 
@@ -156,17 +162,23 @@ export const projectService = {
     return response.data;
   },
 
-  regenerateProject: async (id: string, changeInstructions: string): Promise<AnalyzeProjectResponse> => {
+  regenerateProject: async (id: string, changeInstructions: string, acknowledgedUnsupportedFeatures?: string[]): Promise<AnalyzeProjectResponse> => {
     const response = await api.post<AnalyzeProjectResponse>(`/projects/${id}/regenerate`, {
       change_instructions: changeInstructions,
+      ...(acknowledgedUnsupportedFeatures?.length
+        ? { acknowledged_unsupported_features: acknowledgedUnsupportedFeatures }
+        : {}),
     }, { timeout: 300000 });
     return response.data;
   },
 
-  aiEditSdf: async (id: string, instructions: string, currentSdf?: AiGatewaySdf): Promise<AnalyzeProjectResponse> => {
+  aiEditSdf: async (id: string, instructions: string, currentSdf?: AiGatewaySdf, acknowledgedUnsupportedFeatures?: string[]): Promise<AnalyzeProjectResponse> => {
     const response = await api.post<AnalyzeProjectResponse>(`/projects/${id}/sdf/ai-edit`, {
       instructions,
       ...(currentSdf ? { current_sdf: currentSdf } : {}),
+      ...(acknowledgedUnsupportedFeatures?.length
+        ? { acknowledged_unsupported_features: acknowledgedUnsupportedFeatures }
+        : {}),
     });
     return response.data;
   },
@@ -204,10 +216,13 @@ export const projectService = {
     return response.data;
   },
 
-  requestRevision: async (id: string, instructions: string, comments?: string): Promise<RevisionResponse> => {
+  requestRevision: async (id: string, instructions: string, comments?: string, acknowledgedUnsupportedFeatures?: string[]): Promise<RevisionResponse> => {
     const response = await api.post<RevisionResponse>(`/projects/${id}/review/revise`, {
       instructions,
       ...(comments ? { comments } : {}),
+      ...(acknowledgedUnsupportedFeatures?.length
+        ? { acknowledged_unsupported_features: acknowledgedUnsupportedFeatures }
+        : {}),
     });
     return response.data;
   },

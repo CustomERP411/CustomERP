@@ -371,9 +371,9 @@
     "readyTitle": "Your ERP is ready",
     "readyBody": "Preview your ERP live, test it out, and request any changes you need.",
     "moduleFallback": "Module",
-    "dataTypes_one": "{{count}} data type",
-    "dataTypes_other": "{{count}} data types",
-    "dataTypes": "{{count}} data types",
+    "dataTypes_one": "{{count}} record area",
+    "dataTypes_other": "{{count}} record areas",
+    "dataTypes": "{{count}} record areas",
     "previewBtn": "Preview My ERP",
     "hideDevDetails": "Hide developer details",
     "showDevDetails": "Show developer details"
@@ -504,5 +504,15 @@
       "mismatch": "Mismatch",
       "unsupported_feature": "Not supported yet"
     }
+  },
+  "changeReview": {
+    "titleBlocking": "Let's clarify this change",
+    "titleAcknowledge": "This change includes a feature we can't generate yet",
+    "subtitleBlocking": "The requested change needs a clearer instruction before we update your ERP.",
+    "subtitleAcknowledge": "You can continue without the unsupported part. We'll log it as a feature request and keep your current ERP safe.",
+    "requestLabel": "Requested change",
+    "yourRequest": "Your request",
+    "editRequest": "Edit request",
+    "acknowledgeAndApply": "Continue without this feature"
   }
 }

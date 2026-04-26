@@ -6,7 +6,7 @@ class {{EntityName}}Service {
     this.mixinConfig = mixinConfig && typeof mixinConfig === 'object' ? mixinConfig : {};
   }
 
-  async create(data) {
+  async create(data, context = {}) {
     // @HOOK: BEFORE_CREATE_VALIDATION
     
     // @HOOK: BEFORE_CREATE_TRANSFORMATION
@@ -18,7 +18,7 @@ class {{EntityName}}Service {
     return result;
   }
 
-  async update(id, data) {
+  async update(id, data, context = {}) {
     // @HOOK: BEFORE_UPDATE_VALIDATION
     
     const result = await this.repository.update(this.slug, id, data);
@@ -28,7 +28,7 @@ class {{EntityName}}Service {
     return result;
   }
 
-  async delete(id) {
+  async delete(id, context = {}) {
     // @HOOK: BEFORE_DELETE_VALIDATION
 
     const result = await this.repository.delete(this.slug, id);

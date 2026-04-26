@@ -1,5 +1,12 @@
 const { v4: uuid } = require('uuid');
 
+let RBAC_LABELS = {};
+try {
+  RBAC_LABELS = require('./rbacLabels');
+} catch (_) {
+  RBAC_LABELS = {};
+}
+
 function hashPassword(plain) {
   try {
     const bcrypt = require('bcryptjs');
@@ -24,6 +31,7 @@ const MODULE_DISPLAY_NAMES = {
   inventory: 'Inventory',
   invoice: 'Invoice',
   hr: 'HR',
+  shared: 'Shared',
 };
 
 const ABSTRACT_PERM_SLUGS = {
@@ -59,8 +67,15 @@ function resolveAbstractPermissions(abstractPerms, customPermsStr, entitySlugs) 
   return keys;
 }
 
+function interpolate(template, values = {}) {
+  return String(template || '').replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    const value = values[key];
+    return value == null ? '' : String(value);
+  });
+}
+
 function formatModuleDisplayName(mod) {
-  return MODULE_DISPLAY_NAMES[mod] || (mod.charAt(0).toUpperCase() + mod.slice(1));
+  return (RBAC_LABELS.modules && RBAC_LABELS.modules[mod]) || MODULE_DISPLAY_NAMES[mod] || (mod.charAt(0).toUpperCase() + mod.slice(1));
 }
 
 function humanizeSlug(slug) {
@@ -68,6 +83,18 @@ function humanizeSlug(slug) {
     .replace(/^__erp_/, '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function entityDisplayName(slug, entityDisplayMap = {}) {
+  return entityDisplayMap[slug] || humanizeSlug(slug);
+}
+
+function actionDisplayName(action) {
+  return (RBAC_LABELS.actions && RBAC_LABELS.actions[action]) || (action.charAt(0).toUpperCase() + action.slice(1));
+}
+
+function seedText(key, fallback, values = {}) {
+  return interpolate((RBAC_LABELS.seed && RBAC_LABELS.seed[key]) || fallback, values);
 }
 
 async function ensureGroup(repository, existingGroups, name, description) {
@@ -93,7 +120,7 @@ async function assignPermissionsToGroup(repository, groupId, permIds, allGP) {
   return added;
 }
 
-async function seed(repository, entitySlugs = [], groups = [], entityModuleMap = {}) {
+async function seed(repository, entitySlugs = [], groups = [], entityModuleMap = {}, entityDisplayMap = {}) {
   console.log('[RBAC-SEED] Running access-control seed...');
 
   const existingUsers = await repository.findAll('__erp_users');
@@ -111,7 +138,7 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
 
   let existingGroups = await repository.findAll('__erp_groups');
 
-  const superadminGroup = await ensureGroup(repository, existingGroups, 'superadmin', 'Full access to all entities and actions');
+  const superadminGroup = await ensureGroup(repository, existingGroups, 'superadmin', seedText('superadminDescription', 'Full access to all areas and actions'));
 
   const existingMemberships = await repository.findAll('__erp_user_groups', {
     user_id: adminUser.id,
@@ -142,13 +169,16 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
         if (permByKey.has(key)) continue;
 
         const scope = slug.startsWith('__erp_') ? 'global' : 'module';
-        const displaySlug = humanizeSlug(slug);
-        const actionLabel = action.charAt(0).toUpperCase() + action.slice(1);
+        const displaySlug = entityDisplayName(slug, entityDisplayMap);
+        const actionLabel = actionDisplayName(action);
         const perm = await repository.create('__erp_permissions', {
           key,
           label: `${actionLabel} ${displaySlug}`,
           scope,
-          description: `Allow ${action} on ${displaySlug.toLowerCase()}`,
+          description: seedText('permissionDescription', `Can ${action} ${displaySlug} records`, {
+            action: actionLabel.toLowerCase(),
+            entity: displaySlug,
+          }),
         });
         permByKey.set(key, perm);
       }
@@ -160,7 +190,7 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
     const allPermIds = [...permByKey.values()].map((p) => p.id);
     await assignPermissionsToGroup(repository, superadminGroup.id, allPermIds, allGP);
 
-    const adminGroup = await ensureGroup(repository, existingGroups, 'Admin', 'Full access (manageable admin group)');
+    const adminGroup = await ensureGroup(repository, existingGroups, 'Admin', seedText('adminDescription', 'Can manage the ERP after setup'));
     await assignPermissionsToGroup(repository, adminGroup.id, allPermIds, allGP);
     console.log('[RBAC-SEED] Admin group receives all permissions');
 
@@ -180,8 +210,9 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
     const moduleAdminGroups = {};
     for (const [mod, modSlugs] of Object.entries(moduleGroups)) {
       const displayName = formatModuleDisplayName(mod);
-      const groupName = `${displayName} Admin`;
-      const modGroup = await ensureGroup(repository, existingGroups, groupName, `Admin for ${displayName} module`);
+      const suffix = seedText('moduleAdminGroupSuffix', 'Admin');
+      const groupName = `${displayName} ${suffix}`;
+      const modGroup = await ensureGroup(repository, existingGroups, groupName, seedText('moduleAdminDescription', `Can manage the ${displayName} area`, { module: displayName }));
       moduleAdminGroups[mod] = { group: modGroup, slugs: modSlugs };
 
       const modPermIds = [];
@@ -254,7 +285,7 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
             key,
             label: key,
             scope: key.startsWith('__erp_') ? 'global' : 'module',
-            description: `Custom permission: ${key}`,
+            description: seedText('customPermissionDescription', `Custom permission: ${key}`, { key }),
           });
           permByKey.set(key, perm);
         }

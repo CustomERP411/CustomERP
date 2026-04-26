@@ -9,15 +9,36 @@ function buildActivityLogPage(language = 'en') {
     back: t('common.back'),
     loading: t('common.loading'),
     columnAt: t('activityLog.columns.when'),
+    columnUser: t('activityLog.columns.user'),
     columnAction: t('activityLog.columns.action'),
     columnEntity: t('activityLog.columns.entity'),
-    columnEntityId: 'Entity ID',
+    columnEntityId: t('activityLog.columns.recordId'),
     columnMessage: t('activityLog.columns.message'),
+    actions: {
+      CREATE: t('activityLog.actions.CREATE'),
+      UPDATE: t('activityLog.actions.UPDATE'),
+      DELETE: t('activityLog.actions.DELETE'),
+      LOGIN: t('activityLog.actions.LOGIN'),
+      LOGOUT: t('activityLog.actions.LOGOUT'),
+    },
+    messages: {
+      CREATE: t('activityLog.messages.CREATE'),
+      UPDATE: t('activityLog.messages.UPDATE'),
+      DELETE: t('activityLog.messages.DELETE'),
+      LOGIN: t('activityLog.messages.LOGIN'),
+      LOGOUT: t('activityLog.messages.LOGOUT'),
+    },
+    unknownUser: t('activityLog.unknownUser'),
+    entityNames: {
+      __erp_users: t('sidebar.users'),
+      __audit_logs: t('activityLog.title'),
+    },
     empty: t('activityLog.empty'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ENTITIES } from '../config/entities';
 import api from '../services/api';
 
 const I18N = ${i18nJson} as const;
@@ -29,8 +50,42 @@ type AuditRow = {
   action?: string;
   entity?: string;
   entity_id?: string;
+  user_id?: string;
+  username?: string;
+  user_display_name?: string;
   message?: string;
 };
+
+const ENTITY_NAMES = Object.fromEntries(ENTITIES.map((e) => [e.slug, e.displayName])) as Record<string, string>;
+
+function applyTemplate(template: string, values: Record<string, string>) {
+  return template.replace(/\\{\\{(\\w+)\\}\\}/g, (_, key) => values[key] || '');
+}
+
+function userLabel(row: AuditRow) {
+  return String(row.user_display_name || row.username || row.user_id || I18N.unknownUser);
+}
+
+function actionLabel(row: AuditRow) {
+  const action = String(row.action || '').toUpperCase();
+  return (I18N.actions as Record<string, string>)[action] || action;
+}
+
+function entityLabel(row: AuditRow) {
+  const slug = String(row.entity || '');
+  return (I18N.entityNames as Record<string, string>)[slug] || ENTITY_NAMES[slug] || slug;
+}
+
+function rowMessage(row: AuditRow) {
+  const action = String(row.action || '').toUpperCase();
+  const template = (I18N.messages as Record<string, string>)[action];
+  if (!template) return String(row.message || '');
+  return applyTemplate(template, {
+    user: userLabel(row),
+    entity: entityLabel(row),
+    record: String(row.entity_id || ''),
+  }).trim();
+}
 
 export default function ActivityLogPage() {
   const [rows, setRows] = useState<AuditRow[]>([]);
@@ -61,7 +116,9 @@ export default function ActivityLogPage() {
         r.action,
         r.entity,
         r.entity_id,
-        r.message,
+        r.username,
+        r.user_display_name,
+        rowMessage(r),
         r.at,
         r.created_at,
       ]
@@ -101,6 +158,7 @@ export default function ActivityLogPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{I18N.columnAt}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{I18N.columnUser}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{I18N.columnAction}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{I18N.columnEntity}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{I18N.columnEntityId}</th>
@@ -111,15 +169,16 @@ export default function ActivityLogPage() {
               {filtered.map((r) => (
                 <tr key={r.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 text-sm text-slate-700">{String(r.at || r.created_at || '')}</td>
-                  <td className="px-4 py-3 text-sm font-semibold text-slate-900">{String(r.action || '')}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{String(r.entity || '')}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{userLabel(r)}</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-slate-900">{actionLabel(r)}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{entityLabel(r)}</td>
                   <td className="px-4 py-3 text-sm text-slate-700">{String(r.entity_id || '')}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{String(r.message || '')}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{rowMessage(r)}</td>
                 </tr>
               ))}
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">{I18N.empty}</td>
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">{I18N.empty}</td>
                 </tr>
               ) : null}
             </tbody>

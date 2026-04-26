@@ -1,4 +1,6 @@
 // Schema validation code generation (split from BackendGenerator)
+const { resolveEffectiveRequired } = require('../shared/fieldRequired');
+
 module.exports = {
   _injectSchemaValidations(weaver, entity, allEntities) {
     const createSnippet = this._buildCreateValidationSnippet(entity, allEntities);
@@ -476,7 +478,7 @@ module.exports = {
           name: f.name,
           type,
           label,
-          required: !!f.required,
+          required: resolveEffectiveRequired(f),
           unique: !!f.unique,
           minLength: typeof f.min_length === 'number' ? f.min_length : (typeof f.minLength === 'number' ? f.minLength : undefined),
           maxLength: typeof f.max_length === 'number' ? f.max_length : (typeof f.maxLength === 'number' ? f.maxLength : undefined),

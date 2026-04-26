@@ -1,4 +1,5 @@
 import type { AiGatewaySdf } from './aiGateway';
+import type { Project } from './project';
 
 export type DefaultQuestionType = 'yes_no' | 'choice' | 'text' | 'multi_choice';
 
@@ -61,6 +62,7 @@ export interface DefaultQuestionStateResponse {
   prefilled_sdf: AiGatewaySdf | null;
   prefilled_sdf_version?: number | null;
   prefill_validation?: DefaultQuestionCompletion;
+  project?: Project;
 }
 
 export interface SaveDefaultAnswersRequest {

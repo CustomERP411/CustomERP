@@ -159,13 +159,12 @@ class MultiAgentService:
                 on_progress(step, pct, detail)
 
         # ── Step 0: Answer Reviewer (pre-distributor quality gate) ──
-        # Skip the reviewer for change-request mode — there is already an SDF in
-        # play, the user has confirmed it before, and the questionnaire isn't the
-        # primary driver. Reviewing again just blocks legitimate edits.
-        run_review = (
-            business_answers is not None
-            and not (prefilled_sdf and (prefilled_sdf.get("modules") or prefilled_sdf.get("entities")))
-        )
+        # Run only when the caller passed business_answers. The change-request
+        # paths (regenerate / edit) intentionally omit business_answers, which is
+        # how we distinguish them from fresh builds — prefilled_sdf can't be used
+        # for that, since fresh builds also seed prefilled_sdf.modules/entities
+        # from the module wizard answers.
+        run_review = business_answers is not None
         answer_review: Optional[AnswerReview] = None
         if run_review:
             _progress("reviewer", 5, "Reviewing your answers")

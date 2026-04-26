@@ -17,7 +17,7 @@ class ProjectAssembler {
 
   async assemble(projectId, sdf, options = {}) {
     const standalone = !!options.standalone;
-    const language = normalizeLanguage(options.language);
+    const language = normalizeLanguage(options.language || sdf?.language || sdf?.locale);
     const outputDir = path.join(this.outputPath, projectId);
     const backendDir = standalone ? path.join(outputDir, 'app') : path.join(outputDir, 'backend');
     const frontendDir = path.join(outputDir, 'frontend');
@@ -77,7 +77,7 @@ class ProjectAssembler {
       await this.backendGenerator.generateDatabaseArtifacts(backendDir, backendEntities);
 
       await this.backendGenerator.generateMainEntry(backendDir);
-      await this._applyBackendRuntimeModules(backendDir, sdf, backendEntities);
+      await this._applyBackendRuntimeModules(backendDir, sdf, backendEntities, language);
 
       // ==================== FRONTEND ====================
       console.log('Generating frontend...');

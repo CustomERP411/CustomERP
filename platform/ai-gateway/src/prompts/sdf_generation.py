@@ -156,6 +156,40 @@ def get_edit_prompt(business_description: str, current_sdf: str, instructions: s
         return "Error: Could not load prompt."
 
 
+def get_change_request_reviewer_prompt(
+    business_description: str,
+    current_sdf_summary: str,
+    instructions: str,
+    acknowledged_unsupported_features: Optional[list] = None,
+    language: str = DEFAULT_LANGUAGE,
+) -> str:
+    """Loads the reviewer prompt for requested changes to an existing SDF."""
+    try:
+        prompt_template_path = PROMPT_DIR / "change_request_reviewer_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+
+        ack_clean: list[str] = []
+        if acknowledged_unsupported_features:
+            for f in acknowledged_unsupported_features:
+                if isinstance(f, str) and f.strip():
+                    ack_clean.append(f.strip())
+        ack_str = "\n".join(f"- {f}" for f in ack_clean) if ack_clean else "(none)"
+
+        rendered = _inject_placeholders(
+            prompt_template,
+            {
+                "business_description": business_description or "(empty)",
+                "current_sdf_summary": current_sdf_summary or "(empty)",
+                "instructions": instructions or "(empty)",
+                "acknowledged_unsupported_features": ack_str,
+            },
+        )
+        return _with_language_directive(rendered, language)
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found at {prompt_template_path}")
+        return "Error: Could not load prompt."
+
+
 def get_finalize_prompt(business_description: str, partial_sdf: str, answers: str, language: str = DEFAULT_LANGUAGE) -> str:
     """Loads the finalize prompt and injects the context."""
     try:

@@ -18,7 +18,7 @@
   "openChat": "Open AI assistant",
   "closeChat": "Close AI assistant",
   "helpPrompt": {
-    "withAnswer": "I need help with this question: \"{{question}}\"\nMy current answer is: \"{{answer}}\"\nCan you help me improve or expand this answer?",
+    "withAnswer": "I need help understanding this question: \"{{question}}\"\nMy selected answer is: \"{{answer}}\"\nPlease explain what this question means, what choosing this answer implies for my ERP, and when I might choose the other option. Do not rewrite my answer as a longer sentence.",
     "empty": "I need help answering this question: \"{{question}}\"\nCan you explain what this means and give me guidance on how to answer it for my business?"
   }
 }

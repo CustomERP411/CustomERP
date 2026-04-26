@@ -23,6 +23,7 @@
   "status": {
     "Draft": "Taslak",
     "Analyzing": "Analiz Ediliyor",
+    "Reviewing": "İnceleme Gerekli",
     "Clarifying": "Açıklama Bekleniyor",
     "Ready": "Hazır",
     "Generated": "Oluşturuldu",

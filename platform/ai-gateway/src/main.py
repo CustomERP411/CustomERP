@@ -20,6 +20,7 @@ from .services.sdf_service import SDFService
 from .services.base_client import BaseAIClient
 from .schemas.sdf import SystemDefinitionFile
 from .schemas.clarify import ClarifyRequest
+from .schemas.multi_agent import AgentStepLog
 from .prompts.sdf_generation import get_chat_prompt
 
 # Initialize FastAPI app
@@ -200,6 +201,17 @@ class EditRequest(BaseModel):
     language: str = Field(
         default="en",
         description="Project language code ('en' or 'tr').",
+    )
+    acknowledged_unsupported_features: List[str] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices(
+            "acknowledged_unsupported_features", "acknowledgedUnsupportedFeatures",
+        ),
+    )
+    review_only: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("review_only", "reviewOnly"),
+        description="When true, run the change reviewer but do not edit the SDF.",
     )
 
 
@@ -511,7 +523,29 @@ async def finalize_sdf_endpoint(payload: Union[SystemDefinitionFile, ClarifyRequ
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
-@app.post("/ai/edit", response_model=SystemDefinitionFile, response_model_exclude_none=True, tags=["SDF Generation"])
+def _agent_step(
+    agent: str,
+    result: Any,
+    prompt_text: str,
+    input_summary: dict,
+    output_parsed: Any,
+    started_at: datetime.datetime,
+) -> AgentStepLog:
+    return AgentStepLog(
+        agent=agent,
+        model=getattr(result, "model", "") or "",
+        temperature=0.0,
+        prompt_text=prompt_text,
+        input_summary=input_summary,
+        output_parsed=output_parsed.model_dump(exclude_none=True) if hasattr(output_parsed, "model_dump") else (output_parsed if isinstance(output_parsed, dict) else {}),
+        raw_response=(getattr(result, "text", "") or "")[:12000],
+        tokens_in=int(getattr(result, "prompt_tokens", 0) or 0),
+        tokens_out=int(getattr(result, "completion_tokens", 0) or 0),
+        duration_ms=max(0, int((datetime.datetime.utcnow() - started_at).total_seconds() * 1000)),
+    )
+
+
+@app.post("/ai/edit", tags=["SDF Generation"])
 async def edit_sdf_endpoint(request: EditRequest):
     """
     Applies a change request (instructions) to an existing generator SDF.
@@ -523,18 +557,115 @@ async def edit_sdf_endpoint(request: EditRequest):
             detail="AI service is not configured or failed to initialize."
         )
 
+    step_logs: list[AgentStepLog] = []
+    token_usage: dict[str, Any] = {}
+    input_data = {
+        "business_description": request.business_description or "",
+        "instructions": request.instructions,
+        "current_sdf": request.current_sdf.model_dump(exclude_none=True),
+        "acknowledged_unsupported_features": request.acknowledged_unsupported_features,
+    }
+
     try:
-        updated = await sdf_service.edit_sdf(
+        review_started = datetime.datetime.utcnow()
+        review, review_result, review_prompt = await sdf_service.review_change_request(
+            business_description=request.business_description or "",
+            current_sdf=request.current_sdf,
+            instructions=request.instructions,
+            acknowledged_unsupported_features=request.acknowledged_unsupported_features,
+            language=request.language,
+        )
+        review_step = _agent_step(
+            "reviewer",
+            review_result,
+            review_prompt,
+            {"mode": "change_request", "instructions": request.instructions},
+            review,
+            review_started,
+        )
+        step_logs.append(review_step)
+        token_usage["reviewer"] = {
+            "prompt": review_step.tokens_in,
+            "completion": review_step.tokens_out,
+            "total": review_step.tokens_in + review_step.tokens_out,
+        }
+        token_usage["total"] = {
+            "prompt": review_step.tokens_in,
+            "completion": review_step.tokens_out,
+            "total": review_step.tokens_in + review_step.tokens_out,
+        }
+
+        should_halt = (
+            any(issue.severity == "block" for issue in review.issues)
+            or any(issue.kind == "unsupported_feature" for issue in review.issues)
+            or not review.is_clear_to_proceed
+        )
+        if should_halt or request.review_only:
+            payload = {
+                "status": "change_review_required" if should_halt else "change_review_clear",
+                "answer_review": review.model_dump(exclude_none=True),
+            }
+            _log_training_session(
+                "/ai/edit",
+                input_data,
+                payload,
+                step_logs=step_logs,
+                token_usage=token_usage,
+            )
+            return payload
+
+        edit_started = datetime.datetime.utcnow()
+        updated, edit_result, edit_prompt = await sdf_service.edit_sdf_with_telemetry(
             business_description=request.business_description or "",
             current_sdf=request.current_sdf,
             instructions=request.instructions,
             language=request.language,
         )
+        edit_step = _agent_step(
+            "sdf_editor",
+            edit_result,
+            edit_prompt,
+            {"instructions": request.instructions},
+            updated,
+            edit_started,
+        )
+        step_logs.append(edit_step)
+        token_usage["sdf_editor"] = {
+            "prompt": edit_step.tokens_in,
+            "completion": edit_step.tokens_out,
+            "total": edit_step.tokens_in + edit_step.tokens_out,
+        }
+        token_usage["total"] = {
+            "prompt": sum(v.get("prompt", 0) for k, v in token_usage.items() if k != "total" and isinstance(v, dict)),
+            "completion": sum(v.get("completion", 0) for k, v in token_usage.items() if k != "total" and isinstance(v, dict)),
+        }
+        token_usage["total"]["total"] = token_usage["total"]["prompt"] + token_usage["total"]["completion"]
+        _log_training_session(
+            "/ai/edit",
+            input_data,
+            updated,
+            step_logs=step_logs,
+            token_usage=token_usage,
+        )
         return updated
     except ValueError as e:
+        _log_training_session(
+            "/ai/edit",
+            input_data,
+            {"status": "error", "error": str(e)},
+            step_logs=step_logs,
+            token_usage=token_usage,
+        )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"[ERROR] Unexpected error in /ai/edit: {e}")
+        _log_training_session(
+            "/ai/edit",
+            input_data,
+            {"status": "error", "error": str(e)},
+            step_logs=step_logs,
+            token_usage=token_usage,
+        )
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 

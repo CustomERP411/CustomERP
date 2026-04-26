@@ -23,6 +23,7 @@
   "status": {
     "Draft": "Draft",
     "Analyzing": "Analyzing",
+    "Reviewing": "Needs Review",
     "Clarifying": "Clarifying",
     "Ready": "Ready",
     "Generated": "Generated",

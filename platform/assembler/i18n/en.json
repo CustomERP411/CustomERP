@@ -19,7 +19,8 @@
     "actions": "Actions",
     "yes": "Yes",
     "no": "No",
-    "ok": "OK"
+    "ok": "OK",
+    "unknownError": "Unknown error"
   },
   "topbar": {
     "welcome": "Welcome",
@@ -97,6 +98,48 @@
       "empty": "No activity yet.",
       "reportsHint": "Daily summaries are available in"
     },
+    "widgets": {
+      "settings": "Dashboard settings",
+      "save": "Save dashboard",
+      "saved": "Dashboard saved",
+      "range": "Date range",
+      "recentChanges": "Recent changes",
+      "changedAreas": "Changed areas",
+      "alerts": "Important alerts",
+      "recordOverview": "Record overview",
+      "showAs": "Show as",
+      "hidden": "Hidden",
+      "cards": "Number cards",
+      "list": "List",
+      "bars": "Simple bars",
+      "last7": "Last 7 days",
+      "last30": "Last 30 days",
+      "last90": "Last 90 days",
+      "last365": "Last 365 days",
+      "allTime": "All time",
+      "noChanges": "No changes in this range.",
+      "created": "created",
+      "updated": "updated",
+      "deleted": "deleted",
+      "alertsEmpty": "No important alerts right now.",
+      "open": "Open"
+    },
+    "graph": {
+      "title": "Changes over time",
+      "subtitle": "Choose a record area and value to see how it changed between dates.",
+      "entity": "Record area",
+      "metric": "Value",
+      "multiplier": "Multiply by",
+      "noMultiplier": "No multiplier",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "countMetric": "Record count",
+      "currentValue": "Current value",
+      "changesInRange": "changes in range",
+      "noData": "No changes found for this selection.",
+      "selectEntity": "Select a record area",
+      "total": "total"
+    },
     "emptyAccess": {
       "title": "No accessible modules",
       "body": "You don't have permission to view any modules yet. Please contact your administrator."
@@ -108,6 +151,26 @@
     "addNew": "+ Add New",
     "importCsv": "Import CSV",
     "exportCsv": "Export CSV",
+    "print": "Print / PDF",
+    "clearSorting": "Clear sorting",
+    "showingPage": "Showing {{from}} to {{to}} of {{total}}",
+    "perPage": "{{n}} / page",
+    "csvExported": "Exported CSV",
+    "cannotDelete": "This record is referenced by other records",
+    "noSelection": {
+      "title": "No selection",
+      "body": "Select records first"
+    },
+    "nothingToUpdate": {
+      "title": "Nothing to update",
+      "body": "Fill at least one field"
+    },
+    "unknownError": "Unknown error",
+    "bulkUpdateInfo": "Updating {{count}} record(s). Leave a field blank to keep it unchanged.",
+    "aria": {
+      "selectAll": "Select all on this page",
+      "selectRow": "Select {{id}}"
+    },
     "actionsColumn": "Actions",
     "empty": "No records found.",
     "loading": "Loading...",
@@ -115,6 +178,8 @@
     "selected": "{{count}} selected",
     "bulkUpdate": "Bulk update",
     "bulkDelete": "Bulk delete",
+    "confirmBulkDelete": "Delete {{count}} record(s)?",
+    "recordsCountSuffix": "{{count}} record(s)",
     "rowActions": {
       "view": "View",
       "edit": "Edit",
@@ -147,6 +212,8 @@
     "titleEdit": "Edit {{entity}}",
     "titleCreate": "Create {{entity}}",
     "subtitle": "Fill in the details below.",
+    "print": "Print / PDF",
+    "add": "Add",
     "save": "Save",
     "saving": "Saving...",
     "cancel": "Cancel",
@@ -158,27 +225,58 @@
       "addRow": "+ Add row",
       "removeRow": "Remove",
       "empty": "No line items yet.",
-      "subtotal": "Subtotal"
+      "subtotal": "Subtotal",
+      "help": "Add and manage child rows linked to this record.",
+      "saveFirst": "Save this record first to add line items.",
+      "saved": "Line item updated",
+      "added": "Line item added",
+      "failed": "Failed to save line item",
+      "loadFailed": "Failed to load line items",
+      "confirmDelete": "Delete this line item?",
+      "deleteFailed": "Delete failed"
     },
     "invoiceTotals": {
       "heading": "Totals",
       "subtotal": "Subtotal",
       "tax": "Tax",
       "discount": "Discount",
-      "total": "Total"
+      "total": "Total",
+      "additionalCharges": "Additional charges",
+      "lineEngine": "Line-level calculation engine",
+      "taxRateLabel": "Tax rate: {{rate}}%"
     },
     "childModal": {
       "addTitle": "Add {{entity}}",
       "editTitle": "Edit {{entity}}",
       "save": "Save",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "addPrefix": "Add",
+      "editPrefix": "Edit"
     },
     "toast": {
       "saveSuccess": "Saved.",
       "saveFailed": "Failed to save.",
       "deleteSuccess": "Deleted.",
       "deleteFailed": "Failed to delete.",
-      "loadFailed": "Failed to load record."
+      "loadFailed": "Failed to load record.",
+      "recordUpdated": "Record updated",
+      "recordCreated": "Record created",
+      "loadFailedDesc": "Could not load record"
+    }
+  },
+  "dynamicForm": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "selectPlaceholder": "Select...",
+    "validation": {
+      "required": "{{field}} is required",
+      "minLength": "{{field}} must be at least {{n}} characters",
+      "maxLength": "{{field}} must be at most {{n}} characters",
+      "number": "{{field}} must be a number",
+      "min": "{{field}} must be ≥ {{n}}",
+      "max": "{{field}} must be ≤ {{n}}",
+      "oneOf": "{{field}} must be one of: {{values}}",
+      "invalid": "{{field}} is invalid"
     }
   },
   "importPage": {
@@ -203,6 +301,7 @@
       "title": "Issue Stock",
       "subtitle": "Record stock leaving the warehouse.",
       "submit": "Issue",
+      "sell": "Sell",
       "successToast": "Stock issued.",
       "failureToast": "Failed to record issue."
     },
@@ -219,6 +318,30 @@
       "submit": "Transfer",
       "successToast": "Stock transferred.",
       "failureToast": "Failed to transfer stock."
+    },
+    "fields": {
+      "item": "Item",
+      "location": "Location",
+      "locationOptional": "Location (optional)",
+      "fromLocation": "From location",
+      "toLocation": "To location",
+      "quantity": "Quantity",
+      "quantityChange": "Quantity change",
+      "movementDate": "Movement date",
+      "referenceNumber": "Reference # (optional)",
+      "note": "Note (optional)",
+      "reasonCode": "Reason code"
+    },
+    "errors": {
+      "selectItem": "Select an item",
+      "qtyPositive": "Quantity must be > 0",
+      "qtyNonZero": "Quantity change must be non-zero",
+      "qtyChangeHint": "Use + for increase, - for decrease",
+      "selectBothLocations": "Select both locations",
+      "invalidTransfer": "Invalid transfer",
+      "invalidTransferBody": "From and To locations must be different",
+      "insufficientStock": "Insufficient stock",
+      "insufficientStockBody": "This would make stock negative. Adjust stock or enable negative stock for this operation."
     }
   },
   "activityLog": {
@@ -230,13 +353,44 @@
       "user": "User",
       "action": "Action",
       "entity": "Entity",
+      "recordId": "Record ID",
       "message": "Message"
     },
+    "actions": {
+      "CREATE": "Added",
+      "UPDATE": "Changed",
+      "DELETE": "Deleted",
+      "LOGIN": "Logged in",
+      "LOGOUT": "Logged out"
+    },
+    "messages": {
+      "CREATE": "{{user}} added {{entity}} {{record}}",
+      "UPDATE": "{{user}} changed {{entity}} {{record}}",
+      "DELETE": "{{user}} deleted {{entity}} {{record}}",
+      "LOGIN": "{{user}} logged in",
+      "LOGOUT": "{{user}} logged out"
+    },
+    "unknownUser": "System",
     "empty": "No activity recorded yet."
   },
   "reportsPage": {
     "title": "Reports",
     "subtitle": "Daily summaries and saved reports.",
+    "focusEntityHint": "Snapshots must include this entity via modules.scheduled_reports.entity_snapshots.",
+    "noSnapshots": "No report snapshots yet. Backend creates one on startup and on the cron schedule.",
+    "noEntitySnapshots": "This report config does not include any entity snapshots.",
+    "changesHeading": "Changes",
+    "fromTo": "from {{from}} to {{to}}",
+    "fieldsAvailable": "{{count}} field(s) available",
+    "countDelta": "Count Δ",
+    "fieldsToCompare": "Fields to compare",
+    "noFieldsConfigured": "No fields configured for this snapshot.",
+    "keepFieldsTip": "Tip: keep it to ~5-10 fields for readability.",
+    "changedRecordsPreview": "Changed records (preview)",
+    "columnItem": "Item",
+    "columnId": "ID",
+    "showingChanged": "Showing 25 of {{count}} changed records.",
+    "changeLabel": "Change",
     "fields": {
       "from": "From",
       "to": "To",
@@ -441,6 +595,9 @@
   "invoicePages": {
     "title": "Invoices",
     "subtitle": "Manage customer invoices.",
+    "newInvoice": "New Invoice",
+    "emptyAll": "No invoices yet. Create your first invoice to get started.",
+    "emptyFilter": "No invoices with status",
     "filterAll": "All",
     "filterDraft": "Draft",
     "filterSent": "Sent",
@@ -563,7 +720,15 @@
     "scope": "Scope",
     "scopeModule": "Module",
     "scopeGlobal": "Global",
-    "usedByGroups": "Used By Groups"
+    "usedByGroups": "Used By Groups",
+    "seedSuperadminDescription": "Full access to all areas and actions",
+    "seedAdminDescription": "Can manage the ERP after setup",
+    "seedModuleAdminGroupSuffix": "Admin",
+    "seedModuleAdminDescription": "Can manage the {{module}} area",
+    "seedPermissionDescription": "Can {{action}} {{entity}} records",
+    "seedCustomPermissionDescription": "Custom permission: {{key}}",
+    "permissionGroupToggle": "{{entity}}: {{actions}}",
+    "permissionUnknownEntity": "Other permissions"
   },
   "rbacForbidden": {
     "loading": "Loading...",
@@ -583,7 +748,23 @@
     "linkedUserAlready": "This employee already has a linked user account.",
     "openInUsers": "Open in Users",
     "usernameRequired": "Username is required",
-    "passwordTooShort": "Password must be at least 4 characters"
+    "passwordTooShort": "Password too short",
+    "passwordTooShortDesc": "Password must be at least 4 characters",
+    "createdWithLogin": "Employee and login created",
+    "loginCreated": "Login created",
+    "linkedUserCreated": "Linked user account created",
+    "linkUserFailed": "Link user failed"
+  },
+  "workflowMessages": {
+    "statusChangeConfirm": "Change status to {{status}}?",
+    "statusUpdated": "Status updated",
+    "statusChanged": "Status changed to {{status}}",
+    "statusUpdateFailed": "Status update failed",
+    "approveConfirm": "Approve this request?",
+    "rejectConfirm": "Reject this request?",
+    "requestApproved": "Request approved",
+    "requestRejected": "Request rejected",
+    "operationFailed": "Operation failed"
   },
   "stockAvailability": {
     "title": "Stock Availability",

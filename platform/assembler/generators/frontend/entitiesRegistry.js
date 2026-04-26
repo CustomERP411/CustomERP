@@ -6,9 +6,28 @@
 // fall back to `capitalize(e.slug)` when the SDF did not provide one. Slugs
 // are always English and must not be translated — they double as URL paths
 // and DB table names in the generated ERP.
-function buildEntitiesRegistry({ visibleEntities, childSlugs, escapeJsString, capitalize, guessDisplayField, sharedModulesMap, language: _language }) {
+const { pickTrEntityDisplayName, pickTrFieldLabel } = require('../../i18n/glossaryI18n');
+
+function buildEntitiesRegistry({ visibleEntities, childSlugs, escapeJsString, capitalize, guessDisplayField, sharedModulesMap, language = 'en' }) {
   const childSet = new Set(childSlugs || []);
   const smMap = sharedModulesMap || {};
+  const displayNameFor = (e) => {
+    const fromSdf = e.display_name;
+    if (language === 'tr') {
+      const p = pickTrEntityDisplayName(e.slug, fromSdf);
+      if (p) return p;
+    }
+    return fromSdf || capitalize(e.slug);
+  };
+  const fieldLabelFor = (field) => {
+    const name = field && field.name ? String(field.name) : '';
+    const fromSdf = field && field.label ? String(field.label) : '';
+    if (language === 'tr') {
+      const p = pickTrFieldLabel(name, fromSdf);
+      if (p) return p;
+    }
+    return fromSdf || name.replace(/_/g, ' ');
+  };
   return `export interface EntityNavItem {
   slug: string;
   displayName: string;
@@ -16,6 +35,7 @@ function buildEntitiesRegistry({ visibleEntities, childSlugs, escapeJsString, ca
   module?: string;
   isChild?: boolean;
   sharedModules?: string[];
+  fields?: Array<{ name: string; label: string; type?: string }>;
 }
 
 export const ENTITIES: EntityNavItem[] = [
@@ -25,7 +45,16 @@ ${(visibleEntities || [])
     const module = e.module || 'inventory';
     const isChild = childSet.has(e.slug);
     const sm = module === 'shared' && smMap[e.slug] && smMap[e.slug].length ? smMap[e.slug] : null;
-    return `  { slug: '${e.slug}', displayName: '${escapeJsString(e.display_name || capitalize(e.slug))}', displayField: '${escapeJsString(displayField)}', module: '${module}'${isChild ? ', isChild: true' : ''}${sm ? `, sharedModules: [${sm.map(m => `'${m}'`).join(', ')}]` : ''} },`;
+    const fields = Array.isArray(e.fields)
+      ? e.fields
+          .filter((f) => f && f.name)
+          .map((f) => ({
+            name: String(f.name),
+            label: fieldLabelFor(f),
+            type: String(f.type || ''),
+          }))
+      : [];
+    return `  { slug: '${e.slug}', displayName: '${escapeJsString(displayNameFor(e))}', displayField: '${escapeJsString(displayField)}', module: '${module}'${isChild ? ', isChild: true' : ''}${sm ? `, sharedModules: [${sm.map(m => `'${m}'`).join(', ')}]` : ''}, fields: ${JSON.stringify(fields)} },`;
   })
   .join('\n')}
 ];

@@ -6,8 +6,9 @@ function buildInvoiceWorkflowPage({ entity, entityName, importBase, lifecycleCfg
     ? lifecycleCfg.statuses
     : ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'];
   const t = tFor(language);
+  const displayName = entity?.display_name || entityName;
   const I18N = {
-    title: t('invoiceWorkflow.title').replace('{{entity}}', entityName),
+    title: t('invoiceWorkflow.title').replace('{{entity}}', displayName),
     subtitle: t('invoiceWorkflow.subtitle'),
     selectInvoice: t('invoiceWorkflow.selectInvoice'),
     noInvoices: t('invoiceWorkflow.noInvoices'),
@@ -144,8 +145,9 @@ export default function ${entityName}WorkflowPage() {
 function buildInvoicePaymentsPage({ entity, entityName, importBase, language = 'en' }) {
   const base = importBase || '..';
   const t = tFor(language);
+  const displayName = entity?.display_name || entityName;
   const I18N = {
-    title: t('invoicePayments.title').replace('{{entity}}', entityName),
+    title: t('invoicePayments.title').replace('{{entity}}', displayName),
     subtitle: t('invoicePayments.subtitle'),
     invoice: t('invoicePayments.invoice'),
     noInvoices: t('invoicePayments.noInvoices'),
@@ -357,8 +359,9 @@ export default function ${entityName}PaymentsPage() {
 function buildInvoiceNotesPage({ entity, entityName, importBase, language = 'en' }) {
   const base = importBase || '..';
   const t = tFor(language);
+  const displayName = entity?.display_name || entityName;
   const I18N = {
-    title: t('invoiceNotes.title').replace('{{entity}}', entityName),
+    title: t('invoiceNotes.title').replace('{{entity}}', displayName),
     subtitle: t('invoiceNotes.subtitle'),
     invoice: t('invoiceNotes.invoice'),
     noInvoices: t('invoicePayments.noInvoices'),
@@ -571,8 +574,9 @@ export default function ${entityName}NotesPage() {
 function buildPaymentWorkflowPage({ entity, entityName, importBase, language = 'en' }) {
   const base = importBase || '..';
   const t = tFor(language);
+  const displayName = entity?.display_name || entityName;
   const I18N = {
-    title: (t('invoiceWorkflow.title') || '{{entity}} Workflow').replace('{{entity}}', entityName),
+    title: (t('invoiceWorkflow.title') || '{{entity}} Workflow').replace('{{entity}}', displayName),
     subtitle: 'Post or cancel payment entries.',
     payment: 'Payment',
     noPayments: 'No payments',
@@ -667,8 +671,9 @@ export default function ${entityName}WorkflowPage() {
 function buildNoteWorkflowPage({ entity, entityName, importBase, language = 'en' }) {
   const base = importBase || '..';
   const t = tFor(language);
+  const displayName = entity?.display_name || entityName;
   const I18N = {
-    title: (t('invoiceWorkflow.title') || '{{entity}} Workflow').replace('{{entity}}', entityName),
+    title: (t('invoiceWorkflow.title') || '{{entity}} Workflow').replace('{{entity}}', displayName),
     subtitle: 'Post or cancel invoice credit/debit notes.',
     note: 'Note',
     noNotes: 'No notes',

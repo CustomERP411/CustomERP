@@ -26,6 +26,7 @@ const { pickTrEntityDisplayName } = require('../../i18n/glossaryI18n');
 module.exports = {
   async generateEntityPage(outputDir, entity, allEntities, sdf = {}) {
     const moduleKey = this._getModuleKey(entity);
+    entity = { ...entity, display_name: this._localizedEntityDisplayName(entity) };
     await this._ensureModuleDirs(outputDir, moduleKey);
     const modulePagesDir = path.join(outputDir, 'modules', moduleKey, 'pages');
     const importBase = '../../../src';
@@ -556,6 +557,7 @@ module.exports = {
         entityName,
         importBase,
         reservationsCfg: priorityCfg.reservations,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}ReservationsPage.tsx`), reservationsPageContent);
     }
@@ -566,6 +568,7 @@ module.exports = {
         entityName,
         importBase,
         inboundCfg: priorityCfg.inbound,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}PostingPage.tsx`), postingPageContent);
     }
@@ -576,6 +579,7 @@ module.exports = {
         entityName,
         importBase,
         cycleCfg: priorityCfg.cycleCounting,
+        language: this._language,
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}WorkflowPage.tsx`), workflowPageContent);
     }

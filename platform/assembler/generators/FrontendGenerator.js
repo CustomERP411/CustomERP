@@ -18,6 +18,7 @@ const {
 } = require('./frontend/rbacPages');
 
 const { normalizeLanguage, tFor } = require('../i18n/labels');
+const { pickTrEntityDisplayName } = require('../i18n/glossaryI18n');
 
 class FrontendGenerator {
   constructor(brickRepo) {
@@ -40,6 +41,31 @@ class FrontendGenerator {
 
   _t(keyPath) {
     return tFor(this._language)(keyPath);
+  }
+
+  _humanizeDisplayName(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const withoutSuffix = raw.replace(/[_\-\s]+erp$/i, '');
+    return withoutSuffix
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/(^|\s)(\S)/g, (_m, space, ch) => space + String(ch).toLocaleUpperCase(this._language === 'tr' ? 'tr-TR' : undefined));
+  }
+
+  _projectDisplayName(sdf = {}) {
+    return this._humanizeDisplayName(sdf.project_display_name || sdf.projectDisplayName || sdf.project_name || sdf.projectName) || this._t('topbar.fallbackAppName');
+  }
+
+  _localizedEntityDisplayName(entity) {
+    const slug = String(entity?.slug || '');
+    const current = entity?.display_name || entity?.displayName || '';
+    if (this._language === 'tr') {
+      const picked = pickTrEntityDisplayName(slug, current);
+      if (picked) return picked;
+    }
+    return current || this._formatLabel(slug);
   }
 
   setModules(modules) {
@@ -231,7 +257,7 @@ class FrontendGenerator {
       .replace(/"/g, '&quot;');
     const htmlLang = this._t('meta.htmlLang') || this._language;
     const titleSuffix = this._t('meta.appTitleSuffix');
-    const projectTitle = (sdf && sdf.project_name) ? `${sdf.project_name} · ${titleSuffix}` : `${this._t('topbar.fallbackAppName')} · ${titleSuffix}`;
+    const projectTitle = `${this._projectDisplayName(sdf)} · ${titleSuffix}`;
     const indexHtml = `<!DOCTYPE html>
 <html lang="${escapeHtml(htmlLang)}">
   <head>
@@ -335,9 +361,7 @@ ${authClose}    </ToastProvider>
   }
 
   async generateTopbar(outputDir, sdf = {}) {
-    const projectName = this._escapeJsString(
-      (sdf && sdf.project_name) || this._t('topbar.fallbackAppName')
-    );
+    const projectName = this._escapeJsString(this._projectDisplayName(sdf));
     const rbac = this._accessControlEnabled;
     const toggleMenu = this._escapeJsString(this._t('topbar.toggleMenu'));
     const goBack = this._escapeJsString(this._t('topbar.goBack'));

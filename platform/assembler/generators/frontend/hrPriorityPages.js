@@ -3,13 +3,14 @@ const { tFor } = require('../../i18n/labels');
 function buildLeaveApprovalsPage({ entity, entityName, importBase, leaveCfg, approvalCfg, language = 'en' }) {
   const base = importBase || '..';
   const t = tFor(language);
+  const displayName = entity?.display_name || entityName;
   const I18N = {
     title: t('leaveApprovals.title'),
     subtitle: t('leaveApprovals.subtitle'),
     pending: t('leaveApprovals.pending'),
     showPendingOnly: t('leaveApprovals.showPendingOnly'),
     showAllStatuses: t('leaveApprovals.showAllStatuses'),
-    backTo: t('leaveApprovals.backTo').replace('{{entity}}', entityName),
+    backTo: t('leaveApprovals.backTo').replace('{{entity}}', displayName),
     noRequests: t('leaveApprovals.noRequests'),
     loading: t('common.loading'),
     loadFailed: t('leaveApprovals.loadFailed'),
@@ -195,10 +196,11 @@ export default function ${entityName}ApprovalsPage() {
 function buildLeaveBalancesPage({ entity, entityName, importBase, leaveCfg, language = 'en' }) {
   const base = importBase || '..';
   const t = tFor(language);
+  const displayName = entity?.display_name || entityName;
   const I18N = {
     title: t('leaveBalances.title'),
     subtitle: t('leaveBalances.subtitle'),
-    backTo: t('leaveBalances.backTo').replace('{{entity}}', entityName),
+    backTo: t('leaveBalances.backTo').replace('{{entity}}', displayName),
     employee: t('leaveBalances.employee'),
     noEmployees: t('leaveBalances.noEmployees'),
     selected: t('leaveBalances.selected'),
@@ -429,10 +431,11 @@ export default function ${entityName}BalancesPage() {
 function buildAttendanceEntriesPage({ entity, entityName, importBase, attendanceCfg, language = 'en' }) {
   const base = importBase || '..';
   const t = tFor(language);
+  const displayName = entity?.display_name || entityName;
   const I18N = {
     title: t('attendance.title'),
     subtitle: t('attendance.subtitle'),
-    backTo: t('attendance.backTo').replace('{{entity}}', entityName),
+    backTo: t('attendance.backTo').replace('{{entity}}', displayName),
     recordHeading: t('attendance.recordHeading'),
     noEmployees: t('attendance.noEmployees'),
     notePlaceholder: t('attendance.notePlaceholder'),

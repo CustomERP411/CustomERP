@@ -1,3 +1,6 @@
+// Canonical assembler field names used with English `label` in SDF (e.g. inventoryEntities.js)
+// should have a matching `fields.<name>` entry in glossary.tr.json so `language: 'tr'` preview
+// and generated ERP list headers resolve via pickTrFieldLabel instead of falling back to English.
 const trGlossary = require('./glossary.tr.json');
 
 function defaultLabelFromName(name) {

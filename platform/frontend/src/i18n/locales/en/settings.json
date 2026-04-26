@@ -43,7 +43,7 @@
     "title": "Delete account",
     "description": "Permanently delete your account and all associated data. This cannot be undone.",
     "delete": "Delete my account",
-    "confirmPrompt": "Type DELETE to confirm.",
+    "confirmPrompt": "Enter your account email exactly as shown above to confirm.",
     "deleting": "Deleting...",
     "error": "Could not delete account."
   }

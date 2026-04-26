@@ -43,7 +43,7 @@
     "title": "Hesabı sil",
     "description": "Hesabınızı ve tüm verilerinizi kalıcı olarak silin. Bu işlem geri alınamaz.",
     "delete": "Hesabımı sil",
-    "confirmPrompt": "Onaylamak için DELETE yazın.",
+    "confirmPrompt": "Onaylamak için yukarıda gösterilen hesap e-posta adresinizi aynen girin.",
     "deleting": "Siliniyor...",
     "error": "Hesap silinemedi."
   }

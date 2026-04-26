@@ -9,6 +9,8 @@ export default function DashboardLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
   const isPreviewRoute = /\/projects\/[^/]+\/preview$/.test(location.pathname);
+  const showChatWidget =
+    location.pathname === '/projects' || location.pathname.startsWith('/projects/');
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -34,7 +36,7 @@ export default function DashboardLayout() {
             <Outlet />
           </main>
         </div>
-        <ChatWidget />
+        {showChatWidget ? <ChatWidget /> : null}
       </div>
     </ChatProvider>
   );

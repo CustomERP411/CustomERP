@@ -47,7 +47,7 @@ exports.saveSdf = async (req, res) => {
       return res.status(400).json({ error: validation.error });
     }
 
-    const saved = await SDF.create(project.id, sdf, { changeKind: 'manual' });
+    const saved = await SDF.create(project.id, sdf);
 
     const questions = Array.isArray(sdf?.clarifications_needed) ? sdf.clarifications_needed : [];
     const nextStatus = questions.length ? 'Clarifying' : 'Ready';
@@ -105,7 +105,7 @@ exports.aiEditSdf = async (req, res) => {
       return res.status(400).json({ error: validation.error || 'AI edit returned an invalid SDF' });
     }
 
-    const saved = await SDF.create(project.id, sdf, { changeKind: 'ai_edit' });
+    const saved = await SDF.create(project.id, sdf);
 
     if (acknowledgedUnsupportedFeatures.length > 0) {
       featureRequestService.recordFeatures({

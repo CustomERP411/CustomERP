@@ -162,7 +162,7 @@ exports.analyzeProject = async (req, res) => {
     if (persistedQuestions.length) {
       sdf = { ...sdf, clarifications_needed: persistedQuestions };
     }
-    const saved = await SDF.create(project.id, sdf);
+    const saved = await SDF.create(project.id, sdf, { changeKind: 'initial' });
 
     // Link the pre-build conversation snapshot to the generated SDF version
     if (conversation?.id && saved?.version) {
@@ -261,7 +261,7 @@ exports.clarifyProject = async (req, res) => {
     if (persistedQuestions.length) {
       sdf = { ...sdf, clarifications_needed: persistedQuestions };
     }
-    const saved = await SDF.create(project.id, sdf);
+    const saved = await SDF.create(project.id, sdf, { changeKind: 'clarify' });
 
     const clarifyPrompt = (typeof description === 'string' && description.trim()) ? description.trim() : (project.description || '');
 
@@ -405,7 +405,7 @@ exports.regenerateProject = async (req, res) => {
     if (persistedQuestions.length) {
       sdf = { ...sdf, clarifications_needed: persistedQuestions };
     }
-    const saved = await SDF.create(project.id, sdf);
+    const saved = await SDF.create(project.id, sdf, { changeKind: 'regenerate' });
 
     if (Array.isArray(sdf?.unsupported_features) && sdf.unsupported_features.length > 0) {
       featureRequestService.recordFeatures({

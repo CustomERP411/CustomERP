@@ -934,6 +934,10 @@ export default function ProjectDetailPage() {
       setChangeReview(null);
       setPendingChangeReview(null);
       setProject(res.project); setSdf(res.sdf ?? null); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setAiEditText('');
+      if (res.sdf) {
+        setDraftJson(JSON.stringify(res.sdf, null, 2));
+        setDraftError('');
+      }
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
       appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.aiRevision') });
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.aiEditFailed')); }
@@ -976,6 +980,10 @@ export default function ProjectDetailPage() {
       setChangeReview(null);
       setPendingChangeReview(null);
       setProject(res.project); setSdf(res.sdf ?? null); setQuestions(filterQuestions(res.questions || [])); setAnswersById({});
+      if (res.sdf) {
+        setDraftJson(JSON.stringify(res.sdf, null, 2));
+        setDraftError('');
+      }
       setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
       if (res.approval) {
         appendReviewHistory({ action: 'revision_requested', version: res.approval.sdf_version, status: null, note: instructions.trim() });

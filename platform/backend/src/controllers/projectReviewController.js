@@ -9,6 +9,34 @@ const featureRequestService = require('../services/featureRequestService');
 
 const REVIEWABLE_STATUSES = new Set(['Ready', 'Generated', 'Approved']);
 
+/** Maps sdfs.change_kind to ReviewHistoryItem-style action (matches frontend). */
+function sdfChangeKindToHistoryAction(kind, version) {
+  if (!kind) {
+    return version === 1 ? 'generated' : 'ai_revision';
+  }
+  switch (kind) {
+    case 'initial':
+      return 'generated';
+    case 'clarify':
+      return 'clarified';
+    case 'manual':
+      return 'manual_save';
+    case 'ai_edit':
+    case 'regenerate':
+    case 'review_edit':
+      return 'ai_revision';
+    default:
+      return version === 1 ? 'generated' : 'ai_revision';
+  }
+}
+
+function toIso(created) {
+  if (!created) return new Date().toISOString();
+  if (typeof created === 'string') return new Date(created).toISOString();
+  if (typeof created === 'object' && created.getTime) return created.toISOString();
+  return new Date(created).toISOString();
+}
+
 function normalizeAcknowledgedFeatures(body) {
   const raw = body?.acknowledged_unsupported_features || body?.acknowledgedUnsupportedFeatures || [];
   return Array.isArray(raw)
@@ -163,7 +191,7 @@ exports.requestRevision = async (req, res) => {
       revisionInstructions: instructions.trim(),
     });
 
-    const saved = await SDF.create(project.id, sdf);
+    const saved = await SDF.create(project.id, sdf, { changeKind: 'review_edit' });
 
     await Approval.updateResultingSdfVersion(approval.id, saved.version);
 
@@ -205,16 +233,34 @@ exports.getReviewHistory = async (req, res) => {
     await projectService.getProject(projectId, userId);
 
     const approvals = await Approval.findByProject(projectId);
+    const sdfRows = await SDF.findAllByProjectChronological(projectId);
 
-    const history = approvals.map((a) => ({
-      id: a.id,
+    const fromApprovals = approvals.map((a) => ({
+      id: String(a.id),
       action: a.decision,
       version: a.sdf_version,
       resultingVersion: a.resulting_sdf_version,
       status: null,
       note: a.revision_instructions || a.comments || '',
-      createdAt: a.decided_at,
+      createdAt: toIso(a.decided_at),
     }));
+
+    const fromSdfs = sdfRows.map((row) => {
+      const v = Number(row.version) || 1;
+      return {
+        id: `sdf-version-${row.sdf_id || row.version}`,
+        action: sdfChangeKindToHistoryAction(row.change_kind, v),
+        version: v,
+        resultingVersion: null,
+        status: null,
+        note: '',
+        createdAt: toIso(row.created_at),
+      };
+    });
+
+    const history = [...fromApprovals, ...fromSdfs].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 
     res.json({ history });
   } catch (err) {

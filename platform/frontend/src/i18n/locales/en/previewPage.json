@@ -106,6 +106,7 @@
     "dontClose": "Please don't close this page.",
     "startedTitle": "Download started!",
     "startedBody": "Your ERP has been approved and the download should begin automatically.",
+    "redirectingToSetup": "We will open the setup instructions in a few seconds.",
     "failedTitle": "Download failed",
     "retry": "Retry"
   },

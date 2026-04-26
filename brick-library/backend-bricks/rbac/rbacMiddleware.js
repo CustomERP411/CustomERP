@@ -40,11 +40,13 @@ function rbacLoader(req, _res, next) {
   const userIdHeader = String(req.headers['x-erp-user-id'] || '').trim();
 
   let userId = null;
+  let tokenUsername = null;
 
   if (authHeader.startsWith('Bearer ')) {
     try {
       const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
       userId = decoded.userId || decoded.user_id || decoded.sub || null;
+      tokenUsername = decoded.username || null;
     } catch (_) {
       /* invalid token – treat as anonymous */
     }
@@ -59,9 +61,20 @@ function rbacLoader(req, _res, next) {
     return next();
   }
 
-  loadUserPermissions(userId)
-    .then(({ permissions, isSuperadmin }) => {
-      req.erpUser = { userId, permissions, isSuperadmin };
+  Promise.all([
+    loadUserPermissions(userId),
+    getProvider().findById('__erp_users', userId).catch(() => null),
+  ])
+    .then(([{ permissions, isSuperadmin }, user]) => {
+      req.erpUser = {
+        userId,
+        id: userId,
+        username: user?.username || tokenUsername || null,
+        display_name: user?.display_name || user?.displayName || user?.username || tokenUsername || null,
+        displayName: user?.display_name || user?.displayName || user?.username || tokenUsername || null,
+        permissions,
+        isSuperadmin,
+      };
       next();
     })
     .catch(() => {

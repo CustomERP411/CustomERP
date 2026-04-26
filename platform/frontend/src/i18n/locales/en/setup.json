@@ -1,0 +1,79 @@
+{
+  "eyebrow": "After download",
+  "title": "Set up your ERP",
+  "subtitle": "These steps explain how to open {{projectName}} on your computer after downloading it. The ERP runs from the folder you extract.",
+  "downloadedFile": "Downloaded file",
+  "chooseOsTitle": "Choose your computer type",
+  "chooseOsSubtitle": "We opened the most likely option for your computer. If you downloaded for another system, open that section instead.",
+  "startFileLabel": "Start file:",
+  "defaults": {
+    "fileName": "your-erp.zip",
+    "projectName": "your ERP"
+  },
+  "importantNotes": {
+    "items": [
+      {
+        "title": "Keep the command window open",
+        "body": "When the ERP starts, a black command/terminal window may open. Do not close it while using the ERP, because it keeps the app running."
+      },
+      {
+        "title": "Your data stays in the folder",
+        "body": "Records you enter are saved inside the extracted ERP folder. Keep that folder safe and do not delete it unless you no longer need the ERP."
+      },
+      {
+        "title": "Use it again later",
+        "body": "To use the ERP tomorrow or next week, open the same extracted folder and run the same start file again."
+      }
+    ]
+  },
+  "platforms": {
+    "windows-x64": {
+      "intro": "Use this if you are on a Windows computer.",
+      "steps": [
+        "Find {{fileName}} in your Downloads folder.",
+        "Right-click the ZIP file and choose Extract All. Finish the extraction.",
+        "Open the extracted folder for {{projectName}}.",
+        "Double-click {{startFile}}. If Windows asks for confirmation, choose to run it.",
+        "Wait until the command window says the ERP is ready, then open the browser link it shows.",
+        "Keep the command window open while using the ERP. Close it only when you are finished.",
+        "Next time, open the same extracted folder and double-click {{startFile}} again."
+      ]
+    },
+    "macos-arm64": {
+      "intro": "Use this for newer Mac computers with Apple Silicon chips, such as M1, M2, M3, or newer.",
+      "steps": [
+        "Find {{fileName}} in your Downloads folder.",
+        "Double-click the ZIP file to extract it.",
+        "Open the extracted folder for {{projectName}}.",
+        "Double-click {{startFile}}. If macOS blocks it, Control-click it, choose Open, then confirm.",
+        "Wait for the terminal window to show the ERP link, then open that link in your browser.",
+        "Keep the terminal window open while using the ERP.",
+        "Next time, open the same extracted folder and run {{startFile}} again."
+      ]
+    },
+    "macos-x64": {
+      "intro": "Use this for older Mac computers with Intel processors.",
+      "steps": [
+        "Find {{fileName}} in your Downloads folder.",
+        "Double-click the ZIP file to extract it.",
+        "Open the extracted folder for {{projectName}}.",
+        "Double-click {{startFile}}. If macOS blocks it, Control-click it, choose Open, then confirm.",
+        "Wait for the terminal window to show the ERP link, then open that link in your browser.",
+        "Keep the terminal window open while using the ERP.",
+        "Next time, open the same extracted folder and run {{startFile}} again."
+      ]
+    },
+    "linux-x64": {
+      "intro": "Use this for Linux computers.",
+      "steps": [
+        "Find {{fileName}} in your Downloads folder.",
+        "Extract the ZIP file using your file manager.",
+        "Open the extracted folder for {{projectName}}.",
+        "Run {{startFile}}. If it does not start, right-click it, open Properties, and allow it to run as a program.",
+        "Wait for the terminal window to show the ERP link, then open that link in your browser.",
+        "Keep the terminal window open while using the ERP.",
+        "Next time, open the same extracted folder and run {{startFile}} again."
+      ]
+    }
+  }
+}

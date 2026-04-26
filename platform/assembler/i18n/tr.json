@@ -348,11 +348,20 @@
     "title": "Etkinlik Günlüğü",
     "subtitle": "Sistem genelindeki değişikliklerin kaydı.",
     "searchPlaceholder": "Etkinlik ara...",
+    "allUsers": "Tüm kullanıcılar",
+    "allActions": "Tüm işlemler",
+    "allEntities": "Tüm kayıt bölümleri",
+    "filters": {
+      "user": "Kullanıcı",
+      "action": "İşlem",
+      "entity": "Kayıt bölümü"
+    },
     "columns": {
       "when": "Zaman",
       "user": "Kullanıcı",
       "action": "İşlem",
       "entity": "Varlık",
+      "record": "Kayıt",
       "recordId": "Kayıt ID",
       "message": "Mesaj"
     },
@@ -364,12 +373,13 @@
       "LOGOUT": "Çıkış yaptı"
     },
     "messages": {
-      "CREATE": "{{user}}, {{entity}} {{record}} kaydını ekledi",
-      "UPDATE": "{{user}}, {{entity}} {{record}} kaydını değiştirdi",
-      "DELETE": "{{user}}, {{entity}} {{record}} kaydını sildi",
+      "CREATE": "{{user}}, {{entity}} kaydı ekledi",
+      "UPDATE": "{{user}}, {{entity}} kaydını değiştirdi",
+      "DELETE": "{{user}}, {{entity}} kaydını sildi",
       "LOGIN": "{{user}} giriş yaptı",
       "LOGOUT": "{{user}} çıkış yaptı"
     },
+    "recordFallback": "{{entity}} kaydı",
     "unknownUser": "Sistem",
     "empty": "Henüz etkinlik kaydı yok."
   },

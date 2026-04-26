@@ -296,6 +296,7 @@ function buildUsersAdminPageConnected({ language } = {}) {
   const t = tFor(language);
   const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   return `import { useEffect, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { API, useAuth } from '../../contexts/AuthContext';
 
 interface UserRow {
@@ -459,7 +460,7 @@ export default function UsersAdminPageConnected() {
 
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="${t('rbac.searchUsers')}" className="w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500" />
 
-      {showForm && (
+      {showForm && createPortal((
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
           role="dialog"
@@ -547,7 +548,7 @@ export default function UsersAdminPageConnected() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       <div className="overflow-x-auto rounded-lg border">
         <table className="min-w-full text-sm">
@@ -626,12 +627,14 @@ function buildGroupsAdminPageConnected({ language } = {}) {
     '__erp_permissions': t('sidebar.permissions'),
     '__erp_user_groups': t('rbac.roles'),
     '__erp_group_permissions': t('rbac.permissions'),
+    '__audit_logs': t('activityLog.title'),
   };
   const builtinDescriptions = {
     superadmin: t('rbac.seedSuperadminDescription'),
     admin: t('rbac.seedAdminDescription'),
   };
   return `import { useEffect, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { API } from '../../contexts/AuthContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { ENTITIES } from '../../config/entities';
@@ -776,8 +779,8 @@ export default function GroupsAdminPageConnected() {
     await load();
   };
 
-  const businessPerms = permissions.filter((p) => !p.key.startsWith('__erp_'));
-  const systemPerms = permissions.filter((p) => p.key.startsWith('__erp_'));
+  const businessPerms = permissions.filter((p) => !p.key.startsWith('__'));
+  const systemPerms = permissions.filter((p) => p.key.startsWith('__'));
 
   const permsByEntity = businessPerms.reduce((acc, p) => {
     const parts = p.key.split('.');
@@ -849,7 +852,7 @@ export default function GroupsAdminPageConnected() {
 
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="${esc(searchRoles)}" className="w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500" />
 
-      {showForm && (
+      {showForm && createPortal((
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
           role="dialog"
@@ -902,7 +905,7 @@ export default function GroupsAdminPageConnected() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {filtered.map((group) => (

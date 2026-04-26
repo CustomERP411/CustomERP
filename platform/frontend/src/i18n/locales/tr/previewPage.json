@@ -106,6 +106,7 @@
     "dontClose": "Lütfen bu sayfayı kapatmayın.",
     "startedTitle": "İndirme başladı!",
     "startedBody": "ERP'niz onaylandı ve indirme otomatik olarak başlayacak.",
+    "redirectingToSetup": "Birkaç saniye içinde kurulum açıklamalarını açacağız.",
     "failedTitle": "İndirme başarısız",
     "retry": "Tekrar Dene"
   },

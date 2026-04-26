@@ -86,6 +86,16 @@ export default function Sidebar({ drawerOpen = false, onCloseDrawer }: SidebarPr
       ),
     },
     {
+      to: '/setup',
+      label: t('setup'),
+      active: isActive('/setup'),
+      icon: (
+        <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 6v6l4 2m4.5-2A8.5 8.5 0 113.5 12a8.5 8.5 0 0117 0z" />
+        </svg>
+      ),
+    },
+    {
       to: '/my/requests',
       label: t('myRequests'),
       active: isActive('/my/requests'),

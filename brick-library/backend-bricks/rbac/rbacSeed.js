@@ -25,6 +25,7 @@ const SYSTEM_ENTITY_SLUGS = [
   '__erp_permissions',
   '__erp_user_groups',
   '__erp_group_permissions',
+  '__audit_logs',
 ];
 
 const MODULE_DISPLAY_NAMES = {
@@ -42,7 +43,7 @@ const ABSTRACT_PERM_SLUGS = {
 
 function resolveAbstractPermissions(abstractPerms, customPermsStr, entitySlugs) {
   const keys = new Set();
-  const businessSlugs = entitySlugs.filter((s) => !s.startsWith('__erp_'));
+  const businessSlugs = entitySlugs.filter((s) => !String(s).startsWith('__'));
 
   for (const ap of abstractPerms) {
     if (ap === 'view_records') {
@@ -87,6 +88,10 @@ function humanizeSlug(slug) {
 
 function entityDisplayName(slug, entityDisplayMap = {}) {
   return entityDisplayMap[slug] || humanizeSlug(slug);
+}
+
+function actionsForSlug(slug) {
+  return String(slug) === '__audit_logs' ? ['read'] : CRUD_ACTIONS;
 }
 
 function actionDisplayName(action) {
@@ -164,11 +169,11 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
     let allGP = await repository.findAll('__erp_group_permissions');
 
     for (const slug of slugsToSeed) {
-      for (const action of CRUD_ACTIONS) {
+      for (const action of actionsForSlug(slug)) {
         const key = `${slug}.${action}`;
         if (permByKey.has(key)) continue;
 
-        const scope = slug.startsWith('__erp_') ? 'global' : 'module';
+        const scope = slug.startsWith('__') ? 'global' : 'module';
         const displaySlug = entityDisplayName(slug, entityDisplayMap);
         const actionLabel = actionDisplayName(action);
         const perm = await repository.create('__erp_permissions', {
@@ -183,7 +188,7 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
         permByKey.set(key, perm);
       }
     }
-    console.log(`[RBAC-SEED] Ensured ${slugsToSeed.length * CRUD_ACTIONS.length} permissions exist`);
+    console.log(`[RBAC-SEED] Ensured permissions exist for ${slugsToSeed.length} entity areas`);
 
     allGP = await repository.findAll('__erp_group_permissions');
 
@@ -194,7 +199,7 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
     await assignPermissionsToGroup(repository, adminGroup.id, allPermIds, allGP);
     console.log('[RBAC-SEED] Admin group receives all permissions');
 
-    const businessSlugs = slugsToSeed.filter((s) => !s.startsWith('__erp_'));
+    const businessSlugs = slugsToSeed.filter((s) => !s.startsWith('__'));
     const moduleGroups = {};
     const sharedSlugs = [];
     for (const slug of businessSlugs) {
@@ -217,7 +222,7 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
 
       const modPermIds = [];
       for (const slug of modSlugs) {
-        for (const action of CRUD_ACTIONS) {
+        for (const action of actionsForSlug(slug)) {
           const p = permByKey.get(`${slug}.${action}`);
           if (p) modPermIds.push(p.id);
         }
@@ -230,7 +235,7 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
       const modKeys = Object.keys(moduleAdminGroups);
       for (const sharedSlug of sharedSlugs) {
         const sharedPermIds = [];
-        for (const action of CRUD_ACTIONS) {
+        for (const action of actionsForSlug(sharedSlug)) {
           const p = permByKey.get(`${sharedSlug}.${action}`);
           if (p) sharedPermIds.push(p.id);
         }

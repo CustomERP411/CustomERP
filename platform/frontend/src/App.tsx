@@ -14,6 +14,7 @@ import AdminPage from './pages/AdminPage';
 import TrainingDataPage from './pages/TrainingDataPage';
 import FeatureRequestsAdminPage from './pages/FeatureRequestsAdminPage';
 import MyRequestsPage from './pages/MyRequestsPage';
+import SetupPage from './pages/SetupPage';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicOnlyRoute from './components/PublicOnlyRoute';
@@ -49,6 +50,7 @@ function App() {
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/projects/:id/preview" element={<PreviewPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/setup" element={<SetupPage />} />
           <Route path="/my/requests" element={<MyRequestsPage />} />
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<AdminPage />} />

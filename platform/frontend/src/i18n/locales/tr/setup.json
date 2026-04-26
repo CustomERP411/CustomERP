@@ -1,0 +1,79 @@
+{
+  "eyebrow": "İndirmeden sonra",
+  "title": "ERP'nizi kurun",
+  "subtitle": "{{projectName}} dosyasını indirdikten sonra bilgisayarınızda nasıl açacağınızı burada adım adım anlatıyoruz. ERP, çıkardığınız klasörün içinden çalışır.",
+  "downloadedFile": "İndirilen dosya",
+  "chooseOsTitle": "Bilgisayar türünüzü seçin",
+  "chooseOsSubtitle": "Bilgisayarınız için en olası bölümü açık gösterdik. Farklı bir sistem için indirdiyseniz o bölümü açın.",
+  "startFileLabel": "Başlatma dosyası:",
+  "defaults": {
+    "fileName": "erp-dosyaniz.zip",
+    "projectName": "ERP'niz"
+  },
+  "importantNotes": {
+    "items": [
+      {
+        "title": "Komut penceresini açık tutun",
+        "body": "ERP açılırken siyah bir komut/terminal penceresi açılabilir. ERP'yi kullanırken bu pencereyi kapatmayın; uygulamanın çalışmasını o pencere sağlar."
+      },
+      {
+        "title": "Verileriniz klasörde kalır",
+        "body": "Girdiğiniz kayıtlar, çıkardığınız ERP klasörünün içinde saklanır. Bu klasörü güvenli tutun ve ERP'ye artık ihtiyacınız yoksa silin."
+      },
+      {
+        "title": "Sonra tekrar kullanabilirsiniz",
+        "body": "ERP'yi yarın veya daha sonra kullanmak için aynı çıkarılmış klasörü açıp aynı başlatma dosyasını yeniden çalıştırın."
+      }
+    ]
+  },
+  "platforms": {
+    "windows-x64": {
+      "intro": "Windows bilgisayar kullanıyorsanız bu bölümü takip edin.",
+      "steps": [
+        "İndirilenler klasöründe {{fileName}} dosyasını bulun.",
+        "ZIP dosyasına sağ tıklayın ve Tümünü ayıkla seçeneğini kullanın. Ayıklamayı tamamlayın.",
+        "{{projectName}} için çıkarılan klasörü açın.",
+        "{{startFile}} dosyasına çift tıklayın. Windows onay isterse çalıştırmayı seçin.",
+        "Komut penceresinde ERP'nin hazır olduğunu ve bir tarayıcı bağlantısı gösterdiğini görene kadar bekleyin.",
+        "ERP'yi kullanırken komut penceresini açık bırakın. Sadece işiniz bittiğinde kapatın.",
+        "Bir sonraki kullanımda aynı çıkarılmış klasörü açın ve {{startFile}} dosyasına tekrar çift tıklayın."
+      ]
+    },
+    "macos-arm64": {
+      "intro": "M1, M2, M3 veya daha yeni Apple Silicon işlemcili Mac kullanıyorsanız bu bölümü takip edin.",
+      "steps": [
+        "İndirilenler klasöründe {{fileName}} dosyasını bulun.",
+        "ZIP dosyasına çift tıklayarak klasöre çıkarın.",
+        "{{projectName}} için çıkarılan klasörü açın.",
+        "{{startFile}} dosyasına çift tıklayın. macOS engellerse dosyaya Control tuşuyla tıklayın, Aç seçeneğini seçin ve onaylayın.",
+        "Terminal penceresinde ERP bağlantısı görünene kadar bekleyin, sonra bu bağlantıyı tarayıcınızda açın.",
+        "ERP'yi kullanırken terminal penceresini açık bırakın.",
+        "Bir sonraki kullanımda aynı çıkarılmış klasörü açıp {{startFile}} dosyasını tekrar çalıştırın."
+      ]
+    },
+    "macos-x64": {
+      "intro": "Intel işlemcili eski Mac bilgisayar kullanıyorsanız bu bölümü takip edin.",
+      "steps": [
+        "İndirilenler klasöründe {{fileName}} dosyasını bulun.",
+        "ZIP dosyasına çift tıklayarak klasöre çıkarın.",
+        "{{projectName}} için çıkarılan klasörü açın.",
+        "{{startFile}} dosyasına çift tıklayın. macOS engellerse dosyaya Control tuşuyla tıklayın, Aç seçeneğini seçin ve onaylayın.",
+        "Terminal penceresinde ERP bağlantısı görünene kadar bekleyin, sonra bu bağlantıyı tarayıcınızda açın.",
+        "ERP'yi kullanırken terminal penceresini açık bırakın.",
+        "Bir sonraki kullanımda aynı çıkarılmış klasörü açıp {{startFile}} dosyasını tekrar çalıştırın."
+      ]
+    },
+    "linux-x64": {
+      "intro": "Linux bilgisayar kullanıyorsanız bu bölümü takip edin.",
+      "steps": [
+        "İndirilenler klasöründe {{fileName}} dosyasını bulun.",
+        "ZIP dosyasını dosya yöneticinizle çıkarın.",
+        "{{projectName}} için çıkarılan klasörü açın.",
+        "{{startFile}} dosyasını çalıştırın. Açılmazsa dosyaya sağ tıklayın, Özellikler bölümünden program olarak çalıştırmaya izin verin.",
+        "Terminal penceresinde ERP bağlantısı görünene kadar bekleyin, sonra bu bağlantıyı tarayıcınızda açın.",
+        "ERP'yi kullanırken terminal penceresini açık bırakın.",
+        "Bir sonraki kullanımda aynı çıkarılmış klasörü açıp {{startFile}} dosyasını tekrar çalıştırın."
+      ]
+    }
+  }
+}

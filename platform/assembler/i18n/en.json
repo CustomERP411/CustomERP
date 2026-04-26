@@ -348,11 +348,20 @@
     "title": "Activity Log",
     "subtitle": "Audit trail of changes across the system.",
     "searchPlaceholder": "Search activity...",
+    "allUsers": "All users",
+    "allActions": "All actions",
+    "allEntities": "All record areas",
+    "filters": {
+      "user": "User",
+      "action": "Action",
+      "entity": "Record area"
+    },
     "columns": {
       "when": "When",
       "user": "User",
       "action": "Action",
       "entity": "Entity",
+      "record": "Record",
       "recordId": "Record ID",
       "message": "Message"
     },
@@ -364,12 +373,13 @@
       "LOGOUT": "Logged out"
     },
     "messages": {
-      "CREATE": "{{user}} added {{entity}} {{record}}",
-      "UPDATE": "{{user}} changed {{entity}} {{record}}",
-      "DELETE": "{{user}} deleted {{entity}} {{record}}",
+      "CREATE": "{{user}} added a {{entity}} record",
+      "UPDATE": "{{user}} changed a {{entity}} record",
+      "DELETE": "{{user}} deleted a {{entity}} record",
       "LOGIN": "{{user}} logged in",
       "LOGOUT": "{{user}} logged out"
     },
+    "recordFallback": "{{entity}} record",
     "unknownUser": "System",
     "empty": "No activity recorded yet."
   },

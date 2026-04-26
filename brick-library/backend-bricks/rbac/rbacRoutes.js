@@ -32,6 +32,26 @@ async function writeAuthAudit(action, user) {
   }
 }
 
+function parseDashboardConfig(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'object') return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function serializeDashboardConfig(value) {
+  if (value == null) return '{}';
+  if (typeof value === 'string') {
+    const parsed = parseDashboardConfig(value);
+    return JSON.stringify(parsed || {});
+  }
+  return JSON.stringify(value);
+}
+
 router.get('/default-credentials', async (req, res) => {
   try {
     const repo = getProvider();
@@ -179,11 +199,7 @@ router.get('/dashboard/preferences', rbacLoader, async (req, res) => {
       return res.json({ config: null });
     }
 
-    try {
-      return res.json({ config: JSON.parse(String(row.config)) });
-    } catch (_) {
-      return res.json({ config: null });
-    }
+    return res.json({ config: parseDashboardConfig(row.config) });
   } catch (err) {
     console.error('[AUTH] dashboard preferences read error:', err.message || err);
     return res.status(500).json({ error: 'Internal server error' });
@@ -199,7 +215,8 @@ router.put('/dashboard/preferences', rbacLoader, async (req, res) => {
     const config = req.body && Object.prototype.hasOwnProperty.call(req.body, 'config')
       ? req.body.config
       : req.body;
-    const serialized = JSON.stringify(config || {});
+    const normalizedConfig = parseDashboardConfig(config) || {};
+    const serialized = serializeDashboardConfig(normalizedConfig);
     const repo = getProvider();
     const existing = await repo.findAll('__erp_dashboard_preferences', { user_id: req.erpUser.userId });
     let row = existing && existing[0];
@@ -211,7 +228,7 @@ router.put('/dashboard/preferences', rbacLoader, async (req, res) => {
         config: serialized,
       });
     }
-    return res.json({ config: JSON.parse(String(row.config || serialized)) });
+    return res.json({ config: normalizedConfig });
   } catch (err) {
     console.error('[AUTH] dashboard preferences write error:', err.message || err);
     return res.status(500).json({ error: 'Internal server error' });

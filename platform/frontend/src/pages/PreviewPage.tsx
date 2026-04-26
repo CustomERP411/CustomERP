@@ -84,6 +84,7 @@ export default function PreviewPage() {
   const [downloadPlatform, setDownloadPlatform] = useState('');
   const [downloadPhase, setDownloadPhase] = useState<'pick' | 'building' | 'done' | 'error'>('pick');
   const [downloadError, setDownloadError] = useState('');
+  const [downloadSetupParams, setDownloadSetupParams] = useState<{ file: string; platform: string; project: string } | null>(null);
 
   // Change request state
   const [changeText, setChangeText] = useState('');
@@ -405,8 +406,18 @@ export default function PreviewPage() {
     setDownloadPlatform(detectedPlatform);
     setDownloadPhase('pick');
     setDownloadError('');
+    setDownloadSetupParams(null);
     setShowDownloadModal(true);
   };
+
+  useEffect(() => {
+    if (downloadPhase !== 'done' || !downloadSetupParams) return;
+    const params = new URLSearchParams(downloadSetupParams);
+    const redirectTimer = setTimeout(() => {
+      navigate(`/setup?${params.toString()}`);
+    }, 2500);
+    return () => clearTimeout(redirectTimer);
+  }, [downloadPhase, downloadSetupParams, navigate]);
 
   const startApproveAndDownload = async () => {
     if (!projectId || !downloadPlatform) return;
@@ -418,12 +429,18 @@ export default function PreviewPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${project?.name || 'custom-erp'}-${downloadPlatform}.zip`;
+      const fileName = `${project?.name || 'custom-erp'}-${downloadPlatform}.zip`;
+      a.download = fileName;
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      setDownloadSetupParams({
+        file: fileName,
+        platform: downloadPlatform,
+        project: project?.name || 'CustomERP',
+      });
       setDownloadPhase('done');
       try { await projectService.stopPreview(projectId); } catch { /* cleanup */ }
     } catch (err: any) {
@@ -895,6 +912,7 @@ export default function PreviewPage() {
                   <p className="text-xs text-app-text-subtle mt-2">
                     {PLATFORM_INFO[downloadPlatform]?.extractTip}
                   </p>
+                  <p className="text-xs text-app-text-subtle mt-2">{t('downloadModal.redirectingToSetup')}</p>
                 </div>
                 <button
                   onClick={() => setShowDownloadModal(false)}

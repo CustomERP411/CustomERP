@@ -17,6 +17,7 @@ import enAdmin from './locales/en/admin.json';
 import enErrors from './locales/en/errors.json';
 import enMyRequests from './locales/en/myRequests.json';
 import enPreviewPage from './locales/en/previewPage.json';
+import enSetup from './locales/en/setup.json';
 
 import trCommon from './locales/tr/common.json';
 import trLanding from './locales/tr/landing.json';
@@ -33,6 +34,7 @@ import trAdmin from './locales/tr/admin.json';
 import trErrors from './locales/tr/errors.json';
 import trMyRequests from './locales/tr/myRequests.json';
 import trPreviewPage from './locales/tr/previewPage.json';
+import trSetup from './locales/tr/setup.json';
 
 export const SUPPORTED_LANGUAGES = ['en', 'tr'] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -68,6 +70,7 @@ const resources = {
     errors: enErrors,
     myRequests: enMyRequests,
     previewPage: enPreviewPage,
+    setup: enSetup,
   },
   tr: {
     common: trCommon,
@@ -85,6 +88,7 @@ const resources = {
     errors: trErrors,
     myRequests: trMyRequests,
     previewPage: trPreviewPage,
+    setup: trSetup,
   },
 } as const;
 
@@ -114,6 +118,7 @@ void i18n
       'errors',
       'myRequests',
       'previewPage',
+      'setup',
     ],
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],

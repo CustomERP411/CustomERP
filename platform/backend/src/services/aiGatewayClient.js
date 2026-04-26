@@ -124,8 +124,19 @@ async function chat({ businessDescription, message, conversationHistory, selecte
   });
 }
 
+async function validateDescription(description, options = {}) {
+  if (!description || typeof description !== 'string') {
+    throw new Error('description must be a string');
+  }
+  return await postJson('/ai/validate-description', {
+    description,
+    language: resolveLanguage(options),
+  });
+}
+
 module.exports = {
   analyzeDescription,
+  validateDescription,
   clarifySdf,
   finalizeSdf,
   editSdf,

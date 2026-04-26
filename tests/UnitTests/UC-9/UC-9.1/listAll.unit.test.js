@@ -1,7 +1,7 @@
 /**
  * UC-9.1 — Admin: View All Feature Requests (list + filters + pagination)
  *
- * Covers TC-UC9.1-003 through TC-UC9.1-006.
+ * Covers TC-UC9.1-002 through TC-UC9.1-006.
  *
  * SUTs:
  *   - platform/backend/src/services/featureRequestService.js (listAll)
@@ -62,6 +62,31 @@ describe('UC-9.1 / featureRequestService.listAll (real)', () => {
 
   beforeEach(() => {
     db.query.mockReset();
+  });
+
+  // TC-UC9.1-002
+  test('TC-UC9.1-002 — listAll builds WHERE clauses when status and/or source are supplied', async () => {
+    const calls = installSnapshottingMock([
+      { rows: [{ total: '3' }] }, // COUNT
+      { rows: [{ id: 'fr-1' }, { id: 'fr-2' }, { id: 'fr-3' }] }, // data
+    ]);
+
+    await realSvc.listAll({ status: 'recorded', source: 'chatbot' });
+
+    expect(calls).toHaveLength(2);
+
+    // First (count) query: must include WHERE fr.status = $1 AND fr.source = $2
+    expect(calls[0].sql).toMatch(/SELECT COUNT\(\*\)/i);
+    expect(calls[0].sql).toMatch(
+      /WHERE\s+fr\.status\s*=\s*\$1\s+AND\s+fr\.source\s*=\s*\$2/i,
+    );
+
+    // Second (data) query: same WHERE + ORDER BY fr.created_at DESC + LIMIT/OFFSET
+    expect(calls[1].sql).toMatch(
+      /WHERE\s+fr\.status\s*=\s*\$1\s+AND\s+fr\.source\s*=\s*\$2/i,
+    );
+    expect(calls[1].sql).toMatch(/ORDER BY\s+fr\.created_at\s+DESC/i);
+    expect(calls[1].sql).toMatch(/LIMIT\s+\$\d+\s+OFFSET\s+\$\d+/i);
   });
 
   // TC-UC9.1-003

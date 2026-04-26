@@ -5,6 +5,16 @@ interface LeaveRequestCardProps {
   to: string;
 }
 
+const displayText = (value: any, fallback = '—') => {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (Array.isArray(value)) return value.map((v) => displayText(v, '')).filter(Boolean).join(', ') || fallback;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'object') {
+    return String(value.name || value.display_name || value.title || value.id || JSON.stringify(value));
+  }
+  return String(value);
+};
+
 const statusClass = (status: string) => {
   switch (status) {
     case 'Approved':
@@ -39,7 +49,7 @@ export default function LeaveRequestCard({ leave, to }: LeaveRequestCardProps) {
     <Link to={to} className="rounded-lg border bg-white p-4 shadow-sm hover:shadow">
       <div className="flex items-center justify-between">
         <div className="text-xs font-semibold text-slate-500">
-          Employee ID: {leave?.employee_id || '—'}
+          Employee ID: {displayText(leave?.employee_id)}
         </div>
         <span className={['rounded-full px-2 py-1 text-xs font-semibold', statusClass(status)].join(' ')}>
           {status}
@@ -51,9 +61,9 @@ export default function LeaveRequestCard({ leave, to }: LeaveRequestCardProps) {
         </span>
       </div>
       <div className="mt-3 space-y-1 text-sm text-slate-600">
-        <div>Start: {leave?.start_date || '—'}</div>
-        <div>End: {leave?.end_date || '—'}</div>
-        {leave?.reason ? <div className="text-xs italic">Reason: {leave.reason}</div> : null}
+        <div>Start: {displayText(leave?.start_date)}</div>
+        <div>End: {displayText(leave?.end_date)}</div>
+        {leave?.reason ? <div className="text-xs italic">Reason: {displayText(leave.reason)}</div> : null}
       </div>
     </Link>
   );

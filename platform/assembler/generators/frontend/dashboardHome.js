@@ -144,7 +144,8 @@ function buildSeries(rows: any[], entitySlug: string, metric: string, multiplier
       if (id) {
         if (action === 'DELETE') {
           active.delete(id);
-          values.delete(id);
+          metricValues.delete(id);
+          multiplierValues.delete(id);
         } else if (action === 'CREATE') {
           active.add(id);
         }

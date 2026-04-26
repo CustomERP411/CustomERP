@@ -120,6 +120,11 @@ const interpolate = (s: string, params: Record<string, string | number> = {}) =>
   s.replace(/{{(\\w+)}}/g, (_m, k) => (params[k] !== undefined ? String(params[k]) : ''));
 const DISPLAY_FIELD_BY_ENTITY: Record<string, string> = Object.fromEntries(ENTITIES.map((e) => [e.slug, e.displayField])) as Record<string, string>;
 
+const getStatusTransitions = (status: any): string[] => {
+  const transitions = STATUS_TRANSITIONS && status ? (STATUS_TRANSITIONS as any)[status] : null;
+  return Array.isArray(transitions) ? transitions : [];
+};
+
 const getEntityDisplay = (entitySlug: string, row: any) => {
   const df = DISPLAY_FIELD_BY_ENTITY[entitySlug] || 'name';
   const v = row?.[df] ?? row?.name ?? row?.sku ?? row?.id;
@@ -557,7 +562,7 @@ export default function ${entityName}FormPage() {
             </>
           ) : null}
           {STATUS_TRANSITIONS && isEdit && initialData?.status ? (
-            (STATUS_TRANSITIONS as any)[initialData.status]?.map((nextStatus: string) => (
+            getStatusTransitions(initialData.status).map((nextStatus: string) => (
               <button
                 key={nextStatus}
                 type="button"

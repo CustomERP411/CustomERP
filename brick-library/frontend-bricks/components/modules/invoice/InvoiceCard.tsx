@@ -6,6 +6,16 @@ interface InvoiceCardProps {
   currency?: string;
 }
 
+const displayText = (value: any, fallback = '—') => {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (Array.isArray(value)) return value.map((v) => displayText(v, '')).filter(Boolean).join(', ') || fallback;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'object') {
+    return String(value.name || value.company_name || value.display_name || value.title || value.id || JSON.stringify(value));
+  }
+  return String(value);
+};
+
 const formatMoney = (value: any, currency: string) => {
   const num = Number(value ?? 0);
   try {
@@ -41,16 +51,16 @@ export default function InvoiceCard({ invoice, to, currency = 'USD' }: InvoiceCa
     <Link to={to} className="rounded-lg border bg-white p-4 shadow-sm hover:shadow">
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-slate-900">
-          {invoice?.invoice_number || invoice?.id}
+          {displayText(invoice?.invoice_number || invoice?.id)}
         </div>
         <span className={['rounded-full px-2 py-1 text-xs font-semibold', statusClass(status)].join(' ')}>
           {status}
         </span>
       </div>
       <div className="mt-3 space-y-1 text-sm text-slate-600">
-        <div>Customer: {customer}</div>
-        <div>Issue Date: {invoice?.issue_date || '—'}</div>
-        <div>Due Date: {invoice?.due_date || '—'}</div>
+        <div>Customer: {displayText(customer)}</div>
+        <div>Issue Date: {displayText(invoice?.issue_date)}</div>
+        <div>Due Date: {displayText(invoice?.due_date)}</div>
       </div>
       <div className="mt-4 flex items-center justify-between text-sm">
         <span className="text-slate-500">Total</span>

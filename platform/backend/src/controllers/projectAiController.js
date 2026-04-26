@@ -5,6 +5,7 @@ const clarificationService = require('../services/clarificationService');
 const moduleQuestionnaireService = require('../services/moduleQuestionnaireService');
 const prefilledSdfService = require('../services/prefilledSdfService');
 const featureRequestService = require('../services/featureRequestService');
+const descriptionValidationService = require('../services/descriptionValidationService');
 const SDF = require('../models/SDF');
 const ProjectConversation = require('../models/ProjectConversation');
 const { parseModulesInput } = require('./projectHelpers');
@@ -14,12 +15,26 @@ exports.analyzeProject = async (req, res) => {
     const userId = req.user.userId;
     const projectId = req.params.id;
     const description = req.body?.description || req.body?.business_description || req.body?.businessDescription;
-    if (!description || typeof description !== 'string' || description.trim().length < 10) {
+    if (!description || typeof description !== 'string' || !description.trim()) {
       return res.status(400).json({ error: 'description is required' });
     }
 
     // Ensure project belongs to user
     const project = await projectService.getProject(projectId, userId);
+
+    // UC-7.3: gate the heavy generator behind an AI "is this description
+    // usable?" check. The service fails open on infra errors, so we only
+    // reject here when the AI explicitly says the text is not good enough.
+    const descriptionVerdict = await descriptionValidationService.validate(
+      description.trim(),
+      { language: project.language },
+    );
+    if (descriptionVerdict && descriptionVerdict.valid === false) {
+      return res.status(400).json({
+        error: 'description rejected',
+        reason: descriptionVerdict.reason,
+      });
+    }
 
     const requestedModules = parseModulesInput(req.body?.modules);
     const prefilledModuleKeys = parseModulesInput(Object.keys(req.body?.prefilled_sdf?.modules || {}));

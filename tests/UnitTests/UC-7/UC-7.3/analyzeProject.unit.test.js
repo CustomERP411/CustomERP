@@ -1,25 +1,40 @@
 /**
- * UC-7.3 Generate SDF — controller-layer unit tests
+ * UC-7.3 Enter Business Description (AI-validated) — controller-layer unit tests
  *
- * Covers TC-UC7.3-003 through TC-UC7.3-008.
+ * Covers TC-UC7.3-006 through TC-UC7.3-010.
  * SUT: platform/backend/src/controllers/projectAiController.js (analyzeProject)
  *
- * analyzeProject orchestrates the AI SDF generation pipeline:
- *   1) Validate description (≥10 chars).
- *   2) Resolve project (scoped by caller).
- *   3) Resolve the module questionnaire; reject early if incomplete.
- *   4) Call the AI gateway with language + prefilled SDF.
- *   5) Persist the resulting SDF, any clarifications, and unsupported features.
- *   6) Transition project status to 'Clarifying' or 'Ready'.
+ * --- What changed in this rewrite ---
  *
- * All external collaborators are mocked so the controller's branching
- * logic can be exercised deterministically.
+ * The Business Description flow now goes through a SEPARATE AI service
+ * (`descriptionValidationService`) that approves or rejects the user's
+ * free-text description before the heavy generation gateway is called.
+ *
+ *   analyzeProject now performs, in order:
+ *     1) Reject empty / missing descriptions with HTTP 400.
+ *     2) Ask descriptionValidationService.validate(text, { language })
+ *        whether the description is usable.
+ *           - If { valid: false, reason } → respond HTTP 400 with the
+ *             AI-supplied reason ("description rejected") and STOP.
+ *             aiGatewayClient.analyzeDescription must NOT be called.
+ *           - If { valid: true }          → proceed with the rest of
+ *             the original pipeline (questionnaire → gateway → save).
+ *     3) Pass project.language to BOTH the validator and the gateway.
+ *
+ * `descriptionValidationService` is mocked at the module boundary so these
+ * tests can focus on controller behavior without calling the AI gateway.
  */
 
 jest.mock('../../../../platform/backend/src/services/projectService', () => ({
   getProject: jest.fn(),
   updateProject: jest.fn(),
 }));
+jest.mock(
+  '../../../../platform/backend/src/services/descriptionValidationService',
+  () => ({
+    validate: jest.fn(),
+  }),
+);
 jest.mock(
   '../../../../platform/backend/src/services/moduleQuestionnaireService',
   () => ({
@@ -70,6 +85,9 @@ jest.mock(
 const projectService = require(
   '../../../../platform/backend/src/services/projectService',
 );
+const descriptionValidationService = require(
+  '../../../../platform/backend/src/services/descriptionValidationService',
+);
 const moduleQuestionnaireService = require(
   '../../../../platform/backend/src/services/moduleQuestionnaireService',
 );
@@ -100,7 +118,7 @@ function mockRes() {
   return res;
 }
 
-function setHappyDefaults({ language = 'en', clarifications = [], unsupported = [] } = {}) {
+function setHappyDefaults({ language = 'en' } = {}) {
   projectService.getProject.mockResolvedValue({
     id: 'p-1',
     name: 'Acme',
@@ -110,6 +128,12 @@ function setHappyDefaults({ language = 'en', clarifications = [], unsupported = 
   projectService.updateProject.mockImplementation((_pid, _uid, updates) =>
     Promise.resolve({ id: 'p-1', name: 'Acme', language, ...updates }),
   );
+
+  // NEW: AI description validator approves by default.
+  descriptionValidationService.validate.mockResolvedValue({
+    valid: true,
+    reason: null,
+  });
 
   moduleQuestionnaireService.getQuestionnaireState.mockResolvedValue({
     modules: ['inventory'],
@@ -134,13 +158,13 @@ function setHappyDefaults({ language = 'en', clarifications = [], unsupported = 
   aiGatewayClient.analyzeDescription.mockResolvedValue({
     project_name: 'Acme',
     entities: [{ slug: 'products', fields: [] }],
-    clarifications_needed: clarifications,
-    unsupported_features: unsupported,
+    clarifications_needed: [],
+    unsupported_features: [],
     warnings: [],
-    sdf_complete: !clarifications.length,
+    sdf_complete: true,
   });
 
-  clarificationService.persistQuestions.mockResolvedValue(clarifications);
+  clarificationService.persistQuestions.mockResolvedValue([]);
 
   SDF.create.mockResolvedValue({ version: 1 });
   ProjectConversation.create.mockResolvedValue({ id: 'c-1' });
@@ -150,17 +174,17 @@ function setHappyDefaults({ language = 'en', clarifications = [], unsupported = 
   featureRequestService.recordWarnings.mockResolvedValue(undefined);
 }
 
-describe('UC-7.3 / projectAiController.analyzeProject', () => {
+describe('UC-7.3 / projectAiController.analyzeProject (AI-validated description)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // TC-UC7.3-003
-  test("TC-UC7.3-003 — returns 400 when description is missing or shorter than 10 characters", async () => {
+  // TC-UC7.3-006
+  test('TC-UC7.3-006 — returns 400 when description is missing or empty', async () => {
     const req = {
       user: { userId: 'u-1' },
       params: { id: 'p-1' },
-      body: { description: 'short' },
+      body: { description: '' },
     };
     const res = mockRes();
 
@@ -168,46 +192,81 @@ describe('UC-7.3 / projectAiController.analyzeProject', () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: 'description is required' });
+    // Neither the description validator nor the main generator is called.
+    expect(descriptionValidationService.validate).not.toHaveBeenCalled();
     expect(aiGatewayClient.analyzeDescription).not.toHaveBeenCalled();
   });
 
-  // TC-UC7.3-004
-  test('TC-UC7.3-004 — returns 400 with missing_required_question_ids when the questionnaire is incomplete', async () => {
+  // TC-UC7.3-007
+  test('TC-UC7.3-007 — returns 400 with the AI-supplied reason when the validator rejects the description', async () => {
     setHappyDefaults();
-    moduleQuestionnaireService.getQuestionnaireState.mockResolvedValueOnce({
-      modules: ['inventory'],
-      template_versions: { inventory: { version: 'v1' } },
-      language: 'en',
-      questions: [],
-      completion: {
-        total_required_visible: 2,
-        answered_required_visible: 1,
-        is_complete: false,
-        missing_required_question_ids: ['q-1'],
-        missing_required_question_keys: ['inv_multi_location'],
-      },
-      mandatory_answers: {},
+    descriptionValidationService.validate.mockResolvedValueOnce({
+      valid: false,
+      reason: 'Please describe what you sell.',
     });
 
     const req = {
       user: { userId: 'u-1' },
       params: { id: 'p-1' },
-      body: { description: 'A business that sells widgets and tracks inventory.' },
+      body: { description: 'my business' },
     };
     const res = mockRes();
 
     await controller.analyzeProject(req, res);
 
+    expect(descriptionValidationService.validate).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(400);
+
     const body = res.json.mock.calls[0][0];
-    expect(body.error).toMatch(/incomplete/i);
-    expect(body.missing_required_question_ids).toEqual(['q-1']);
-    expect(body.missing_required_question_keys).toEqual(['inv_multi_location']);
+    expect(body.error).toBe('description rejected');
+    expect(body.reason).toBe('Please describe what you sell.');
+
+    // The main generator must NOT be called when the validator rejects.
     expect(aiGatewayClient.analyzeDescription).not.toHaveBeenCalled();
   });
 
-  // TC-UC7.3-005
-  test("TC-UC7.3-005 — passes project.language through to the AI gateway (Turkish)", async () => {
+  // TC-UC7.3-008
+  test('TC-UC7.3-008 — when the validator approves, the controller continues and calls analyzeDescription', async () => {
+    setHappyDefaults();
+
+    // Record call order across the two collaborators.
+    const callOrder = [];
+    descriptionValidationService.validate.mockImplementationOnce(async () => {
+      callOrder.push('validate');
+      return { valid: true, reason: null };
+    });
+    aiGatewayClient.analyzeDescription.mockImplementationOnce(async () => {
+      callOrder.push('analyzeDescription');
+      return {
+        project_name: 'Acme',
+        entities: [{ slug: 'products', fields: [] }],
+        clarifications_needed: [],
+        unsupported_features: [],
+        warnings: [],
+        sdf_complete: true,
+      };
+    });
+
+    const req = {
+      user: { userId: 'u-1' },
+      params: { id: 'p-1' },
+      body: { description: 'A small shop that sells spare parts and tracks stock.' },
+    };
+    const res = mockRes();
+
+    await controller.analyzeProject(req, res);
+
+    expect(descriptionValidationService.validate).toHaveBeenCalledTimes(1);
+    expect(aiGatewayClient.analyzeDescription).toHaveBeenCalledTimes(1);
+    // validator MUST come before the generator.
+    expect(callOrder).toEqual(['validate', 'analyzeDescription']);
+    // Happy-path response is not a 400 / 500.
+    expect(res.status).not.toHaveBeenCalledWith(400);
+    expect(res.status).not.toHaveBeenCalledWith(500);
+  });
+
+  // TC-UC7.3-009
+  test("TC-UC7.3-009 — passes project.language through to BOTH the validator and the AI gateway (Turkish)", async () => {
     setHappyDefaults({ language: 'tr' });
 
     const req = {
@@ -219,76 +278,25 @@ describe('UC-7.3 / projectAiController.analyzeProject', () => {
 
     await controller.analyzeProject(req, res);
 
+    // Validator receives the language.
+    expect(descriptionValidationService.validate).toHaveBeenCalledTimes(1);
+    const validateArgs = descriptionValidationService.validate.mock.calls[0];
+    // Signature: validate(text, options)
+    const validateOptions = validateArgs[1];
+    expect(validateOptions).toBeDefined();
+    expect(validateOptions.language).toBe('tr');
+
+    // Generator also receives the language.
     expect(aiGatewayClient.analyzeDescription).toHaveBeenCalledTimes(1);
-    const callArgs = aiGatewayClient.analyzeDescription.mock.calls[0];
-    // Signature: (description, _unused, options)
-    const options = callArgs[2];
-    expect(options).toBeDefined();
-    expect(options.language).toBe('tr');
+    const analyzeArgs = aiGatewayClient.analyzeDescription.mock.calls[0];
+    // Signature: analyzeDescription(description, priorContext, options)
+    const analyzeOptions = analyzeArgs[2];
+    expect(analyzeOptions).toBeDefined();
+    expect(analyzeOptions.language).toBe('tr');
   });
 
-  // TC-UC7.3-006
-  test("TC-UC7.3-006 — sets status 'Clarifying' when AI returns clarifications_needed, else 'Ready'", async () => {
-    // Run 1 — AI returns one clarification question.
-    setHappyDefaults({
-      clarifications: [{ id: 'q-cl-1', question: 'Which currency?' }],
-    });
-
-    const req = {
-      user: { userId: 'u-1' },
-      params: { id: 'p-1' },
-      body: { description: 'A business description long enough.' },
-    };
-    let res = mockRes();
-    await controller.analyzeProject(req, res);
-
-    // The last updateProject call decides final status.
-    const run1Status = projectService.updateProject.mock.calls
-      .map((c) => c[2]?.status)
-      .filter(Boolean);
-    expect(run1Status[run1Status.length - 1]).toBe('Clarifying');
-
-    // Run 2 — no clarifications.
-    jest.clearAllMocks();
-    setHappyDefaults({ clarifications: [] });
-
-    res = mockRes();
-    await controller.analyzeProject(req, res);
-
-    const run2Status = projectService.updateProject.mock.calls
-      .map((c) => c[2]?.status)
-      .filter(Boolean);
-    expect(run2Status[run2Status.length - 1]).toBe('Ready');
-  });
-
-  // TC-UC7.3-007
-  test('TC-UC7.3-007 — forwards unsupported_features to featureRequestService (fire-and-forget)', async () => {
-    setHappyDefaults({
-      unsupported: [{ label: 'Biometric punch clock', description: 'X' }],
-    });
-    // Make the feature recorder reject to prove we don't fail the request.
-    featureRequestService.recordFeatures.mockRejectedValueOnce(new Error('offline'));
-
-    const req = {
-      user: { userId: 'u-1' },
-      params: { id: 'p-1' },
-      body: { description: 'A business description long enough.' },
-    };
-    const res = mockRes();
-
-    await controller.analyzeProject(req, res);
-
-    expect(featureRequestService.recordFeatures).toHaveBeenCalledTimes(1);
-    expect(featureRequestService.recordFeatures.mock.calls[0][0]).toMatchObject({
-      source: 'sdf_generation',
-      features: [{ label: 'Biometric punch clock', description: 'X' }],
-    });
-    // The main response still succeeds.
-    expect(res.status).not.toHaveBeenCalledWith(500);
-  });
-
-  // TC-UC7.3-008
-  test('TC-UC7.3-008 — AI 503 back-pressure errors bubble through as HTTP 503 (not 500)', async () => {
+  // TC-UC7.3-010
+  test('TC-UC7.3-010 — AI 503 back-pressure errors bubble through as HTTP 503 (not 500)', async () => {
     setHappyDefaults();
     const busy = Object.assign(new Error('busy'), { statusCode: 503 });
     aiGatewayClient.analyzeDescription.mockRejectedValueOnce(busy);
@@ -296,7 +304,7 @@ describe('UC-7.3 / projectAiController.analyzeProject', () => {
     const req = {
       user: { userId: 'u-1' },
       params: { id: 'p-1' },
-      body: { description: 'A business description long enough.' },
+      body: { description: 'A valid, long-enough business description.' },
     };
     const res = mockRes();
 

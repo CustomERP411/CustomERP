@@ -1,6 +1,15 @@
 // SDF validation – extracted from ProjectAssembler
+const path = require('path');
 const { lintSdfLocalization } = require('./sdfLocalizationLint');
-const { parseRelationRule } = require('../../../brick-library/backend-bricks/mixins/relationRuleParser');
+
+// brick-library lives outside this package; in Docker its absolute path is
+// supplied via BRICK_LIBRARY_PATH (see docker-compose). Fall back to the
+// repo-relative location for local dev/tests.
+const BRICK_LIBRARY_PATH = process.env.BRICK_LIBRARY_PATH
+  || path.resolve(__dirname, '..', '..', '..', 'brick-library');
+const { parseRelationRule } = require(
+  path.join(BRICK_LIBRARY_PATH, 'backend-bricks', 'mixins', 'relationRuleParser')
+);
 
 const ERP_MODULE_KEYS = ['inventory', 'invoice', 'hr'];
 

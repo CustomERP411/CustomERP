@@ -774,7 +774,7 @@ export default function ProjectDetailPage() {
       const key = idToKey.get(id);
       if (key) byKey[key] = nextById[id];
     }
-    const { answers: coercedByKey, coerced } = applyDependencyCoercion(
+    const { coerced } = applyDependencyCoercion(
       dependencyGraph,
       byKey,
       selectedModules,

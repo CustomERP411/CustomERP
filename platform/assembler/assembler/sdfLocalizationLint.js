@@ -7,11 +7,20 @@
 // status / validation / common.
 //
 // Severity model:
-//   - English projects (`language === 'en'`): every entry is `warn` only —
-//     the raw label IS the en string and may be acceptable when no translation
-//     is needed. This protects today's SDFs from regressing immediately.
-//   - Non-English projects: every entry is `block` (hard error) so the
-//     generated UI does not leak English copy into a Turkish project.
+//   - All projects currently surface findings at `warn` severity. The lint
+//     still walks the SDF and reports unkeyed strings (so we can build a
+//     translation backlog), but it does not block assembly.
+//   - Rationale: AI generators emit user-facing copy as raw strings in the
+//     project's target language (driven by the per-language prompt
+//     directives). There is no pipeline yet that registers per-project
+//     entity strings (e.g. `entity.products.label`) into the platform
+//     dictionaries, so a `block` severity for non-English projects breaks
+//     every Turkish/etc. generation today even when the strings are already
+//     in the correct language. `tFor(language)` falls back to the raw value
+//     anyway, so the runtime is safe — leak risk only exists for genuine
+//     English-text-in-Turkish-project bugs, which are easy to spot in the UI.
+//   - When a real key/dictionary pipeline lands, flip non-English back to
+//     `block` here.
 //
 // The lint never modifies the SDF. Callers (sdfValidation._validateSdf in this
 // repo, but also unit tests) decide what to do with the report.
@@ -341,7 +350,10 @@ function _collectUserFacingStrings(sdf) {
 function lintSdfLocalization(sdf, options = {}) {
   const language = (options.language || 'en').toLowerCase();
   const isEnglish = language === 'en';
-  const baseSeverity = isEnglish ? 'warn' : 'block';
+  // See header comment: severity is `warn` for every language until the
+  // per-project key/dictionary pipeline exists. Findings still get reported
+  // so they can be triaged.
+  const baseSeverity = 'warn';
   const dict = options.dictionary || _loadDefaultEnDict();
 
   const collected = _collectUserFacingStrings(sdf);

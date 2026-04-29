@@ -7,6 +7,8 @@ deployment (and therefore a different fine-tuned model in the future).
 """
 
 import asyncio
+import os
+import re
 from typing import Optional, Type
 
 from openai import AsyncAzureOpenAI, APIConnectionError, APITimeoutError, RateLimitError
@@ -14,6 +16,27 @@ from pydantic import BaseModel
 
 from src.config import settings, AgentConfig
 from src.services.base_client import BaseAIClient, GenerationResult
+
+
+# Azure deployments backed by reasoning-class models (o1/o3/o4 series and the
+# gpt-5 family minus the gpt-5-chat variant) require `max_completion_tokens`
+# in place of `max_tokens`, only accept the default temperature (1.0), and
+# may take a `reasoning_effort` hint. Detection is based on deployment name
+# substrings since Azure exposes the deployment name (not the underlying
+# model id) on the API surface.
+_REASONING_OSERIES_RE = re.compile(r"(?:^|[-_])o[1-9](?:-|_|$)")
+
+
+def _is_reasoning_deployment(deployment: str) -> bool:
+    name = (deployment or "").lower()
+    if not name:
+        return False
+    if "chat" in name:
+        # gpt-5-chat / gpt-5-chat-latest are non-reasoning chat models.
+        return False
+    if "gpt-5" in name:
+        return True
+    return bool(_REASONING_OSERIES_RE.search(name))
 
 
 class AzureOpenAIClient(BaseAIClient):
@@ -72,13 +95,27 @@ class AzureOpenAIClient(BaseAIClient):
         request_options: Optional[dict] = None,
     ) -> GenerationResult:
         temp = temperature if temperature is not None else self.get_temperature()
+        is_reasoning = _is_reasoning_deployment(self.deployment)
 
         kwargs: dict = {
             "model": self.deployment,
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": temp,
-            "max_tokens": 8192,
         }
+
+        if is_reasoning:
+            # Reasoning models reject `max_tokens` and any non-default
+            # `temperature`. They also accept an optional `reasoning_effort`
+            # ("low" | "medium" | "high"); pull it from a per-agent env var
+            # (e.g. AI_AGENT_DISTRIBUTOR_REASONING_EFFORT=medium) when set.
+            kwargs["max_completion_tokens"] = 8192
+            agent_name = (self.agent_config.name if self.agent_config else "").upper()
+            if agent_name:
+                effort = os.getenv(f"AI_AGENT_{agent_name}_REASONING_EFFORT")
+                if effort:
+                    kwargs["reasoning_effort"] = effort.strip().lower()
+        else:
+            kwargs["temperature"] = temp
+            kwargs["max_tokens"] = 8192
 
         if response_schema is not None or json_mode:
             kwargs["response_format"] = {"type": "json_object"}

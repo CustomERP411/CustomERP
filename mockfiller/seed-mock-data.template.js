@@ -320,13 +320,43 @@ const invc = (systemConfig.modules && systemConfig.modules.invoice_priority_a) |
 const hr = (systemConfig.modules && systemConfig.modules.hr_priority_a) || {};
 const sr = (systemConfig.modules && systemConfig.modules.scheduled_reports) || {};
 
-// Find first slug from ALL_SLUGS that contains a substring (case-insensitive)
+// Resolve a slug from a list of "needle" hints. We try multiple match
+// strategies in order of specificity so that 'location' returns
+// 'locations' (not 'invoice_payment_allocations'!) and 'invoice'
+// returns 'invoices' (not 'invoice_items').
+//
+// Strategies, applied in order for each needle:
+//   1. Exact slug match          ('locations' === 'locations')
+//   2. Pluralised exact match    ('location' + 's' === 'locations')
+//   3. Pluralised '...es'        ('box' + 'es' === 'boxes')
+//   4. Singularised exact        ('locations' minus 's' === 'location')
+//   5. Word-boundary match       ('payment_allocation' in 'invoice_payment_allocations'
+//                                  bounded by '_' on both sides)
+//
+// Substring-anywhere matching (the old behaviour) is intentionally
+// dropped — it caused systematic mis-routing whenever one entity slug
+// happened to contain another as a sub-word.
 function findSlug(...substrings) {
-  const lowerAll = ALL_SLUGS.map((s) => [s, s.toLowerCase()]);
+  const all = ALL_SLUGS.map((s) => [s, String(s).toLowerCase()]);
+  const escapeReg = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   for (const sub of substrings) {
-    const needle = String(sub || '').toLowerCase();
+    const needle = String(sub || '').toLowerCase().trim();
     if (!needle) continue;
-    const hit = lowerAll.find(([, lower]) => lower.includes(needle));
+
+    let hit = all.find(([, lower]) => lower === needle);
+    if (hit) return hit[0];
+
+    hit = all.find(([, lower]) => lower === `${needle}s` || lower === `${needle}es`);
+    if (hit) return hit[0];
+
+    if (needle.endsWith('s')) {
+      const singular = needle.slice(0, -1);
+      hit = all.find(([, lower]) => lower === singular);
+      if (hit) return hit[0];
+    }
+
+    const re = new RegExp(`(^|_)${escapeReg(needle)}(s|es)?(_|$)`, 'i');
+    hit = all.find(([, lower]) => re.test(lower));
     if (hit) return hit[0];
   }
   return null;

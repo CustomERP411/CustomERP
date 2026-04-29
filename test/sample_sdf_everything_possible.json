@@ -772,11 +772,25 @@
         { "name": "requested_days", "type": "decimal", "label": "Requested Days", "computed": true },
         { "name": "reason", "type": "text", "label": "Reason" },
         { "name": "approval_status", "type": "string", "label": "Approval Status", "required": true, "options": ["Pending", "Approved", "Rejected", "Cancelled"] },
-        { "name": "approved_by", "type": "string", "label": "Approved By" },
+        { "name": "approved_by", "type": "reference", "label": "Approved By", "reference_entity": "__erp_users" },
         { "name": "approved_at", "type": "datetime", "label": "Approved At" },
         { "name": "rejected_at", "type": "datetime", "label": "Rejected At" },
         { "name": "rejection_reason", "type": "text", "label": "Rejection Reason" },
         { "name": "decision_key", "type": "string", "label": "Decision Key", "unique": true }
+      ],
+      "relations": [
+        {
+          "kind": "reference_contract",
+          "field": "approved_by",
+          "target": "__erp_users",
+          "when": "modules.access_control.enabled"
+        },
+        {
+          "kind": "permission_scope",
+          "permission": "hr.leaves.approve",
+          "scope": "manager_chain",
+          "when": "modules.access_control.enabled"
+        }
       ],
       "features": { "audit_trail": true }
     },

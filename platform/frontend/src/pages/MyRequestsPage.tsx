@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   featureRequestService,
+  resolveFeatureName,
   type FeatureRequest,
   type FeatureRequestDetail,
   type FeatureStatus,
@@ -125,7 +126,7 @@ export default function MyRequestsPage() {
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   {statusIcon(r.status)}
-                  <span className="font-medium text-app-text truncate">{r.feature_name}</span>
+                  <span className="font-medium text-app-text truncate">{resolveFeatureName(r, i18n.language)}</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${statusColor(r.status)}`}>

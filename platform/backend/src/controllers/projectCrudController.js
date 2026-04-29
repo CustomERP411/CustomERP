@@ -87,6 +87,9 @@ exports.getDefaultModuleQuestions = async (req, res) => {
       questionnaireState: state,
     });
 
+    // Plan C — wizard wiring. `state.dependency_graph` is shipped down so the
+    // frontend can mirror coercion + render hints/badges; `coerced` only
+    // populated for the save endpoint.
     res.json({
       ...state,
       prefilled_sdf: prefill.prefilled_sdf,

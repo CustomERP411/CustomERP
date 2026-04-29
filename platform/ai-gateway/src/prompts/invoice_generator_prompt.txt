@@ -112,6 +112,286 @@
 # "children": [{ "entity": "invoice_items", "foreign_key": "invoice_id",
 #   "label": "Line Items", "columns": ["description","quantity","unit_price","line_total"] }]
 
+# REFERENCE FIELDS — STRICT CONTRACT (Plan E):
+# Every field whose name ends in `_id` and represents a foreign key to another
+# entity MUST set `type: "reference"` AND `reference_entity: "<target_slug>"`.
+# The field's `label` MUST be the natural-language description of the
+# relationship in the project language (e.g. "Customer", "Approved by",
+# "Department"). NEVER use the raw column name with title-case (e.g.
+# "Customer Id", "Approver Id") — the frontend will resolve the picker /
+# list cell from the target entity's display_field, but ONLY if these two
+# attributes are set.
+#
+# For actor fields (`approved_by`, `posted_by`, `cancelled_by`,
+# `requested_by`, `recorded_by`, `created_by`, `received_by`, `counted_by`,
+# `submitted_by`), the `reference_entity` MUST be `__erp_users` and the
+# `label` MUST be the action-past-tense ("Approved by", "Posted by",
+# "Cancelled by", "Requested by", etc.). Do NOT keep these as raw `string`
+# fields and do NOT use `employees` as the reference target — actors are
+# users, the user-employee link mixin connects them to employee records
+# server-side.
+#
+# For `invoice_items.product_id` (present whenever the prefilled SDF was
+# built with `modules.invoice.stock_link.enabled`): emit as
+# `type: "reference"` with `reference_entity` set to the inventory stock
+# entity slug (typically `products`, but follow whatever slug the
+# prefilled SDF uses — the user may have renamed it). The `label` MUST
+# be the project-language word for "Product" (e.g. "Product", "Ürün").
+# Never as a raw `string` and never as a free-text "description-only"
+# field; the runtime `issue_stock` rule needs the FK to fire.
+
+# Coherence layer (entity.relations[]): the runtime mixin layer interprets
+# these — you only declare intent.
+#
+# Example — outstanding_balance is server-derived from totals minus paid:
+#   {
+#     "kind": "derived_field",
+#     "computed_field": "outstanding_balance",
+#     "formula": "linear_combine(plus_fields=[grand_total], minus_fields=[paid_total])",
+#     "when": "modules.invoice.payments.enabled"
+#   }
+#   When you add this entry, make sure `outstanding_balance` exists on the
+#   entity AND is marked `"computed": true`.
+
+# STOCK LINK CONTRACT — invoice -> inventory (Plan E):
+# When `modules.invoice.stock_link.enabled` is true, the prefilled SDF
+# already carries:
+#   - `invoice_items.product_id` (reference to the stock entity)
+#   - `invoice_items.location_id` (reference to `locations`, only when the
+#     products entity has `features.multi_location: true`) plus its
+#     visibility_when + sibling conditional_required invariant
+#   - a `status_propagation` relation on `invoices` whose effect.action is
+#     EXACTLY `issue_stock(...)` against `target_entity: stock_movements`,
+#     with reverse `reverse_issue_stock()` on Cancelled
+#
+# You MUST preserve these verbatim. Do NOT change the action name,
+# arguments, target_entity, or the `when` clause. Do NOT replace
+# `issue_stock` with `add_ledger_line` or any other action — only
+# `issue_stock` actually moves stock at runtime; the others are stubs
+# or unrelated handlers.
+#
+# Canonical shape the prefilled SDF will already contain:
+#   {
+#     "kind": "status_propagation",
+#     "on":     { "field": "status", "to": "Posted" },
+#     "effect": {
+#       "action": "issue_stock(child_entity=invoice_items, parent_field=invoice_id, item_field=product_id, qty_field=quantity, location_field=location_id, stock_entity=products)",
+#       "target_entity": "stock_movements",
+#       "stock_entity": "products"
+#     },
+#     "reverse": {
+#       "on":     { "field": "status", "to": "Cancelled" },
+#       "action": "reverse_issue_stock()"
+#     },
+#     "when": "modules.invoice.stock_link.enabled"
+#   }
+#
+# If the user renamed the stock entity (e.g. `products` -> `tires`) the
+# prefilled SDF will substitute the new slug into the action's
+# `child_entity`/`stock_entity` args — keep whatever slugs the prefilled
+# SDF uses; do not "normalize" them back to `products`.
+#
+# When stock_link is OFF, none of these fields/relations are emitted —
+# do NOT add them yourself; that is a wizard-level decision.
+
+# CONDITIONAL FIELDS — invoice line location picker (Plan E + Plan G):
+# The location picker on `invoice_items.location_id` is the canonical
+# CONDITIONAL FIELDS example for stocked invoicing. The prefilled SDF
+# already pairs the field-level `visibility_when: { field: "product_id",
+# is_set: true }` with a sibling `conditional_required` invariant that
+# uses the same predicate. Keep the pair intact — see the CONDITIONAL
+# FIELDS contract below for the rule.
+
+# DERIVED FIELDS — STRICT CONTRACT (Plan F):
+# Any field marked `"computed": true` MUST have a matching entry in
+# `entity.relations[]` with `"kind": "derived_field"`, the same column name as
+# `computed_field`, and a `formula` from this canonical list. Do NOT invent
+# new formula names — the runtime only dispatches what's listed.
+#
+# Canonical invoice formulas (use these EXACT shapes):
+#
+#   subtotal:    sum_lines(child_entity=invoice_items, parent_field=invoice_id, sum_field=line_total)
+#   tax_total:   percent_of(subtotal, tax_rate)
+#   grand_total: linear_combine(plus_fields=[subtotal, tax_total], minus_fields=[discount])
+#   line_total (on invoice_items):     multiply_fields(quantity, unit_price)
+#   line_tax_total (on invoice_items): percent_of(line_subtotal, line_tax_rate)
+#       (line_tax_total ONLY when modules.invoice.calculation_engine.enabled)
+#
+# Required tax-rate plumbing: the invoice MUST have a `tax_rate` decimal field
+# with `"default_from": "modules.invoice.tax_rate"` so the project-wide tax
+# percentage flows in automatically and the user can still override per
+# invoice. Do NOT use a hardcoded numeric default like `"default": 18` — the
+# wizard answer is the source of truth.
+
+# STANDARD TAX RATE — `default_from`:
+# Any decimal field representing a tax rate (`tax_rate`, `line_tax_rate`)
+# MUST set `"default_from": "modules.invoice.tax_rate"`. The codegen layer
+# resolves the path at build time and emits the project-default tax rate as
+# the field's initial value. `default` and `default_from` are mutually
+# exclusive on the same field.
+
+# CONDITIONAL FIELDS — STRICT CONTRACT (Plan G):
+# Use `visibility_when` on a field to show it only after another field
+# reaches a specific state. Supported operators: `equals`, `not_equals`,
+# `in`, `not_in`, `is_set`, `is_unset` — exactly ONE comparator per
+# predicate.
+#
+# WHEN A CONDITIONALLY-VISIBLE FIELD IS REQUIRED, you MUST also emit a
+# sibling `conditional_required` invariant on the same entity that uses
+# the same source field + operator/value. The form hides the input when
+# the predicate is false; the invariant guards the API so direct callers
+# can't bypass the form.
+#
+# Canonical Invoice example — `installments` on `invoice_payments` (when
+# the payments capability + payment_method enum are emitted): the field
+# is required only when `payment_method = "Credit Card"`, and the form
+# must hide it for Cash / Debit Card payments.
+#
+# PAYMENT METHOD ENUM (Plan I) — when `modules.invoice.payments.enabled`,
+# the `payment_method` field on `invoice_payments` MUST be emitted as
+# `type: "string"` with `options` resolved from
+# `entities.invoice_payments.fields.payment_method.options`. The default
+# trio is ["Cash", "Credit Card", "Debit Card"]; the wizard answer
+# `invoice_payment_methods` may extend or restrict this list. The form
+# auto-renders as RadioGroup chips because options.length <= 4 — do NOT
+# add a `widget` hint. Use Title Case enum values (matches `note_type`,
+# `leave_type`, etc.); the rule parser tolerates whitespace inside
+# values so `when_equals=Credit Card` parses cleanly.
+#
+# When "Credit Card" is among the options, ALSO emit an `installments`
+# integer field with visibility_when payment_method="Credit Card" AND a
+# paired conditional_required invariant.
+#
+#   field:
+#     {
+#       "name": "installments",
+#       "type": "integer",
+#       "label": "Installments",
+#       "min": 1, "max": 36,
+#       "visibility_when": { "field": "payment_method", "equals": "Credit Card" }
+#     }
+#   paired invariant on `invoice_payments`:
+#     {
+#       "kind": "invariant",
+#       "rule": "conditional_required(field=installments, when_field=payment_method, when_equals=Credit Card)",
+#       "severity": "block"
+#     }
+#
+# Other invoice patterns where the same machinery applies: a `void_reason`
+# required when `status` ∈ [Voided, Cancelled] (use `when_in=[...]`), or a
+# `dispute_note` required only when `dispute_flag` is set
+# (use `when_is_set=true`). Always pair the field's `visibility_when` with
+# the matching `conditional_required` invariant.
+
+# UI SECTIONS — INVOICE FORM LAYOUT (REQUIRED for invoice header):
+# The invoice form should treat the line items (products) as the bread and
+# butter of the form, NOT as an afterthought tacked onto the bottom. By
+# default the form-page generator renders the entity's plain field list
+# first and only THEN line items below — bad UX for header-line entities
+# like invoices.
+#
+# To fix this, the invoice header entity (slug: `invoices`) MUST emit
+# `ui.sections` declaring an explicit form layout. Every field declared on
+# the entity must appear in exactly one `fields` section; line items and
+# totals slot in between.
+#
+# Canonical invoice layout: identity → line_items → details → totals →
+# rollups. Use these section IDs and i18n-keyed headings (the keys exist
+# in the platform dictionary; do NOT emit raw English):
+#
+#   "ui": {
+#     "sections": [
+#       { "kind": "fields",     "id": "identity",
+#         "heading": "form.sections.identity",
+#         "fields": ["invoice_number", "customer_id", "issue_date", "due_date", "status"] },
+#       { "kind": "line_items", "child": "invoice_items" },
+#       { "kind": "fields",     "id": "details",
+#         "heading": "form.sections.details",
+#         "fields": ["tax_rate", "discount", "notes"] },
+#       { "kind": "totals" },
+#       { "kind": "rollups" }
+#     ]
+#   }
+#
+# Section kinds reference:
+#   - fields:             ordered group of this entity's own field names
+#   - line_items:         places one entry from `entity.children[]`
+#                         (the `child` value MUST match a `children[].entity` slug)
+#   - rollups:            inbound rollup card (auto-derived; see below)
+#   - totals:             invoice totals card (no-op outside invoices)
+#   - stock_availability: stock band (no-op without reservation fields)
+#   - companion_user:     HR companion-login panel (no-op outside HR employees)
+#
+# RULES:
+#   - Each field appears in AT MOST one `fields` section.
+#   - Headings MUST be dot-keys (`form.sections.identity`, etc.). Raw
+#     English is rejected by the localization lint on non-EN projects.
+#   - The `line_items.child` value MUST match an entry in `children[]`.
+#   - Fields you forget to list in any section are auto-appended in a
+#     trailing unlabeled group, but you should reference all fields
+#     explicitly so the layout is intentional.
+#   - Suggested standard headings (already in the dictionary):
+#     `form.sections.identity`, `form.sections.details`,
+#     `form.sections.lifecycle`, `form.sections.notes`,
+#     `form.sections.lineItems`, `form.sections.totals`.
+#   - When you don't need a section grouping (e.g. plain entity like
+#     `customers`), do NOT emit `ui.sections` at all — the platform falls
+#     back to its default layout. ui.sections is opt-in PER ENTITY.
+#
+# Apply the same pattern to other header-line transactional entities
+# the project may declare (proforma_invoices, recurring_invoices, etc.).
+# Customers, products, payments, and similar non-header entities should
+# be left to the default layout.
+
+# ROLLUP SECTIONS — WHEN TO OVERRIDE (Plan H):
+# Detail pages auto-render a read-only "rollup" section per inbound foreign-key
+# reference targeting the entity. Customer detail will list that customer's
+# invoices, Invoice detail will list its payments — automatically. The
+# platform picks `display_field` plus up to 3 more relevant columns (status,
+# primary date, primary money column).
+#
+# Auto-derive ALREADY excludes:
+#   - System entities (`__erp_*`)
+#   - Actor fields (`approved_by`, `posted_by`, ...) on `__erp_users`
+#   - FKs already declared in the parent's `children[]` (e.g. invoice → invoice_items)
+#   - Source entities in disabled modules
+#
+# Only emit `entity.rollups[X]` when the auto-derived columns would miss a
+# business-critical field. Otherwise leave it unset and rely on auto-derive.
+#
+# Worked Invoice examples:
+#
+#   On `customers` (one rollup of all invoices for that customer with the
+#   meaningful columns rather than the heuristic top-N):
+#     "rollups": {
+#       "invoices": {
+#         "columns": ["invoice_number", "issue_date", "status", "grand_total"]
+#       }
+#     }
+#
+#   On `invoices` (the payments rollup with the right column order):
+#     "rollups": {
+#       "invoice_payments": {
+#         "label": "Payments",
+#         "columns": ["payment_date", "payment_method", "amount", "status"]
+#       }
+#     }
+#
+# To narrow when one source has multiple FKs to the same target (e.g.
+# `invoices.customer_id` and `invoices.bill_to_customer_id` both target
+# `customers`) the resolver auto-disambiguates with a "(via …)" suffix.
+# Use the override only when you want a custom label or column set:
+#     "rollups": {
+#       "invoices": {
+#         "foreign_key": "customer_id",
+#         "label": "Sales invoices",
+#         "columns": ["invoice_number", "issue_date", "grand_total"]
+#       }
+#     }
+#
+# To suppress an auto-derived rollup entirely:
+#     "rollups": { "<source_slug>": false }
+
 # --- Inputs ---
 
 # Prefilled module SDF (this is your starting point, preserve it exactly).

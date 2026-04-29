@@ -6,11 +6,49 @@ function buildReservationsPage({ entity, entityName, importBase, reservationsCfg
   const displayName = entity?.display_name || entityName;
   const title = `${displayName} ${t('sidebar.workflow.reservations')}`;
   const backTo = `${t('common.back')} ${displayName}`;
+  const L = {
+    loading: t('common.loading'),
+    item: t('inventoryPages.reservations.item'),
+    selectPlaceholder: t('inventoryPages.reservations.selectPlaceholder'),
+    availabilitySnapshot: t('inventoryPages.reservations.availabilitySnapshot'),
+    onHand: t('inventoryPages.reservations.onHand'),
+    reserved: t('inventoryPages.reservations.reserved'),
+    committed: t('inventoryPages.reservations.committed'),
+    available: t('inventoryPages.reservations.available'),
+    quantity: t('inventoryPages.reservations.quantity'),
+    referenceOptional: t('inventoryPages.reservations.referenceOptional'),
+    noteOptional: t('inventoryPages.reservations.noteOptional'),
+    reserveStock: t('inventoryPages.reservations.reserveStock'),
+    tableHeader: t('inventoryPages.reservations.tableHeader'),
+    colReservation: t('inventoryPages.reservations.colReservation'),
+    colQuantity: t('inventoryPages.reservations.colQuantity'),
+    colStatus: t('inventoryPages.reservations.colStatus'),
+    colReference: t('inventoryPages.reservations.colReference'),
+    colActions: t('inventoryPages.reservations.colActions'),
+    release: t('inventoryPages.reservations.release'),
+    commit: t('inventoryPages.reservations.commit'),
+    empty: t('inventoryPages.reservations.empty'),
+    actionFailed: t('inventoryPages.reservations.actionFailed'),
+    released: t('inventoryPages.reservations.released'),
+    committedToast: t('inventoryPages.reservations.committed'),
+    subtitle: t('inventoryPages.reservations.subtitle'),
+    unknownError: t('common.unknownError'),
+    loadFailedTitle: t('inventoryWorkflow.common.loadFailedTitle'),
+    couldNotLoadItems: t('inventoryWorkflow.reservations.couldNotLoadItems'),
+    couldNotLoadReservations: t('inventoryWorkflow.reservations.couldNotLoadReservations'),
+    selectItemFirst: t('inventoryWorkflow.reservations.selectItemFirst'),
+    quantityMustBePositive: t('inventoryWorkflow.reservations.quantityMustBePositive'),
+    reservationCreated: t('inventoryWorkflow.reservations.reservationCreated'),
+    reserveFailed: t('inventoryWorkflow.reservations.reserveFailed'),
+    confirmRelease: t('inventoryWorkflow.reservations.confirmRelease'),
+    confirmCommit: t('inventoryWorkflow.reservations.confirmCommit'),
+  };
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '${base}/services/api';
 import { ENTITIES } from '${base}/config/entities';
 import { useToast } from '${base}/components/ui/toast';
+import { formatStatus } from '${base}/utils/statusFormatter';
 
 const ENTITY_SLUG = '${entity.slug}' as const;
 const CFG = ${JSON.stringify(reservationsCfg || {}, null, 2)} as const;
@@ -64,7 +102,7 @@ export default function ${entityName}ReservationsPage() {
       try {
         await fetchItems();
       } catch (err) {
-        if (!cancelled) toast({ title: 'Load failed', description: 'Could not load items', variant: 'error' });
+        if (!cancelled) toast({ title: '${L.loadFailedTitle}', description: '${L.couldNotLoadItems}', variant: 'error' });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -76,7 +114,7 @@ export default function ${entityName}ReservationsPage() {
   useEffect(() => {
     fetchReservations(itemId).catch((err) => {
       console.error('Failed to load reservations:', err);
-      toast({ title: 'Load failed', description: 'Could not load reservations', variant: 'error' });
+      toast({ title: '${L.loadFailedTitle}', description: '${L.couldNotLoadReservations}', variant: 'error' });
     });
   }, [itemId]);
 
@@ -87,11 +125,11 @@ export default function ${entityName}ReservationsPage() {
 
   const createReservation = async () => {
     if (!itemId) {
-      toast({ title: 'Select item first', variant: 'warning' });
+      toast({ title: '${L.selectItemFirst}', variant: 'warning' });
       return;
     }
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      toast({ title: 'Quantity must be greater than zero', variant: 'warning' });
+      toast({ title: '${L.quantityMustBePositive}', variant: 'warning' });
       return;
     }
 
@@ -106,9 +144,9 @@ export default function ${entityName}ReservationsPage() {
       setReferenceNumber('');
       setNote('');
       await Promise.all([fetchItems(), fetchReservations(itemId)]);
-      toast({ title: 'Reservation created', variant: 'success' });
+      toast({ title: '${L.reservationCreated}', variant: 'success' });
     } catch (err: any) {
-      toast({ title: 'Reserve failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: '${L.reserveFailed}', description: err?.response?.data?.error || err?.message || '${L.unknownError}', variant: 'error' });
     } finally {
       setWorking(false);
     }
@@ -116,31 +154,31 @@ export default function ${entityName}ReservationsPage() {
 
   const runReservationAction = async (reservationId: string, action: 'release' | 'commit') => {
     if (!itemId || !reservationId) return;
-    const question = action === 'release' ? 'Release this reservation?' : 'Commit this reservation?';
+    const question = action === 'release' ? '${L.confirmRelease}' : '${L.confirmCommit}';
     if (!confirm(question)) return;
     setWorking(true);
     try {
       await api.post('/' + ENTITY_SLUG + '/' + itemId + '/reservations/' + reservationId + '/' + action, {});
       await Promise.all([fetchItems(), fetchReservations(itemId)]);
       toast({
-        title: action === 'release' ? 'Reservation released' : 'Reservation committed',
+        title: action === 'release' ? '${L.released}' : '${L.committedToast}',
         variant: 'success',
       });
     } catch (err: any) {
-      toast({ title: 'Action failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: '${L.actionFailed}', description: err?.response?.data?.error || err?.message || '${L.unknownError}', variant: 'error' });
     } finally {
       setWorking(false);
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <div className="p-4">${L.loading}</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">${title}</h1>
-          <p className="text-sm text-slate-600">Reserve, release, or commit stock with clear availability checks.</p>
+          <p className="text-sm text-slate-600">${L.subtitle}</p>
         </div>
         <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
           ${backTo}
@@ -149,13 +187,13 @@ export default function ${entityName}ReservationsPage() {
 
       <div className="rounded-lg bg-white p-6 shadow space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Item</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">${L.item}</label>
           <select
             value={itemId}
             onChange={(e) => setItemId(e.target.value)}
             className="w-full rounded border px-3 py-2"
           >
-            <option value="">Select...</option>
+            <option value="">${L.selectPlaceholder}</option>
             {items.map((row) => (
               <option key={row.id} value={row.id}>{getEntityDisplay(ENTITY_SLUG, row)}</option>
             ))}
@@ -164,22 +202,22 @@ export default function ${entityName}ReservationsPage() {
 
         {selectedItem ? (
           <div className="rounded border bg-slate-50 p-4">
-            <div className="mb-2 text-sm font-semibold text-slate-900">Availability Snapshot</div>
+            <div className="mb-2 text-sm font-semibold text-slate-900">${L.availabilitySnapshot}</div>
             <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <div>
-                <div className="text-slate-500">On Hand</div>
+                <div className="text-slate-500">${L.onHand}</div>
                 <div className="font-semibold text-slate-900">{selectedItem[CFG.quantity_field || 'quantity'] ?? 0}</div>
               </div>
               <div>
-                <div className="text-slate-500">Reserved</div>
+                <div className="text-slate-500">${L.reserved}</div>
                 <div className="font-semibold text-amber-700">{selectedItem[CFG.reserved_field || 'reserved_quantity'] ?? 0}</div>
               </div>
               <div>
-                <div className="text-slate-500">Committed</div>
+                <div className="text-slate-500">${L.committed}</div>
                 <div className="font-semibold text-blue-700">{selectedItem[CFG.committed_field || 'committed_quantity'] ?? 0}</div>
               </div>
               <div>
-                <div className="text-slate-500">Available</div>
+                <div className="text-slate-500">${L.available}</div>
                 <div className="font-semibold text-emerald-700">{selectedItem[CFG.available_field || 'available_quantity'] ?? 0}</div>
               </div>
             </div>
@@ -188,15 +226,15 @@ export default function ${entityName}ReservationsPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Quantity</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">${L.quantity}</label>
             <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.valueAsNumber)} className="w-full rounded border px-3 py-2" />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Reference # (optional)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">${L.referenceOptional}</label>
             <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} className="w-full rounded border px-3 py-2" />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Note (optional)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">${L.noteOptional}</label>
             <input value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded border px-3 py-2" />
           </div>
         </div>
@@ -208,22 +246,22 @@ export default function ${entityName}ReservationsPage() {
             onClick={createReservation}
             className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            Reserve Stock
+            ${L.reserveStock}
           </button>
         </div>
       </div>
 
       <div className="rounded-lg bg-white p-6 shadow">
-        <div className="mb-3 text-sm font-semibold text-slate-900">Reservations</div>
+        <div className="mb-3 text-sm font-semibold text-slate-900">${L.tableHeader}</div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-700">
               <tr>
-                <th className="px-3 py-2 text-left">Reservation</th>
-                <th className="px-3 py-2 text-left">Quantity</th>
-                <th className="px-3 py-2 text-left">Status</th>
-                <th className="px-3 py-2 text-left">Reference</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+                <th className="px-3 py-2 text-left">${L.colReservation}</th>
+                <th className="px-3 py-2 text-left">${L.colQuantity}</th>
+                <th className="px-3 py-2 text-left">${L.colStatus}</th>
+                <th className="px-3 py-2 text-left">${L.colReference}</th>
+                <th className="px-3 py-2 text-right">${L.colActions}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -234,7 +272,7 @@ export default function ${entityName}ReservationsPage() {
                   <tr key={String(row.id)}>
                     <td className="px-3 py-2">{String(row.reservation_number || row.id)}</td>
                     <td className="px-3 py-2">{String(row?.[CFG.quantity_field || 'quantity'] ?? 0)}</td>
-                    <td className="px-3 py-2">{status}</td>
+                    <td className="px-3 py-2">{formatStatus(ENTITY_SLUG, status)}</td>
                     <td className="px-3 py-2">{String(row.source_reference || '')}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex justify-end gap-3">
@@ -246,7 +284,7 @@ export default function ${entityName}ReservationsPage() {
                               disabled={working}
                               className="text-amber-700 hover:underline disabled:opacity-50"
                             >
-                              Release
+                              ${L.release}
                             </button>
                             <button
                               type="button"
@@ -254,7 +292,7 @@ export default function ${entityName}ReservationsPage() {
                               disabled={working}
                               className="text-emerald-700 hover:underline disabled:opacity-50"
                             >
-                              Commit
+                              ${L.commit}
                             </button>
                           </>
                         ) : (
@@ -267,7 +305,7 @@ export default function ${entityName}ReservationsPage() {
               })}
               {reservations.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-4 text-center text-slate-500">No reservations yet</td>
+                  <td colSpan={5} className="px-3 py-4 text-center text-slate-500">${L.empty}</td>
                 </tr>
               ) : null}
             </tbody>
@@ -286,11 +324,38 @@ function buildGrnPostingPage({ entity, entityName, importBase, inboundCfg, langu
   const displayName = entity?.display_name || entityName;
   const title = `${displayName} ${t('sidebar.workflow.grnPosting')}`;
   const backTo = `${t('common.back')} ${displayName}`;
+  const G = {
+    loading: t('common.loading'),
+    cancelConfirm: t('inventoryPages.grn.cancelConfirm'),
+    cancelFailed: t('inventoryPages.grn.cancelFailed'),
+    cancelGrn: t('inventoryPages.grn.cancelGrn'),
+    unknownError: t('common.unknownError'),
+    loadFailedTitle: t('inventoryWorkflow.common.loadFailedTitle'),
+    statusLabel: t('inventoryWorkflow.common.statusLabel'),
+    selectPlaceholder: t('inventoryWorkflow.common.selectPlaceholder'),
+    subtitle: t('inventoryWorkflow.grn.subtitle'),
+    couldNotLoadReceipts: t('inventoryWorkflow.grn.couldNotLoadReceipts'),
+    couldNotLoadLines: t('inventoryWorkflow.grn.couldNotLoadLines'),
+    selectFirst: t('inventoryWorkflow.grn.selectFirst'),
+    confirmPost: t('inventoryWorkflow.grn.confirmPost'),
+    posted: t('inventoryWorkflow.grn.posted'),
+    postFailed: t('inventoryWorkflow.grn.postFailed'),
+    cancelled: t('inventoryWorkflow.grn.cancelled'),
+    selectLabel: t('inventoryWorkflow.grn.selectLabel'),
+    poLabel: t('inventoryWorkflow.grn.poLabel'),
+    postButton: t('inventoryWorkflow.grn.postButton'),
+    linesHeading: t('inventoryWorkflow.grn.linesHeading'),
+    colPoItem: t('inventoryWorkflow.grn.colPoItem'),
+    colItem: t('inventoryWorkflow.grn.colItem'),
+    colReceived: t('inventoryWorkflow.grn.colReceived'),
+    noLines: t('inventoryWorkflow.grn.noLines'),
+  };
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '${base}/services/api';
 import { ENTITIES } from '${base}/config/entities';
 import { useToast } from '${base}/components/ui/toast';
+import { formatStatus } from '${base}/utils/statusFormatter';
 
 const ENTITY_SLUG = '${entity.slug}' as const;
 const CFG = ${JSON.stringify(inboundCfg || {}, null, 2)} as const;
@@ -342,7 +407,7 @@ export default function ${entityName}PostingPage() {
       try {
         await fetchReceipts();
       } catch (err) {
-        if (!cancelled) toast({ title: 'Load failed', description: 'Could not load goods receipts', variant: 'error' });
+        if (!cancelled) toast({ title: '${G.loadFailedTitle}', description: '${G.couldNotLoadReceipts}', variant: 'error' });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -354,7 +419,7 @@ export default function ${entityName}PostingPage() {
   useEffect(() => {
     fetchLines(selectedId).catch((err) => {
       console.error('Failed to load GRN lines:', err);
-      toast({ title: 'Load failed', description: 'Could not load GRN lines', variant: 'error' });
+      toast({ title: '${G.loadFailedTitle}', description: '${G.couldNotLoadLines}', variant: 'error' });
     });
   }, [selectedId]);
 
@@ -365,17 +430,17 @@ export default function ${entityName}PostingPage() {
 
   const postReceipt = async () => {
     if (!selectedId) {
-      toast({ title: 'Select a goods receipt first', variant: 'warning' });
+      toast({ title: '${G.selectFirst}', variant: 'warning' });
       return;
     }
-    if (!confirm('Post this goods receipt? This updates stock and PO progress.')) return;
+    if (!confirm('${G.confirmPost}')) return;
     setWorking(true);
     try {
       await api.post('/' + ENTITY_SLUG + '/' + selectedId + '/post', {});
       await Promise.all([fetchReceipts(), fetchLines(selectedId)]);
-      toast({ title: 'Goods receipt posted', variant: 'success' });
+      toast({ title: '${G.posted}', variant: 'success' });
     } catch (err: any) {
-      toast({ title: 'Post failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: '${G.postFailed}', description: err?.response?.data?.error || err?.message || '${G.unknownError}', variant: 'error' });
     } finally {
       setWorking(false);
     }
@@ -383,23 +448,23 @@ export default function ${entityName}PostingPage() {
 
   const cancelReceipt = async () => {
     if (!selectedId) {
-      toast({ title: 'Select a goods receipt first', variant: 'warning' });
+      toast({ title: '${G.selectFirst}', variant: 'warning' });
       return;
     }
-    if (!confirm('Cancel this goods receipt?')) return;
+    if (!confirm('${G.cancelConfirm}')) return;
     setWorking(true);
     try {
       await api.post('/' + ENTITY_SLUG + '/' + selectedId + '/cancel', {});
       await Promise.all([fetchReceipts(), fetchLines(selectedId)]);
-      toast({ title: 'Goods receipt cancelled', variant: 'success' });
+      toast({ title: '${G.cancelled}', variant: 'success' });
     } catch (err: any) {
-      toast({ title: 'Cancel failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: '${G.cancelFailed}', description: err?.response?.data?.error || err?.message || '${G.unknownError}', variant: 'error' });
     } finally {
       setWorking(false);
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <div className="p-4">${G.loading}</div>;
 
   const statusValue = String(selectedReceipt?.[CFG.grn_status_field || 'status'] || '');
 
@@ -408,7 +473,7 @@ export default function ${entityName}PostingPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">${title}</h1>
-          <p className="text-sm text-slate-600">Review receipt lines and post to update stock atomically.</p>
+          <p className="text-sm text-slate-600">${G.subtitle}</p>
         </div>
         <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
           ${backTo}
@@ -417,9 +482,9 @@ export default function ${entityName}PostingPage() {
 
       <div className="rounded-lg bg-white p-6 shadow space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Goods Receipt</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">${G.selectLabel}</label>
           <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} className="w-full rounded border px-3 py-2">
-            <option value="">Select...</option>
+            <option value="">${G.selectPlaceholder}</option>
             {receipts.map((row) => (
               <option key={row.id} value={row.id}>
                 {String(row.grn_number || row.id)} — {getEntityDisplay(ENTITY_SLUG, row)}
@@ -430,8 +495,8 @@ export default function ${entityName}PostingPage() {
 
         {selectedReceipt ? (
           <div className="rounded border bg-slate-50 p-3 text-sm">
-            <div><span className="font-semibold">Status:</span> {statusValue || 'Draft'}</div>
-            <div><span className="font-semibold">PO:</span> {String(selectedReceipt?.[CFG.grn_parent_field || 'purchase_order_id'] || '—')}</div>
+            <div><span className="font-semibold">${G.statusLabel}</span> {formatStatus(ENTITY_SLUG, statusValue || 'Draft')}</div>
+            <div><span className="font-semibold">${G.poLabel}</span> {String(selectedReceipt?.[CFG.grn_parent_field || 'purchase_order_id'] || '—')}</div>
           </div>
         ) : null}
 
@@ -442,7 +507,7 @@ export default function ${entityName}PostingPage() {
             disabled={!selectedId || working || statusValue === 'Posted' || statusValue === 'Cancelled'}
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-50 disabled:opacity-50"
           >
-            Cancel GRN
+            ${G.cancelGrn}
           </button>
           <button
             type="button"
@@ -450,20 +515,20 @@ export default function ${entityName}PostingPage() {
             disabled={!selectedId || working || statusValue === 'Posted' || statusValue === 'Cancelled'}
             className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            Post GRN
+            ${G.postButton}
           </button>
         </div>
       </div>
 
       <div className="rounded-lg bg-white p-6 shadow">
-        <div className="mb-3 text-sm font-semibold text-slate-900">Receipt Lines</div>
+        <div className="mb-3 text-sm font-semibold text-slate-900">${G.linesHeading}</div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-700">
               <tr>
-                <th className="px-3 py-2 text-left">PO Item</th>
-                <th className="px-3 py-2 text-left">Item</th>
-                <th className="px-3 py-2 text-left">Received</th>
+                <th className="px-3 py-2 text-left">${G.colPoItem}</th>
+                <th className="px-3 py-2 text-left">${G.colItem}</th>
+                <th className="px-3 py-2 text-left">${G.colReceived}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -476,7 +541,7 @@ export default function ${entityName}PostingPage() {
               ))}
               {lines.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-3 py-4 text-center text-slate-500">No lines for selected goods receipt</td>
+                  <td colSpan={3} className="px-3 py-4 text-center text-slate-500">${G.noLines}</td>
                 </tr>
               ) : null}
             </tbody>
@@ -495,10 +560,46 @@ function buildCycleWorkflowPage({ entity, entityName, importBase, cycleCfg, lang
   const displayName = entity?.display_name || entityName;
   const title = `${displayName} ${t('sidebar.workflow.cycleCount')}`;
   const backTo = `${t('common.back')} ${displayName}`;
+  const C = {
+    loading: t('common.loading'),
+    updateCount: t('inventoryPages.cycleCount.updateCount'),
+    noLines: t('inventoryPages.cycleCount.noLines'),
+    save: t('inventoryPages.cycleCount.save'),
+    cancel: t('inventoryPages.cycleCount.cancel'),
+    unknownError: t('common.unknownError'),
+    loadFailedTitle: t('inventoryWorkflow.common.loadFailedTitle'),
+    statusLabel: t('inventoryWorkflow.common.statusLabel'),
+    selectPlaceholder: t('inventoryWorkflow.common.selectPlaceholder'),
+    subtitle: t('inventoryWorkflow.cycle.subtitle'),
+    couldNotLoadSessions: t('inventoryWorkflow.cycle.couldNotLoadSessions'),
+    couldNotLoadLines: t('inventoryWorkflow.cycle.couldNotLoadLines'),
+    selectFirst: t('inventoryWorkflow.cycle.selectFirst'),
+    actionStart: t('inventoryWorkflow.cycle.actionStart'),
+    actionRecalculate: t('inventoryWorkflow.cycle.actionRecalculate'),
+    actionApprove: t('inventoryWorkflow.cycle.actionApprove'),
+    actionPost: t('inventoryWorkflow.cycle.actionPost'),
+    actionCompleteSuffix: t('inventoryWorkflow.cycle.actionCompleteSuffix'),
+    actionFailedSuffix: t('inventoryWorkflow.cycle.actionFailedSuffix'),
+    countUpdated: t('inventoryWorkflow.cycle.countUpdated'),
+    updateFailed: t('inventoryWorkflow.cycle.updateFailed'),
+    selectLabel: t('inventoryWorkflow.cycle.selectLabel'),
+    btnStart: t('inventoryWorkflow.cycle.btnStart'),
+    btnRecalculate: t('inventoryWorkflow.cycle.btnRecalculate'),
+    btnApprove: t('inventoryWorkflow.cycle.btnApprove'),
+    btnPost: t('inventoryWorkflow.cycle.btnPost'),
+    linesHeading: t('inventoryWorkflow.cycle.linesHeading'),
+    colItem: t('inventoryWorkflow.cycle.colItem'),
+    colExpected: t('inventoryWorkflow.cycle.colExpected'),
+    colCounted: t('inventoryWorkflow.cycle.colCounted'),
+    colVariance: t('inventoryWorkflow.cycle.colVariance'),
+    colStatus: t('inventoryWorkflow.cycle.colStatus'),
+    colActions: t('inventoryWorkflow.cycle.colActions'),
+  };
   return `import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
+import { formatStatus } from '${base}/utils/statusFormatter';
 
 const ENTITY_SLUG = '${entity.slug}' as const;
 const CFG = ${JSON.stringify(cycleCfg || {}, null, 2)} as const;
@@ -542,7 +643,7 @@ export default function ${entityName}WorkflowPage() {
       try {
         await fetchSessions();
       } catch (err) {
-        if (!cancelled) toast({ title: 'Load failed', description: 'Could not load cycle sessions', variant: 'error' });
+        if (!cancelled) toast({ title: '${C.loadFailedTitle}', description: '${C.couldNotLoadSessions}', variant: 'error' });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -554,7 +655,7 @@ export default function ${entityName}WorkflowPage() {
   useEffect(() => {
     fetchLines(selectedId).catch((err) => {
       console.error('Failed to load cycle lines:', err);
-      toast({ title: 'Load failed', description: 'Could not load cycle lines', variant: 'error' });
+      toast({ title: '${C.loadFailedTitle}', description: '${C.couldNotLoadLines}', variant: 'error' });
     });
   }, [selectedId]);
 
@@ -566,23 +667,23 @@ export default function ${entityName}WorkflowPage() {
 
   const runAction = async (action: 'start' | 'recalculate' | 'approve' | 'post') => {
     if (!selectedId) {
-      toast({ title: 'Select a session first', variant: 'warning' });
+      toast({ title: '${C.selectFirst}', variant: 'warning' });
       return;
     }
     const labels: Record<string, string> = {
-      start: 'Start session',
-      recalculate: 'Recalculate variance',
-      approve: 'Approve session',
-      post: 'Post adjustments',
+      start: '${C.actionStart}',
+      recalculate: '${C.actionRecalculate}',
+      approve: '${C.actionApprove}',
+      post: '${C.actionPost}',
     };
     if (!confirm(labels[action] + '?')) return;
     setWorking(true);
     try {
       await api.post('/' + ENTITY_SLUG + '/' + selectedId + '/' + action, {});
       await Promise.all([fetchSessions(), fetchLines(selectedId)]);
-      toast({ title: labels[action] + ' complete', variant: 'success' });
+      toast({ title: labels[action] + ' ${C.actionCompleteSuffix}', variant: 'success' });
     } catch (err: any) {
-      toast({ title: labels[action] + ' failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: labels[action] + ' ${C.actionFailedSuffix}', description: err?.response?.data?.error || err?.message || '${C.unknownError}', variant: 'error' });
     } finally {
       setWorking(false);
     }
@@ -603,22 +704,22 @@ export default function ${entityName}WorkflowPage() {
       });
       setEditingLineId('');
       await fetchLines(selectedId);
-      toast({ title: 'Count updated', variant: 'success' });
+      toast({ title: '${C.countUpdated}', variant: 'success' });
     } catch (err: any) {
-      toast({ title: 'Update failed', description: err?.response?.data?.error || err?.message || 'Unknown error', variant: 'error' });
+      toast({ title: '${C.updateFailed}', description: err?.response?.data?.error || err?.message || '${C.unknownError}', variant: 'error' });
     } finally {
       setWorking(false);
     }
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <div className="p-4">${C.loading}</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">${title}</h1>
-          <p className="text-sm text-slate-600">Count inventory, calculate variance, approve, and post adjustments.</p>
+          <p className="text-sm text-slate-600">${C.subtitle}</p>
         </div>
         <Link to={'/' + ENTITY_SLUG} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50">
           ${backTo}
@@ -627,12 +728,12 @@ export default function ${entityName}WorkflowPage() {
 
       <div className="rounded-lg bg-white p-6 shadow space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Cycle Session</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">${C.selectLabel}</label>
           <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} className="w-full rounded border px-3 py-2">
-            <option value="">Select...</option>
+            <option value="">${C.selectPlaceholder}</option>
             {sessions.map((row) => (
               <option key={row.id} value={row.id}>
-                {String(row.session_number || row.id)} — {String(row?.[CFG.session_status_field || 'status'] || 'Draft')}
+                {String(row.session_number || row.id)} — {formatStatus(ENTITY_SLUG, row?.[CFG.session_status_field || 'status'] || 'Draft')}
               </option>
             ))}
           </select>
@@ -640,38 +741,38 @@ export default function ${entityName}WorkflowPage() {
 
         {selectedSession ? (
           <div className="rounded border bg-slate-50 p-3 text-sm">
-            <span className="font-semibold">Status:</span> {statusValue || 'Draft'}
+            <span className="font-semibold">${C.statusLabel}</span> {formatStatus(ENTITY_SLUG, statusValue || 'Draft')}
           </div>
         ) : null}
 
         <div className="flex flex-wrap justify-end gap-2">
           <button type="button" onClick={() => runAction('start')} disabled={!selectedId || working} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50">
-            Start
+            ${C.btnStart}
           </button>
           <button type="button" onClick={() => runAction('recalculate')} disabled={!selectedId || working} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50">
-            Recalculate
+            ${C.btnRecalculate}
           </button>
           <button type="button" onClick={() => runAction('approve')} disabled={!selectedId || working} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-50 disabled:opacity-50">
-            Approve
+            ${C.btnApprove}
           </button>
           <button type="button" onClick={() => runAction('post')} disabled={!selectedId || working} className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-            Post
+            ${C.btnPost}
           </button>
         </div>
       </div>
 
       <div className="rounded-lg bg-white p-6 shadow">
-        <div className="mb-3 text-sm font-semibold text-slate-900">Session Lines</div>
+        <div className="mb-3 text-sm font-semibold text-slate-900">${C.linesHeading}</div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-700">
               <tr>
-                <th className="px-3 py-2 text-left">Item</th>
-                <th className="px-3 py-2 text-left">Expected</th>
-                <th className="px-3 py-2 text-left">Counted</th>
-                <th className="px-3 py-2 text-left">Variance</th>
-                <th className="px-3 py-2 text-left">Status</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+                <th className="px-3 py-2 text-left">${C.colItem}</th>
+                <th className="px-3 py-2 text-left">${C.colExpected}</th>
+                <th className="px-3 py-2 text-left">${C.colCounted}</th>
+                <th className="px-3 py-2 text-left">${C.colVariance}</th>
+                <th className="px-3 py-2 text-left">${C.colStatus}</th>
+                <th className="px-3 py-2 text-right">${C.colActions}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -681,17 +782,17 @@ export default function ${entityName}WorkflowPage() {
                   <td className="px-3 py-2">{String(row?.[CFG.line_expected_field || 'expected_quantity'] ?? 0)}</td>
                   <td className="px-3 py-2">{String(row?.[CFG.line_counted_field || 'counted_quantity'] ?? 0)}</td>
                   <td className="px-3 py-2">{String(row?.[CFG.line_variance_field || 'variance_quantity'] ?? 0)}</td>
-                  <td className="px-3 py-2">{String(row?.[CFG.line_status_field || 'status'] ?? 'Pending')}</td>
+                  <td className="px-3 py-2">{formatStatus(CFG.line_entity || ENTITY_SLUG, String(row?.[CFG.line_status_field || 'status'] ?? 'Pending'))}</td>
                   <td className="px-3 py-2 text-right">
                     <button type="button" onClick={() => openCountEditor(row)} className="text-blue-600 hover:underline">
-                      Update Count
+                      ${C.updateCount}
                     </button>
                   </td>
                 </tr>
               ))}
               {lines.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-4 text-center text-slate-500">No cycle lines for selected session</td>
+                  <td colSpan={6} className="px-3 py-4 text-center text-slate-500">${C.noLines}</td>
                 </tr>
               ) : null}
             </tbody>
@@ -700,14 +801,14 @@ export default function ${entityName}WorkflowPage() {
 
         {editingLineId ? (
           <div className="mt-4 rounded border bg-slate-50 p-4">
-            <div className="mb-2 text-sm font-semibold text-slate-900">Update Counted Quantity</div>
+            <div className="mb-2 text-sm font-semibold text-slate-900">${C.updateCount}</div>
             <div className="flex flex-wrap items-center gap-2">
               <input type="number" value={editingCountedValue} onChange={(e) => setEditingCountedValue(e.target.valueAsNumber)} className="w-48 rounded border px-3 py-2 text-sm" />
               <button type="button" onClick={saveLineCount} disabled={working} className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                Save
+                ${C.save}
               </button>
               <button type="button" onClick={() => setEditingLineId('')} disabled={working} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50">
-                Cancel
+                ${C.cancel}
               </button>
             </div>
           </div>

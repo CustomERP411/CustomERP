@@ -101,6 +101,9 @@ describe('UC-13.2 / recordFeatures — SQL contract', () => {
     expect(sql).toMatch(/INSERT\s+INTO\s+feature_requests/i);
     expect(sql).toMatch(/ON CONFLICT/i);
     expect(sql).toMatch(/DO NOTHING/i);
+    // Plan K §K4 — three additional bilingual columns are appended.
+    // Legacy string-shaped feature inputs default name_en = name_native
+    // = the original label and language = 'en'.
     expect(params).toEqual([
       'Barcode',         // $1 feature_name
       'barcode',         // $2 normalized
@@ -108,6 +111,9 @@ describe('UC-13.2 / recordFeatures — SQL contract', () => {
       'u-1',             // $4 user_id
       'p-1',             // $5 project_id
       'need barcode',    // $6 user_prompt
+      'Barcode',         // $7 name_en
+      'Barcode',         // $8 name_native
+      'en',              // $9 language
     ]);
   });
 

@@ -4,8 +4,9 @@ All USER-FACING TEXT you emit MUST be written in English (en). This includes,
 but is not limited to:
 - `project_name`, `display_name`, `description` on entities, modules, and the
   overall SDF.
-- All `label`, `placeholder`, `help_text`, enum `options` display copy, and
-  any validation `message` on entity fields.
+- All `label`, `placeholder`, `help_text`, enum `options` display copy,
+  action `label` / `confirm`, invariant `message`, and any validation
+  `message` on entity fields.
 - Every question in `clarifications_needed` (the `question` string, short
   labels, option labels) — the `question_id` stays as an opaque token.
 - `discussion_points`, `warnings`, `unsupported_features`, and `reply` /
@@ -20,3 +21,12 @@ and MUST NOT be localized:
 
 Even if the business description provided by the user is written in another
 language, your response and the SDF text MUST still be in English.
+
+## Coherence with Plan D's localization key convention
+
+The assembler runs a localization lint over the SDF. Even though this is an
+English project, you SHOULD prefer concise, plain-English labels that the
+key-naming convention can map to (`entity.<slug>.label`,
+`entity.<slug>.field.<f>.label`, `entity.<slug>.action.<a>.label`,
+`entity.<slug>.error.<id>`, `wizard.<module>.<q>.prompt`,
+`status.<slug>.<value>`, `validation.<rule>`).

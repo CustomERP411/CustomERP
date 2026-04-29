@@ -16,6 +16,16 @@ interface Props {
   onToggleMultiChoice: (questionId: string, option: string, enabled: boolean) => void;
   onSave: () => void;
   onHelpWithQuestion?: (questionText: string, currentAnswer: string | string[]) => void;
+  /**
+   * Plan C — wizard wiring. Map of question_id to the dependency-graph reason
+   * forcing it ON. When present, the yes/no radio is locked at "yes" and a
+   * small "Required by X" badge is rendered.
+   */
+  autoEnabledById?: Record<string, { driverKey: string; reasonKey: string }>;
+  /**
+   * Plan C — feeds hints to render under a question's prompt (small italic).
+   */
+  feedsHintsByQuestionId?: Record<string, Array<{ to: string; text: string }>>;
 }
 
 export default function DefaultQuestions({
@@ -23,6 +33,8 @@ export default function DefaultQuestions({
   loading, saving, canSave,
   onUpdateAnswer, onToggleMultiChoice, onSave,
   onHelpWithQuestion,
+  autoEnabledById,
+  feedsHintsByQuestionId,
 }: Props) {
   const [customActiveFor, setCustomActiveFor] = useState<Set<string>>(new Set());
   const { t } = useTranslation('projectDetail');
@@ -78,6 +90,9 @@ export default function DefaultQuestions({
                     // when no translation is registered.
                     const labelFor = (opt: string) => q.option_labels?.[opt] ?? opt;
 
+                    const autoLock = autoEnabledById && autoEnabledById[q.id];
+                    const feedsHints = (feedsHintsByQuestionId && feedsHintsByQuestionId[q.id]) || [];
+
                     return (
                       <div key={q.id} id={`dq-${q.id}`} className="scroll-mt-6 px-4 py-4 sm:px-5">
                         <div className="flex items-start gap-3">
@@ -89,6 +104,14 @@ export default function DefaultQuestions({
                               <div className="text-sm font-medium text-app-text min-w-0 break-words">
                                 {q.question}
                                 {q.required && <span className="ml-1 text-app-danger">*</span>}
+                                {autoLock && (
+                                  <span
+                                    title={t('defaultQuestions.autoEnabledHint', { defaultValue: 'Auto-enabled because a dependent capability is on.' })}
+                                    className="ml-2 inline-flex items-center rounded-full bg-app-info-soft px-2 py-0.5 text-[10px] font-semibold text-app-accent-dark-blue"
+                                  >
+                                    {t('defaultQuestions.autoEnabledBadge', { defaultValue: 'Auto-enabled' })}
+                                  </span>
+                                )}
                               </div>
                               {onHelpWithQuestion && (
                                 <button
@@ -117,19 +140,39 @@ export default function DefaultQuestions({
                               )}
                             </div>
 
+                            {feedsHints.length > 0 && (
+                              <ul className="space-y-1 text-xs italic text-app-text-muted">
+                                {feedsHints.map((hint, hi) => (
+                                  <li key={`${q.id}-feeds-${hi}`}>{hint.text}</li>
+                                ))}
+                              </ul>
+                            )}
+
                             {q.type === 'yes_no' && (
                               <div className="flex gap-2">
-                                {['yes', 'no'].map((val) => (
-                                  <button key={val} type="button" onClick={() => onUpdateAnswer(q.id, val)}
-                                    className={`rounded-lg border px-5 py-2 text-sm font-medium transition-colors ${
-                                      answerString === val
-                                        ? val === 'yes' ? 'border-app-success bg-app-success-soft text-app-success' : 'border-app-danger bg-app-danger-soft text-app-danger'
-                                        : 'border-app-border bg-app-surface text-app-text-muted hover:bg-app-surface-muted'
-                                    }`}
-                                  >
-                                    {val === 'yes' ? t('defaultQuestions.yes') : t('defaultQuestions.no')}
-                                  </button>
-                                ))}
+                                {['yes', 'no'].map((val) => {
+                                  const locked = !!autoLock && val === 'no';
+                                  const lockedYes = !!autoLock && val === 'yes';
+                                  return (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={() => { if (!locked) onUpdateAnswer(q.id, val); }}
+                                      disabled={locked}
+                                      aria-disabled={locked}
+                                      title={locked
+                                        ? t('defaultQuestions.autoEnabledLocked', { defaultValue: 'Disabled because a dependent capability is on.' })
+                                        : undefined}
+                                      className={`rounded-lg border px-5 py-2 text-sm font-medium transition-colors ${
+                                        answerString === val || lockedYes
+                                          ? val === 'yes' ? 'border-app-success bg-app-success-soft text-app-success' : 'border-app-danger bg-app-danger-soft text-app-danger'
+                                          : 'border-app-border bg-app-surface text-app-text-muted hover:bg-app-surface-muted'
+                                      } ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                      {val === 'yes' ? t('defaultQuestions.yes') : t('defaultQuestions.no')}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             )}
 

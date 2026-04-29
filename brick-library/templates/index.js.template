@@ -382,7 +382,8 @@ const runRbacSeed = async () => {
     const groups = (systemConfig?.rbac?.groups) || [];
     const entityModuleMap = (systemConfig?.rbac?.entityModuleMap) || {};
     const entityDisplayMap = (systemConfig?.rbac?.entityDisplayMap) || {};
-    await rbacSeed.seed(repo, slugs, groups, entityModuleMap, entityDisplayMap);
+    const permissionScopes = (systemConfig?.rbac?.permissionScopes) || [];
+    await rbacSeed.seed(repo, slugs, groups, entityModuleMap, entityDisplayMap, permissionScopes);
   } catch (e) {
     if (e.code !== 'MODULE_NOT_FOUND') {
       console.warn('[RBAC-SEED] Warning:', e.message || e);

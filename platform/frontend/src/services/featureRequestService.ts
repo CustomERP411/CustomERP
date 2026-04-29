@@ -19,6 +19,33 @@ export interface FeatureRequest {
   user_name?: string;
   user_email?: string;
   project_name?: string | null;
+  // Plan K §K4 — bilingual storage. `name_en` is the canonical English
+  // label (drives dedup); `name_native` is the localized version captured
+  // at submission time; `language` is the project language at that moment.
+  // All three are nullable for backwards compatibility with rows that
+  // existed before migration 017.
+  name_en?: string | null;
+  name_native?: string | null;
+  language?: string | null;
+}
+
+/**
+ * Plan K §K5 — pick the best label for a feature request given the user's
+ * current UI language. Prefers the localized `name_native` when the row's
+ * stored language matches the current viewing language; falls back to the
+ * canonical `name_en`, then to the legacy `feature_name` column for rows
+ * created before migration 017.
+ */
+export function resolveFeatureName(
+  fr: Pick<FeatureRequest, 'name_en' | 'name_native' | 'language' | 'feature_name'>,
+  currentLang: string,
+): string {
+  const lang = (currentLang || 'en').toLowerCase();
+  const rowLang = (fr.language || '').toLowerCase();
+  if (rowLang && rowLang === lang && fr.name_native) {
+    return fr.name_native;
+  }
+  return fr.name_en || fr.feature_name || '';
 }
 
 export interface FeatureRequestMessage {

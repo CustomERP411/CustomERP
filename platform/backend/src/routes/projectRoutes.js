@@ -25,6 +25,8 @@ router.post('/:id/analyze', projectController.analyzeProject);
 router.post('/:id/regenerate', projectController.regenerateProject);
 router.get('/:id/analyze/progress', projectController.getGenerationProgress);
 router.post('/:id/clarify', projectController.clarifyProject);
+// Plan D follow-up #8: advisory module precheck (read-only, never mutates state)
+router.post('/:id/ai/precheck-modules', projectController.precheckModules);
 router.get('/:id/sdf/latest', projectController.getLatestSdf);
 router.post('/:id/sdf/save', projectController.saveSdf);
 router.post('/:id/sdf/ai-edit', projectController.aiEditSdf);

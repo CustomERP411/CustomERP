@@ -71,6 +71,7 @@ beforeEach(() => {
   projectService.getProject.mockResolvedValue({
     id: 'p-1',
     name: 'Acme',
+    status: 'Ready',
     language: 'en',
   });
   projectService.updateProject.mockResolvedValue({ id: 'p-1', status: 'Generated' });

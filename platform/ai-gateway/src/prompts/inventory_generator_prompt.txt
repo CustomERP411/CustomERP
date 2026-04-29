@@ -112,6 +112,24 @@
 #   label?, required?, reference_entity?, options?, unique?, min?, max?, computed?
 # System fields (id, created_at, updated_at) are auto-generated and should not be included.
 
+# REFERENCE FIELDS — STRICT CONTRACT (Plan E):
+# Every field whose name ends in `_id` and represents a foreign key to another
+# entity MUST set `type: "reference"` AND `reference_entity: "<target_slug>"`.
+# The field's `label` MUST be the natural-language description of the
+# relationship in the project language (e.g. "Product", "Supplier",
+# "Location", "Approved by"). NEVER use the raw column name with title-case
+# (e.g. "Product Id", "Supplier Id", "Location Id") — the frontend will
+# resolve the picker / list cell from the target entity's display_field,
+# but ONLY if these two attributes are set.
+#
+# For actor fields (`approved_by`, `posted_by`, `cancelled_by`,
+# `received_by`, `counted_by`, `created_by`), the `reference_entity` MUST
+# be `__erp_users` and the `label` MUST be the action-past-tense ("Approved
+# by", "Posted by", "Cancelled by", "Received by", etc.). Do NOT keep these
+# as raw `string` fields and do NOT use `employees` as the reference target
+# — actors are users, the user-employee link mixin connects them to
+# employee records server-side.
+
 # IMPORTANT — computed fields on the stock entity:
 # When the module_config enables reservations (module_config.reservations.enabled=true),
 # the stock/product entity MUST include `reserved_quantity`, `committed_quantity`, and
@@ -166,6 +184,89 @@
 # "children": [{ "entity": "cycle_count_lines", "foreign_key": "cycle_count_session_id",
 #   "label": "Count Lines", "columns": ["item_id","expected_quantity","counted_quantity","variance_quantity"] }]
 # ALWAYS add children config on parent entities that have associated *_items or *_lines entities.
+
+# Coherence layer (entity.relations[]): use these primitives to encode
+# inventory cross-feature behavior. The runtime mixin layer interprets
+# the semantics — you only declare intent.
+#
+# Example A — `available_quantity` is derived from on-hand minus reserved/committed:
+#   {
+#     "kind": "derived_field",
+#     "computed_field": "available_quantity",
+#     "formula": "qty_minus_reserved_committed(on_hand=quantity, reserved=reserved_quantity, committed=committed_quantity)",
+#     "when": "modules.inventory.reservations.enabled"
+#   }
+#   When you add this entry, make sure `available_quantity` exists AND is
+#   marked `"computed": true`.
+#
+# Example B — invariant: reserved + committed must never exceed on_hand:
+#   {
+#     "kind": "invariant",
+#     "rule": "non_negative_balance(field=available_quantity)",
+#     "severity": "block",
+#     "when": "modules.inventory.reservations.enabled"
+#   }
+
+# DERIVED FIELDS — STRICT CONTRACT (Plan F):
+# Any field marked `"computed": true` MUST have a matching entry in
+# `entity.relations[]` with `"kind": "derived_field"`, the same column name
+# as `computed_field`, and a `formula` from this canonical list. Do NOT
+# invent new formula names — the runtime only dispatches what's listed.
+#
+# Canonical inventory formulas:
+#
+#   total_value (on products): when both `cost_price` AND `quantity` exist:
+#     {
+#       "kind": "derived_field",
+#       "computed_field": "total_value",
+#       "formula": "multiply_fields(cost_price, quantity)"
+#     }
+#     Mark `total_value` `"computed": true`. The form renders it as a
+#     read-only row that updates live as the user types cost or quantity.
+#
+#   available_quantity (on products / inventory_items): when reservations on:
+#     `qty_minus_reserved_committed(quantity, reserved_quantity, committed_quantity)`
+
+# UI SECTIONS — INVENTORY HEADER-LINE FORMS (OPTIONAL but recommended):
+# Header-line transactional entities (purchase orders, GRNs, cycle count
+# sessions, transfers) read better when the lines are placed near the top
+# of the form, NOT below all the metadata. The default form layout puts
+# line items at the bottom; for these entities, opt into `entity.ui.sections`
+# to declare an explicit ordering with line_items as a hero slot.
+#
+# Pattern for a PO/GRN/cycle-session header (substitute the right slugs
+# and child entity for the SDF you are emitting):
+#
+#   "ui": {
+#     "sections": [
+#       { "kind": "fields", "id": "identity",
+#         "heading": "form.sections.identity",
+#         "fields": ["po_number", "vendor_id", "order_date", "expected_date", "status"] },
+#       { "kind": "line_items", "child": "purchase_order_items" },
+#       { "kind": "fields", "id": "details",
+#         "heading": "form.sections.details",
+#         "fields": ["notes", "shipping_address"] },
+#       { "kind": "rollups" }
+#     ]
+#   }
+#
+# Section kinds:
+#   - fields:             ordered list of field names from this entity
+#   - line_items:         places one entry from `children[]` (the `child`
+#                         value MUST match a `children[].entity` slug)
+#   - rollups:            inbound rollup card
+#   - stock_availability: stock band (only meaningful on stocked items)
+#
+# RULES:
+#   - Each field appears in AT MOST one fields section.
+#   - Headings MUST be dot-keys (`form.sections.identity`,
+#     `form.sections.details`, `form.sections.lifecycle`,
+#     `form.sections.notes`). Raw English is rejected by the localization
+#     lint on non-EN projects.
+#   - The `line_items.child` value MUST match an entry in `children[]`.
+#   - Plain entities like `products`, `locations`, `categories` should NOT
+#     emit `ui.sections` — let them use the default layout. ui.sections is
+#     opt-in PER ENTITY.
 
 # --- Inputs ---
 

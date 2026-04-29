@@ -40,6 +40,7 @@ function buildLeaveApprovalsPage({ entity, entityName, importBase, leaveCfg, app
 import { Link } from 'react-router-dom';
 import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
+import { formatStatus } from '${base}/utils/statusFormatter';
 
 const ENTITY_SLUG = '${entity.slug}' as const;
 const LEAVE_CFG = ${JSON.stringify(leaveCfg || {}, null, 2)} as const;
@@ -164,7 +165,7 @@ export default function ${entityName}ApprovalsPage() {
                       <td className="px-3 py-2">{String(row?.[DAYS_FIELD] ?? '—')}</td>
                       <td className="px-3 py-2">
                         <span className={status === 'Approved' ? 'rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700' : status === 'Rejected' ? 'rounded bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700' : 'rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700'}>
-                          {status}
+                          {formatStatus(ENTITY_SLUG, status)}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right">

@@ -88,8 +88,10 @@ import api from '${base}/services/api';
 import { ENTITIES } from '${base}/config/entities';
 import Modal from '${base}/components/ui/Modal';
 import { useToast } from '${base}/components/ui/toast';
+import { formatStatus } from '${base}/utils/statusFormatter';
 ${enableBulkUpdate ? `import DynamicForm from '${base}/components/DynamicForm';` : ''}
 
+const ENTITY_SLUG = '${entity.slug}';
 const I18N = ${i18nJson} as const;
 const interpolate = (s: string, params: Record<string, string | number> = {}) =>
   s.replace(/{{(\\w+)}}/g, (_m, k) => (params[k] !== undefined ? String(params[k]) : ''));
@@ -697,7 +699,7 @@ ${enableBulkActions ? `                <td className="px-6 py-4 whitespace-nowra
                     <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {isStatusCol ? (
                         <span className={getStatusBadgeClass(String(value))}>
-                          {value}
+                          {formatStatus(ENTITY_SLUG, value)}
                         </span>
                       ) : (
                         <span>{value}</span>

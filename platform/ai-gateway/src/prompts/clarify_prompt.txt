@@ -4,7 +4,9 @@
 # OUTPUT FORMAT:
 - Respond with a single, valid JSON object that is a complete generator SDF.
 - Incorporate the user's answers to refine the `project_name`, `modules`, `entities`, and `fields`.
-- Do NOT output a separate `relations` list; represent relations via reference fields.
+- Foreign keys go on the field itself (`reference_entity`). Cross-feature rules
+  (status propagation, derived fields, invariants, permission scopes) go in
+  `entity.relations[]`. Do NOT output a top-level `relations` list.
 - The `clarifications_needed` list in your output should be empty (`[]`) or omitted if all ambiguities are resolved.
 - If the user's answers introduce new ambiguities, add new questions to the `clarifications_needed` list.
 - Each new question must be an object with `id` (string), `question` (string), and `type` (one of 'yes_no', 'choice', 'text').

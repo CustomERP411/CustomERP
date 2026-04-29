@@ -89,9 +89,10 @@ exports.addMessage = async (req, res) => {
     if (!msgBody || typeof msgBody !== 'string' || !msgBody.trim()) {
       return res.status(400).json({ error: 'body is required' });
     }
-    const senderRole = req.user.isAdmin ? 'admin' : 'user';
+    const isAdmin = req.user.isAdmin === true || req.user.is_admin === true;
+    const senderRole = isAdmin ? 'admin' : 'user';
     const fr = await featureRequestService.getById(req.params.id);
-    if (!req.user.isAdmin && fr.user_id !== req.user.userId) {
+    if (!isAdmin && fr.user_id !== req.user.userId) {
       return res.status(403).json({ error: 'Access denied' });
     }
     const message = await featureRequestService.addMessage({

@@ -5,22 +5,74 @@ function normalize(name) {
   return (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
-async function recordFeatures({ userId, projectId, features, source, userPrompt }) {
+// Plan K §K4 — accept both legacy strings and the new bilingual object
+// shape `{ name_en, name_native }`. Strings keep working: the value is
+// stored in all three (feature_name, name_en, name_native) and language
+// defaults to 'en'. Object entries with both fields populate the bilingual
+// columns; `feature_name` remains the canonical EN record so dedup via
+// `feature_name_normalized` stays stable.
+function _normalizeFeatureEntry(raw, projectLanguage) {
+  if (raw === null || raw === undefined) return null;
+  const fallbackLang = (projectLanguage || 'en').toString().toLowerCase().trim() || 'en';
+  if (typeof raw === 'string') {
+    const label = raw.trim();
+    if (!label) return null;
+    return {
+      featureName: label,
+      nameEn: label,
+      nameNative: label,
+      language: 'en',
+    };
+  }
+  if (typeof raw === 'object') {
+    const nameEn = String(raw.name_en || raw.nameEn || raw.name || '').trim();
+    const nameNative = String(raw.name_native || raw.nameNative || nameEn).trim();
+    const canonical = nameEn || nameNative;
+    if (!canonical) return null;
+    return {
+      featureName: canonical,
+      nameEn: nameEn || canonical,
+      nameNative: nameNative || nameEn || canonical,
+      language: fallbackLang,
+    };
+  }
+  const coerced = String(raw).trim();
+  if (!coerced) return null;
+  return {
+    featureName: coerced,
+    nameEn: coerced,
+    nameNative: coerced,
+    language: 'en',
+  };
+}
+
+async function recordFeatures({ userId, projectId, features, source, userPrompt, language }) {
   if (!Array.isArray(features) || features.length === 0) return [];
 
   const inserted = [];
   for (const raw of features) {
-    const featureName = typeof raw === 'string' ? raw.trim() : String(raw).trim();
-    if (!featureName) continue;
+    const entry = _normalizeFeatureEntry(raw, language);
+    if (!entry) continue;
+    const { featureName, nameEn, nameNative, language: entryLang } = entry;
     const normalized = normalize(featureName);
     try {
       const result = await query(
-        `INSERT INTO feature_requests (feature_name, feature_name_normalized, source, user_id, project_id, user_prompt)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO feature_requests (feature_name, feature_name_normalized, source, user_id, project_id, user_prompt, name_en, name_native, language)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (feature_name_normalized, user_id, COALESCE(project_id, '00000000-0000-0000-0000-000000000000'))
          DO NOTHING
          RETURNING *`,
-        [featureName, normalized, source, userId, projectId || null, userPrompt || null]
+        [
+          featureName,
+          normalized,
+          source,
+          userId,
+          projectId || null,
+          userPrompt || null,
+          nameEn,
+          nameNative,
+          entryLang,
+        ]
       );
       if (result.rows[0]) inserted.push(result.rows[0]);
     } catch (err) {
@@ -222,4 +274,5 @@ async function addMessage({ featureRequestId, senderId, senderRole, body }) {
 module.exports = {
   recordFeatures, recordWarnings, listAll, listByUser, updateStatus,
   getStats, getById, getMessages, addMessage,
+  _normalizeFeatureEntry,
 };

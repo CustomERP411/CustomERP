@@ -110,6 +110,199 @@
 # Example: "children": [{ "entity": "review_items", "foreign_key": "review_id",
 #   "label": "Review Items", "columns": ["field1","field2"] }]
 
+# REFERENCE FIELDS — STRICT CONTRACT (Plan E):
+# Every field whose name ends in `_id` and represents a foreign key to another
+# entity MUST set `type: "reference"` AND `reference_entity: "<target_slug>"`.
+# The field's `label` MUST be the natural-language description of the
+# relationship in the project language (e.g. "Department", "Manager",
+# "Approved by"). NEVER use the raw column name with title-case (e.g.
+# "Department Id", "Manager Id", "Approver Id") — the frontend will resolve
+# the picker / list cell from the target entity's display_field, but ONLY
+# if these two attributes are set.
+#
+# For actor fields (`approved_by`, `posted_by`, `cancelled_by`,
+# `requested_by`, `recorded_by`, `submitted_by`), the `reference_entity`
+# MUST be `__erp_users` and the `label` MUST be the action-past-tense
+# ("Approved by", "Posted by", "Cancelled by", "Requested by", etc.).
+# Do NOT keep these as raw `string` fields and do NOT use `employees` as
+# the reference target — actors are users, the user-employee link mixin
+# connects them to employee records server-side.
+
+# EMPLOYEE SALARY TRIO — always include (Plan E G2):
+# The `employees` entity ALWAYS includes the following three fields,
+# regardless of whether `compensation_ledger` is enabled:
+#   - `salary` (decimal, optional). The current pay rate baseline. When the
+#     compensation ledger is enabled, set `help` to "Current rate; the
+#     compensation ledger is the authoritative history." so the user
+#     understands the ledger owns historical periods.
+#   - `salary_currency` (string, options ["TRY","USD","EUR"], default "TRY")
+#   - `salary_frequency` (string, options ["Monthly","Yearly"], default "Monthly")
+# Do NOT promote `salary` to `required: true` — empty values are valid for
+# new hires.
+
+# CONDITIONAL FIELDS — STRICT CONTRACT (Plan G):
+# Use `visibility_when` to show a field only after another field reaches a
+# specific state. Operators: `equals`, `not_equals`, `in`, `not_in`,
+# `is_set`, `is_unset` — exactly ONE comparator per predicate.
+#
+# WHEN A CONDITIONALLY-VISIBLE FIELD IS REQUIRED, you MUST also emit a
+# sibling `conditional_required` invariant on the same entity that uses the
+# matching source field + operator/value. The form hides the input when
+# the predicate is false; the invariant guards the API so direct callers
+# can't bypass the form.
+#
+# Canonical HR example — `termination_date` on `employees`:
+#   field:
+#     {
+#       "name": "termination_date",
+#       "type": "date",
+#       "label": "Termination date",
+#       "visibility_when": { "field": "status", "equals": "Terminated" }
+#     }
+#   paired invariant on `employees`:
+#     {
+#       "kind": "invariant",
+#       "rule": "conditional_required(field=termination_date, when_field=status, when_equals=Terminated)",
+#       "severity": "block"
+#     }
+# Reuse this pattern any time HR needs a "show + require when status is
+# X" field (e.g. resignation reason fields, return-from-leave dates).
+
+# SHIFT_ASSIGNMENTS schema rule (Plan E G1):
+# `shift_assignments` uses `start_time` and `end_time` as datetime fields
+# (date+time). Do NOT emit a separate `work_date` column on this entity —
+# the start/end datetimes are authoritative. (`attendance_entries` and
+# `timesheet_entries` do correctly use `work_date`; only `shift_assignments`
+# is excluded.)
+
+# Coherence layer (entity.relations[]): use these primitives to encode HR
+# cross-feature behavior. The runtime mixin layer interprets the semantics —
+# you only need to declare intent.
+#
+# Example A — leave approval fans out into attendance:
+#   {
+#     "kind": "status_propagation",
+#     "on":     { "field": "status", "to": "approved" },
+#     "effect": { "action": "create_per_work_day(start=start_date, end=end_date)", "target_entity": "attendance" },
+#     "reverse": {
+#       "on":     { "field": "status", "to": "cancelled" },
+#       "effect": { "action": "remove_emitted_rows()", "target_entity": "attendance" }
+#     },
+#     "when": "modules.hr.leave_engine.enabled"
+#   }
+# Example B — invariant: a single employee cannot have overlapping leaves:
+#   {
+#     "kind": "invariant",
+#     "rule": "no_overlap_with(entity=leaves, group_by=employee_id)",
+#     "severity": "block"
+#   }
+# Example C — only the manager chain can approve:
+#   {
+#     "kind": "permission_scope",
+#     "permission": "hr.leaves.approve",
+#     "scope": "manager_chain",
+#     "actions": ["update"]
+#   }
+
+# ROLLUP SECTIONS — WHEN TO OVERRIDE (Plan H):
+# Detail pages auto-render a read-only "rollup" section per inbound foreign-key
+# reference targeting the entity. Department detail will list its employees,
+# Employee detail will list its leave requests — automatically. The platform
+# picks `display_field` plus up to 3 more relevant columns (status, primary
+# date, primary money column).
+#
+# Auto-derive ALREADY excludes:
+#   - System entities (`__erp_*`)
+#   - Actor fields (`approved_by`, `posted_by`, ...) on `__erp_users`
+#   - FKs already declared in the parent's `children[]`
+#   - Source entities in disabled modules
+#
+# Only emit `entity.rollups[X]` when the auto-derived columns would miss a
+# business-critical field. Otherwise leave it unset and rely on auto-derive.
+#
+# Worked HR examples:
+#
+#   On `departments` (one rollup of all employees in the department):
+#     "rollups": {
+#       "employees": { "columns": ["full_name", "title", "status"] }
+#     }
+#
+#   On `employees` (one rollup of leave history with the right columns):
+#     "rollups": {
+#       "leaves": {
+#         "label": "Leave history",
+#         "columns": ["leave_type", "start_date", "end_date", "leave_days", "status"]
+#       }
+#     }
+#
+# To suppress an auto-derived rollup entirely:
+#     "rollups": { "<source_slug>": false }
+#
+# To narrow when one source has multiple FKs to the same target:
+#     "rollups": {
+#       "<source_slug>": {
+#         "foreign_key": "<specific_fk_field_name>",
+#         "label": "...", "columns": ["..."]
+#       }
+#     }
+
+# UI SECTIONS — HR HEADER-LINE FORMS (OPTIONAL):
+# Most HR entities are flat (employees, departments, leave_requests) and
+# the default form layout works fine — do NOT emit `ui.sections` on them.
+#
+# However, header-line HR forms (e.g. timesheets with day rows, payroll
+# runs with employee lines) read better when the line items are placed
+# near the top of the form. For those entities, opt in via
+# `entity.ui.sections` declaring an explicit ordering with line_items as
+# a hero slot:
+#
+#   "ui": {
+#     "sections": [
+#       { "kind": "fields", "id": "identity",
+#         "heading": "form.sections.identity",
+#         "fields": ["timesheet_number", "employee_id", "period_start", "period_end", "status"] },
+#       { "kind": "line_items", "child": "timesheet_entries" },
+#       { "kind": "fields", "id": "details",
+#         "heading": "form.sections.notes", "fields": ["notes"] },
+#       { "kind": "rollups" }
+#     ]
+#   }
+#
+# Section kinds:
+#   - fields:        ordered list of field names from this entity
+#   - line_items:    places one entry from `children[]`
+#   - rollups:       inbound rollup card
+#   - companion_user: HR companion-login panel (only meaningful on
+#                    `employees` when access control is enabled)
+#
+# RULES:
+#   - Each field appears in AT MOST one fields section.
+#   - Headings MUST be dot-keys (`form.sections.identity`,
+#     `form.sections.details`, `form.sections.lifecycle`,
+#     `form.sections.notes`).
+#   - The `line_items.child` value MUST match an entry in `children[]`.
+#   - Plain entities like `employees`, `departments`, `leaves` should NOT
+#     emit `ui.sections`. ui.sections is opt-in PER ENTITY.
+
+# DERIVED FIELDS — STRICT CONTRACT (Plan F):
+# Any field marked `"computed": true` MUST have a matching entry in
+# `entity.relations[]` with `"kind": "derived_field"`, the same column name as
+# `computed_field`, and a `formula` from this canonical list. Do NOT invent
+# new formula names — the runtime only dispatches what's listed.
+#
+# Canonical HR formula:
+#
+#   leave_days (on leaves):
+#     {
+#       "kind": "derived_field",
+#       "computed_field": "leave_days",
+#       "formula": "date_diff_days_inclusive(start_date, end_date)",
+#       "when": "modules.hr.leave_engine.enabled"
+#     }
+#   `leave_days` is INCLUSIVE: Mon→Wed = 3 days, Mon→Mon = 1 day. The field
+#   MUST be marked `"computed": true` so the form renders it as a read-only
+#   row populated live as the user picks dates.
+
 # --- Inputs ---
 
 # Prefilled module SDF (this is your starting point, preserve it exactly).

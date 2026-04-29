@@ -3,12 +3,24 @@ const { tFor } = require('../../i18n/labels');
 function buildAuthContext() {
   return `import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import axios from 'axios';
+import { evaluateScopeClient } from '../utils/scopeEvaluator';
 
 interface AuthUser {
   id: string;
   username: string;
   email: string;
   display_name: string;
+  employee_id?: string | null;
+  department_id?: string | null;
+  manager_id?: string | null;
+}
+
+interface PermissionScopeEntry {
+  entity: string;
+  permission: string;
+  scope: 'self' | 'department' | 'manager_chain' | 'module' | 'all' | string;
+  actions?: string[] | null;
+  when?: string | null;
 }
 
 interface AuthState {
@@ -17,12 +29,18 @@ interface AuthState {
   permissions: string[];
   isSuperadmin: boolean;
   loading: boolean;
+  managerChain: string[];
+  permissionScopes: PermissionScopeEntry[];
 }
 
 interface AuthContextType extends AuthState {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (key: string) => boolean;
+  // Plan B follow-up #5: row-level scope check that mirrors the server-side
+  // evaluator. Returns true if the actor can act on \`row\` for \`permission\`.
+  // \`row\` may be null/undefined for create-time checks.
+  hasScope: (permission: string, row?: Record<string, any> | null) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -36,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     permissions: [],
     isSuperadmin: false,
     loading: true,
+    managerChain: [],
+    permissionScopes: [],
   });
 
   const setToken = (t: string | null) => {
@@ -54,10 +74,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         permissions: data.permissions || [],
         isSuperadmin: !!data.isSuperadmin,
         loading: false,
+        managerChain: Array.isArray(data.manager_chain) ? data.manager_chain : [],
+        permissionScopes: Array.isArray(data.permission_scopes) ? data.permission_scopes : [],
       });
     } catch {
       setToken(null);
-      setState({ user: null, token: null, permissions: [], isSuperadmin: false, loading: false });
+      setState({
+        user: null,
+        token: null,
+        permissions: [],
+        isSuperadmin: false,
+        loading: false,
+        managerChain: [],
+        permissionScopes: [],
+      });
     }
   }, []);
 
@@ -83,10 +113,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     setToken(null);
-    setState({ user: null, token: null, permissions: [], isSuperadmin: false, loading: false });
+    setState({
+      user: null,
+      token: null,
+      permissions: [],
+      isSuperadmin: false,
+      loading: false,
+      managerChain: [],
+      permissionScopes: [],
+    });
   };
 
   const hasPermission = (key: string) => state.isSuperadmin || state.permissions.includes(key);
+
+  const hasScope = (permission: string, row?: Record<string, any> | null) => {
+    if (state.isSuperadmin) return true;
+    // Without the broad permission, scope cannot grant access.
+    if (!state.permissions.includes(permission)) return false;
+    // Find the matching entry in the registry. If none exists the flat-key
+    // check above is authoritative — return true.
+    const entries = state.permissionScopes.filter((e) => e.permission === permission);
+    if (entries.length === 0) return true;
+    // Pick the most permissive scope (mirrors server-side _bestScopeForEntry).
+    const order: Record<string, number> = { all: 5, module: 4, department: 3, manager_chain: 2, self: 1 };
+    let best: PermissionScopeEntry | null = null;
+    let bestRank = -1;
+    for (const entry of entries) {
+      const rank = order[String(entry.scope || '').toLowerCase()] || 0;
+      if (rank > bestRank) { best = entry; bestRank = rank; }
+    }
+    if (!best) return true;
+    return evaluateScopeClient(best.scope, {
+      employee_id: state.user?.employee_id || null,
+      department_id: state.user?.department_id || null,
+      manager_chain: state.managerChain,
+      isSuperadmin: state.isSuperadmin,
+    }, row || null);
+  };
 
   useEffect(() => {
     const id = API.interceptors.request.use((config) => {
@@ -97,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state.token]);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, hasPermission }}>
+    <AuthContext.Provider value={{ ...state, login, logout, hasPermission, hasScope }}>
       {children}
     </AuthContext.Provider>
   );
@@ -233,14 +296,16 @@ export default function LoginPage() {
 `;
 }
 
-function buildRequireAuth() {
+function buildRequireAuth({ language } = {}) {
+  const t = tFor(language);
+  const loadingLabel = t('common.loading');
   return `import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import type { ReactNode } from 'react';
 
 export default function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="flex h-screen items-center justify-center text-sm text-slate-500">Loading...</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center text-sm text-slate-500">${loadingLabel}</div>;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
@@ -1074,6 +1139,93 @@ export default function PermissionsAdminPageConnected() {
 `;
 }
 
+// Plan B follow-up #5: emits src/utils/scopeEvaluator.ts — a tiny TS port of
+// the server-side scopeEvaluator used by AuthContext.hasScope. Pure function;
+// no React imports. Kept structurally identical to the Node version so that
+// a server-pass and a client-pass over the same row always agree.
+function buildScopeEvaluatorClient() {
+  return `// Auto-generated by FrontendGenerator (rbacPages.js).
+// Mirrors brick-library/backend-bricks/rbac/scopeEvaluator.js.
+
+interface Actor {
+  employee_id?: string | null;
+  department_id?: string | null;
+  manager_chain?: string[];
+  isSuperadmin?: boolean;
+  userId?: string | null;
+  id?: string | null;
+}
+
+const DEFAULT_SELF_FIELDS = ['employee_id', 'requested_by', 'created_by', 'submitted_by'];
+const DEFAULT_DEPT_FIELDS = ['department_id'];
+const DEFAULT_ROW_EMPLOYEE_FIELDS = ['employee_id', 'requested_by', 'submitted_by'];
+
+export function evaluateScopeClient(
+  scope: string,
+  actor: Actor,
+  row: Record<string, any> | null,
+  options?: { actorFields?: string[]; departmentFields?: string[]; rowEmployeeFields?: string[] }
+): boolean {
+  if (!actor) return false;
+  if (actor.isSuperadmin === true) return true;
+  const kind = String(scope || '').trim().toLowerCase();
+
+  if (kind === 'all' || kind === 'module') return true;
+
+  if (kind === 'self') {
+    if (!row) return true;
+    const actorEmp = actor.employee_id || null;
+    const actorUser = actor.userId || actor.id || null;
+    const fields = (options?.actorFields && options.actorFields.length) ? options.actorFields : DEFAULT_SELF_FIELDS;
+    for (const f of fields) {
+      const v = row[f];
+      if (v === undefined || v === null) continue;
+      if (actorEmp && String(v) === String(actorEmp)) return true;
+      if (actorUser && String(v) === String(actorUser)) return true;
+    }
+    return false;
+  }
+
+  if (kind === 'department') {
+    if (!row) return true;
+    const actorDept = actor.department_id || null;
+    if (!actorDept) return false;
+    const fields = (options?.departmentFields && options.departmentFields.length) ? options.departmentFields : DEFAULT_DEPT_FIELDS;
+    for (const f of fields) {
+      const v = row[f];
+      if (v && String(v) === String(actorDept)) return true;
+    }
+    return false;
+  }
+
+  if (kind === 'manager_chain') {
+    if (!row) return true;
+    const actorEmp = actor.employee_id || null;
+    if (!actorEmp) return false;
+    const fields = (options?.rowEmployeeFields && options.rowEmployeeFields.length) ? options.rowEmployeeFields : DEFAULT_ROW_EMPLOYEE_FIELDS;
+    let rowEmp: string | null = null;
+    for (const f of fields) {
+      const v = row[f];
+      if (v !== undefined && v !== null && v !== '') { rowEmp = String(v); break; }
+    }
+    if (!rowEmp) return false;
+    if (rowEmp === String(actorEmp)) return true;
+    // The client gets a pre-resolved manager_chain at login. If row's
+    // employee is the actor or anywhere in the chain, allow. Otherwise we
+    // can't walk the DB from the browser, so deny — the server-side
+    // middleware is the authoritative gate.
+    const chain = actor.manager_chain || [];
+    for (const id of chain) {
+      if (String(id) === rowEmp) return true;
+    }
+    return false;
+  }
+
+  return false;
+}
+`;
+}
+
 module.exports = {
   buildAuthContext,
   buildLoginPage,
@@ -1082,4 +1234,5 @@ module.exports = {
   buildUsersAdminPageConnected,
   buildGroupsAdminPageConnected,
   buildPermissionsAdminPageConnected,
+  buildScopeEvaluatorClient,
 };

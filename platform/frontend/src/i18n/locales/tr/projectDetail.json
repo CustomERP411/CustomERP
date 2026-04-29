@@ -45,6 +45,13 @@
     "hr.label": "İK",
     "hr.desc": "Çalışanları, izinleri, devam kayıtlarını ve bordro hazırlığını yönetin"
   },
+  "precheck": {
+    "title": "Bir saniye — açıklamanız {{module}} modülüne ihtiyacınız varmış gibi duruyor",
+    "reason": "Açıklamanızdan: {{reason}}",
+    "addModule": "{{module}} ekle",
+    "continueWithout": "Yine de olmadan devam et",
+    "dismissAria": "Kapat"
+  },
   "questions": {
     "title": "Modül soruları",
     "subtitle": "Modülleri işletmenize göre uyarlamak için bu soruları yanıtlayın.",
@@ -189,6 +196,9 @@
     "saveConfig": "Yapılandırmayı Kaydet",
     "warnings": "Uyarılar",
     "moreItems": "+ {{count}} daha",
+    "droppedModulesTitle": "Eklenmeyen modüller",
+    "droppedModulesIntro": "Açıklamanız bu modüllere de ihtiyacınız varmış gibi duruyordu, ancak bunları seçmediniz. Onları dahil etmedik:",
+    "droppedModulesHint": "Eklemek isterseniz Modül Seçimi'ne dönüp tekrar oluşturabilirsiniz.",
     "moduleCard": "{{label}} Modülü",
     "extraFeatures": "Ek Özellikler",
     "whatYouCanDo": {

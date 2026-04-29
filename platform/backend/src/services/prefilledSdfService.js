@@ -78,7 +78,12 @@ function buildInventoryEntities(answers) {
 
   if (hasCostingMethod) {
     productFields.push({ name: 'cost_price', type: 'decimal' });
-    productFields.push({ name: 'total_value', type: 'decimal' });
+    // Plan F A6 — total_value = cost_price × quantity. Marked computed so
+    // it shows up as a read-only ComputedDisplay row in the form and the
+    // server's RelationRuleRunner refuses client-supplied values. The
+    // matching derived_field relation is attached to the product entity
+    // below, gated on both `cost_price` and `quantity` being present.
+    productFields.push({ name: 'total_value', type: 'decimal', computed: true, required: false });
   }
 
   if (reservationsEnabled) {
@@ -127,6 +132,19 @@ function buildInventoryEntities(answers) {
     inventory_ops: inventoryOps,
     features,
   };
+
+  // Plan F A6 — derived_field relation for total_value = cost_price ×
+  // quantity. Only emitted when both inputs exist on the entity (cost_price
+  // is gated by hasCostingMethod; quantity is always present).
+  if (hasCostingMethod) {
+    productEntity.relations = (productEntity.relations || []).concat([
+      {
+        kind: 'derived_field',
+        computed_field: 'total_value',
+        formula: 'multiply_fields(cost_price, quantity)',
+      },
+    ]);
+  }
 
   if (toBoolYes(answers.inv_qr_labels)) {
     productEntity.labels = { enabled: true, type: 'qrcode' };
@@ -292,9 +310,24 @@ function buildInvoiceEntities(answers) {
     { name: 'issue_date', type: 'date', required: true },
     { name: 'due_date', type: 'date', required: true },
     { name: 'status', type: 'string', required: true, options: ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'] },
-    { name: 'subtotal', type: 'decimal' },
-    { name: 'tax_total', type: 'decimal' },
-    { name: 'grand_total', type: 'decimal' },
+    // Plan F A6 — invoice header totals are server-computed via the
+    // relation runner (subtotal/tax_total/grand_total). Marking
+    // `computed: true` here stops the form from rendering an editable
+    // input and instead emits a read-only ComputedDisplay row that echoes
+    // the live-computed value as the user adds line items / changes the
+    // discount.
+    { name: 'subtotal', type: 'decimal', computed: true, required: false },
+    { name: 'tax_total', type: 'decimal', computed: true, required: false },
+    { name: 'grand_total', type: 'decimal', computed: true, required: false },
+    // Plan F A6 — flat amount discount, referenced by the grand_total
+    // formula. Percent discounts are out of scope for Plan F (see plan
+    // out-of-scope notes); they can land in a follow-up.
+    { name: 'discount', type: 'decimal', required: false, default: 0 },
+    // Plan F B4 — per-invoice tax rate override. The default is resolved
+    // from `modules.invoice.tax_rate` at codegen time (Plan F B2 adds the
+    // resolution logic in fieldUtils._generateFieldDefinitions).
+    { name: 'tax_rate', type: 'decimal', required: false,
+      default_from: 'modules.invoice.tax_rate' },
     { name: 'paid_total', type: 'decimal' },
     { name: 'outstanding_balance', type: 'decimal' },
     { name: 'idempotency_key', type: 'string' },
@@ -314,6 +347,29 @@ function buildInvoiceEntities(answers) {
     fields: invoiceFields,
   };
 
+  // Plan F A6 — derived_field relations for the invoice header. Order
+  // matters: subtotal must populate before tax_total (which references
+  // subtotal), and grand_total references both subtotal AND tax_total.
+  // The runner processes relations in declaration order so we list them
+  // in dependency order here.
+  invoiceEntity.relations = [
+    {
+      kind: 'derived_field',
+      computed_field: 'subtotal',
+      formula: 'sum_lines(child_entity=invoice_items, parent_field=invoice_id, sum_field=line_total)',
+    },
+    {
+      kind: 'derived_field',
+      computed_field: 'tax_total',
+      formula: 'percent_of(subtotal, tax_rate)',
+    },
+    {
+      kind: 'derived_field',
+      computed_field: 'grand_total',
+      formula: 'linear_combine(plus_fields=[subtotal, tax_total], minus_fields=[discount])',
+    },
+  ];
+
   if (toBoolYes(answers.invoice_print)) {
     invoiceEntity.features = { print_invoice: true };
   }
@@ -323,7 +379,8 @@ function buildInvoiceEntities(answers) {
     { name: 'description', type: 'string', required: true },
     { name: 'quantity', type: 'decimal', required: true },
     { name: 'unit_price', type: 'decimal', required: true },
-    { name: 'line_total', type: 'decimal' },
+    // Plan F A6 — server-computed line_total. Form renders ComputedDisplay.
+    { name: 'line_total', type: 'decimal', computed: true, required: false },
   ];
 
   if (calcEngineOn) {
@@ -331,9 +388,33 @@ function buildInvoiceEntities(answers) {
     itemFields.push({ name: 'line_discount_type', type: 'string', options: ['Percent', 'Fixed'] });
     itemFields.push({ name: 'line_discount_value', type: 'decimal' });
     itemFields.push({ name: 'line_discount_amount', type: 'decimal' });
-    itemFields.push({ name: 'line_tax_rate', type: 'decimal' });
+    // Plan F B4 — per-line tax rate inherits the project default from
+    // `modules.invoice.tax_rate`; the user can still override per line.
+    itemFields.push({ name: 'line_tax_rate', type: 'decimal',
+      default_from: 'modules.invoice.tax_rate' });
     itemFields.push({ name: 'line_tax_amount', type: 'decimal' });
+    // Plan F A5/A6 — per-line tax echo so the user sees `line_tax_amount`
+    // populate as soon as `line_subtotal` × `line_tax_rate` is known.
+    itemFields.push({ name: 'line_tax_total', type: 'decimal', computed: true, required: false });
     itemFields.push({ name: 'line_charges', type: 'decimal' });
+  }
+
+  // Plan F A6 — derived_field relations on invoice_items. line_total is
+  // always emitted; line_tax_total only when calc engine is on (matches
+  // the field's calc-engine-gated emission above).
+  const itemRelations = [
+    {
+      kind: 'derived_field',
+      computed_field: 'line_total',
+      formula: 'multiply_fields(quantity, unit_price)',
+    },
+  ];
+  if (calcEngineOn) {
+    itemRelations.push({
+      kind: 'derived_field',
+      computed_field: 'line_tax_total',
+      formula: 'percent_of(line_subtotal, line_tax_rate)',
+    });
   }
 
   const entities = [
@@ -355,27 +436,72 @@ function buildInvoiceEntities(answers) {
       display_name: 'Invoice Items',
       module: 'invoice',
       fields: itemFields,
+      relations: itemRelations,
     },
   ];
 
   if (paymentsOn) {
+    // Plan I — payment_method enum is driven by the wizard answer, with a
+    // sensible default trio (Cash / Credit Card / Debit Card) when the
+    // question is unanswered. When 'Credit Card' is among the chosen
+    // methods, also emit an `installments` integer field gated by a
+    // `visibility_when` predicate plus a paired `conditional_required`
+    // invariant on invoice_payments.relations[]. The form auto-renders
+    // the enum as RadioGroup chips because options.length <= 4
+    // (fieldUtils.js _getWidgetForType heuristic).
+    const userPaymentMethods = parseMultiChoice(answers.invoice_payment_methods);
+    const resolvedPaymentMethods = userPaymentMethods.length
+      ? userPaymentMethods
+      : ['Cash', 'Credit Card', 'Debit Card'];
+    const supportsCreditCard = resolvedPaymentMethods.includes('Credit Card');
+
+    const paymentFields = [
+      { name: 'payment_number', type: 'string', unique: true },
+      { name: 'invoice_id', type: 'reference', reference_entity: 'invoices', required: true },
+      { name: 'amount', type: 'decimal', required: true },
+      { name: 'payment_date', type: 'date', required: true },
+      {
+        name: 'payment_method',
+        type: 'string',
+        required: true,
+        options: resolvedPaymentMethods,
+        default: resolvedPaymentMethods[0],
+      },
+      { name: 'status', type: 'string', options: ['Draft', 'Posted', 'Cancelled'] },
+      { name: 'reference_number', type: 'string' },
+      { name: 'posted_at', type: 'datetime' },
+      { name: 'cancelled_at', type: 'datetime' },
+      { name: 'cancel_reason', type: 'text' },
+      { name: 'note', type: 'text' },
+    ];
+
+    if (supportsCreditCard) {
+      paymentFields.push({
+        name: 'installments',
+        type: 'integer',
+        required: false,
+        min: 1,
+        max: 36,
+        visibility_when: { field: 'payment_method', equals: 'Credit Card' },
+      });
+    }
+
+    const paymentRelations = [];
+    if (supportsCreditCard) {
+      paymentRelations.push({
+        kind: 'invariant',
+        rule: 'conditional_required(field=installments, when_field=payment_method, when_equals=Credit Card)',
+        error_key: 'invoice_payments.installments_required_for_credit_card',
+        severity: 'block',
+      });
+    }
+
     entities.push({
       slug: 'invoice_payments',
       display_name: 'Invoice Payments',
       module: 'invoice',
-      fields: [
-        { name: 'payment_number', type: 'string', unique: true },
-        { name: 'invoice_id', type: 'reference', reference_entity: 'invoices', required: true },
-        { name: 'amount', type: 'decimal', required: true },
-        { name: 'payment_date', type: 'date', required: true },
-        { name: 'payment_method', type: 'string' },
-        { name: 'status', type: 'string', options: ['Draft', 'Posted', 'Cancelled'] },
-        { name: 'reference_number', type: 'string' },
-        { name: 'posted_at', type: 'datetime' },
-        { name: 'cancelled_at', type: 'datetime' },
-        { name: 'cancel_reason', type: 'text' },
-        { name: 'note', type: 'text' },
-      ],
+      fields: paymentFields,
+      ...(paymentRelations.length ? { relations: paymentRelations } : {}),
     });
     entities.push({
       slug: 'invoice_payment_allocations',
@@ -434,6 +560,13 @@ function buildHrEntities(answers) {
     ],
   });
 
+  // Plan E G2 — salary section is ALWAYS emitted (always_on_with_meta).
+  // The compensation_ledger remains the authoritative history for past
+  // periods; `salary` here is the current rate baseline for new hires and
+  // employees who don't have a ledger row yet.
+  const salaryHelp = compensationOn
+    ? 'Current rate; the compensation ledger is the authoritative history.'
+    : 'Current pay rate.';
   const employeeFields = [
     { name: 'first_name', type: 'string', required: true },
     { name: 'last_name', type: 'string', required: true },
@@ -443,11 +576,16 @@ function buildHrEntities(answers) {
     { name: 'status', type: 'string', required: true, options: ['Active', 'On Leave', 'Terminated'] },
     { name: 'department_id', type: 'reference', reference_entity: 'departments', required: true },
     { name: 'manager_id', type: 'reference', reference_entity: 'employees' },
+    // Plan E G2 — always-on salary trio.
+    { name: 'salary', type: 'decimal', required: false, help: salaryHelp },
+    { name: 'salary_currency', type: 'string', required: false, options: ['TRY', 'USD', 'EUR'], default: 'TRY' },
+    { name: 'salary_frequency', type: 'string', required: false, options: ['Monthly', 'Yearly'], default: 'Monthly' },
+    // Plan E G3 — termination date is shown only when the employee is
+    // marked Terminated. Plan E only ships the `equals` operator; Group D
+    // will generalize to other comparators.
+    { name: 'termination_date', type: 'date', required: false,
+      visibility_when: { field: 'status', equals: 'Terminated' } },
   ];
-
-  if (compensationOn) {
-    employeeFields.push({ name: 'salary', type: 'decimal' });
-  }
 
   entities.push({
     slug: 'employees',
@@ -474,7 +612,11 @@ function buildHrEntities(answers) {
       { name: 'leave_type', type: 'string', required: true, options: resolvedLeaveTypes },
       { name: 'start_date', type: 'date', required: true },
       { name: 'end_date', type: 'date', required: true },
-      { name: 'leave_days', type: 'integer' },
+      // Plan F A6 — leave_days is server-computed via
+      // `date_diff_days_inclusive(start_date, end_date)`. The form shows
+      // the live count as the user picks dates; the server overrides on
+      // persist regardless. Mon→Wed = 3 days, Mon→Mon = 1 day.
+      { name: 'leave_days', type: 'integer', computed: true, required: false },
       { name: 'status', type: 'string', required: true, options: ['Pending', 'Approved', 'Rejected', 'Cancelled'] },
       { name: 'approver_id', type: 'string' },
       { name: 'approved_at', type: 'datetime' },
@@ -488,6 +630,13 @@ function buildHrEntities(answers) {
       display_name: 'Leaves',
       module: 'hr',
       fields: leaveFields,
+      relations: [
+        {
+          kind: 'derived_field',
+          computed_field: 'leave_days',
+          formula: 'date_diff_days_inclusive(start_date, end_date)',
+        },
+      ],
     });
   }
 
@@ -533,9 +682,11 @@ function buildHrEntities(answers) {
       fields: [
         { name: 'employee_id', type: 'reference', reference_entity: 'employees', required: true },
         { name: 'shift_name', type: 'string', required: true },
-        { name: 'start_time', type: 'string' },
-        { name: 'end_time', type: 'string' },
-        { name: 'work_date', type: 'date' },
+        // Plan E G1: start_time + end_time are authoritative datetimes
+        // (date+time). Do NOT add a separate work_date here — that produced
+        // the "two source-of-truth dates" bug from issue #7.
+        { name: 'start_time', type: 'datetime', required: true },
+        { name: 'end_time', type: 'datetime', required: true },
       ],
     });
     entities.push({
@@ -588,6 +739,12 @@ function buildHrEntities(answers) {
 
   return entities;
 }
+
+const { applyActorMigration } = require('./sdfActorMigration');
+const {
+  applyComputedFieldRegistry,
+} = require('../../../assembler/assembler/computedFieldRegistry');
+const dependencyGraph = require('../defaultQuestions/dependencyGraph');
 
 function buildPrefilledSdfDraft({ projectName, modules, mandatoryAnswers, templateVersions }) {
   const selectedModules = Array.isArray(modules) ? modules : [];
@@ -786,7 +943,215 @@ function buildPrefilledSdfDraft({ projectName, modules, mandatoryAnswers, templa
     sdf.entities.push(...hrEntities);
   }
 
-  return sdf;
+  // Plan C — wizard wiring. Apply cross-pack link toggles + explicit
+  // access_control. Both reads from the canonical dependencyGraph table so
+  // the prefiller stays in lockstep with what the wizard offers and what
+  // the frontend mirrors. Runs BEFORE actor migration so the migration
+  // reads `modules.access_control.enabled = true` explicitly rather than
+  // relying on the default-on behaviour.
+  _applyLinkToggles(sdf, answers, selectedModules);
+  // Plan E — Group E (invoice -> stock). Now that the stock_link toggle is
+  // settled at modules.invoice.stock_link.enabled, attach the schema bits
+  // that depend on it: `invoice_items.product_id`, the multi-location
+  // location picker (visibility_when + paired conditional_required), and
+  // the `issue_stock`/`reverse_issue_stock` status_propagation relation on
+  // `invoices`. Runs after _applyLinkToggles so the toggle is the single
+  // source of truth.
+  _applyStockLinkSchema(sdf);
+  _applyAccessControlIfActorPackOn(sdf, answers);
+
+  // Plan B follow-up #3: promote string actor fields to reference -> __erp_users
+  // and emit matching coherence-layer relations whenever access control is on.
+  // Idempotent — running on an already-migrated SDF is a no-op.
+  const withActors = applyActorMigration(sdf);
+  // Plan B follow-up #6: promote known mixin-maintained fields to
+  // `computed: true` so the strict-mode runtime can reject client writes.
+  // Idempotent and gated per capability toggle.
+  return applyComputedFieldRegistry(withActors);
+}
+
+// Plan C helpers ------------------------------------------------------------
+
+function _setSdfPath(sdf, path, value) {
+  if (!sdf || !path) return;
+  const parts = String(path).split('.');
+  let cursor = sdf;
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    const key = parts[i];
+    if (!key) return;
+    if (cursor[key] === null || cursor[key] === undefined || typeof cursor[key] !== 'object') {
+      cursor[key] = {};
+    }
+    cursor = cursor[key];
+  }
+  const leaf = parts[parts.length - 1];
+  if (leaf) cursor[leaf] = value;
+}
+
+function _isModulePresent(token, modules) {
+  const target = dependencyGraph.MODULE_PRESENCE_KEYS[token];
+  if (!target) return false;
+  const list = Array.isArray(modules) ? modules : [];
+  return list.some((m) => String(m || '').trim().toLowerCase() === target);
+}
+
+function _applyLinkToggles(sdf, answers, modules) {
+  const a = answers || {};
+  for (const link of dependencyGraph.LINK_TOGGLES) {
+    const bothOn = link.requires_both.every((token) => {
+      if (Object.prototype.hasOwnProperty.call(dependencyGraph.MODULE_PRESENCE_KEYS, token)) {
+        return _isModulePresent(token, modules);
+      }
+      return toBoolYes(a[token]);
+    });
+    if (!bothOn) continue;
+    const raw = a[link.key];
+    let enabled;
+    if (raw === undefined || raw === null || (typeof raw === 'string' && raw.trim() === '')) {
+      enabled = link.default_on === true;
+    } else {
+      enabled = toBoolYes(raw);
+    }
+    _setSdfPath(sdf, link.sdf_target, enabled);
+  }
+}
+
+// Plan E — Group E (invoice -> stock).
+//
+// When `modules.invoice.stock_link.enabled === true` (set by
+// `_applyLinkToggles` from the `invoice_stock_link` wizard answer), wire
+// the schema bits that make a posted invoice actually move stock:
+//
+//   1. Append `product_id` (reference -> stock_entity) to `invoice_items`.
+//      The new `issue_stock` action (relationRuleLibrary._relAct_issue_stock)
+//      uses this field to identify the stocked SKU per line. Lines without
+//      a product_id (services / free-text) are skipped at runtime.
+//   2. When the products entity has `features.multi_location = true`,
+//      additionally append a `location_id` field to `invoice_items` with
+//      `visibility_when: { field: product_id, is_set: true }` so the
+//      picker only appears once a stocked product is chosen, and emit
+//      a paired `conditional_required` invariant on `invoice_items` so
+//      direct-API writes can't bypass the form's "required when product
+//      is set" rule. This is the canonical Group D pattern (see
+//      invoice_generator_prompt.txt CONDITIONAL FIELDS).
+//   3. Append a `status_propagation` relation to `invoices`:
+//        Posted   -> issue_stock(child_entity=..., ...)
+//        Cancelled -> reverse_issue_stock()
+//      The relation is gated by `when: 'modules.invoice.stock_link.enabled'`
+//      so the runner skips it when the user later disables the link.
+//
+// Fully idempotent: running on an already-extended SDF is a no-op (each
+// step checks for existing fields/relations before appending). The helper
+// silently no-ops when stock_link is off OR the invoice/invoice_items
+// entities are absent — matching the way _applyLinkToggles itself works.
+function _applyStockLinkSchema(sdf) {
+  if (!sdf || !Array.isArray(sdf.entities)) return;
+  const invoiceModule = sdf.modules && sdf.modules.invoice;
+  const stockLinkOn = !!(invoiceModule
+    && invoiceModule.stock_link
+    && invoiceModule.stock_link.enabled === true);
+  if (!stockLinkOn) return;
+
+  const invoiceItems = sdf.entities.find((e) => e && e.slug === (invoiceModule.item_entity || 'invoice_items'));
+  const invoices = sdf.entities.find((e) => e && e.slug === (invoiceModule.invoice_entity || 'invoices'));
+  if (!invoiceItems || !invoices) return;
+
+  const inventoryModule = (sdf.modules && sdf.modules.inventory) || {};
+  const stockSlug = inventoryModule.stock_entity || 'products';
+  const productEntity = sdf.entities.find((e) => e && e.slug === stockSlug);
+  const multiLocation = !!(productEntity
+    && productEntity.features
+    && productEntity.features.multi_location === true);
+
+  invoiceItems.fields = Array.isArray(invoiceItems.fields) ? invoiceItems.fields : [];
+  const hasProductId = invoiceItems.fields.some((f) => f && f.name === 'product_id');
+  if (!hasProductId) {
+    // Match the prefiller's existing convention for invoice_items fields
+    // (`subtotal`, `tax_rate`, etc.): no inline `label`. The AI generator
+    // emits the project-language label per the STOCK LINK CONTRACT in
+    // `invoice_generator_prompt.txt`, and the localization lint reads
+    // `entity.invoice_items.field.product_id.label` from i18n/en.json.
+    invoiceItems.fields.push({
+      name: 'product_id',
+      type: 'reference',
+      reference_entity: stockSlug,
+    });
+  }
+
+  if (multiLocation) {
+    const hasLocationId = invoiceItems.fields.some((f) => f && f.name === 'location_id');
+    if (!hasLocationId) {
+      invoiceItems.fields.push({
+        name: 'location_id',
+        type: 'reference',
+        reference_entity: 'locations',
+        visibility_when: { field: 'product_id', is_set: true },
+      });
+    }
+    invoiceItems.relations = Array.isArray(invoiceItems.relations) ? invoiceItems.relations : [];
+    const hasConditionalRequired = invoiceItems.relations.some(
+      (r) => r
+        && r.kind === 'invariant'
+        && typeof r.rule === 'string'
+        && r.rule.indexOf('conditional_required') === 0
+        && r.rule.indexOf('field=location_id') !== -1
+    );
+    if (!hasConditionalRequired) {
+      invoiceItems.relations.push({
+        kind: 'invariant',
+        rule: 'conditional_required(field=location_id, when_field=product_id, when_is_set=true)',
+        severity: 'block',
+      });
+    }
+  }
+
+  invoices.relations = Array.isArray(invoices.relations) ? invoices.relations : [];
+  const hasStockPropagation = invoices.relations.some(
+    (r) => r
+      && r.kind === 'status_propagation'
+      && r.effect
+      && typeof r.effect.action === 'string'
+      && r.effect.action.indexOf('issue_stock') === 0
+  );
+  if (!hasStockPropagation) {
+    invoices.relations.push({
+      kind: 'status_propagation',
+      on: { field: 'status', to: 'Posted' },
+      effect: {
+        action: 'issue_stock(child_entity=' + invoiceItems.slug
+          + ', parent_field=invoice_id'
+          + ', item_field=product_id'
+          + ', qty_field=quantity'
+          + ', location_field=location_id'
+          + ', stock_entity=' + stockSlug + ')',
+        target_entity: inventoryModule.transactions
+          && inventoryModule.transactions.movement_entity
+          ? inventoryModule.transactions.movement_entity
+          : 'stock_movements',
+        stock_entity: stockSlug,
+      },
+      reverse: {
+        on: { field: 'status', to: 'Cancelled' },
+        action: 'reverse_issue_stock()',
+      },
+      when: 'modules.invoice.stock_link.enabled',
+    });
+  }
+}
+
+function _applyAccessControlIfActorPackOn(sdf, answers) {
+  const a = answers || {};
+  const anyActorPackOn = dependencyGraph.ACTOR_DRIVEN_PACKS.some((key) => toBoolYes(a[key]));
+  if (!anyActorPackOn) return;
+  if (!sdf.modules || typeof sdf.modules !== 'object') sdf.modules = {};
+  const existing = sdf.modules.access_control;
+  if (existing === false) return; // user explicitly disabled — respect it
+  if (existing && typeof existing === 'object' && existing.enabled === false) return;
+  if (existing && typeof existing === 'object') {
+    sdf.modules.access_control = { ...existing, enabled: true };
+  } else {
+    sdf.modules.access_control = { enabled: true };
+  }
 }
 
 function buildPrefilledFromQuestionnaireState({ projectName, questionnaireState }) {

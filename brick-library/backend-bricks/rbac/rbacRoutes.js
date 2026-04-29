@@ -1,6 +1,46 @@
 const express = require('express');
 const router = express.Router();
-const { getProvider, signToken, rbacLoader, loadUserPermissions } = require('./rbacMiddleware');
+const {
+  getProvider,
+  signToken,
+  rbacLoader,
+  loadUserPermissions,
+  dumpPermissionScopes,
+} = require('./rbacMiddleware');
+
+const MAX_MANAGER_CHAIN = 32;
+
+async function _resolveManagerChain(repo, employeeId) {
+  if (!employeeId) return [];
+  const chain = [];
+  const seen = new Set();
+  let cursor = employeeId;
+  for (let depth = 0; depth < MAX_MANAGER_CHAIN; depth++) {
+    if (!cursor || seen.has(String(cursor))) break;
+    seen.add(String(cursor));
+    let employee = null;
+    try {
+      employee = await repo.findById('employees', cursor);
+    } catch (_) {
+      employee = null;
+    }
+    if (!employee) break;
+    const managerId = employee.manager_id || employee.managerId || null;
+    if (!managerId) break;
+    chain.push(managerId);
+    cursor = managerId;
+  }
+  return chain;
+}
+
+function _collectAllPermissionScopes() {
+  if (typeof dumpPermissionScopes !== 'function') return [];
+  try {
+    return dumpPermissionScopes();
+  } catch (_) {
+    return [];
+  }
+}
 
 function comparePassword(plain, hash) {
   try {
@@ -133,6 +173,22 @@ router.get('/me', rbacLoader, async (req, res) => {
 
     const { permissions, isSuperadmin } = await loadUserPermissions(user.id);
 
+    // Plan B follow-up #5: surface the actor's coherence-layer context so
+    // the frontend can do mirror-side scope evaluation (hasScope helpers,
+    // optimistic UI). Best-effort — if the employees entity isn't part of
+    // this ERP the chain stays empty and `hasScope` falls back to the
+    // module-level flat-key check.
+    let employee = null;
+    const employeeId = user.employee_id || user.employeeId || null;
+    if (employeeId) {
+      try {
+        employee = await repo.findById('employees', employeeId);
+      } catch (_) {
+        employee = null;
+      }
+    }
+    const managerChain = await _resolveManagerChain(repo, employeeId);
+
     return res.json({
       user: {
         id: user.id,
@@ -140,9 +196,14 @@ router.get('/me', rbacLoader, async (req, res) => {
         email: user.email,
         display_name: user.display_name,
         is_active: user.is_active,
+        employee_id: employeeId,
+        department_id: employee ? (employee.department_id || null) : null,
+        manager_id: employee ? (employee.manager_id || null) : null,
       },
       permissions: [...permissions],
       isSuperadmin,
+      manager_chain: managerChain,
+      permission_scopes: _collectAllPermissionScopes(),
     });
   } catch (err) {
     console.error('[AUTH] /me error:', err.message || err);

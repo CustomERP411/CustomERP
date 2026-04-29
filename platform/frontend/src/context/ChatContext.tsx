@@ -1,11 +1,17 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
 import i18n from '../i18n';
-import { projectService } from '../services/projectService';
+import { projectService, type UnsupportedFeatureRef } from '../services/projectService';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
-  unsupportedFeatures?: string[];
+  // Plan K — bilingual feature labels (see UnsupportedFeatureRef). Strings
+  // are also accepted to stay compatible with chat history persisted by
+  // pre-K builds in localStorage.
+  unsupportedFeatures?: (UnsupportedFeatureRef | string)[];
+  // Plan K — features the chat scope guard stripped because the user
+  // message looked off-topic. Rendered as a muted audit banner.
+  droppedUnsupportedFeatures?: (UnsupportedFeatureRef | string)[];
 }
 
 export interface ProjectContext {
@@ -120,10 +126,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         sdf_status: ctx.sdfStatus,
       });
       const unsupported = Array.isArray(res.unsupported_features) ? res.unsupported_features : [];
+      const dropped = Array.isArray(res.dropped_unsupported_features) ? res.dropped_unsupported_features : [];
       setChatHistory((prev) => [...prev, {
         role: 'assistant',
         content: res.reply,
         ...(unsupported.length > 0 ? { unsupportedFeatures: unsupported } : {}),
+        ...(dropped.length > 0 ? { droppedUnsupportedFeatures: dropped } : {}),
       }]);
     } catch {
       setChatHistory((prev) => [

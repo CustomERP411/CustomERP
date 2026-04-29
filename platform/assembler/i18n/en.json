@@ -235,6 +235,15 @@
       "confirmDelete": "Delete this line item?",
       "deleteFailed": "Delete failed"
     },
+    "rollupSections": {
+      "heading": "Related records",
+      "help": "Records from other parts of the system that reference this one.",
+      "empty": "No related records yet.",
+      "loading": "Loading…",
+      "add": "+ Add",
+      "saveFirst": "Save this record first to view related rows.",
+      "viewAll": "View all {{count}}"
+    },
     "invoiceTotals": {
       "heading": "Totals",
       "subtotal": "Subtotal",
@@ -262,6 +271,18 @@
       "recordUpdated": "Record updated",
       "recordCreated": "Record created",
       "loadFailedDesc": "Could not load record"
+    },
+    "draft": {
+      "creating": "Preparing your draft…",
+      "failedFallback": "Draft creation failed; you can fill the form manually."
+    },
+    "sections": {
+      "identity": "Identity",
+      "details": "Details",
+      "lifecycle": "Status & lifecycle",
+      "notes": "Notes",
+      "lineItems": "Line items",
+      "totals": "Totals"
     }
   },
   "dynamicForm": {
@@ -468,7 +489,10 @@
     "unallocated": "Unallocated",
     "allocated": "Allocated",
     "paymentLabel": "Payment",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "installmentsLabel": "Installments",
+    "installmentsHelp": "Number of monthly installments (1–36).",
+    "installmentsRequiredForCreditCard": "Installments is required when the payment method is Credit Card."
   },
   "invoiceNotes": {
     "title": "{{entity}} Notes",
@@ -480,6 +504,8 @@
     "debit": "Debit",
     "amount": "Amount",
     "taxTotal": "Tax total",
+    "taxNonNegative": "Tax total must be zero or greater",
+    "grandTotal": "Grand total",
     "issueDate": "Issue date",
     "reason": "Reason",
     "note": "Note",
@@ -490,6 +516,23 @@
     "notesHeading": "Notes for selected invoice",
     "noNotes": "No notes recorded yet.",
     "selectInvoice": "Select an invoice."
+  },
+  "paymentWorkflow": {
+    "postPayment": "Post Payment",
+    "confirmPost": "Post selected payment?",
+    "posted": "Payment posted",
+    "cancelled": "Payment cancelled"
+  },
+  "noteWorkflow": {
+    "subtitle": "Post or cancel invoice credit/debit notes.",
+    "note": "Note",
+    "noNotes": "No notes",
+    "postNote": "Post Note",
+    "cancelNote": "Cancel Note",
+    "confirmPost": "Post selected note?",
+    "confirmCancel": "Cancel selected note?",
+    "posted": "Note posted",
+    "cancelled": "Note cancelled"
   },
   "leaveApprovals": {
     "title": "Leave Approvals",
@@ -600,7 +643,22 @@
     "filterAll": "All",
     "filterPending": "Pending",
     "filterApproved": "Approved",
-    "filterRejected": "Rejected"
+    "filterRejected": "Rejected",
+    "newEmployee": "New Employee",
+    "newDepartment": "New Department",
+    "newLeaveRequest": "New Leave Request",
+    "leavePendingApproval": "pending approval",
+    "leaveEmptyAll": "No leave requests yet. Submit your first leave request to get started.",
+    "leaveEmptyFilter": "No leave requests with status",
+    "leaveLoadFailed": "Failed to load leave requests",
+    "statusActive": "Active",
+    "statusOnLeave": "On Leave",
+    "statusTerminated": "Terminated",
+    "employeesEmptyAll": "No employees yet. Add your first employee to get started.",
+    "employeesEmptyFilter": "No employees with status",
+    "employeesLoadFailed": "Failed to load employees",
+    "departmentsEmpty": "No departments yet. Create your first department to get started.",
+    "departmentsLoadFailed": "Failed to load departments"
   },
   "invoicePages": {
     "title": "Invoices",
@@ -613,7 +671,203 @@
     "filterSent": "Sent",
     "filterPaid": "Paid",
     "filterOverdue": "Overdue",
-    "filterCancelled": "Cancelled"
+    "filterCancelled": "Cancelled",
+    "paymentsTitle": "Payments",
+    "paymentsSubtitle": "Post or cancel payment entries.",
+    "paymentsEmpty": "No payments yet.",
+    "cancelPayment": "Cancel Payment",
+    "cancelPaymentConfirm": "Cancel this payment?",
+    "cancelFailed": "Cancel failed"
+  },
+  "inventoryPages": {
+    "reservations": {
+      "title": "Reservations",
+      "subtitle": "Reserve, release, or commit stock with clear availability checks.",
+      "item": "Item",
+      "selectPlaceholder": "Select...",
+      "availabilitySnapshot": "Availability Snapshot",
+      "onHand": "On Hand",
+      "reserved": "Reserved",
+      "committed": "Committed",
+      "available": "Available",
+      "quantity": "Quantity",
+      "referenceOptional": "Reference # (optional)",
+      "noteOptional": "Note (optional)",
+      "reserveStock": "Reserve Stock",
+      "tableHeader": "Reservations",
+      "colReservation": "Reservation",
+      "colQuantity": "Quantity",
+      "colStatus": "Status",
+      "colReference": "Reference",
+      "colActions": "Actions",
+      "release": "Release",
+      "commit": "Commit",
+      "empty": "No reservations yet",
+      "actionFailed": "Action failed",
+      "released": "Reservation released",
+      "committed": "Reservation committed"
+    },
+    "grn": {
+      "cancelConfirm": "Cancel this goods receipt?",
+      "cancelFailed": "Cancel failed",
+      "cancelGrn": "Cancel GRN"
+    },
+    "cycleCount": {
+      "updateCount": "Update Count",
+      "noLines": "No cycle lines for selected session",
+      "save": "Save",
+      "cancel": "Cancel"
+    }
+  },
+  "inventoryWorkflow": {
+    "common": {
+      "statusLabel": "Status:",
+      "selectPlaceholder": "Select...",
+      "loadFailedTitle": "Load failed"
+    },
+    "reservations": {
+      "couldNotLoadItems": "Could not load items",
+      "couldNotLoadReservations": "Could not load reservations",
+      "selectItemFirst": "Select item first",
+      "quantityMustBePositive": "Quantity must be greater than zero",
+      "reservationCreated": "Reservation created",
+      "reserveFailed": "Reserve failed",
+      "confirmRelease": "Release this reservation?",
+      "confirmCommit": "Commit this reservation?"
+    },
+    "grn": {
+      "subtitle": "Review receipt lines and post to update stock atomically.",
+      "couldNotLoadReceipts": "Could not load goods receipts",
+      "couldNotLoadLines": "Could not load GRN lines",
+      "selectFirst": "Select a goods receipt first",
+      "confirmPost": "Post this goods receipt? This updates stock and PO progress.",
+      "posted": "Goods receipt posted",
+      "postFailed": "Post failed",
+      "cancelled": "Goods receipt cancelled",
+      "selectLabel": "Goods Receipt",
+      "poLabel": "PO:",
+      "postButton": "Post GRN",
+      "linesHeading": "Receipt Lines",
+      "colPoItem": "PO Item",
+      "colItem": "Item",
+      "colReceived": "Received",
+      "noLines": "No lines for selected goods receipt"
+    },
+    "cycle": {
+      "subtitle": "Count inventory, calculate variance, approve, and post adjustments.",
+      "couldNotLoadSessions": "Could not load cycle sessions",
+      "couldNotLoadLines": "Could not load cycle lines",
+      "selectFirst": "Select a session first",
+      "actionStart": "Start session",
+      "actionRecalculate": "Recalculate variance",
+      "actionApprove": "Approve session",
+      "actionPost": "Post adjustments",
+      "actionCompleteSuffix": "complete",
+      "actionFailedSuffix": "failed",
+      "countUpdated": "Count updated",
+      "updateFailed": "Update failed",
+      "selectLabel": "Cycle Session",
+      "btnStart": "Start",
+      "btnRecalculate": "Recalculate",
+      "btnApprove": "Approve",
+      "btnPost": "Post",
+      "linesHeading": "Session Lines",
+      "colItem": "Item",
+      "colExpected": "Expected",
+      "colCounted": "Counted",
+      "colVariance": "Variance",
+      "colStatus": "Status",
+      "colActions": "Actions"
+    }
+  },
+  "formPage": {
+    "emailLabel": "Email"
+  },
+  "validation": {
+    "required": "{label} is required",
+    "min_length": "{label} must be at least {min} characters",
+    "max_length": "{label} must be at most {max} characters",
+    "must_be_one_of": "{label} must be one of: {options}",
+    "must_be_number": "{label} must be a number",
+    "must_be_unique": "{label} must be unique"
+  },
+  "status": {
+    "leaves": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    },
+    "attendance_entries": {
+      "present": "Present",
+      "absent": "Absent",
+      "half_day": "Half Day",
+      "on_leave": "On Leave"
+    },
+    "compensation_ledger": {
+      "draft": "Draft",
+      "posted": "Posted",
+      "cancelled": "Cancelled"
+    },
+    "compensation_snapshots": {
+      "draft": "Draft",
+      "posted": "Posted"
+    },
+    "timesheet_entries": {
+      "draft": "Draft",
+      "approved": "Approved"
+    },
+    "invoices": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "cancelled": "Cancelled",
+      "voided": "Voided"
+    },
+    "invoice_payments": {
+      "draft": "Draft",
+      "posted": "Posted",
+      "cancelled": "Cancelled"
+    },
+    "invoice_notes": {
+      "draft": "Draft",
+      "posted": "Posted",
+      "cancelled": "Cancelled"
+    },
+    "purchase_orders": {
+      "draft": "Draft",
+      "approved": "Approved",
+      "closed": "Closed",
+      "cancelled": "Cancelled"
+    },
+    "purchase_order_items": {
+      "open": "Open",
+      "received": "Received",
+      "closed": "Closed"
+    },
+    "goods_receipts": {
+      "draft": "Draft",
+      "posted": "Posted",
+      "cancelled": "Cancelled"
+    },
+    "stock_reservations": {
+      "pending": "Pending",
+      "released": "Released",
+      "committed": "Committed",
+      "cancelled": "Cancelled"
+    },
+    "cycle_count_sessions": {
+      "draft": "Draft",
+      "in_progress": "In Progress",
+      "approved": "Approved",
+      "posted": "Posted",
+      "cancelled": "Cancelled"
+    },
+    "cycle_count_lines": {
+      "pending": "Pending",
+      "counted": "Counted"
+    }
   },
   "auth": {
     "login": {
@@ -785,5 +1039,17 @@
     "reservedTooltip": "Quantity held by open sales reservations. Not yet shipped or committed to a confirmed order.",
     "committedTooltip": "Quantity on approved sales orders that have not been shipped yet.",
     "infoIconAria": "More information"
+  },
+  "entity": {
+    "invoice_items": {
+      "field": {
+        "product_id": {
+          "label": "Product"
+        },
+        "location_id": {
+          "label": "Issue from location"
+        }
+      }
+    }
   }
 }

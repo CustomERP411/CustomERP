@@ -2,20 +2,34 @@ const hrV1Pack = require('../defaultQuestions/packs/hr.v1');
 const inventoryV1Pack = require('../defaultQuestions/packs/inventory.v1');
 const invoiceV1Pack = require('../defaultQuestions/packs/invoice.v1');
 
+// Plan C — wizard wiring. Three new pack versions ship the cross-pack link
+// toggles. Old packs stay registered so legacy stored answers still resolve.
+const hrV3Pack = require('../defaultQuestions/packs/hr.v3');
+const invoiceV3Pack = require('../defaultQuestions/packs/invoice.v3');
+const inventoryV4Pack = require('../defaultQuestions/packs/inventory.v4');
+
+// Plan I — invoice.v4 adds the `invoice_payment_methods` multi-choice
+// question. v3 stays registered so legacy stored answers still resolve.
+const invoiceV4Pack = require('../defaultQuestions/packs/invoice.v4');
+
 const hrV2TrTranslations = require('../defaultQuestions/translations/hr.v2.tr');
 const invoiceV2TrTranslations = require('../defaultQuestions/translations/invoice.v2.tr');
 const inventoryV3TrTranslations = require('../defaultQuestions/translations/inventory.v3.tr');
+const hrV3TrTranslations = require('../defaultQuestions/translations/hr.v3.tr');
+const invoiceV3TrTranslations = require('../defaultQuestions/translations/invoice.v3.tr');
+const inventoryV4TrTranslations = require('../defaultQuestions/translations/inventory.v4.tr');
+const invoiceV4TrTranslations = require('../defaultQuestions/translations/invoice.v4.tr');
 
 const PACKS_BY_MODULE = {
-  inventory: [inventoryV1Pack],
-  invoice: [invoiceV1Pack],
-  hr: [hrV1Pack],
+  inventory: [inventoryV1Pack, inventoryV4Pack],
+  invoice: [invoiceV1Pack, invoiceV3Pack, invoiceV4Pack],
+  hr: [hrV1Pack, hrV3Pack],
 };
 
 const ACTIVE_VERSION_BY_MODULE = {
-  inventory: 'inventory.v3',
-  invoice: 'invoice.v2',
-  hr: 'hr.v2',
+  inventory: 'inventory.v4',
+  invoice: 'invoice.v4',
+  hr: 'hr.v3',
 };
 
 // Translation tables keyed by pack version; each resolves to per-language
@@ -25,6 +39,10 @@ const TRANSLATIONS_BY_VERSION = {
   'hr.v2': { tr: hrV2TrTranslations },
   'invoice.v2': { tr: invoiceV2TrTranslations },
   'inventory.v3': { tr: inventoryV3TrTranslations },
+  'hr.v3': { tr: hrV3TrTranslations },
+  'invoice.v3': { tr: invoiceV3TrTranslations },
+  'inventory.v4': { tr: inventoryV4TrTranslations },
+  'invoice.v4': { tr: invoiceV4TrTranslations },
 };
 
 const SUPPORTED_QUESTION_LANGUAGES = new Set(['en', 'tr']);

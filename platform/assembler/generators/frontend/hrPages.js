@@ -24,15 +24,15 @@ function buildEmployeeListPage({ entity, entityName, importBase, hrConfig, enabl
     subtitle: t('hrPages.employeesSubtitle'),
     importCsv: t('list.importCsv'),
     exportCsv: t('list.exportCsv'),
-    newEmployee: 'New Employee',
-    statusActive: 'Active',
-    statusOnLeave: 'On Leave',
-    statusTerminated: 'Terminated',
+    newEmployee: t('hrPages.newEmployee'),
+    statusActive: t('hrPages.statusActive'),
+    statusOnLeave: t('hrPages.statusOnLeave'),
+    statusTerminated: t('hrPages.statusTerminated'),
     filterAll: t('hrPages.filterAll'),
     loading: t('common.loading'),
-    emptyAll: 'No employees yet. Add your first employee to get started.',
-    emptyFilter: 'No employees with status',
-    loadFailed: 'Failed to load employees',
+    emptyAll: t('hrPages.employeesEmptyAll'),
+    emptyFilter: t('hrPages.employeesEmptyFilter'),
+    loadFailed: t('hrPages.employeesLoadFailed'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
 
@@ -157,10 +157,10 @@ function buildDepartmentListPage({ entity, entityName, importBase, hrConfig, ena
     subtitle: t('hrPages.departmentsSubtitle'),
     importCsv: t('list.importCsv'),
     exportCsv: t('list.exportCsv'),
-    newDepartment: 'New Department',
+    newDepartment: t('hrPages.newDepartment'),
     loading: t('common.loading'),
-    empty: 'No departments yet. Create your first department to get started.',
-    loadFailed: 'Failed to load departments',
+    empty: t('hrPages.departmentsEmpty'),
+    loadFailed: t('hrPages.departmentsLoadFailed'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
 
@@ -255,16 +255,16 @@ function buildLeaveListPage({ entity, entityName, importBase, hrConfig, enableCs
     subtitle: t('hrPages.leaveSubtitle'),
     importCsv: t('list.importCsv'),
     exportCsv: t('list.exportCsv'),
-    newRequest: 'New Leave Request',
-    pendingApproval: 'pending approval',
+    newRequest: t('hrPages.newLeaveRequest'),
+    pendingApproval: t('hrPages.leavePendingApproval'),
     filterAll: t('hrPages.filterAll'),
     filterPending: t('hrPages.filterPending'),
     filterApproved: t('hrPages.filterApproved'),
     filterRejected: t('hrPages.filterRejected'),
     loading: t('common.loading'),
-    emptyAll: 'No leave requests yet. Submit your first leave request to get started.',
-    emptyFilter: 'No leave requests with status',
-    loadFailed: 'Failed to load leave requests',
+    emptyAll: t('hrPages.leaveEmptyAll'),
+    emptyFilter: t('hrPages.leaveEmptyFilter'),
+    loadFailed: t('hrPages.leaveLoadFailed'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
 

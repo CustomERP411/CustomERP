@@ -122,6 +122,41 @@ def get_clarify_prompt(business_description: str, partial_sdf: str, answers: str
         return "Error: Could not load prompt."
 
 
+def get_module_precheck_prompt(
+    business_description: str,
+    selected_modules: list[str],
+    language: str = DEFAULT_LANGUAGE,
+) -> str:
+    """Plan D follow-up #8: load the module precheck prompt.
+
+    The endpoint deliberately does not accept wizard answers / metadata, only
+    the business description + already-selected modules. The prompt itself
+    contains the false-positive GUARD that prevents platform-meta cues
+    (e.g. "5 people will use the system") from triggering HR.
+    """
+    try:
+        prompt_template_path = PROMPT_DIR / "module_precheck_prompt.txt"
+        prompt_template = prompt_template_path.read_text()
+        # We do not interpolate placeholders into the prompt body itself —
+        # all instructions live there verbatim. Inputs are appended below so
+        # the model gets a clean, unambiguous shape.
+        import json as _json
+        rendered = (
+            prompt_template
+            + "\n\n## INPUT\n\n"
+            + "business_description:\n"
+            + business_description
+            + "\n\n"
+            + "selected_modules: "
+            + _json.dumps(list(selected_modules or []))
+            + "\n"
+        )
+        return _with_language_directive(rendered, language)
+    except FileNotFoundError:
+        print(f"Error: Prompt file not found for module precheck.")
+        return "Error: Could not load prompt."
+
+
 def get_fix_json_prompt(invalid_json: str) -> str:
     """Loads the JSON fix prompt and injects the invalid JSON string.
 
@@ -455,6 +490,7 @@ def get_chat_prompt(
     try:
         prompt_template_path = PROMPT_DIR / "chat_prompt.txt"
         prompt_template = prompt_template_path.read_text()
+        normalized_language = _normalize_language(language)
         rendered = _inject_placeholders(
             prompt_template,
             {
@@ -465,6 +501,7 @@ def get_chat_prompt(
                 "conversation_history": conversation_history or "No prior messages",
                 "current_step": current_step or "Unknown",
                 "sdf_status": sdf_status or "none",
+                "project_language": normalized_language,
             },
         )
         return _with_language_directive(rendered, language)

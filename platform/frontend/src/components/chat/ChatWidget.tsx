@@ -1,13 +1,28 @@
 import { useRef, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChatContext } from '../../context/ChatContext';
+import type { UnsupportedFeatureRef } from '../../services/projectService';
+
+// Plan K §K5 — pick the best label for an unsupported feature ref given
+// the user's current UI language. Mirrors `resolveFeatureName` in
+// featureRequestService.ts but operates on the chat-side shape.
+function resolveFeatureLabel(
+  ref: UnsupportedFeatureRef | string,
+  currentLang: string,
+): string {
+  if (typeof ref === 'string') return ref;
+  const lang = (currentLang || 'en').toLowerCase();
+  if (lang.startsWith('en')) return ref.name_en || ref.name_native || '';
+  return ref.name_native || ref.name_en || '';
+}
 
 export default function ChatWidget() {
   const {
     isOpen, chatHistory, chatLoading, projectContext, pulsing,
     toggleChat, sendMessage,
   } = useChatContext();
-  const { t } = useTranslation('chatbot');
+  const { t, i18n } = useTranslation('chatbot');
+  const currentLang = i18n.language || 'en';
 
   const quickPrompts: { key: string; text: string }[] = [
     { key: 'chooseModules', text: t('empty.quickPrompts.chooseModules') },
@@ -142,7 +157,19 @@ export default function ChatWidget() {
                   {msg.unsupportedFeatures && msg.unsupportedFeatures.length > 0 && (
                     <div className="mb-2 rounded-lg bg-app-warning-soft border border-app-warning-border px-2.5 py-1.5 text-[11px] text-app-warning">
                       <span className="font-semibold">{t('recordedForFuture')}</span>{' '}
-                      {msg.unsupportedFeatures.join(', ')}
+                      {msg.unsupportedFeatures
+                        .map((f) => resolveFeatureLabel(f, currentLang))
+                        .filter(Boolean)
+                        .join(', ')}
+                    </div>
+                  )}
+                  {msg.droppedUnsupportedFeatures && msg.droppedUnsupportedFeatures.length > 0 && (
+                    <div className="mb-2 rounded-lg border border-app-border bg-app-surface-muted px-2.5 py-1.5 text-[11px] text-app-text-muted">
+                      <span className="font-semibold">{t('weIgnored')}</span>{' '}
+                      {msg.droppedUnsupportedFeatures
+                        .map((f) => resolveFeatureLabel(f, currentLang))
+                        .filter(Boolean)
+                        .join(', ')}
                     </div>
                   )}
                   <div className="whitespace-pre-wrap">{msg.content}</div>

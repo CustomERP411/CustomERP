@@ -5,7 +5,9 @@ aşağıdakiler zorunlu olarak Türkçe üretilir:
 - SDF, modül ve varlık düzeyindeki `project_name`, `display_name`,
   `description` alanları.
 - Varlık alanlarındaki tüm `label`, `placeholder`, `help_text`, enum
-  `options` etiketleri (görünen yazı) ve doğrulama `message` metinleri.
+  `options` etiketleri (görünen yazı), aksiyon `label` / `confirm` metinleri,
+  değişmezlik (invariant) `message` metinleri ve doğrulama `message`
+  metinleri.
 - `clarifications_needed` içindeki tüm sorular (`question` metni, kısa
   etiketler, seçenek etiketleri). `question_id` opak bir belirteç olarak
   kalır.
@@ -21,3 +23,29 @@ yerelleştirilMEZ:
 
 Kullanıcı tarafından verilen iş tanımı başka bir dilde olsa bile, yanıtınız
 ve SDF'deki metinler MUTLAKA Türkçe olmalıdır.
+
+## YASAK: Türkçe projeye İngilizce etiket sızdırmayın
+
+`label`, `help`, `placeholder`, enum görünen `label`'ı, aksiyon `label`/
+`confirm`, değişmezlik `message`'ı ya da doğrulama `message`'ı alanlarından
+HERHANGİ BİRİ İngilizce metin içeriyorsa, üretilen SDF reddedilir. Şüphe
+durumunda, Türkçe karşılığını yazın; gerekirse parantez içinde İngilizce
+ipucu ekleyebilirsiniz ama görünen etiket asıl Türkçe olmalıdır.
+
+Tipik tuzaklar (kaçınılmalı):
+- "Status" → "Durum" yazılmalı.
+- "Pending / Approved / Rejected" → "Bekliyor / Onaylandı / Reddedildi"
+  (sadece görünen etiket; makine değeri `Pending` İngilizce kalır).
+- "Loading..." → "Yükleniyor..." yazılmalı.
+- "Required field" → "Zorunlu alan".
+
+## Plan D yerelleştirme anahtar şablonuyla uyum
+
+Assembler, SDF'yi yerelleştirme açısından kontrol eder. Türkçe projede
+tüm görünen metinler tutarlı bir şekilde aşağıdaki anahtar yapısına eşlenir:
+`entity.<slug>.label`, `entity.<slug>.field.<f>.label/.help`,
+`entity.<slug>.field.<f>.option.<value>`,
+`entity.<slug>.action.<a>.label/.confirm`, `entity.<slug>.error.<id>`,
+`wizard.<module>.<q>.prompt`, `status.<slug>.<value>`,
+`validation.<rule>`. Etiketleri kısa ve doğal Türkçe ile yazın ki bu
+anahtarlar anlamlı olsun.

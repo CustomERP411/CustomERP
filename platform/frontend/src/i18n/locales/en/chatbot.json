@@ -15,6 +15,7 @@
   },
   "errorFallback": "Sorry, I could not process your message. Please try again.",
   "recordedForFuture": "Recorded for future development:",
+  "weIgnored": "We ignored these off-topic suggestions:",
   "openChat": "Open AI assistant",
   "closeChat": "Close AI assistant",
   "helpPrompt": {

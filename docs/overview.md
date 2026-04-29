@@ -316,6 +316,7 @@ For phase‑by‑phase rules, see `docs/sprint1.md`.
 
 See `UNFINISHED_TASKS.md` for the full list. Key themes:
 - Mixin config schema/docs alignment in `SDF_REFERENCE.md` and AI prompts
+- Module-aware navigation and per-module output layout (Phase 3 ODD/EA)
 - Generation tracking and logs
 - Testing and documentation coverage
 

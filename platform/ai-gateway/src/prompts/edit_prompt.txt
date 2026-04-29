@@ -20,7 +20,9 @@
 #
 # IMPORTANT RULES:
 # - Do NOT add system-managed fields to entity.fields: id, created_at, updated_at
-# - Do NOT output a separate relations list; use reference fields instead.
+# - Foreign keys go on the field (`reference_entity`); cross-feature rules go in
+#   `entity.relations[]` (status_propagation, derived_field, invariant, permission_scope).
+#   Do NOT output a top-level `relations` list — relations live INSIDE each entity.
 # - Preserve existing slugs/fields unless the user explicitly asks to rename/remove them.
 # - If the user explicitly asks to remove something, you MUST remove it (or ask a clarification if removal would break references / workflows).
 # - To REMOVE a FIELD, include it in the entity's fields list with a remove marker:

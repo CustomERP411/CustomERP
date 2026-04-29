@@ -1,6 +1,8 @@
 // System entities, access control, root files & runtime config – extracted from ProjectAssembler
 const path = require('path');
 const { pickTrEntityDisplayName } = require('../i18n/glossaryI18n');
+const { applyActorMigrationToEntities } = require('./sdfActorMigration');
+const { applyComputedFieldRegistryToEntities } = require('./computedFieldRegistry');
 
 module.exports = {
   _withSystemEntities(userEntities, sdf) {
@@ -66,6 +68,19 @@ module.exports = {
     this._withInvoicePriorityAEntities(entities, sdf);
     this._withHRPriorityAEntities(entities, sdf);
     this._withAccessControlEntities(entities, sdf);
+
+    // Plan B follow-up #3: promote string actor fields (approver_id,
+    // posted_by, approved_by, ...) to reference -> __erp_users on every
+    // entity that ships actor fields, AND emit matching reference_contract /
+    // permission_scope relations. Idempotent — running on an already-
+    // migrated entity is a no-op. Skipped automatically when
+    // modules.access_control is disabled.
+    applyActorMigrationToEntities(entities, sdf);
+
+    // Plan B follow-up #6: promote registry-listed fields to
+    // `computed: true` whenever their capability toggle is on. Idempotent —
+    // re-running on an already-promoted entity is a no-op.
+    applyComputedFieldRegistryToEntities(entities, sdf && sdf.modules);
 
     return entities;
   },
@@ -185,6 +200,55 @@ module.exports = {
           { name: 'config', type: 'text', label: 'Config', required: false },
         ],
         features: {},
+      });
+    }
+
+    // Plan B follow-up #5 — Users <-> Employees 1:1 link.
+    //
+    // When the employees entity is present alongside __erp_users, both ends
+    // get a nullable, unique reference to each other:
+    //
+    //   __erp_users.employee_id    reference -> employees     (optional, unique)
+    //   employees.user_id          reference -> __erp_users   (optional, unique, computed)
+    //
+    // The link is bidirectional and synced by UserEmployeeLinkMixin (Plan B
+    // follow-up #5). employees.user_id is marked computed: true because the
+    // mixin maintains it from the user side; manual writes are silently
+    // dropped by the runtime computed-field guard.
+    //
+    // Idempotent: re-running on an already-linked SDF leaves both ends
+    // alone.
+    const usersEntity = entities.find((e) => e && e.slug === '__erp_users');
+    const employeesEntity = entities.find((e) => e && e.slug === 'employees');
+    if (usersEntity && employeesEntity) {
+      this._ensureUserEmployeeLinkFields(usersEntity, employeesEntity);
+    }
+  },
+
+  _ensureUserEmployeeLinkFields(usersEntity, employeesEntity) {
+    if (!Array.isArray(usersEntity.fields)) usersEntity.fields = [];
+    if (!Array.isArray(employeesEntity.fields)) employeesEntity.fields = [];
+
+    if (!usersEntity.fields.some((f) => f && f.name === 'employee_id')) {
+      usersEntity.fields.push({
+        name: 'employee_id',
+        type: 'reference',
+        reference_entity: 'employees',
+        label: 'Employee',
+        required: false,
+        unique: true,
+      });
+    }
+
+    if (!employeesEntity.fields.some((f) => f && f.name === 'user_id')) {
+      employeesEntity.fields.push({
+        name: 'user_id',
+        type: 'reference',
+        reference_entity: '__erp_users',
+        label: 'Linked User',
+        required: false,
+        unique: true,
+        computed: true,
       });
     }
   },
@@ -487,7 +551,32 @@ PGPASSWORD=erppassword
               : (e.display_name || e.displayName || e.slug);
         }
       }
-      systemConfig.rbac = { entitySlugs, groups: userGroups, entityModuleMap, entityDisplayMap };
+      // Plan B follow-up #5: collect permission_scope relations from
+      // entity.relations[]. The runtime rbacSeed consumes the list to
+      // register permission keys + scopes, and to seed default Manager /
+      // Employee groups for the manager_chain / self scopes.
+      const permissionScopes = [];
+      for (const e of (backendEntities || [])) {
+        const relations = Array.isArray(e && e.relations) ? e.relations : [];
+        for (const rel of relations) {
+          if (!rel || rel.kind !== 'permission_scope') continue;
+          if (!rel.permission || !rel.scope) continue;
+          permissionScopes.push({
+            entity: e.slug,
+            permission: String(rel.permission),
+            scope: String(rel.scope),
+            actions: Array.isArray(rel.actions) ? rel.actions.slice() : null,
+            when: rel.when || null,
+          });
+        }
+      }
+      systemConfig.rbac = {
+        entitySlugs,
+        groups: userGroups,
+        entityModuleMap,
+        entityDisplayMap,
+        permissionScopes,
+      };
     }
 
     const shouldWriteConfig =

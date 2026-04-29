@@ -1,5 +1,39 @@
 // Schema validation code generation (split from BackendGenerator)
 const { resolveEffectiveRequired } = require('../shared/fieldRequired');
+const { tFor } = require('../../i18n/labels');
+
+// Plan D follow-up #7: validation error messages are localized at codegen
+// time using the assembler's `tFor`. We bake the project-language string
+// directly into the generated `validation.js` so the running ERP does not
+// need a translation runtime. `_validationMessage(language, key, fallback,
+// vars)` resolves `validation.<key>` from i18n and substitutes the simple
+// `{token}` placeholders inline. The fallback string is also a template
+// (with the same placeholder tokens) and is used when the key is missing
+// from the dictionary, preserving today's English copy verbatim.
+function _validationMessage(language, key, fallback, vars) {
+  const t = tFor(language || 'en');
+  const dictKey = `validation.${key}`;
+  const fromDict = t(dictKey);
+  const template = (typeof fromDict === 'string' && fromDict && fromDict !== dictKey)
+    ? fromDict
+    : fallback;
+  let out = String(template);
+  for (const [token, value] of Object.entries(vars || {})) {
+    const re = new RegExp(`\\{${token}\\}`, 'g');
+    out = out.replace(re, String(value));
+  }
+  return out;
+}
+
+// Escape a string so it can be safely embedded inside single-quoted JS
+// source emitted by this codegen (mirrors `BackendGenerator._escapeJsString`).
+function _escForSingleQuoteJs(s) {
+  return String(s == null ? '' : s)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n');
+}
 
 module.exports = {
   _injectSchemaValidations(weaver, entity, allEntities) {
@@ -10,6 +44,118 @@ module.exports = {
     if (createSnippet) weaver.inject('BEFORE_CREATE_VALIDATION', createSnippet);
     if (updateSnippet) weaver.inject('BEFORE_UPDATE_VALIDATION', updateSnippet);
     if (deleteSnippet) weaver.inject('BEFORE_DELETE_VALIDATION', deleteSnippet);
+
+    // Plan H — entities that have inline child sections AND a 'Draft' status
+    // option get a `createDraft` service method so the frontend can auto-create
+    // a placeholder row on /new and redirect into the standard edit form.
+    this._injectCreateDraftMethod(weaver, entity);
+  },
+
+  // Plan H — qualification gate for the draft-then-edit creation flow.
+  // Returns true when:
+  //   1. `entity.children[]` is non-empty (the entity has inline line items),
+  //   2. `entity.fields` contains a `status` field, AND
+  //   3. `status.options` contains `Draft`/`draft` (case-insensitive).
+  // Other entities keep today's "save first" behaviour with no regression.
+  _qualifiesForAutoDraft(entity) {
+    if (!entity || typeof entity !== 'object') return false;
+    const children = Array.isArray(entity.children) ? entity.children : [];
+    if (children.length === 0) return false;
+    const fields = Array.isArray(entity.fields) ? entity.fields : [];
+    const statusField = fields.find((f) => f && f.name === 'status');
+    if (!statusField) return false;
+    const rawOptions = statusField.options ?? statusField.enum ?? statusField.allowed_values ?? statusField.allowedValues;
+    const options = Array.isArray(rawOptions) ? rawOptions : [];
+    return options.some((opt) => String(opt || '').trim().toLowerCase() === 'draft');
+  },
+
+  // Plan H — return the literal Draft enum value (preserving casing) so the
+  // generated `createDraft` method writes the SAME string the validator's
+  // options check accepts. Falls back to 'Draft' if the lookup fails (the
+  // qualification gate guarantees it exists in well-formed input).
+  _getDraftStatusValue(entity) {
+    const fields = Array.isArray(entity && entity.fields) ? entity.fields : [];
+    const statusField = fields.find((f) => f && f.name === 'status');
+    const rawOptions = statusField && (statusField.options ?? statusField.enum ?? statusField.allowed_values ?? statusField.allowedValues);
+    const options = Array.isArray(rawOptions) ? rawOptions : [];
+    const match = options.find((opt) => String(opt || '').trim().toLowerCase() === 'draft');
+    return match ? String(match) : 'Draft';
+  },
+
+  // Plan H — emit a `createDraft(payload)` method on the generated service.
+  // The method:
+  //   - forces `data.status` to the entity's literal Draft option,
+  //   - autofills required scalar fields with sensible placeholders so the
+  //     unique/length checks (still active for drafts) don't throw,
+  //   - leaves required references and required multi-value fields as-is so
+  //     the validator surfaces their absence only when the user transitions
+  //     out of Draft (or, with `__isDraft` true, lets them slide for now),
+  //   - calls `this.create(data, context)` so existing mixin hooks
+  //     (audit logging, status propagation, etc.) still run.
+  _injectCreateDraftMethod(weaver, entity) {
+    if (!this._qualifiesForAutoDraft(entity)) return;
+    const draftValue = this._getDraftStatusValue(entity);
+    const draftValueEsc = this._escapeJsString(draftValue);
+    const fields = Array.isArray(entity.fields) ? entity.fields : [];
+
+    const placeholderLines = [];
+    for (const f of fields) {
+      if (!f || !f.name) continue;
+      if (f.computed === true) continue;
+      const fieldName = String(f.name);
+      if (['id', 'created_at', 'updated_at', 'status'].includes(fieldName)) continue;
+      if (!resolveEffectiveRequired(f)) continue;
+      if (this._isFieldMultiple(f)) continue;
+      const fieldEsc = this._escapeJsString(fieldName);
+      const fieldType = String(f.type || 'string').toLowerCase();
+      const isReference = fieldType === 'reference' || fieldName.endsWith('_id') || fieldName.endsWith('_ids');
+      if (isReference) continue;
+      if (fieldType === 'boolean') continue;
+
+      if (fieldType === 'date') {
+        placeholderLines.push(
+          `if (data['${fieldEsc}'] === undefined || data['${fieldEsc}'] === null || (typeof data['${fieldEsc}'] === 'string' && data['${fieldEsc}'].trim() === '')) data['${fieldEsc}'] = __today;`
+        );
+      } else if (fieldType === 'datetime') {
+        placeholderLines.push(
+          `if (data['${fieldEsc}'] === undefined || data['${fieldEsc}'] === null || (typeof data['${fieldEsc}'] === 'string' && data['${fieldEsc}'].trim() === '')) data['${fieldEsc}'] = __nowIso;`
+        );
+      } else if (fieldType === 'integer' || fieldType === 'decimal' || fieldType === 'number') {
+        placeholderLines.push(
+          `if (data['${fieldEsc}'] === undefined || data['${fieldEsc}'] === null) data['${fieldEsc}'] = 0;`
+        );
+      } else {
+        const upperPrefix = fieldName.replace(/[^a-zA-Z0-9_]/g, '_').toUpperCase();
+        const prefixEsc = this._escapeJsString(upperPrefix);
+        placeholderLines.push(
+          `if (data['${fieldEsc}'] === undefined || data['${fieldEsc}'] === null || (typeof data['${fieldEsc}'] === 'string' && data['${fieldEsc}'].trim() === '')) data['${fieldEsc}'] = '${prefixEsc}-DRAFT-' + __ulid();`
+        );
+      }
+    }
+
+    const placeholderBody = placeholderLines.length
+      ? '\n    ' + placeholderLines.join('\n    ')
+      : '';
+
+    const methodCode = `
+async createDraft(payload, context = {}) {
+    // Plan H — Auto-create a draft row on /new mount so the inline child-row
+    // sections become editable from the very first render. Required-field
+    // rules are relaxed by the validator while \`status === 'Draft'\`; they
+    // re-engage on transition out of Draft. Computed-strip and uniqueness
+    // checks still run.
+    const data = (payload && typeof payload === 'object' && !Array.isArray(payload))
+      ? { ...payload }
+      : {};
+    const __today = new Date().toISOString().slice(0, 10);
+    const __nowIso = new Date().toISOString();
+    const __ulid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    data.status = '${draftValueEsc}';${placeholderBody}
+    const created = await this.create(data, context);
+    return { id: created && created.id ? created.id : created };
+  }`;
+
+    weaver.inject('ADDITIONAL_METHODS', methodCode);
   },
 
   _getComputedFieldNames(entity) {
@@ -19,10 +165,50 @@ module.exports = {
       .map((f) => String(f.name));
   },
 
+  _resolveComputedMode(entity) {
+    // Plan B follow-up #6: per-entity strict/lenient mode for computed-field
+    // payload handling. Default is 'lenient' to preserve historical behavior
+    // (silent strip). 'strict' returns a 400 with field_errors so clients
+    // notice that they're trying to write a server-maintained value.
+    const raw = entity && (entity.computed_mode || entity.computedMode);
+    const mode = String(raw || 'lenient').trim().toLowerCase();
+    return mode === 'strict' ? 'strict' : 'lenient';
+  },
+
   _buildComputedStripSnippet(entity) {
     const computed = this._getComputedFieldNames(entity);
     if (!computed.length) return '';
     const literal = JSON.stringify(computed);
+    const mode = this._resolveComputedMode(entity);
+
+    if (mode === 'strict') {
+      // Reject the request with a 400 so callers can surface the issue in
+      // their UI/integration layer rather than silently dropping the value.
+      return `
+      // Plan B #6 (strict mode): server-maintained (computed) fields must not
+      // appear in inbound payloads. Returning a structured error mirrors the
+      // schema-validation path so the client can show field-level feedback.
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const __computedFields = ${literal};
+        const __computedFieldErrors = {};
+        for (const __cf of __computedFields) {
+          if (Object.prototype.hasOwnProperty.call(data, __cf)) {
+            __computedFieldErrors[__cf] = {
+              code: 'computed_readonly',
+              message: 'Field "' + __cf + '" is server-maintained and cannot be set by clients.',
+            };
+          }
+        }
+        if (Object.keys(__computedFieldErrors).length > 0) {
+          const __err = new Error('Computed field rejection');
+          __err.statusCode = 400;
+          __err.fieldErrors = __computedFieldErrors;
+          throw __err;
+        }
+      }
+`;
+    }
+
     return `
       // Strip server-maintained (computed) fields from inbound payload.
       // These are derived by server-side logic (reservations, sales-order
@@ -54,6 +240,12 @@ module.exports = {
       const fieldErrors = {};
       const isMissing = (v) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
       const isMissingNonString = (v) => v === undefined || v === null;
+      // Plan H — relax required-field enforcement while the row is in draft
+      // state. Computed-strip, uniqueness, length, options, pattern, numeric,
+      // and reference-existence checks all stay active. Required fields are
+      // re-enforced once the user (or a lifecycle action) transitions status
+      // out of Draft.
+      const __isDraft = String((data && data.status != null) ? data.status : '').toLowerCase() === 'draft';
 `;
 
     if (uniqueFields.length) {
@@ -74,46 +266,72 @@ module.exports = {
 `;
     }
 
+    const language = this._language || 'en';
     for (const r of rules) {
       const fieldKey = this._escapeJsString(r.name);
       const label = this._escapeJsString(r.label);
       const accessor = `data['${fieldKey}']`;
 
-      // required
+      // Plan D: localized validation messages. `_validationMessage` returns
+      // a plain string, which we then escape for safe embedding inside the
+      // single-quoted JS we are emitting.
+      const msgRequired = _escForSingleQuoteJs(_validationMessage(
+        language, 'required', '{label} is required', { label: r.label }
+      ));
+      const msgMustBeNumber = _escForSingleQuoteJs(_validationMessage(
+        language, 'must_be_number', '{label} must be a number', { label: r.label }
+      ));
+      const msgMustBeUnique = _escForSingleQuoteJs(_validationMessage(
+        language, 'must_be_unique', '{label} must be unique', { label: r.label }
+      ));
+
+      // required (Plan H: gated by !__isDraft so drafts can be saved with holes)
       if (r.required) {
         if (r.multiple) {
           code += `
-      if (!Array.isArray(${accessor}) || ${accessor}.length === 0) fieldErrors['${fieldKey}'] = '${label} is required';
+      if (!__isDraft && (!Array.isArray(${accessor}) || ${accessor}.length === 0)) fieldErrors['${fieldKey}'] = '${msgRequired}';
 `;
         } else if (r.type === 'boolean') {
           code += `
-      if (isMissingNonString(${accessor})) fieldErrors['${fieldKey}'] = '${label} is required';
+      if (!__isDraft && isMissingNonString(${accessor})) fieldErrors['${fieldKey}'] = '${msgRequired}';
 `;
         } else {
           code += `
-      if (isMissing(${accessor})) fieldErrors['${fieldKey}'] = '${label} is required';
+      if (!__isDraft && isMissing(${accessor})) fieldErrors['${fieldKey}'] = '${msgRequired}';
 `;
         }
       }
 
       // string rules
       if (typeof r.minLength === 'number') {
+        const msg = _escForSingleQuoteJs(_validationMessage(
+          language, 'min_length', '{label} must be at least {min} characters',
+          { label: r.label, min: r.minLength }
+        ));
         code += `
-      if (!isMissing(${accessor}) && String(${accessor}).length < ${r.minLength}) fieldErrors['${fieldKey}'] = '${label} must be at least ${r.minLength} characters';
+      if (!isMissing(${accessor}) && String(${accessor}).length < ${r.minLength}) fieldErrors['${fieldKey}'] = '${msg}';
 `;
       }
       if (typeof r.maxLength === 'number') {
+        const msg = _escForSingleQuoteJs(_validationMessage(
+          language, 'max_length', '{label} must be at most {max} characters',
+          { label: r.label, max: r.maxLength }
+        ));
         code += `
-      if (!isMissing(${accessor}) && String(${accessor}).length > ${r.maxLength}) fieldErrors['${fieldKey}'] = '${label} must be at most ${r.maxLength} characters';
+      if (!isMissing(${accessor}) && String(${accessor}).length > ${r.maxLength}) fieldErrors['${fieldKey}'] = '${msg}';
 `;
       }
       if (Array.isArray(r.options) && r.options.length) {
         const varName = `__allowed_${String(r.name).replace(/[^a-zA-Z0-9_]/g, '_')}`;
         const list = r.options.map((v) => `'${this._escapeJsString(v)}'`).join(', ');
-        const preview = this._escapeJsString(r.options.slice(0, 10).join(', '));
+        const preview = r.options.slice(0, 10).join(', ');
+        const msg = _escForSingleQuoteJs(_validationMessage(
+          language, 'must_be_one_of', '{label} must be one of: {options}',
+          { label: r.label, options: preview }
+        ));
         code += `
       const ${varName} = [${list}];
-      if (!isMissing(${accessor}) && !${varName}.includes(String(${accessor}))) fieldErrors['${fieldKey}'] = '${label} must be one of: ${preview}';
+      if (!isMissing(${accessor}) && !${varName}.includes(String(${accessor}))) fieldErrors['${fieldKey}'] = '${msg}';
 `;
       }
       if (typeof r.pattern === 'string' && r.pattern.length) {
@@ -134,7 +352,7 @@ module.exports = {
       if (!isMissing(${accessor})) {
         const num = typeof ${accessor} === 'number' ? ${accessor} : Number(${accessor});
         if (Number.isNaN(num)) {
-          fieldErrors['${fieldKey}'] = '${label} must be a number';
+          fieldErrors['${fieldKey}'] = '${msgMustBeNumber}';
         } else {
 `;
         if (r.type === 'integer') {
@@ -162,7 +380,7 @@ module.exports = {
       if (r.unique) {
         code += `
       if (!isMissing(${accessor}) && existingItems.some((it) => String(it['${fieldKey}']) === String(${accessor}))) {
-        fieldErrors['${fieldKey}'] = '${label} must be unique';
+        fieldErrors['${fieldKey}'] = '${msgMustBeUnique}';
       }
 `;
       }
@@ -233,6 +451,10 @@ module.exports = {
       const fieldErrors = {};
       const isMissing = (v) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
       const isMissingNonString = (v) => v === undefined || v === null;
+      // Plan H — relax required-field enforcement while the merged row is in
+      // draft state. The merged status is what counts: an update that
+      // transitions Draft → Open re-engages the required checks immediately.
+      const __isDraft = String((merged && merged.status != null) ? merged.status : '').toLowerCase() === 'draft';
 `;
 
     if (uniqueFields.length) {
@@ -253,46 +475,69 @@ module.exports = {
 `;
     }
 
+    const language = this._language || 'en';
     for (const r of rules) {
       const fieldKey = this._escapeJsString(r.name);
       const label = this._escapeJsString(r.label);
       const accessor = `merged['${fieldKey}']`;
 
-      // required
+      const msgRequired = _escForSingleQuoteJs(_validationMessage(
+        language, 'required', '{label} is required', { label: r.label }
+      ));
+      const msgMustBeNumber = _escForSingleQuoteJs(_validationMessage(
+        language, 'must_be_number', '{label} must be a number', { label: r.label }
+      ));
+      const msgMustBeUnique = _escForSingleQuoteJs(_validationMessage(
+        language, 'must_be_unique', '{label} must be unique', { label: r.label }
+      ));
+
+      // required (Plan H: gated by !__isDraft so iterative drafts stay savable)
       if (r.required) {
         if (r.multiple) {
           code += `
-      if (!Array.isArray(${accessor}) || ${accessor}.length === 0) fieldErrors['${fieldKey}'] = '${label} is required';
+      if (!__isDraft && (!Array.isArray(${accessor}) || ${accessor}.length === 0)) fieldErrors['${fieldKey}'] = '${msgRequired}';
 `;
         } else if (r.type === 'boolean') {
           code += `
-      if (isMissingNonString(${accessor})) fieldErrors['${fieldKey}'] = '${label} is required';
+      if (!__isDraft && isMissingNonString(${accessor})) fieldErrors['${fieldKey}'] = '${msgRequired}';
 `;
         } else {
           code += `
-      if (isMissing(${accessor})) fieldErrors['${fieldKey}'] = '${label} is required';
+      if (!__isDraft && isMissing(${accessor})) fieldErrors['${fieldKey}'] = '${msgRequired}';
 `;
         }
       }
 
       // string rules
       if (typeof r.minLength === 'number') {
+        const msg = _escForSingleQuoteJs(_validationMessage(
+          language, 'min_length', '{label} must be at least {min} characters',
+          { label: r.label, min: r.minLength }
+        ));
         code += `
-      if (!isMissing(${accessor}) && String(${accessor}).length < ${r.minLength}) fieldErrors['${fieldKey}'] = '${label} must be at least ${r.minLength} characters';
+      if (!isMissing(${accessor}) && String(${accessor}).length < ${r.minLength}) fieldErrors['${fieldKey}'] = '${msg}';
 `;
       }
       if (typeof r.maxLength === 'number') {
+        const msg = _escForSingleQuoteJs(_validationMessage(
+          language, 'max_length', '{label} must be at most {max} characters',
+          { label: r.label, max: r.maxLength }
+        ));
         code += `
-      if (!isMissing(${accessor}) && String(${accessor}).length > ${r.maxLength}) fieldErrors['${fieldKey}'] = '${label} must be at most ${r.maxLength} characters';
+      if (!isMissing(${accessor}) && String(${accessor}).length > ${r.maxLength}) fieldErrors['${fieldKey}'] = '${msg}';
 `;
       }
       if (Array.isArray(r.options) && r.options.length) {
         const varName = `__allowed_${String(r.name).replace(/[^a-zA-Z0-9_]/g, '_')}`;
         const list = r.options.map((v) => `'${this._escapeJsString(v)}'`).join(', ');
-        const preview = this._escapeJsString(r.options.slice(0, 10).join(', '));
+        const preview = r.options.slice(0, 10).join(', ');
+        const msg = _escForSingleQuoteJs(_validationMessage(
+          language, 'must_be_one_of', '{label} must be one of: {options}',
+          { label: r.label, options: preview }
+        ));
         code += `
       const ${varName} = [${list}];
-      if (!isMissing(${accessor}) && !${varName}.includes(String(${accessor}))) fieldErrors['${fieldKey}'] = '${label} must be one of: ${preview}';
+      if (!isMissing(${accessor}) && !${varName}.includes(String(${accessor}))) fieldErrors['${fieldKey}'] = '${msg}';
 `;
       }
       if (typeof r.pattern === 'string' && r.pattern.length) {
@@ -313,7 +558,7 @@ module.exports = {
       if (!isMissing(${accessor})) {
         const num = typeof ${accessor} === 'number' ? ${accessor} : Number(${accessor});
         if (Number.isNaN(num)) {
-          fieldErrors['${fieldKey}'] = '${label} must be a number';
+          fieldErrors['${fieldKey}'] = '${msgMustBeNumber}';
         } else {
 `;
         if (r.type === 'integer') {
@@ -341,7 +586,7 @@ module.exports = {
       if (r.unique) {
         code += `
       if (!isMissing(${accessor}) && existingItems.some((it) => it.id !== id && String(it['${fieldKey}']) === String(${accessor}))) {
-        fieldErrors['${fieldKey}'] = '${label} must be unique';
+        fieldErrors['${fieldKey}'] = '${msgMustBeUnique}';
       }
 `;
       }

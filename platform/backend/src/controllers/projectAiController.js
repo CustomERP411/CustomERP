@@ -150,6 +150,7 @@ exports.analyzeProject = async (req, res) => {
         userId, projectId, source: 'sdf_generation',
         features: acknowledgedUnsupportedFeatures,
         userPrompt: description.trim(),
+        language: project.language,
       }).catch((e) => logger.warn('Failed to record acknowledged unsupported feature requests:', e.message));
     }
 
@@ -175,6 +176,7 @@ exports.analyzeProject = async (req, res) => {
         userId, projectId, source: 'sdf_generation',
         features: sdf.unsupported_features,
         userPrompt: description.trim(),
+        language: project.language,
       }).catch((e) => logger.warn('Failed to record SDF unsupported feature requests:', e.message));
     }
 
@@ -270,6 +272,7 @@ exports.clarifyProject = async (req, res) => {
         userId, projectId, source: 'sdf_generation',
         features: sdf.unsupported_features,
         userPrompt: clarifyPrompt,
+        language: project.language,
       }).catch((e) => logger.warn('Failed to record SDF unsupported feature requests:', e.message));
     }
 
@@ -321,9 +324,12 @@ exports.chatWithProject = async (req, res) => {
 
     if (Array.isArray(chatResponse.unsupported_features) && chatResponse.unsupported_features.length > 0) {
       featureRequestService.recordFeatures({
-        userId, projectId, source: 'chatbot',
+        userId,
+        projectId,
+        source: 'chatbot',
         features: chatResponse.unsupported_features,
         userPrompt: message.trim(),
+        language: project.language,
       }).catch((e) => logger.warn('Failed to record chatbot feature requests:', e.message));
     }
 
@@ -412,6 +418,7 @@ exports.regenerateProject = async (req, res) => {
         userId, projectId, source: 'sdf_regeneration',
         features: sdf.unsupported_features,
         userPrompt: changeInstructions.trim(),
+        language: project.language,
       }).catch((e) => logger.warn('Failed to record regeneration unsupported features:', e.message));
     }
     if (acknowledgedUnsupportedFeatures.length > 0) {
@@ -419,6 +426,7 @@ exports.regenerateProject = async (req, res) => {
         userId, projectId, source: 'sdf_regeneration_request',
         features: acknowledgedUnsupportedFeatures,
         userPrompt: changeInstructions.trim(),
+        language: project.language,
       }).catch((e) => logger.warn('Failed to record acknowledged regeneration features:', e.message));
     }
 
@@ -442,6 +450,41 @@ exports.regenerateProject = async (req, res) => {
     logger.error('Regenerate project error:', err);
     const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;
     res.status(status).json({ error: err.message || 'Internal server error' });
+  }
+};
+
+// Plan D follow-up #8: lightweight module precheck (advisory only).
+// Reads ONLY the description + already-selected modules. The route is a
+// thin pass-through to the AI gateway's POST /ai/precheck_modules; the
+// gateway side enforces the false-positive guard and never sees wizard
+// answers / metadata.
+exports.precheckModules = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const projectId = req.params.id;
+    const description =
+      req.body?.description ||
+      req.body?.business_description ||
+      req.body?.businessDescription;
+    if (!description || typeof description !== 'string' || !description.trim()) {
+      return res.status(400).json({ error: 'description is required' });
+    }
+    const project = await projectService.getProject(projectId, userId);
+    const selectedModules = parseModulesInput(req.body?.selected_modules || req.body?.selectedModules);
+
+    const response = await aiGatewayClient.precheckModules(description.trim(), {
+      selectedModules,
+      language: project.language,
+    });
+    res.json(response);
+  } catch (err) {
+    if (err.message === 'Project not found') {
+      return res.status(404).json({ error: err.message });
+    }
+    logger.error('Precheck modules error:', err);
+    // Advisory endpoint — fail open with empty list rather than blocking
+    // the wizard on transient gateway issues.
+    res.json({ inferred_modules: [] });
   }
 };
 

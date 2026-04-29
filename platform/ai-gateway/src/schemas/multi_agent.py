@@ -162,3 +162,13 @@ class PipelineResult(BaseModel):
     )
     errors: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
+    inferred_dropped_modules: List[str] = Field(
+        default_factory=list,
+        description=(
+            "Plan D follow-up #8: modules the distributor inferred from the "
+            "business description but that were silently dropped because the "
+            "user's selected_modules allowlist did not include them. "
+            "Surfaced in the generation report so users can audit what was "
+            "clamped — even when the upstream wizard precheck didn't catch it."
+        ),
+    )

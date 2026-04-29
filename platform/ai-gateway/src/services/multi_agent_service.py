@@ -303,12 +303,27 @@ class MultiAgentService:
 
         # Orchestration clamp: if the caller supplied an authoritative allowlist,
         # silently drop any modules the distributor inferred that aren't selected.
-        # Per product decision: no user-facing warning or unsupported_features entry.
+        # Per product decision: no user-facing warning or unsupported_features entry,
+        # but Plan D follow-up #8 records the drop in `inferred_dropped_modules`
+        # so the generation report can surface what was clamped.
+        inferred_dropped_modules: List[str] = []
         if selected_modules:
             allow = {m.strip().lower() for m in selected_modules if isinstance(m, str) and m.strip()}
-            dropped = [m for m in modules_needed if isinstance(m, str) and m.lower() not in allow]
+            dropped = [
+                m.lower()
+                for m in modules_needed
+                if isinstance(m, str) and m.lower() not in allow
+            ]
             if dropped:
-                print(f"[MultiAgentService] Clamp: dropping distributor-inferred modules not in selected_modules: {dropped}")
+                # De-duplicate while preserving first-seen order.
+                seen: set[str] = set()
+                inferred_dropped_modules = [
+                    m for m in dropped if not (m in seen or seen.add(m))
+                ]
+                print(
+                    f"[MultiAgentService] Clamp: dropping distributor-inferred modules "
+                    f"not in selected_modules: {inferred_dropped_modules}"
+                )
             kept = [m for m in modules_needed if isinstance(m, str) and m.lower() in allow]
             modules_needed = kept
             distributor_output.modules_needed = kept
@@ -444,6 +459,7 @@ class MultiAgentService:
                 warnings=warnings,
                 token_usage=token_usage,
                 step_logs=step_logs,
+                inferred_dropped_modules=inferred_dropped_modules,
             )
 
         # Step 3: Deterministic merge (replaces LLM integrator)
@@ -504,6 +520,7 @@ class MultiAgentService:
             step_logs=step_logs,
             errors=errors,
             warnings=warnings,
+            inferred_dropped_modules=inferred_dropped_modules,
         )
 
     # ── individual agents ───────────────────────────────────────

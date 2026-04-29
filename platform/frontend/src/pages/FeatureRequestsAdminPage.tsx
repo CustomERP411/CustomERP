@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   featureRequestService,
+  resolveFeatureName,
   type FeatureRequest,
   type FeatureRequestDetail,
   type FeatureRequestStats,
@@ -164,7 +165,7 @@ export default function FeatureRequestsAdminPage() {
                     </span>
                     <span className="ml-auto text-app-text-subtle">{new Date(r.created_at).toLocaleDateString(i18n.language)}</span>
                   </div>
-                  <p className="mt-1 text-sm font-medium text-app-text line-clamp-2">{r.feature_name}</p>
+                  <p className="mt-1 text-sm font-medium text-app-text line-clamp-2">{resolveFeatureName(r, i18n.language)}</p>
                   <p className="mt-0.5 text-[11px] text-app-text-muted">{r.user_name || r.user_email || '—'} {r.project_name ? `· ${r.project_name}` : ''}</p>
                 </button>
               ))
@@ -204,7 +205,7 @@ export default function FeatureRequestsAdminPage() {
                   <span>{t('training.backToList')}</span>
                 </button>
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-lg font-bold text-app-text min-w-0 break-words">{detail.feature_name}</h2>
+                  <h2 className="text-lg font-bold text-app-text min-w-0 break-words">{resolveFeatureName(detail, i18n.language)}</h2>
                   <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusColor(detail.status)}`}>
                     {STATUS_LABELS[detail.status]}
                   </span>

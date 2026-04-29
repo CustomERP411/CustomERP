@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const Answer = require('../models/Answer');
 const Question = require('../models/Question');
 const moduleQuestionRegistry = require('./moduleQuestionRegistry');
+const dependencyGraph = require('../defaultQuestions/dependencyGraph');
 
 const DEFAULT_QUESTION_SOURCE = 'default_module_question';
 
@@ -57,12 +58,40 @@ function parseAnswer(answerText, questionType) {
   return String(answerText || '');
 }
 
-function evaluateCondition(condition, answersByKey) {
+// Plan C — wizard wiring. Conditions can reference module-presence
+// pseudo-keys (HR_MODULE / INVOICE_MODULE / INVENTORY_MODULE) which evaluate
+// against the selected modules list rather than against an answer. This is
+// what powers the invoice_stock_link question, which depends on both
+// invoice and inventory modules being selected (no single yes_no question
+// captures "module is selected").
+function _isModulePresenceKey(key) {
+  return Object.prototype.hasOwnProperty.call(dependencyGraph.MODULE_PRESENCE_KEYS, key);
+}
+
+function _modulePresenceMatches(key, modules) {
+  const target = dependencyGraph.MODULE_PRESENCE_KEYS[key];
+  if (!target) return false;
+  const list = Array.isArray(modules) ? modules : [];
+  for (const mod of list) {
+    if (String(mod || '').trim().toLowerCase() === target) return true;
+  }
+  return false;
+}
+
+function evaluateCondition(condition, answersByKey, modules) {
   if (!isPlainObject(condition) || !Array.isArray(condition.rules) || !condition.rules.length) {
     return true;
   }
 
   const checks = condition.rules.map((rule) => {
+    if (_isModulePresenceKey(rule.question_key)) {
+      const expected = normalizeComparable(rule.equals);
+      const present = _modulePresenceMatches(rule.question_key, modules);
+      // 'yes' means module is selected; 'no' means module is NOT selected.
+      if (expected === 'yes') return present;
+      if (expected === 'no') return !present;
+      return present;
+    }
     const actual = answersByKey[rule.question_key];
     const expected = normalizeComparable(rule.equals);
     if (Array.isArray(actual)) {
@@ -232,7 +261,7 @@ async function getQuestionnaireState({ projectId, modules, language }) {
   });
 
   const withVisibility = questions.map((question) => {
-    const visible = evaluateCondition(question.condition, answersByKey);
+    const visible = evaluateCondition(question.condition, answersByKey, ensured.modules);
     const answered = !isEmptyAnswer(question.answer);
     return {
       ...question,
@@ -266,6 +295,10 @@ async function getQuestionnaireState({ projectId, modules, language }) {
         .filter((question) => question.visible && !isEmptyAnswer(question.answer))
         .map((question) => [question.key, question.answer])
     ),
+    // Plan C — wizard wiring. Ship the dependency graph down with every state
+    // response so the frontend can mirror coercion + render hints / badges
+    // without having to fetch a separate endpoint.
+    dependency_graph: dependencyGraph.serializeForApi(),
   };
 }
 
@@ -276,15 +309,68 @@ async function saveQuestionnaireAnswers({ projectId, modules, answers, language 
   const questionsByKey = Object.fromEntries(state.questions.map((question) => [question.key, question]));
   const normalized = normalizeIncomingAnswers(answers);
 
-  const rowsToInsert = [];
+  // Build a flat answers-by-key map representing what the user is asking us
+  // to persist — starting from the existing state, then overlaying every
+  // incoming entry. This is the input to dependency-graph coercion.
+  const incomingAnswersByKey = {};
+  for (const question of state.questions) {
+    incomingAnswersByKey[question.key] = question.answer;
+  }
+  const incomingAnswerSourceKeys = new Set();
   for (const entry of normalized) {
     const question = entry.question_id
       ? questionsById[entry.question_id]
       : questionsByKey[entry.question_key];
-
     if (!question) continue;
-    if (isEmptyAnswer(entry.answer)) continue;
-    const serialized = serializeAnswer(entry.answer, question.type);
+    incomingAnswersByKey[question.key] = entry.answer;
+    incomingAnswerSourceKeys.add(question.key);
+  }
+
+  // Plan C — wizard wiring. Server is authoritative on dependency rules:
+  //   - forward auto-enable (downstream yes -> upstream forced yes)
+  //   - backward cascade-off (upstream off -> downstream forced no)
+  //   - link-toggle defaults seeded when both ends are on
+  // Returns coerced[] events the frontend renders as inline notices.
+  const { answers: coercedAnswersByKey, coerced } = dependencyGraph.applyDependencyCoercion(
+    incomingAnswersByKey,
+    state.modules
+  );
+
+  // Decorate coerced events with the question id so the frontend can target
+  // a specific row without re-resolving keys.
+  const coercedWithIds = coerced.map((event) => {
+    const question = questionsByKey[event.key] || null;
+    return {
+      ...event,
+      question_id: question ? question.id : null,
+      driver_question_id: questionsByKey[event.driver]
+        ? questionsByKey[event.driver].id
+        : null,
+    };
+  });
+
+  // Persist coerced answers. We write a row whenever the answer differs from
+  // what's already stored (either because the user submitted it, or because
+  // the dependency graph coerced it). Rows are inserted, not updated, since
+  // Answer.findLatestByProjectAndQuestionIds returns the most recent row.
+  const rowsToInsert = [];
+  const seenKeys = new Set();
+  for (const question of state.questions) {
+    if (seenKeys.has(question.key)) continue;
+    seenKeys.add(question.key);
+    const next = coercedAnswersByKey[question.key];
+    const previous = incomingAnswersByKey[question.key] !== undefined
+      ? incomingAnswersByKey[question.key]
+      : question.answer;
+    const wasUserSubmitted = incomingAnswerSourceKeys.has(question.key);
+    const wasCoerced = coercedWithIds.some((event) => event.key === question.key);
+    const changed = JSON.stringify(next) !== JSON.stringify(previous);
+
+    // Skip if nothing happened: user didn't submit it AND it wasn't coerced AND
+    // it didn't change. (Multi-choice empties etc. handled by isEmptyAnswer.)
+    if (!wasUserSubmitted && !wasCoerced && !changed) continue;
+    if (isEmptyAnswer(next)) continue;
+    const serialized = serializeAnswer(next, question.type);
     if (!serialized) continue;
 
     rowsToInsert.push({
@@ -298,7 +384,8 @@ async function saveQuestionnaireAnswers({ projectId, modules, answers, language 
     await Answer.createMany(rowsToInsert);
   }
 
-  return getQuestionnaireState({ projectId, modules: state.modules, language });
+  const refreshed = await getQuestionnaireState({ projectId, modules: state.modules, language });
+  return { ...refreshed, coerced: coercedWithIds };
 }
 
 module.exports = {

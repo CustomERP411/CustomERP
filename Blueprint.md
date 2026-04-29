@@ -135,6 +135,67 @@ CustomERP is an **Orchestration & Assembly Engine**. Unlike traditional code gen
 | **AuditService** | Logging of all system events and user actions |
 | **FlatFileRepository** | DAL implementation for JSON file storage |
 
+### 3.3 Coherence Layer
+
+Above the bricks sits a thin **coherence layer** that turns the SDF from a flat list of capabilities into an interconnected system. It is expressed declaratively in `entity.relations[]` (five primitives: `reference_contract`, `status_propagation`, `derived_field`, `invariant`, `permission_scope`) and interpreted at runtime by a single new factory mixin — `RelationRuleRunnerMixin` — which dispatches on relation kind via small in-memory libraries (invariants, derived-field formulas, status-propagation actions). A companion **actor migration** sweep (driven by `actorRegistry.js` plus `sdfActorMigration.js`) promotes every actor field — `requested_by`, `approver_id`, `posted_by`, etc. — to a `reference -> __erp_users` field with matching `reference_contract` and `permission_scope` relations, and ensures `__erp_users.employee_id` ↔ `employees.user_id` stay in sync via `UserEmployeeLinkMixin`. The result: a leave request is a real link to the user who submitted it, an approver's permission honors the manager chain, and the same status change that flips a leave to "approved" automatically materializes the right attendance rows — all without per-feature wiring in generated code. See `module_coherence_design.md` for the full rule library.
+
+### 3.4 Wizard coherence (Plan C)
+
+The wizard itself is now wired into the coherence layer through one declarative table: `platform/backend/src/defaultQuestions/dependencyGraph.js`. It enumerates `HARD_REQUIRES` (forward auto-enable + backward cascade-off — turning Leave Approvals on enables Leave Engine; turning Leave Engine off disables Leave Approvals), `FEEDS_HINTS` (advisory "this would amplify that" hints rendered next to questions), `LINK_TOGGLES` (the five new cross-pack `modules.<module>.<link>.enabled` keys, each fronted by a wizard question that only appears when both ends are on), and `ACTOR_DRIVEN_PACKS` (the set whose presence forces explicit `modules.access_control.enabled = true` in the prefilled SDF). The save endpoint normalises answers through `applyDependencyCoercion` and ships `coerced[]` events back — `{ key, was, now, direction: 'auto_enable' | 'cascade_off', driver, reason_key, question_id }` — which the frontend renders as inline notices. The same graph is shipped down on every state response so `dependencyMirror.ts` can re-run coercion client-side for instant feedback while the user is still clicking. Pack versions bumped to `hr.v3` / `invoice.v3` / `inventory.v4`; legacy pack rows still resolve so in-flight projects are not broken.
+
+### 3.5 Localization enforcement (Plan D)
+
+Plan D made customer-facing copy a first-class concern of the SDF pipeline. Three changes in concert:
+
+1. **Codified key convention** — every user-facing string in an SDF (entity labels, field labels/help/placeholders, enum option labels, action labels/confirms, invariant messages, wizard prompts, status enum displays, generated backend validation messages) MUST resolve to a key in `platform/assembler/i18n/en.json` and its companion locale files. The full key naming convention is documented in [SDF_REFERENCE.md → "Localization keys (Plan D)"](SDF_REFERENCE.md).
+2. **Assembler localization lint** — `platform/assembler/assembler/sdfLocalizationLint.js` walks the SDF, collects every user-facing string at the canonical paths, and flags anything that is neither a known dot-path key nor a value resolving in `en.json`. For non-English projects (`project.language !== 'en'`), unkeyed strings are a **block** error before final SDF acceptance; for English projects, they are warnings (the raw text is itself the en label, which is acceptable). The lint is wired into `_validateSdf` in `platform/assembler/assembler/sdfValidation.js`.
+3. **Generated-code i18n** — frontend templates emit `t()` calls instead of hardcoded English strings (top ~15 offenders converted in `rbacPages` / `hrPages` / `inventoryPriorityPages` / `invoicePriorityPages` / `entityPages/formPage`). A new `statusFormatter.js` builder bakes a localized `STATUS_LABELS` dictionary into `src/utils/statusFormatter.ts` at codegen time so the generated frontend renders status enums in the project language. The backend `validationCodegen.js` resolves `validation.required` / `min_length` / `max_length` / `must_be_one_of` / `must_be_number` / `must_be_unique` at codegen time so the generated `validation.js` returns localized error messages.
+
+Cross-cutting reinforcement: the AI language directive (`platform/ai-gateway/src/prompts/language_directive_*.txt`) explicitly forbids English label leakage in non-English projects and references the Plan D key convention. The combined effect is that any SDF reaching the assembler is guaranteed to be either fully keyed or composed of strings resolvable to canonical keys — every customer-facing surface in the generated ERP renders in the project's chosen language.
+
+### 3.6 Module precheck (Plan D)
+
+Plan D also adds an advisory **module precheck** + an **audit trail** for the existing user-selected_modules clamp. The user's specific concern — "how many people will use the system?" generic questions causing the AI to silently add HR — is solved by isolating the precheck endpoint at the prompt-input layer and adding a service-side regex defense for the residual cases.
+
+```mermaid
+sequenceDiagram
+    participant UI as Wizard UI (ProjectDetailPage)
+    participant BE as Backend (projectAiController.precheckModules)
+    participant GW as AI Gateway (/ai/precheck_modules)
+    participant LLM as LLM client (distributor config)
+
+    UI->>UI: User edits business answers (description recomputed)
+    UI->>UI: Debounce 1.2s on description / selectedModules change
+    UI->>BE: POST /api/projects/:id/ai/precheck-modules<br/>{ description, selected_modules }
+    BE->>BE: Project ownership check
+    BE->>GW: POST /ai/precheck_modules<br/>{ business_description, selected_modules, language }
+    Note over GW: NO default_question_answers<br/>NO wizard metadata<br/>(platform-meta cues blocked at the source)
+    GW->>LLM: module_precheck_prompt.txt<br/>(SIGNALS + GUARD)
+    LLM-->>GW: { inferred_modules: [...] }
+    GW->>GW: PrecheckService._normalize<br/>+ _looks_like_platform_meta regex
+    GW-->>BE: PrecheckResponse (filtered)
+    BE-->>UI: same shape
+    UI->>UI: Render dismissable banner above business questions<br/>[Add module] / [Continue without it] / ×
+
+    Note over UI,GW: --- Pre-Analyze trigger ---
+    UI->>BE: One final precheck on Analyze click (advisory; never blocks)
+    UI->>BE: POST /api/projects/:id/analyze (selected_modules confirmed)
+
+    Note over GW: --- Audit trail (defense-in-depth) ---
+    GW->>GW: Distributor still inferred a module the user didn't select?<br/>Orchestration clamp drops it silently.
+    GW->>GW: Postfilter in sdf_service drops anything residual.
+    GW->>BE: SDF carries inferred_dropped_modules: [<slug>, ...]
+    BE->>BE: SDF.create persists field in JSONB column
+    UI->>UI: SdfPreviewSection renders "Modules left out" panel
+```
+
+Two layers of false-positive defense in the gateway:
+
+1. **Prompt GUARD** — `platform/ai-gateway/src/prompts/module_precheck_prompt.txt` enumerates banned cues ("X people will use the system", "logins for our team", Turkish equivalents) and forbids the LLM from inferring HR / Invoice / Inventory from platform-usage language.
+2. **Service-level regex** — `PrecheckService._looks_like_platform_meta` strips suggestions whose `reason` text matches platform-meta patterns even when the LLM disregards the prompt's GUARD. The endpoint accepts ONLY the description + selected modules, so wizard answers (the original false-positive vector) cannot enter the prompt at all.
+
+The audit field `sdf.inferred_dropped_modules: List[str]` carries the union of orchestration-clamp and postfilter drops so the user can audit what was clamped — never a hard block, always advisory. The backend persists it through the SDF JSONB column and the frontend's generation report renders it as a "Modules left out" panel.
+
 ---
 
 ## 4. The Brick Library & Assembly Logic

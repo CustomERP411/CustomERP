@@ -3,12 +3,27 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { projectService } from '../services/projectService';
 import type { Project } from '../types/project';
-import type { AiGatewaySdf, AnswerReview, ClarificationAnswer, ClarificationQuestion } from '../types/aiGateway';
+import type {
+  AiGatewaySdf,
+  AnswerReview,
+  ClarificationAnswer,
+  ClarificationQuestion,
+  InferredModule,
+  ModulePrecheckResponse,
+  ModuleSlug,
+} from '../types/aiGateway';
 import type {
   DefaultModuleQuestion,
   DefaultQuestionCompletion,
   DefaultQuestionStateResponse,
+  DependencyGraph,
+  CoercedAnswer,
 } from '../types/defaultQuestions';
+import {
+  applyDependencyCoercion,
+  isAutoEnabledByDownstream,
+  type AnswerMap,
+} from '../components/project/dependencyMirror';
 
 import {
   MODULE_KEYS, useSteps, useBusinessQuestions, BUSINESS_QUESTION_IDS,
@@ -52,6 +67,8 @@ export default function ProjectDetailPage() {
   const [defaultQuestions, setDefaultQuestions] = useState<DefaultModuleQuestion[]>([]);
   const [defaultAnswersById, setDefaultAnswersById] = useState<Record<string, string | string[]>>({});
   const [defaultCompletion, setDefaultCompletion] = useState<DefaultQuestionCompletion | null>(null);
+  const [dependencyGraph, setDependencyGraph] = useState<DependencyGraph | null>(null);
+  const [coercedNotices, setCoercedNotices] = useState<CoercedAnswer[]>([]);
   const [loadingDefaultQuestions, setLoadingDefaultQuestions] = useState(false);
   const [savingDefaultAnswers, setSavingDefaultAnswers] = useState(false);
   const [questions, setQuestions] = useState<ClarificationQuestion[]>([]);
@@ -81,6 +98,15 @@ export default function ProjectDetailPage() {
   const [changeReview, setChangeReview] = useState<AnswerReview | null>(null);
   const [pendingChangeReview, setPendingChangeReview] = useState<PendingChangeReview | null>(null);
   const [, setAcknowledgedFeatures] = useState<string[]>([]);
+
+  // Plan D follow-up #8: advisory module precheck.
+  // The inferred-modules list lives in `precheckResult`; user dismissals
+  // live in `precheckDismissed` (cleared whenever description or selected
+  // modules change so a new precheck cycle starts fresh).
+  const [precheckResult, setPrecheckResult] = useState<ModulePrecheckResponse | null>(null);
+  const [precheckDismissed, setPrecheckDismissed] = useState<Set<ModuleSlug>>(new Set());
+  const precheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const precheckRequestIdRef = useRef(0);
 
   const { setProjectContext, openChat, sendMessage, setPulsing } = useChatContext();
 
@@ -208,6 +234,12 @@ export default function ProjectDetailPage() {
     setDefaultQuestions(questionList);
     setDefaultAnswersById(answers);
     setDefaultCompletion(payload?.prefill_validation || payload?.completion || null);
+    if (payload?.dependency_graph) setDependencyGraph(payload.dependency_graph);
+    if (Array.isArray(payload?.coerced) && payload.coerced.length > 0) {
+      setCoercedNotices(payload.coerced);
+      // Auto-clear after a few seconds so the notices don't sit forever.
+      window.setTimeout(() => setCoercedNotices((prev) => (prev === payload.coerced ? [] : prev)), 6000);
+    }
     savedDefaultAnswersRef.current = { ...answers };
   };
 
@@ -457,6 +489,75 @@ export default function ProjectDetailPage() {
     [businessAnswers]
   );
 
+  // ── Plan D follow-up #8: module precheck (advisory) ──────────────────
+  //
+  // Reset the user's dismissals + clear stale results whenever the
+  // description or selected-modules tuple changes. Combined with the
+  // debounced trigger below, this means each new wizard state gets a
+  // fresh precheck cycle and any prior "Continue without it" choices
+  // are forgotten.
+  const selectedModulesPrecheckKey = useMemo(
+    () => selectedModules.slice().sort().join(','),
+    [selectedModules],
+  );
+  useEffect(() => {
+    setPrecheckDismissed(new Set());
+    setPrecheckResult(null);
+  }, [description, selectedModulesPrecheckKey]);
+
+  // Debounced trigger. Skip if there's no project, no description text,
+  // or no modules selected (the precheck is a "you might also need X"
+  // hint — meaningless before the user has staked out a baseline).
+  useEffect(() => {
+    if (precheckTimerRef.current) {
+      clearTimeout(precheckTimerRef.current);
+      precheckTimerRef.current = null;
+    }
+    if (!projectId) return;
+    const trimmedDescription = description.trim();
+    if (!trimmedDescription || selectedModules.length === 0) return;
+    // All three modules already selected → no inference possible.
+    if (selectedModules.length >= MODULE_KEYS.length) return;
+
+    precheckTimerRef.current = setTimeout(async () => {
+      const requestId = ++precheckRequestIdRef.current;
+      try {
+        const res = await projectService.precheckModules(
+          projectId,
+          trimmedDescription,
+          selectedModules,
+        );
+        // Only the most recent request wins — guard against stale
+        // responses arriving after the user has typed more.
+        if (requestId !== precheckRequestIdRef.current) return;
+        setPrecheckResult(res || null);
+      } catch {
+        // Advisory endpoint — silent failure is fine.
+      }
+    }, 1200);
+
+    return () => {
+      if (precheckTimerRef.current) {
+        clearTimeout(precheckTimerRef.current);
+        precheckTimerRef.current = null;
+      }
+    };
+  }, [projectId, description, selectedModulesPrecheckKey]);
+
+  const visiblePrecheckModules: InferredModule[] = useMemo(() => {
+    const inferred = precheckResult?.inferred_modules || [];
+    if (!Array.isArray(inferred) || inferred.length === 0) return [];
+    return inferred.filter((m) => {
+      if (!m || !m.module) return false;
+      // Drop anything the user has already added or already dismissed.
+      if (selectedModules.includes(m.module)) return false;
+      if (precheckDismissed.has(m.module)) return false;
+      // Belt-and-suspenders: never surface modules outside the canonical set.
+      if (!(MODULE_KEYS as readonly string[]).includes(m.module)) return false;
+      return true;
+    });
+  }, [precheckResult, selectedModules, precheckDismissed]);
+
   const visibleDefaultQuestions = useMemo(() => defaultQuestions.filter(evaluateQuestionVisibility), [defaultQuestions, defaultAnswersById]);
 
   const canAnalyze = useMemo(
@@ -567,6 +668,70 @@ export default function ProjectDetailPage() {
     return counts;
   }, [visibleDefaultQuestions, defaultAnswersById]);
 
+  // Plan C — derived state for inline UI. Per-question auto-enabled badge
+  // (locked yes because a downstream is yes) and per-question feeds-hint
+  // strings. Both are pure functions of the dependency graph + answers.
+  const autoEnabledById = useMemo(() => {
+    const map: Record<string, { driverKey: string; reasonKey: string }> = {};
+    if (!dependencyGraph) return map;
+    const idToKey = new Map<string, string>();
+    for (const q of defaultQuestions) idToKey.set(q.id, q.key);
+    const byKey: AnswerMap = {};
+    for (const id of Object.keys(defaultAnswersById)) {
+      const key = idToKey.get(id);
+      if (key) byKey[key] = defaultAnswersById[id];
+    }
+    for (const q of defaultQuestions) {
+      const hit = isAutoEnabledByDownstream(dependencyGraph, q.key, byKey);
+      if (hit) map[q.id] = hit;
+    }
+    return map;
+  }, [dependencyGraph, defaultQuestions, defaultAnswersById]);
+
+  const feedsHintsByQuestionId = useMemo(() => {
+    const map: Record<string, Array<{ to: string; text: string }>> = {};
+    if (!dependencyGraph) return map;
+    const idToKey = new Map<string, string>();
+    const keyToId = new Map<string, string>();
+    const keyToLabel = new Map<string, string>();
+    for (const q of defaultQuestions) {
+      idToKey.set(q.id, q.key);
+      keyToId.set(q.key, q.id);
+      keyToLabel.set(q.key, q.question);
+    }
+    const lang = (i18n.language || 'en').toLowerCase().startsWith('tr') ? 'tr' : 'en';
+    for (const q of defaultQuestions) {
+      const ans = defaultAnswersById[q.id];
+      const isYes = !Array.isArray(ans) && String(ans || '').trim().toLowerCase() === 'yes';
+      if (!isYes) continue;
+      for (const edge of dependencyGraph.feeds_hints || []) {
+        if (edge.from !== q.key) continue;
+        const targetAns = defaultAnswersById[keyToId.get(edge.to) || ''];
+        const targetIsYes = !Array.isArray(targetAns) && String(targetAns || '').trim().toLowerCase() === 'yes';
+        if (targetIsYes) continue;
+        const text = lang === 'tr' && edge.default_tr ? edge.default_tr : (edge.default_en || edge.hint_key);
+        if (!map[q.id]) map[q.id] = [];
+        map[q.id].push({ to: edge.to, text });
+      }
+    }
+    return map;
+  }, [dependencyGraph, defaultQuestions, defaultAnswersById, i18n.language]);
+
+  const visibleCoercedNotices = useMemo(() => {
+    const idToLabel = new Map<string, string>();
+    for (const q of defaultQuestions) idToLabel.set(q.id, q.question);
+    const lang = (i18n.language || 'en').toLowerCase().startsWith('tr') ? 'tr' : 'en';
+    return coercedNotices.map((n) => {
+      const reason = dependencyGraph?.hard_requires.find((edge) => edge.reason_key === n.reason_key);
+      const text = reason
+        ? (lang === 'tr' && reason.reason_default_tr ? reason.reason_default_tr : (reason.reason_default_en || reason.reason_key))
+        : n.reason_key;
+      const subjectLabel = (n.question_id && idToLabel.get(n.question_id)) || n.key;
+      const driverLabel = (n.driver_question_id && idToLabel.get(n.driver_question_id)) || n.driver;
+      return { ...n, text, subjectLabel, driverLabel };
+    });
+  }, [coercedNotices, defaultQuestions, dependencyGraph, i18n.language]);
+
   const preview = useMemo(() => sdf ? buildPreview(sdf, {
     listPage: t('projectDetail:buildPreview.listPage'),
     createEditForm: t('projectDetail:buildPreview.createEditForm'),
@@ -590,16 +755,96 @@ export default function ProjectDetailPage() {
 
   /* ── Handlers ───────────────────────────────────────────── */
 
-  const updateDefaultAnswer = (questionId: string, value: string | string[]) => setDefaultAnswersById((prev) => ({ ...prev, [questionId]: value }));
+  // Plan C — wizard wiring. Run the dependency-graph mirror after every
+  // edit so auto-enable / cascade-off feels instant. Server is still
+  // authoritative on save (`saveDefaultAnswers`); this mirror only paints
+  // the UI consistently while the user clicks.
+  const _runMirrorAndUpdate = (
+    nextById: Record<string, string | string[]>,
+  ): { byId: Record<string, string | string[]>; coerced: CoercedAnswer[] } => {
+    if (!dependencyGraph) return { byId: nextById, coerced: [] };
+    const idToKey = new Map<string, string>();
+    const keyToId = new Map<string, string>();
+    for (const q of defaultQuestions) {
+      idToKey.set(q.id, q.key);
+      keyToId.set(q.key, q.id);
+    }
+    const byKey: AnswerMap = {};
+    for (const id of Object.keys(nextById)) {
+      const key = idToKey.get(id);
+      if (key) byKey[key] = nextById[id];
+    }
+    const { answers: coercedByKey, coerced } = applyDependencyCoercion(
+      dependencyGraph,
+      byKey,
+      selectedModules,
+    );
+    if (coerced.length === 0) return { byId: nextById, coerced: [] };
+    const byId = { ...nextById };
+    for (const event of coerced) {
+      const id = keyToId.get(event.key);
+      if (!id) continue;
+      byId[id] = event.now as string | string[];
+    }
+    const coercedWithIds = coerced.map((e) => ({
+      ...e,
+      question_id: keyToId.get(e.key) || null,
+      driver_question_id: keyToId.get(e.driver) || null,
+    }));
+    return { byId, coerced: coercedWithIds };
+  };
+
+  const updateDefaultAnswer = (questionId: string, value: string | string[]) => {
+    setDefaultAnswersById((prev) => {
+      const next = { ...prev, [questionId]: value };
+      const { byId, coerced } = _runMirrorAndUpdate(next);
+      if (coerced.length > 0) {
+        setCoercedNotices(coerced);
+        window.setTimeout(() => setCoercedNotices((cur) => (cur === coerced ? [] : cur)), 6000);
+      }
+      return byId;
+    });
+  };
   const toggleMultiChoiceAnswer = (questionId: string, option: string, enabled: boolean) => {
     setDefaultAnswersById((prev) => {
       const existing = Array.isArray(prev[questionId]) ? (prev[questionId] as string[]) : [];
-      return { ...prev, [questionId]: enabled ? Array.from(new Set([...existing, option])) : existing.filter((item) => item !== option) };
+      const next = {
+        ...prev,
+        [questionId]: enabled
+          ? Array.from(new Set([...existing, option]))
+          : existing.filter((item) => item !== option),
+      };
+      const { byId, coerced } = _runMirrorAndUpdate(next);
+      if (coerced.length > 0) {
+        setCoercedNotices(coerced);
+        window.setTimeout(() => setCoercedNotices((cur) => (cur === coerced ? [] : cur)), 6000);
+      }
+      return byId;
     });
   };
   const toggleModule = (key: string) => {
     setSelectedModules((prev) => prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key]);
     if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); }
+  };
+
+  // Plan D follow-up #8: precheck banner actions.
+  const handlePrecheckAddModule = (slug: ModuleSlug) => {
+    if (!selectedModules.includes(slug)) {
+      setSelectedModules((prev) => [...prev, slug]);
+      if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); }
+    }
+    setPrecheckDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(slug);
+      return next;
+    });
+  };
+  const handlePrecheckDismiss = (slug: ModuleSlug) => {
+    setPrecheckDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(slug);
+      return next;
+    });
   };
 
   const saveDefaultAnswers = async () => {
@@ -687,6 +932,26 @@ export default function ProjectDetailPage() {
     const ackedFromOpts = Array.isArray(opts?.acknowledgedFeatures)
       ? opts!.acknowledgedFeatures.map((f) => f.trim()).filter(Boolean)
       : [];
+
+    // Plan D follow-up #8: one final precheck pass right before the
+    // expensive analyze call. Fire-and-don't-block — the banner will
+    // re-render if there's anything new to surface, but Analyze still
+    // proceeds in parallel since the precheck is purely advisory.
+    if (description.trim() && selectedModules.length > 0 && selectedModules.length < MODULE_KEYS.length) {
+      const requestId = ++precheckRequestIdRef.current;
+      void (async () => {
+        try {
+          const res = await projectService.precheckModules(
+            projectId,
+            description.trim(),
+            selectedModules,
+          );
+          if (requestId !== precheckRequestIdRef.current) return;
+          setPrecheckResult(res || null);
+        } catch { /* advisory — silent */ }
+      })();
+    }
+
     setAnalyzing(true); setError(''); setGenResult(null); setGenErrorMsg(''); setGenProgress(null);
     if (!ackedFromOpts.length) {
       // Fresh attempt — wipe any stale review feedback so we don't flash old issues.
@@ -1105,6 +1370,25 @@ export default function ProjectDetailPage() {
           {/* Step 1: Answer Questions */}
           <div ref={stepRefs[1]} className="scroll-mt-6">
             <SlideIn show={selectedModules.length > 0}>
+              {visibleCoercedNotices.length > 0 && (
+                <div className="mb-3 space-y-2">
+                  {visibleCoercedNotices.map((notice, ni) => (
+                    <div
+                      key={`${notice.question_id || notice.key}-${ni}`}
+                      role="status"
+                      className="rounded-lg border border-app-info-border bg-app-info-soft px-3 py-2 text-xs text-app-accent-dark-blue"
+                    >
+                      <span className="font-semibold">
+                        {notice.direction === 'auto_enable'
+                          ? t('projectDetail:dependency.autoEnabledTitle', { defaultValue: 'Auto-enabled' })
+                          : t('projectDetail:dependency.cascadedOffTitle', { defaultValue: 'Disabled by dependency' })}
+                        {': '}
+                      </span>
+                      {notice.text}
+                    </div>
+                  ))}
+                </div>
+              )}
               <DefaultQuestions
                 answersById={defaultAnswersById}
                 completion={defaultCompletion} questionsByModule={questionsByModule}
@@ -1113,6 +1397,8 @@ export default function ProjectDetailPage() {
                 onUpdateAnswer={updateDefaultAnswer} onToggleMultiChoice={toggleMultiChoiceAnswer}
                 onSave={saveDefaultAnswers}
                 onHelpWithQuestion={handleHelpWithQuestion}
+                autoEnabledById={autoEnabledById}
+                feedsHintsByQuestionId={feedsHintsByQuestionId}
               />
             </SlideIn>
           </div>
@@ -1120,6 +1406,68 @@ export default function ProjectDetailPage() {
           {/* Step 2: Business Questions */}
           <div ref={stepRefs[2]} className="scroll-mt-6">
             <SlideIn show={!!defaultCompletion?.is_complete}>
+              {visiblePrecheckModules.length > 0 && (
+                <div className="mb-3 space-y-2">
+                  {visiblePrecheckModules.map((m) => {
+                    const moduleLabel = t(`projectDetail:modules.${m.module}.label`, {
+                      defaultValue: m.module,
+                    });
+                    return (
+                      <div
+                        key={`precheck-${m.module}`}
+                        role="status"
+                        className="flex items-start gap-3 rounded-lg border border-app-warning-border bg-app-warning-soft px-3 py-2 text-xs text-app-accent-dark-blue"
+                      >
+                        <div className="flex-1 space-y-1">
+                          <div className="font-semibold">
+                            {t('projectDetail:precheck.title', {
+                              module: moduleLabel,
+                              defaultValue: `Heads up — your description sounds like it might need ${moduleLabel}`,
+                            })}
+                          </div>
+                          {m.reason && (
+                            <div className="text-app-text-muted">
+                              {t('projectDetail:precheck.reason', {
+                                reason: m.reason,
+                                defaultValue: `From your description: ${m.reason}`,
+                              })}
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handlePrecheckAddModule(m.module)}
+                              className="rounded-md border border-app-accent bg-app-accent px-2 py-1 text-xs font-medium text-white hover:opacity-90"
+                            >
+                              {t('projectDetail:precheck.addModule', {
+                                module: moduleLabel,
+                                defaultValue: `Add ${moduleLabel}`,
+                              })}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handlePrecheckDismiss(m.module)}
+                              className="rounded-md border border-app-border bg-transparent px-2 py-1 text-xs font-medium text-app-text hover:bg-app-surface"
+                            >
+                              {t('projectDetail:precheck.continueWithout', {
+                                defaultValue: 'Continue without it',
+                              })}
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={t('projectDetail:precheck.dismissAria', { defaultValue: 'Dismiss' })}
+                          onClick={() => handlePrecheckDismiss(m.module)}
+                          className="rounded p-1 text-app-text-muted hover:bg-app-surface"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <BusinessQuestions
                 answers={businessAnswers} step={businessStep} canAnalyze={canAnalyze} running={running}
                 skipWarningOpen={bizSkipWarningOpen}

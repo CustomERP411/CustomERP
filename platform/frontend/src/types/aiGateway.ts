@@ -54,6 +54,20 @@ export interface AnswerReview {
   summary?: string;
 }
 
+// Plan D follow-up #8: advisory module precheck.
+export type ModuleSlug = 'hr' | 'invoice' | 'inventory';
+export type PrecheckConfidence = 'high' | 'medium' | 'low';
+
+export interface InferredModule {
+  module: ModuleSlug;
+  reason: string;
+  confidence: PrecheckConfidence;
+}
+
+export interface ModulePrecheckResponse {
+  inferred_modules: InferredModule[];
+}
+
 export interface AnalyzeProjectResponse {
   project: import('./project').Project;
   sdf_version?: number | null;

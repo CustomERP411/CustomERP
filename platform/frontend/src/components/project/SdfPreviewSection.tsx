@@ -66,6 +66,24 @@ export default function SdfPreviewSection({
         </div>
       )}
 
+      {Array.isArray(preview.inferredDroppedModules) && preview.inferredDroppedModules.length > 0 && (
+        <div className="rounded-xl border border-app-info-border bg-app-info-soft p-4">
+          <div className="text-sm font-semibold text-app-accent-dark-blue">{t('sdfPreview.droppedModulesTitle')}</div>
+          <p className="mt-1 text-xs text-app-accent-dark-blue">{t('sdfPreview.droppedModulesIntro')}</p>
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {preview.inferredDroppedModules.map((slug: string) => (
+              <li
+                key={slug}
+                className="rounded-full bg-app-surface px-2.5 py-1 text-xs font-medium text-app-text"
+              >
+                {t(`modules.${slug}.label`, { defaultValue: slug })}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-app-text-muted">{t('sdfPreview.droppedModulesHint')}</p>
+        </div>
+      )}
+
       {/* Module summary cards */}
       {preview.moduleSummaries.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

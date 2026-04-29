@@ -45,6 +45,13 @@
     "hr.label": "HR",
     "hr.desc": "Manage employees, leave, attendance, and payroll prep"
   },
+  "precheck": {
+    "title": "Heads up — your description sounds like it might need {{module}}",
+    "reason": "From your description: {{reason}}",
+    "addModule": "Add {{module}}",
+    "continueWithout": "Continue without it",
+    "dismissAria": "Dismiss"
+  },
   "questions": {
     "title": "Module questions",
     "subtitle": "Answer these to tailor the modules to your business.",
@@ -191,6 +198,9 @@
     "saveConfig": "Save Configuration",
     "warnings": "Warnings",
     "moreItems": "+ {{count}} more",
+    "droppedModulesTitle": "Modules left out",
+    "droppedModulesIntro": "Your description sounded like it might also need these modules, but you didn't select them. We left them out:",
+    "droppedModulesHint": "If you want them, go back to Choose Modules and re-generate.",
     "moduleCard": "{{label}} Module",
     "extraFeatures": "Extra Features",
     "whatYouCanDo": {

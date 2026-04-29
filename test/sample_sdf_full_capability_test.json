@@ -321,8 +321,16 @@
         { "name": "purchase_order_id", "type": "reference", "label": "Purchase Order", "reference_entity": "purchase_orders" },
         { "name": "receipt_date", "type": "date", "label": "Receipt Date", "required": true },
         { "name": "status", "type": "string", "label": "Status", "required": true, "options": ["draft", "inspecting", "completed", "cancelled"] },
-        { "name": "received_by", "type": "string", "label": "Received By" },
+        { "name": "received_by", "type": "reference", "label": "Received By", "reference_entity": "__erp_users" },
         { "name": "notes", "type": "text", "label": "Notes" }
+      ],
+      "relations": [
+        {
+          "kind": "reference_contract",
+          "field": "received_by",
+          "target": "__erp_users",
+          "when": "modules.access_control.enabled"
+        }
       ],
       "features": {
         "audit_trail": true
@@ -369,9 +377,29 @@
         { "name": "count_date", "type": "date", "label": "Count Date", "required": true },
         { "name": "location_id", "type": "reference", "label": "Location", "reference_entity": "locations" },
         { "name": "status", "type": "string", "label": "Status", "required": true, "options": ["draft", "in_progress", "pending_approval", "approved", "posted", "cancelled"] },
-        { "name": "counted_by", "type": "string", "label": "Counted By" },
-        { "name": "approved_by", "type": "string", "label": "Approved By" },
+        { "name": "counted_by", "type": "reference", "label": "Counted By", "reference_entity": "__erp_users" },
+        { "name": "approved_by", "type": "reference", "label": "Approved By", "reference_entity": "__erp_users" },
         { "name": "notes", "type": "text", "label": "Notes" }
+      ],
+      "relations": [
+        {
+          "kind": "reference_contract",
+          "field": "counted_by",
+          "target": "__erp_users",
+          "when": "modules.access_control.enabled"
+        },
+        {
+          "kind": "reference_contract",
+          "field": "approved_by",
+          "target": "__erp_users",
+          "when": "modules.access_control.enabled"
+        },
+        {
+          "kind": "permission_scope",
+          "permission": "inventory.cycle_counts.approve",
+          "scope": "module",
+          "when": "modules.access_control.enabled"
+        }
       ],
       "features": {
         "audit_trail": true
@@ -553,8 +581,16 @@
         { "name": "invoice_id", "type": "reference", "label": "Invoice", "required": true, "reference_entity": "invoices" },
         { "name": "note_type", "type": "string", "label": "Note Type", "options": ["internal", "customer_visible", "reminder", "collection"] },
         { "name": "content", "type": "text", "label": "Note Content", "required": true },
-        { "name": "created_by", "type": "string", "label": "Created By" },
+        { "name": "created_by", "type": "reference", "label": "Created By", "reference_entity": "__erp_users" },
         { "name": "created_at", "type": "datetime", "label": "Created At" }
+      ],
+      "relations": [
+        {
+          "kind": "reference_contract",
+          "field": "created_by",
+          "target": "__erp_users",
+          "when": "modules.access_control.enabled"
+        }
       ],
       "features": {}
     },

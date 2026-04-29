@@ -15,7 +15,9 @@ const {
   buildRequirePermission,
   buildUsersAdminPageConnected,
   buildGroupsAdminPageConnected,
+  buildScopeEvaluatorClient,
 } = require('./frontend/rbacPages');
+const { buildStatusFormatter } = require('./frontend/statusFormatter');
 
 const { normalizeLanguage, tFor } = require('../i18n/labels');
 const { pickTrEntityDisplayName } = require('../i18n/glossaryI18n');
@@ -204,15 +206,29 @@ class FrontendGenerator {
     await this._generateSharedComponents(outputDir);
     await this._generateModuleComponents(outputDir);
 
+    // Plan D follow-up #7: emit a build-time status formatter so workflow
+    // statuses render in the project language. Lives under src/utils so any
+    // generated page (HR, Invoice, Inventory) can import it.
+    await fs.mkdir(path.join(outputDir, 'src/utils'), { recursive: true });
+    await fs.writeFile(
+      path.join(outputDir, 'src/utils/statusFormatter.ts'),
+      buildStatusFormatter({ sdf, language: this._language })
+    );
+
     if (this._accessControlEnabled) {
       await this._generateRbacFrontend(outputDir);
     }
   }
 
   async _generateRbacFrontend(outputDir) {
+    // Plan B follow-up #5: AuthContext now imports a client-side scope
+    // evaluator from `../utils/scopeEvaluator`, so we must emit the file
+    // before AuthContext is read at build time. Both go under src/.
+    await fs.mkdir(path.join(outputDir, 'src/utils'), { recursive: true });
+    await fs.writeFile(path.join(outputDir, 'src/utils/scopeEvaluator.ts'), buildScopeEvaluatorClient());
     await fs.writeFile(path.join(outputDir, 'src/contexts/AuthContext.tsx'), buildAuthContext());
     await fs.writeFile(path.join(outputDir, 'src/pages/LoginPage.tsx'), buildLoginPage({ language: this._language }));
-    await fs.writeFile(path.join(outputDir, 'src/components/RequireAuth.tsx'), buildRequireAuth());
+    await fs.writeFile(path.join(outputDir, 'src/components/RequireAuth.tsx'), buildRequireAuth({ language: this._language }));
     await fs.writeFile(path.join(outputDir, 'src/components/RequirePermission.tsx'), buildRequirePermission({ language: this._language }));
     await fs.writeFile(path.join(outputDir, 'src/pages/admin/UsersAdminPage.tsx'), buildUsersAdminPageConnected({ language: this._language }));
     await fs.writeFile(path.join(outputDir, 'src/pages/admin/GroupsAdminPage.tsx'), buildGroupsAdminPageConnected({ language: this._language }));

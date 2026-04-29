@@ -25,7 +25,7 @@ class ProjectAssembler {
     console.log(`Starting assembly for project ${projectId} at ${outputDir} (standalone=${standalone}, language=${language})`);
 
     try {
-      this._validateSdf(sdf);
+      this._validateSdf(sdf, { language });
 
       console.log('Generating backend...');
       if (standalone && typeof this.frontendGenerator.setStandalone === 'function') {

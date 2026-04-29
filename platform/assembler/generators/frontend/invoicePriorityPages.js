@@ -24,11 +24,13 @@ function buildInvoiceWorkflowPage({ entity, entityName, importBase, lifecycleCfg
     cancelled: t('invoiceWorkflow.cancelled'),
     confirmIssue: t('invoiceWorkflow.confirmIssue'),
     confirmCancel: t('invoiceWorkflow.confirmCancel'),
+    unknownError: t('common.unknownError'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
+import { formatStatus } from '${base}/utils/statusFormatter';
 
 const ENTITY_SLUG = '${entity.slug}';
 const STATUS_FLOW = ${JSON.stringify(statuses)};
@@ -54,7 +56,7 @@ export default function ${entityName}WorkflowPage() {
       setItems(rows);
       if (!selectedId && rows.length) setSelectedId(String(rows[0].id));
     } catch (error: any) {
-      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -73,7 +75,7 @@ export default function ${entityName}WorkflowPage() {
       toast({ title: action === 'issue' ? I18N.issued : I18N.cancelled, variant: 'success' });
       await fetchData();
     } catch (error: any) {
-      toast({ title: I18N.actionFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.actionFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     } finally {
       setWorking(false);
     }
@@ -96,7 +98,7 @@ export default function ${entityName}WorkflowPage() {
           {!items.length && <option value="">{I18N.noInvoices}</option>}
           {items.map((row) => (
             <option key={String(row.id)} value={String(row.id)}>
-              {String(row.invoice_number || row.id)} - {String(row.status || 'Draft')}
+              {String(row.invoice_number || row.id)} - {formatStatus(ENTITY_SLUG, row.status || 'Draft')}
             </option>
           ))}
         </select>
@@ -104,7 +106,7 @@ export default function ${entityName}WorkflowPage() {
 
       <div className="rounded-xl border bg-white p-4">
         <div className="mb-3 text-sm text-slate-700">
-          {I18N.statusFlow}: {STATUS_FLOW.join(' -> ')}
+          {I18N.statusFlow}: {STATUS_FLOW.map((s: string) => formatStatus(ENTITY_SLUG, s)).join(' -> ')}
         </div>
         <div className="grid gap-2 md:grid-cols-2">
           <button
@@ -172,13 +174,16 @@ function buildInvoicePaymentsPage({ entity, entityName, importBase, language = '
     allocated: t('invoicePayments.allocated'),
     paymentLabel: t('invoicePayments.paymentLabel'),
     unknown: t('invoicePayments.unknown'),
+    unknownError: t('common.unknownError'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useMemo, useState } from 'react';
 import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
+import { formatStatus } from '${base}/utils/statusFormatter';
 
 const INVOICE_SLUG = '${entity.slug}';
+const PAYMENT_SLUG = 'invoice_payments';
 const I18N = ${i18nJson} as const;
 
 export default function ${entityName}PaymentsPage() {
@@ -207,7 +212,7 @@ export default function ${entityName}PaymentsPage() {
       setInvoices(rows);
       if (!selectedInvoiceId && rows.length) setSelectedInvoiceId(String(rows[0].id));
     } catch (error: any) {
-      toast({ title: I18N.loadInvoicesFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.loadInvoicesFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     }
   };
 
@@ -220,7 +225,7 @@ export default function ${entityName}PaymentsPage() {
       const res = await api.get('/' + INVOICE_SLUG + '/' + invoiceId + '/payments');
       setItems(Array.isArray(res.data) ? res.data : []);
     } catch (error: any) {
-      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     }
   };
 
@@ -256,7 +261,7 @@ export default function ${entityName}PaymentsPage() {
       await fetchInvoices();
       await fetchPayments(selectedInvoiceId);
     } catch (error: any) {
-      toast({ title: I18N.recordFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.recordFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -339,7 +344,7 @@ export default function ${entityName}PaymentsPage() {
               return (
                 <div key={String(payment?.id || idx)} className="rounded-md border border-slate-200 p-3 text-sm">
                   <div className="font-medium text-slate-900">{String(payment?.payment_number || payment?.id || I18N.paymentLabel)}</div>
-                  <div className="mt-1 text-slate-600">{I18N.status}: {String(payment?.status || I18N.unknown)}</div>
+                  <div className="mt-1 text-slate-600">{I18N.status}: {payment?.status ? formatStatus(PAYMENT_SLUG, payment.status) : I18N.unknown}</div>
                   <div className="text-slate-600">{I18N.amount}: {String(payment?.amount ?? 0)} | {I18N.unallocated}: {String(payment?.unallocated_amount ?? 0)}</div>
                   {allocation ? (
                     <div className="text-slate-600">{I18N.allocated}: {String(allocation?.amount ?? 0)} at {String(allocation?.allocated_at || '')}</div>
@@ -383,16 +388,19 @@ function buildInvoiceNotesPage({ entity, entityName, importBase, language = 'en'
     noNotes: t('invoiceNotes.noNotes'),
     selectInvoice: t('invoiceNotes.selectInvoice'),
     amountMustBePositive: t('invoicePayments.amountMustBePositive'),
-    taxNonNegative: 'Tax total must be zero or greater',
+    taxNonNegative: t('invoiceNotes.taxNonNegative'),
     status: t('invoicePayments.status'),
-    grandTotal: 'Grand total',
+    grandTotal: t('invoiceNotes.grandTotal'),
+    unknownError: t('common.unknownError'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useState } from 'react';
 import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
+import { formatStatus } from '${base}/utils/statusFormatter';
 
 const INVOICE_SLUG = '${entity.slug}';
+const NOTE_SLUG = 'invoice_notes';
 const I18N = ${i18nJson} as const;
 
 export default function ${entityName}NotesPage() {
@@ -417,7 +425,7 @@ export default function ${entityName}NotesPage() {
       setInvoices(rows);
       if (!selectedInvoiceId && rows.length) setSelectedInvoiceId(String(rows[0].id));
     } catch (error: any) {
-      toast({ title: I18N.loadInvoicesFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.loadInvoicesFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     }
   };
 
@@ -430,7 +438,7 @@ export default function ${entityName}NotesPage() {
       const res = await api.get('/' + INVOICE_SLUG + '/' + invoiceId + '/notes');
       setItems(Array.isArray(res.data) ? res.data : []);
     } catch (error: any) {
-      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     }
   };
 
@@ -468,7 +476,7 @@ export default function ${entityName}NotesPage() {
       setForm((prev) => ({ ...prev, amount: '', tax_total: '0', reason: '', note: '' }));
       await loadNotes(selectedInvoiceId);
     } catch (error: any) {
-      toast({ title: I18N.createFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.createFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -491,7 +499,7 @@ export default function ${entityName}NotesPage() {
           {!invoices.length && <option value="">{I18N.noInvoices}</option>}
           {invoices.map((row) => (
             <option key={String(row.id)} value={String(row.id)}>
-              {String(row.invoice_number || row.id)} | {I18N.status}: {String(row.status || 'Draft')}
+              {String(row.invoice_number || row.id)} | {I18N.status}: {formatStatus(INVOICE_SLUG, row.status || 'Draft')}
             </option>
           ))}
         </select>
@@ -558,7 +566,7 @@ export default function ${entityName}NotesPage() {
             {items.map((row: any) => (
               <div key={String(row.id)} className="rounded-md border border-slate-200 p-3 text-sm">
                 <div className="font-medium text-slate-900">{String(row.note_number || row.id)}</div>
-                <div className="mt-1 text-slate-600">{String(row.note_type || '')} | {I18N.status}: {String(row.status || '')}</div>
+                <div className="mt-1 text-slate-600">{String(row.note_type || '')} | {I18N.status}: {row.status ? formatStatus(NOTE_SLUG, row.status) : ''}</div>
                 <div className="text-slate-600">{I18N.grandTotal}: {String(row.grand_total ?? row.amount ?? 0)}</div>
               </div>
             ))}
@@ -577,22 +585,24 @@ function buildPaymentWorkflowPage({ entity, entityName, importBase, language = '
   const displayName = entity?.display_name || entityName;
   const I18N = {
     title: (t('invoiceWorkflow.title') || '{{entity}} Workflow').replace('{{entity}}', displayName),
-    subtitle: 'Post or cancel payment entries.',
-    payment: 'Payment',
-    noPayments: 'No payments',
-    postPayment: 'Post Payment',
-    cancelPayment: 'Cancel Payment',
-    confirmPost: 'Post selected payment?',
-    confirmCancel: 'Cancel selected payment?',
-    posted: 'Payment posted',
-    cancelled: 'Payment cancelled',
+    subtitle: t('invoicePages.paymentsSubtitle'),
+    payment: t('invoicePages.paymentsTitle'),
+    noPayments: t('invoicePages.paymentsEmpty'),
+    postPayment: t('paymentWorkflow.postPayment'),
+    cancelPayment: t('invoicePages.cancelPayment'),
+    confirmPost: t('paymentWorkflow.confirmPost'),
+    confirmCancel: t('invoicePages.cancelPaymentConfirm'),
+    posted: t('paymentWorkflow.posted'),
+    cancelled: t('paymentWorkflow.cancelled'),
     actionFailed: t('invoiceWorkflow.actionFailed'),
     loadFailed: t('invoicePayments.loadFailed'),
+    unknownError: t('common.unknownError'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useState } from 'react';
 import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
+import { formatStatus } from '${base}/utils/statusFormatter';
 
 const ENTITY_SLUG = '${entity.slug}';
 const I18N = ${i18nJson} as const;
@@ -610,7 +620,7 @@ export default function ${entityName}WorkflowPage() {
       setItems(rows);
       if (!selectedId && rows.length) setSelectedId(String(rows[0].id));
     } catch (error: any) {
-      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     }
   };
 
@@ -627,7 +637,7 @@ export default function ${entityName}WorkflowPage() {
       toast({ title: action === 'post' ? I18N.posted : I18N.cancelled, variant: 'success' });
       await fetchData();
     } catch (error: any) {
-      toast({ title: I18N.actionFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.actionFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     } finally {
       setWorking(false);
     }
@@ -649,7 +659,7 @@ export default function ${entityName}WorkflowPage() {
           {!items.length && <option value="">{I18N.noPayments}</option>}
           {items.map((row) => (
             <option key={String(row.id)} value={String(row.id)}>
-              {String(row.payment_number || row.id)} - {String(row.status || 'Draft')}
+              {String(row.payment_number || row.id)} - {formatStatus(ENTITY_SLUG, row.status || 'Draft')}
             </option>
           ))}
         </select>
@@ -674,22 +684,24 @@ function buildNoteWorkflowPage({ entity, entityName, importBase, language = 'en'
   const displayName = entity?.display_name || entityName;
   const I18N = {
     title: (t('invoiceWorkflow.title') || '{{entity}} Workflow').replace('{{entity}}', displayName),
-    subtitle: 'Post or cancel invoice credit/debit notes.',
-    note: 'Note',
-    noNotes: 'No notes',
-    postNote: 'Post Note',
-    cancelNote: 'Cancel Note',
-    confirmPost: 'Post selected note?',
-    confirmCancel: 'Cancel selected note?',
-    posted: 'Note posted',
-    cancelled: 'Note cancelled',
+    subtitle: t('noteWorkflow.subtitle'),
+    note: t('noteWorkflow.note'),
+    noNotes: t('noteWorkflow.noNotes'),
+    postNote: t('noteWorkflow.postNote'),
+    cancelNote: t('noteWorkflow.cancelNote'),
+    confirmPost: t('noteWorkflow.confirmPost'),
+    confirmCancel: t('noteWorkflow.confirmCancel'),
+    posted: t('noteWorkflow.posted'),
+    cancelled: t('noteWorkflow.cancelled'),
     actionFailed: t('invoiceWorkflow.actionFailed'),
     loadFailed: t('invoiceNotes.loadFailed'),
+    unknownError: t('common.unknownError'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
   return `import { useEffect, useState } from 'react';
 import api from '${base}/services/api';
 import { useToast } from '${base}/components/ui/toast';
+import { formatStatus } from '${base}/utils/statusFormatter';
 
 const ENTITY_SLUG = '${entity.slug}';
 const I18N = ${i18nJson} as const;
@@ -707,7 +719,7 @@ export default function ${entityName}WorkflowPage() {
       setItems(rows);
       if (!selectedId && rows.length) setSelectedId(String(rows[0].id));
     } catch (error: any) {
-      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.loadFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     }
   };
 
@@ -724,7 +736,7 @@ export default function ${entityName}WorkflowPage() {
       toast({ title: action === 'post' ? I18N.posted : I18N.cancelled, variant: 'success' });
       await fetchData();
     } catch (error: any) {
-      toast({ title: I18N.actionFailed, description: error?.response?.data?.error || error?.message || 'Unknown error', variant: 'error' });
+      toast({ title: I18N.actionFailed, description: error?.response?.data?.error || error?.message || I18N.unknownError, variant: 'error' });
     } finally {
       setWorking(false);
     }
@@ -746,7 +758,7 @@ export default function ${entityName}WorkflowPage() {
           {!items.length && <option value="">{I18N.noNotes}</option>}
           {items.map((row) => (
             <option key={String(row.id)} value={String(row.id)}>
-              {String(row.note_number || row.id)} - {String(row.note_type || '')} - {String(row.status || 'Draft')}
+              {String(row.note_number || row.id)} - {String(row.note_type || '')} - {formatStatus(ENTITY_SLUG, row.status || 'Draft')}
             </option>
           ))}
         </select>

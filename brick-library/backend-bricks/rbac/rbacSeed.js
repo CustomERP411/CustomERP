@@ -125,7 +125,14 @@ async function assignPermissionsToGroup(repository, groupId, permIds, allGP) {
   return added;
 }
 
-async function seed(repository, entitySlugs = [], groups = [], entityModuleMap = {}, entityDisplayMap = {}) {
+async function seed(
+  repository,
+  entitySlugs = [],
+  groups = [],
+  entityModuleMap = {},
+  entityDisplayMap = {},
+  permissionScopes = []
+) {
   console.log('[RBAC-SEED] Running access-control seed...');
 
   const existingUsers = await repository.findAll('__erp_users');
@@ -303,6 +310,69 @@ async function seed(repository, entitySlugs = [], groups = [], entityModuleMap =
       }
       console.log(`[RBAC-SEED] Group "${gName}" assigned ${neededKeys.size} permissions`);
     }
+  }
+
+  // Plan B follow-up #5: register coherence-layer permission_scope keys.
+  //
+  // Each entry came from an entity's `relations[]` block as
+  //   { kind: 'permission_scope', permission, scope, actions?, when? }
+  //
+  // For each entry we:
+  //   1. Ensure the permission key exists with the right scope label.
+  //   2. Seed default groups on first run:
+  //      - Scope 'manager_chain' -> 'Manager' group (gets the permission).
+  //      - Scope 'self'           -> 'Employee' group (gets the permission).
+  //
+  // The flat-key seeding above (e.g. 'leaves.update') stays in place for
+  // backward-compatibility — the new permission keys are additive.
+  if (Array.isArray(permissionScopes) && permissionScopes.length > 0) {
+    let allGP = await repository.findAll('__erp_group_permissions');
+    let existingGroups2 = await repository.findAll('__erp_groups');
+
+    const managerGroup = await ensureGroup(
+      repository,
+      existingGroups2,
+      'Manager',
+      seedText('managerDescription', 'Manages direct reports (leaves, timesheets, approvals).')
+    );
+    const employeeGroup = await ensureGroup(
+      repository,
+      existingGroups2,
+      'Employee',
+      seedText('employeeDescription', 'Default group for self-service actions (own leaves, timesheets).')
+    );
+
+    for (const entry of permissionScopes) {
+      if (!entry || !entry.permission || !entry.scope) continue;
+      const permKey = String(entry.permission);
+      let perm = permByKey.get(permKey);
+      const actionLabel = `${entry.scope}`;
+      if (!perm) {
+        perm = await repository.create('__erp_permissions', {
+          key: permKey,
+          label: permKey,
+          scope: actionLabel,
+          description: seedText(
+            'scopedPermissionDescription',
+            `Scoped permission ${permKey} (${actionLabel})`,
+            { key: permKey, scope: actionLabel }
+          ),
+        });
+        permByKey.set(permKey, perm);
+      }
+
+      const scope = String(entry.scope).toLowerCase();
+      if (scope === 'manager_chain') {
+        await assignPermissionsToGroup(repository, managerGroup.id, [perm.id], allGP);
+      } else if (scope === 'self') {
+        await assignPermissionsToGroup(repository, employeeGroup.id, [perm.id], allGP);
+      }
+      // For 'department', 'module', 'all' the existing flat-key permissions
+      // (created above for every entity) already cover the required access;
+      // the dedicated permission_scope key is exposed for the middleware to
+      // do row-level checks but does not need a default group assignment.
+    }
+    console.log(`[RBAC-SEED] Registered ${permissionScopes.length} coherence-layer permission scopes`);
   }
 
   console.log('[RBAC-SEED] Seed complete.');

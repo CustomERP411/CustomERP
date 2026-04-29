@@ -299,6 +299,30 @@ module.exports = {
       addMixin('HRCompensationLedgerMixin', hrCompensationCfg, 'modules');
     }
 
+    // Plan B follow-up #5 — Users <-> Employees 1:1 link.
+    //
+    // Attach the UserEmployeeLinkMixin to BOTH services when access control
+    // is enabled and both entities exist. The link fields themselves are
+    // injected by `_withAccessControlEntities`; the mixin is what actually
+    // syncs the two sides at request time.
+    const accessControlConfig = (this.modules && this.modules.access_control) || {};
+    const accessControlEnabled = accessControlConfig.enabled !== false;
+    if (accessControlEnabled) {
+      const allEntitySlugsForLink = Array.isArray(allEntities)
+        ? allEntities.map((e) => e && e.slug).filter(Boolean)
+        : [];
+      const hasUsers = allEntitySlugsForLink.includes('__erp_users');
+      const hasEmployees = allEntitySlugsForLink.includes('employees');
+      if (hasUsers && hasEmployees) {
+        if (slug === '__erp_users') {
+          addMixin('UserEmployeeLinkMixin', { role: 'user' }, 'modules');
+        }
+        if (slug === 'employees') {
+          addMixin('UserEmployeeLinkMixin', { role: 'employee' }, 'modules');
+        }
+      }
+    }
+
     const explicitMixins = this._normalizeExplicitMixins(entity);
     for (const entry of explicitMixins) {
       if (entry.enabled === false) {
@@ -308,8 +332,66 @@ module.exports = {
       addMixin(entry.name, entry.config, 'explicit');
     }
 
+    // Plan B / coherence layer: auto-attach the RelationRuleRunnerMixin
+    // whenever the entity declares one or more entity.relations[] entries.
+    // permission_scope relations are consumed by the RBAC layer, not by this
+    // mixin, so an entity that ONLY has permission_scope relations does not
+    // need the runner. Filter accordingly.
+    const relationsForRunner = Array.isArray(entity && entity.relations)
+      ? entity.relations.filter((r) => r && r.kind && r.kind !== 'permission_scope')
+      : [];
+    if (relationsForRunner.length > 0) {
+      addMixin(
+        'RelationRuleRunnerMixin',
+        {
+          relations: relationsForRunner,
+          moduleToggles: this._collectModuleToggles(),
+          workDays: this._getWorkDays(),
+        },
+        'coherence'
+      );
+    }
+
     const ordered = await this._orderMixins(Array.from(mixins.values()), { entity, allEntities });
     return ordered;
+  },
+
+  /**
+   * Plan B follow-up #2 helper. Flatten this.modules into a dotted-path map
+   * of boolean toggles consumable by the RelationRuleRunnerMixin's
+   * `_relWhenActive(when)` lookup. Only boolean leaves are surfaced; nested
+   * objects are walked. The resulting paths look like
+   *   'modules.invoice.stock_link.enabled' -> true
+   * and the runner matches `relation.when` strings against this map.
+   */
+  _collectModuleToggles() {
+    const out = {};
+    const walk = (node, prefix) => {
+      if (!node || typeof node !== 'object') return;
+      for (const [key, value] of Object.entries(node)) {
+        const path = prefix ? `${prefix}.${key}` : key;
+        if (value === true || value === false) {
+          out[path] = value === true;
+        } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+          if (Object.prototype.hasOwnProperty.call(value, 'enabled')) {
+            out[`${path}.enabled`] = value.enabled !== false;
+          }
+          walk(value, path);
+        }
+      }
+    };
+    walk({ modules: this.modules || {} }, '');
+    return out;
+  },
+
+  _getWorkDays() {
+    const hr = (this.modules && this.modules.hr) || {};
+    const days = hr.work_days || hr.workDays;
+    if (Array.isArray(days) && days.length > 0) {
+      const filtered = days.map((d) => Number(d)).filter((n) => Number.isFinite(n) && n >= 0 && n <= 6);
+      if (filtered.length > 0) return filtered;
+    }
+    return [1, 2, 3, 4, 5];
   },
 
   async _applyMixin(weaver, mixinEntry, { entity, allEntities }) {
@@ -454,6 +536,15 @@ module.exports = {
       'HRLeaveBalanceMixin',
       'HRAttendanceTimesheetMixin',
       'HRCompensationLedgerMixin',
+      // Plan B follow-up #5: Users <-> Employees 1:1 link sync mixin.
+      // Runs after HR base mixins so employees sees its full payload first.
+      'UserEmployeeLinkMixin',
+      // Coherence layer: RelationRuleRunnerMixin runs LAST so its hooks see
+      // the data after every module-specific mixin has had a chance to
+      // normalize, validate, or compute base values. Status-propagation
+      // actions emitted from the runner therefore observe the final post-
+      // mixin payload.
+      'RelationRuleRunnerMixin',
     ];
 
     const byName = new Map();

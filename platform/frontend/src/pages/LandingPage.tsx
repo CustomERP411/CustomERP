@@ -724,9 +724,11 @@ interface VideoPlaceholderProps {
   t: (key: string) => string;
 }
 
+const DEMO_VIDEO_SRC =
+  'https://res.cloudinary.com/dbbxjdpvn/video/upload/v1777430176/DemoVideo_pub1zc.mp4';
+
 /** Video puzzle piece — fills the piece body with a rounded 16:9 frame so the
- *  placeholder clearly reads as part of the jigsaw. The real video will be
- *  dropped in later; we keep the visual anchor on the page.
+ *  demo reads as part of the jigsaw.
  *
  *  Sizing: the frame is height-driven (`h-full w-auto aspect-video`) so it
  *  always fits vertically inside the piece, then grows horizontally up to the
@@ -737,19 +739,14 @@ function VideoPlaceholder({ t }: VideoPlaceholderProps) {
   return (
     <div className="flex h-full w-full items-center justify-center px-4 py-4 sm:px-6 sm:py-6">
       <div className="relative flex h-full w-auto max-w-full aspect-video items-center justify-center overflow-hidden rounded-xl border border-app-border-strong bg-app-surface-sunken shadow-inner">
-        <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-app-accent-orange/15 ring-1 ring-app-accent-orange/40">
-          <svg
-            viewBox="0 0 24 24"
-            className="h-6 w-6 sm:h-7 sm:w-7 text-app-accent-orange"
-            fill="currentColor"
-            aria-hidden
-          >
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </div>
-        <span className="absolute bottom-2 right-3 sm:bottom-3 sm:right-4 rounded-md bg-app-surface/80 px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-app-text-muted">
-          {t('video.comingSoon')}
-        </span>
+        <video
+          className="h-full w-full min-h-0 object-contain"
+          controls
+          playsInline
+          preload="metadata"
+          src={DEMO_VIDEO_SRC}
+          aria-label={t('video.heading')}
+        />
       </div>
     </div>
   );

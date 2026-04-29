@@ -28,12 +28,57 @@ module.exports = {
     const dest = path.join(outputDir, 'src/components/DynamicForm.tsx');
     await fs.mkdir(path.dirname(dest), { recursive: true });
     await fs.writeFile(dest, content);
+
+    // Plan F A2/A3 — copy the shared client evaluator next to DynamicForm
+    // so the relative import in the form template resolves at compile time
+    // in the generated frontend. The file is plain TS with no template
+    // substitutions; ship it verbatim.
+    const evaluatorSrc = await this.brickRepo.getTemplate('derivedFieldEvaluator.ts');
+    const evaluatorDest = path.join(outputDir, 'src/components/derivedFieldEvaluator.ts');
+    await fs.writeFile(evaluatorDest, evaluatorSrc);
   },
 
-  _resolveFieldLabelForForm(field) {
-    const auto = this._formatLabel(field.name);
+  // Plan E C2: when a field is missing an explicit `label` AND it points
+  // at another entity via reference_entity, fall back to that target's
+  // display label (e.g. `customer_id` -> "Customer") rather than the raw
+  // title-cased column name ("Customer Id"). Strips the trailing `_id` /
+  // `_ids` for the very-last fallback so we never render the awkward
+  // "Customer Id" suffix even when the target entity isn't found.
+  _resolveReferenceTargetLabel(defField, allEntities) {
+    if (!defField) return null;
+    const isReferenceShape =
+      defField.type === 'reference' ||
+      defField.reference_entity ||
+      defField.referenceEntity ||
+      (typeof defField.name === 'string' && (defField.name.endsWith('_id') || defField.name.endsWith('_ids')));
+    if (!isReferenceShape) return null;
+    if (!Array.isArray(allEntities) || allEntities.length === 0) return null;
+
+    const explicitRef = defField.reference_entity || defField.referenceEntity;
+    const inferredBase = String(defField.name || '').replace(/_ids?$/, '');
+    const baseName = String(explicitRef || inferredBase);
+    if (!baseName) return null;
+    const target = allEntities.find((e) =>
+      e && (
+        e.slug === baseName ||
+        e.slug === baseName + 's' ||
+        e.slug === baseName + 'es' ||
+        (baseName.endsWith('y') && e.slug === baseName.slice(0, -1) + 'ies') ||
+        (typeof e.slug === 'string' && e.slug.startsWith(baseName))
+      )
+    );
+    if (!target) return null;
+    if (target.label) return String(target.label);
+    if (target.display_name) return String(target.display_name);
+    if (target.displayName) return String(target.displayName);
+    return null;
+  },
+
+  _resolveFieldLabelForForm(field, allEntities) {
+    const auto = this._formatLabel(String(field.name || '').replace(/_ids?$/, ''));
     const fromSdf = field.label != null && field.label !== '' ? String(field.label) : null;
-    let text = fromSdf != null && fromSdf !== '' ? fromSdf : auto;
+    const refFallback = fromSdf == null ? this._resolveReferenceTargetLabel(field, allEntities) : null;
+    let text = fromSdf != null && fromSdf !== '' ? fromSdf : (refFallback || auto);
     if (this._language === 'tr') {
       const tr = pickTrFieldLabel(field.name, fromSdf);
       if (tr) text = tr;
@@ -41,10 +86,11 @@ module.exports = {
     return this._escapeJsString(text);
   },
 
-  _resolveColumnLabel(colName, defField) {
-    const auto = this._formatLabel(colName);
+  _resolveColumnLabel(colName, defField, allEntities) {
+    const auto = this._formatLabel(String(colName || '').replace(/_ids?$/, ''));
     const fromSdf = defField && defField.label != null && defField.label !== '' ? String(defField.label) : null;
-    let text = fromSdf != null && fromSdf !== '' ? fromSdf : auto;
+    const refFallback = fromSdf == null ? this._resolveReferenceTargetLabel(defField, allEntities) : null;
+    let text = fromSdf != null && fromSdf !== '' ? fromSdf : (refFallback || auto);
     if (this._language === 'tr') {
       const tr = pickTrFieldLabel(colName, fromSdf);
       if (tr) text = tr;
@@ -52,49 +98,81 @@ module.exports = {
     return this._escapeJsString(text);
   },
 
-  _generateFieldDefinitions(fields, features, allEntities) {
+  // Plan F B2 — resolve a `default_from` config path against the SDF
+  // modules tree. Path shape: 'modules.<module>.<key>[.<subkey>...]'. Returns
+  // the value at that path, or `undefined` when the path is missing or the
+  // sdf wasn't threaded through. Caller decides whether to fall through to
+  // `field.default`.
+  _resolveConfigPath(pathStr, sdf) {
+    if (!pathStr || typeof pathStr !== 'string') return undefined;
+    if (!sdf || typeof sdf !== 'object') return undefined;
+    const parts = pathStr.split('.').map((p) => p.trim()).filter(Boolean);
+    if (parts.length === 0) return undefined;
+    let cursor = sdf;
+    for (const key of parts) {
+      if (cursor && typeof cursor === 'object' && Object.prototype.hasOwnProperty.call(cursor, key)) {
+        cursor = cursor[key];
+      } else {
+        return undefined;
+      }
+    }
+    return cursor;
+  },
+
+  _generateFieldDefinitions(fields, features, allEntities, sdf) {
     const defs = [];
 
     for (const field of fields) {
       if (!field || ['id', 'created_at', 'updated_at'].includes(field.name)) continue;
-      // Server-maintained (computed) fields must never appear as editable
-      // inputs in create/edit forms. They are still persisted, shown in
-      // list views, and (where applicable) rendered in dedicated read-only
-      // bands such as the inventory "Stock Availability" band.
-      if (field.computed === true) continue;
 
       const rawOptions = field.options ?? field.enum ?? field.allowed_values ?? field.allowedValues;
       const options = Array.isArray(rawOptions)
         ? rawOptions.map((x) => String(x)).map((s) => s.trim()).filter(Boolean)
         : null;
 
-      let widget = field.widget || this._getWidgetForType(field.type);
-      if (typeof widget === 'string' && widget.length) {
-        const w = widget.trim();
-        const wNorm = w.toLowerCase();
-        const widgetMap = {
-          input: 'Input',
-          textinput: 'Input',
-          textarea: 'TextArea',
-          number: 'NumberInput',
-          numberinput: 'NumberInput',
-          checkbox: 'Checkbox',
-          date: 'DatePicker',
-          datepicker: 'DatePicker',
-          select: 'Select',
-          dropdown: 'Select',
-          radiogroup: 'RadioGroup',
-          radio: 'RadioGroup',
-          entityselect: 'EntitySelect',
-        };
-        widget = widgetMap[wNorm] || w;
+      // Plan F A4 — `computed: true` fields used to be skipped entirely so
+      // they never showed up in create/edit forms. We now emit them with a
+      // dedicated read-only `ComputedDisplay` widget so the user can SEE
+      // the live-computed value (e.g. invoice total) as they fill the
+      // form. The dedicated invoice totals panel and inventory
+      // availability band still exist; both read from formData (which the
+      // derived-field useEffect updates) so they stay consistent.
+      const isComputed = field.computed === true;
+
+      let widget;
+      if (isComputed) {
+        widget = 'ComputedDisplay';
+      } else {
+        widget = field.widget || this._getWidgetForType(field.type);
+        if (typeof widget === 'string' && widget.length) {
+          const w = widget.trim();
+          const wNorm = w.toLowerCase();
+          const widgetMap = {
+            input: 'Input',
+            textinput: 'Input',
+            textarea: 'TextArea',
+            number: 'NumberInput',
+            numberinput: 'NumberInput',
+            checkbox: 'Checkbox',
+            date: 'DatePicker',
+            datepicker: 'DatePicker',
+            select: 'Select',
+            dropdown: 'Select',
+            radiogroup: 'RadioGroup',
+            radio: 'RadioGroup',
+            entityselect: 'EntitySelect',
+            computeddisplay: 'ComputedDisplay',
+          };
+          widget = widgetMap[wNorm] || w;
+        }
+        if (!field.widget && options && options.length) {
+          widget = options.length <= 4 ? 'RadioGroup' : 'Select';
+        }
       }
-      if (!field.widget && options && options.length) {
-        // Fast tap-friendly UX for small enums, dropdown for larger.
-        widget = options.length <= 4 ? 'RadioGroup' : 'Select';
-      }
-      const label = this._resolveFieldLabelForForm(field);
-      const required = resolveEffectiveRequired(field);
+      const label = this._resolveFieldLabelForForm(field, allEntities);
+      // Computed fields are server-populated — never required at the form
+      // layer; the user can't fill them in.
+      const required = isComputed ? false : resolveEffectiveRequired(field);
 
       const extraParts = [];
 
@@ -115,6 +193,48 @@ module.exports = {
       if (options && options.length) {
         const opts = options.map((v) => `'${this._escapeJsString(v)}'`).join(', ');
         extraParts.push(`options: [${opts}]`);
+      }
+
+      // Plan G D3 — emit visibilityWhen predicate so DynamicForm can hide
+      // the field when the predicate doesn't match. The predicate is
+      // serialized via JSON.stringify so list-shaped values (in / not_in)
+      // and boolean values (is_set / is_unset) round-trip safely. Pydantic
+      // (D1) + sdfValidation.js (D2) have already enforced the shape; here
+      // we only filter to a known comparator and emit the canonical pair.
+      const visibilityWhen = field.visibility_when || field.visibilityWhen;
+      const VISIBILITY_OPERATORS = ['equals', 'not_equals', 'in', 'not_in', 'is_set', 'is_unset'];
+      if (visibilityWhen && typeof visibilityWhen === 'object'
+          && typeof visibilityWhen.field === 'string' && visibilityWhen.field.length > 0) {
+        const comparator = VISIBILITY_OPERATORS.find((k) =>
+          Object.prototype.hasOwnProperty.call(visibilityWhen, k));
+        if (comparator) {
+          const out = { field: visibilityWhen.field, [comparator]: visibilityWhen[comparator] };
+          extraParts.push(`visibilityWhen: ${JSON.stringify(out)}`);
+        }
+      }
+
+      // Inline help text rendered under the field input.
+      if (typeof field.help === 'string' && field.help.length > 0) {
+        extraParts.push(`help: '${this._escapeJsString(field.help)}'`);
+      }
+
+      // Plan F B2 — emit defaultValue, resolving `default_from` against the
+      // SDF modules tree at codegen time. `default` (an explicit literal)
+      // takes precedence; `default_from` is the fallback. Skip computed
+      // fields (server populates them) and skip altogether when neither is
+      // set.
+      if (!isComputed) {
+        let resolvedDefault;
+        if (field.default !== undefined) {
+          resolvedDefault = field.default;
+        } else if (typeof field.default_from === 'string' && field.default_from.length > 0) {
+          resolvedDefault = this._resolveConfigPath(field.default_from, sdf);
+        } else if (typeof field.defaultFrom === 'string' && field.defaultFrom.length > 0) {
+          resolvedDefault = this._resolveConfigPath(field.defaultFrom, sdf);
+        }
+        if (resolvedDefault !== undefined) {
+          extraParts.push(`defaultValue: ${JSON.stringify(resolvedDefault)}`);
+        }
       }
 
       const isReference = field.type === 'reference' || field.name.endsWith('_id') || field.name.endsWith('_ids');

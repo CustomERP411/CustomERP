@@ -52,6 +52,16 @@ export function buildPreview(sdf: AiGatewaySdf, labels: Partial<BuildPreviewLabe
   const modules = (sdf as any).modules && typeof (sdf as any).modules === 'object' ? (sdf as any).modules : {};
   const warningsRaw = (sdf as any).warnings;
   const warnings = Array.isArray(warningsRaw) ? warningsRaw.map(String).map((s) => s.trim()).filter(Boolean) : [];
+  // Plan D follow-up #8: audit list of modules the AI inferred from the
+  // description but the user-selected_modules clamp dropped. Surfaced in
+  // the generation report so the user knows what was silently filtered.
+  const inferredDroppedRaw = (sdf as any).inferred_dropped_modules;
+  const inferredDroppedModules = Array.isArray(inferredDroppedRaw)
+    ? inferredDroppedRaw
+        .map(String)
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    : [];
 
   const entityBySlug: Record<string, any> = Object.fromEntries(
     entities.map((e: any) => [String(e?.slug || ''), e] as const).filter(([slug]: readonly [string, any]) => Boolean(slug))
@@ -164,5 +174,5 @@ export function buildPreview(sdf: AiGatewaySdf, labels: Partial<BuildPreviewLabe
   const screensTotal = 1 + (enabledModules.some((m) => m.title === L.activityLog) ? 1 : 0) + (enabledModules.some((m) => m.title === L.reports) ? 1 : 0) + entitySummaries.reduce((acc: number, e: any) => acc + e.screens.length, 0);
   const moduleSummaries = summarizeModulesForPreview(modules, entities);
 
-  return { projectName, entityCount: entitySummaries.length, screensTotal, enabledModules, warnings, entities: entitySummaries, moduleSummaries };
+  return { projectName, entityCount: entitySummaries.length, screensTotal, enabledModules, warnings, inferredDroppedModules, entities: entitySummaries, moduleSummaries };
 }

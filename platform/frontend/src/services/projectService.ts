@@ -1,6 +1,12 @@
 import api from './api';
 import type { Project, CreateProjectRequest } from '../types/project';
-import type { AnalyzeProjectResponse, AnswerReview, ClarificationAnswer, AiGatewaySdf } from '../types/aiGateway';
+import type {
+  AnalyzeProjectResponse,
+  AnswerReview,
+  ClarificationAnswer,
+  AiGatewaySdf,
+  ModulePrecheckResponse,
+} from '../types/aiGateway';
 import type { DefaultQuestionStateResponse, SaveDefaultAnswersRequest } from '../types/defaultQuestions';
 import type { ReviewHistoryItem } from '../components/project/ReviewApprovalPanel';
 
@@ -38,12 +44,24 @@ export interface RevisionResponse {
   answer_review?: AnswerReview;
 }
 
+// Plan K — bilingual feature labels emitted by the chatbot. The backend
+// always returns objects (legacy strings are normalized server-side), but
+// keep `string` in the union to be robust against older clients/cached
+// payloads.
+export interface UnsupportedFeatureRef {
+  name_en: string;
+  name_native: string;
+}
+
 export interface ChatWithProjectResponse {
   reply: string;
   suggested_modules: string[];
   discussion_points: string[];
   confidence: 'low' | 'medium' | 'high';
-  unsupported_features: string[];
+  unsupported_features: (UnsupportedFeatureRef | string)[];
+  // Plan K — off-topic suggestions stripped by the chat scope guard.
+  // Surfaced so the UI can show a "we ignored: ..." audit banner.
+  dropped_unsupported_features?: (UnsupportedFeatureRef | string)[];
 }
 
 export interface ProjectConversationRecord {
@@ -113,6 +131,26 @@ export const projectService = {
         ? { acknowledged_unsupported_features: options.acknowledged_unsupported_features }
         : {}),
     }, { timeout: 300000 });
+    return response.data;
+  },
+
+  // Plan D follow-up #8: advisory module precheck. Lightweight endpoint —
+  // does not mutate any state, fails open with `{ inferred_modules: [] }`
+  // when the backend can't reach the gateway. Safe to call from
+  // debounced `onBlur` handlers.
+  precheckModules: async (
+    id: string,
+    description: string,
+    selectedModules: string[]
+  ): Promise<ModulePrecheckResponse> => {
+    const response = await api.post<ModulePrecheckResponse>(
+      `/projects/${id}/ai/precheck-modules`,
+      {
+        description,
+        selected_modules: Array.isArray(selectedModules) ? selectedModules : [],
+      },
+      { timeout: 30000 }
+    );
     return response.data;
   },
 

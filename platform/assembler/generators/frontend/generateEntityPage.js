@@ -22,6 +22,7 @@ const { buildInvoiceWorkflowPage, buildInvoicePaymentsPage, buildInvoiceNotesPag
 const { buildLeaveApprovalsPage, buildLeaveBalancesPage, buildAttendanceEntriesPage } = require('./hrPriorityPages');
 const { tFor } = require('../../i18n/labels');
 const { pickTrEntityDisplayName } = require('../../i18n/glossaryI18n');
+const { listAllActorSpecs } = require('../../assembler/actorRegistry');
 
 module.exports = {
   async generateEntityPage(outputDir, entity, allEntities, sdf = {}) {
@@ -65,7 +66,16 @@ module.exports = {
     const fields = Array.isArray(entity.fields) ? entity.fields : [];
     const t = tFor(this._language || 'en');
 
-    const fieldDefs = this._generateFieldDefinitions(fields, entity.features || {}, allEntities);
+    const fieldDefs = this._generateFieldDefinitions(fields, entity.features || {}, allEntities, sdf);
+
+    // Plan F A6 — extract derived-field relations for this entity so the
+    // form can echo computed columns (subtotal, tax_total, leave_days, ...)
+    // live as the user types. Server is still authoritative on persist.
+    const derivedRelations = Array.isArray(entity.relations)
+      ? entity.relations
+          .filter((r) => r && r.kind === 'derived_field' && r.computed_field && r.formula)
+          .map((r) => ({ computed_field: String(r.computed_field), formula: String(r.formula) }))
+      : [];
 
     const ui = entity.ui || {};
     const enableSearch = ui.search !== false;
@@ -177,7 +187,7 @@ module.exports = {
     const tableColumns = finalColumns
       .map((colName) => {
         const defField = fields.find((f) => f && f.name === colName);
-        const label = this._resolveColumnLabel(colName, defField);
+        const label = this._resolveColumnLabel(colName, defField, allEntities);
         return `    { key: '${colName}', label: '${label}' },`;
       })
       .join('\n');
@@ -280,7 +290,7 @@ module.exports = {
 
         const columnDefs = cols.map((colName) => {
           const defField = childFields.find((f) => f && f.name === colName);
-          const label = this._resolveColumnLabel(colName, defField);
+          const label = this._resolveColumnLabel(colName, defField, allEntities);
           const rawOptions = defField ? (defField.options ?? defField.enum ?? defField.allowed_values ?? defField.allowedValues) : null;
           const options = Array.isArray(rawOptions) ? rawOptions.map((x) => String(x)).map((s) => s.trim()).filter(Boolean) : null;
           const isReference = defField && (defField.type === 'reference' || String(defField.name || '').endsWith('_id') || String(defField.name || '').endsWith('_ids'));
@@ -311,7 +321,8 @@ module.exports = {
         const childFormFields = this._generateFieldDefinitions(
           childFields.filter((f) => f && f.name !== foreignKey),
           childEntity.features || {},
-          allEntities
+          allEntities,
+          sdf
         );
 
         const childSectionLabel = (() => {
@@ -323,12 +334,22 @@ module.exports = {
           return String(childEntity.display_name || this._formatLabel(childSlug));
         })();
 
+        // Plan F A6 — extract derived-field relations from the child entity
+        // so the row's create/edit modal can echo line_total etc. live as
+        // the user types. Server is still authoritative on persist.
+        const childDerivedRelations = Array.isArray(childEntity.relations)
+          ? childEntity.relations
+              .filter((r) => r && r.kind === 'derived_field' && r.computed_field && r.formula)
+              .map((r) => ({ computed_field: String(r.computed_field), formula: String(r.formula) }))
+          : [];
+
         childSections.push({
           childSlug,
           foreignKey,
           label: childSectionLabel,
           columns: columnDefs,
           formFields: childFormFields,
+          derivedRelations: childDerivedRelations,
         });
       }
     }
@@ -353,6 +374,7 @@ module.exports = {
               title: this._t('companionUser.title'),
               createLogin: this._t('companionUser.createLogin'),
               username: this._t('companionUser.username'),
+              email: this._t('formPage.emailLabel'),
               password: this._t('companionUser.password'),
               roles: this._t('companionUser.roles'),
               active: this._t('companionUser.active'),
@@ -365,11 +387,30 @@ module.exports = {
           }
         : null;
 
+    // Plan H F1 — auto-derive inbound rollup sections from every other
+    // entity's reference fields that point at this entity. The render block
+    // (Plan H F2) is read-only, deep-links rows to the source entity's edit
+    // page, and the Add button deep-links to the source's new-form page
+    // with the FK pre-filled (Plan H F3).
+    const rollupSections = this._buildInboundRollupSections(entity, allEntities, sdf);
+
+    // UI Sections — opt-in per entity. When `entity.ui.sections` is a
+    // non-empty array, the form-page generator emits a section-driven
+    // render that interleaves field groups with named slots
+    // (line items / rollups / totals / stock availability / companion
+    // user). Pydantic + sdfValidation.js have already enforced shape and
+    // cross-references, so we just thread the value through.
+    const uiSections = entity && entity.ui && Array.isArray(entity.ui.sections) && entity.ui.sections.length > 0
+      ? entity.ui.sections
+      : null;
+
     const formPageContent = buildEntityFormPage({
       entity,
       entityName,
       fieldDefs,
+      derivedRelations,
       childSections,
+      rollupSections,
       escapeJsString: (s) => this._escapeJsString(s),
       importBase,
       invoiceConfig: isInvoiceEntity ? invoiceConfig : null,
@@ -380,6 +421,7 @@ module.exports = {
       availabilityLabels,
       companionUserConfig,
       language: this._language,
+      sections: uiSections,
     });
 
     await fs.writeFile(path.join(modulePagesDir, `${entityName}Page.tsx`), listPageContent);
@@ -690,5 +732,232 @@ module.exports = {
       });
       await fs.writeFile(path.join(modulePagesDir, `${entityName}AttendancePage.tsx`), attendancePageContent);
     }
+  },
+
+  // Plan H F1 — return inbound rollup section descriptors for `entity`. We
+  // scan every OTHER entity in `allEntities` for `field.type == 'reference'`
+  // (or explicit `reference_entity`) pointing at the current entity and emit
+  // one read-only section per inbound foreign key, after applying:
+  //
+  //   1. System-entity exclusion: never auto-rollup INTO `__erp_*` /
+  //      `__audit_logs` / `__reports` detail pages, and skip source entities
+  //      whose slug starts with `__erp_` or is `__audit_logs` / `__reports`.
+  //   2. Actor-field exclusion: when the target is `__erp_users`, skip any
+  //      source field whose name appears in the canonical actor registry
+  //      (`approved_by`, `posted_by`, ...). Otherwise the user detail page
+  //      would explode into a section per actor field across the SDF.
+  //   3. Children-overlap exclusion: if `entity.children[]` already declares
+  //      `{ entity: source.slug, foreign_key: field.name }`, the existing
+  //      CHILD_SECTIONS render covers that FK — don't duplicate.
+  //   4. Disabled-module exclusion: `allEntities` is already filtered to
+  //      enabled modules at scaffold time (FrontendGenerator.scaffold), so
+  //      iterating it implicitly drops sources whose module is off.
+  //
+  // Per-entity overrides at `entity.rollups[sourceSlug]`:
+  //   - `false`: suppress all rollups for that source.
+  //   - `{ label?, columns?, foreign_key? }`: customize. `foreign_key`
+  //     narrows to a single FK (useful when one source has multiple FKs to
+  //     the same target). `columns` is an explicit ordered list. `label` is
+  //     the section heading.
+  //
+  // When two FKs from the same source target the same entity (e.g.
+  // `invoices.customer_id` and `invoices.bill_to_customer_id`), the section
+  // labels are disambiguated with `(<fk_label>)` so the user can tell them
+  // apart.
+  //
+  // Returns an array of `{ sourceSlug, foreignKey, label, columns,
+  // displayField, sourceModule }` descriptors — same column shape used by
+  // CHILD_SECTIONS so the formPage emitter shares rendering helpers.
+  _buildInboundRollupSections(entity, allEntities, sdf) {
+    if (!entity || !entity.slug) return [];
+    const targetSlug = String(entity.slug);
+    const SYSTEM_PREFIX = '__erp_';
+    const SYSTEM_SLUGS = new Set(['__audit_logs', '__reports']);
+    if (targetSlug.startsWith(SYSTEM_PREFIX) || SYSTEM_SLUGS.has(targetSlug)) return [];
+    if (!Array.isArray(allEntities) || allEntities.length === 0) return [];
+
+    const childrenSet = new Set();
+    if (Array.isArray(entity.children)) {
+      for (const ch of entity.children) {
+        if (!ch || typeof ch !== 'object') continue;
+        const cSlug = String(ch.entity || ch.slug || '').trim();
+        const fk = String(ch.foreign_key || ch.foreignKey || '').trim();
+        if (cSlug && fk) childrenSet.add(`${cSlug}:${fk}`);
+      }
+    }
+
+    const isUsersTarget = targetSlug === '__erp_users';
+    let actorFieldNames = null;
+    if (isUsersTarget) {
+      actorFieldNames = new Set();
+      try {
+        for (const { spec } of listAllActorSpecs()) {
+          if (spec && spec.field) actorFieldNames.add(String(spec.field));
+        }
+      } catch {
+        actorFieldNames = new Set();
+      }
+    }
+
+    const overrides = (entity.rollups && typeof entity.rollups === 'object') ? entity.rollups : {};
+    const sections = [];
+
+    for (const source of allEntities) {
+      if (!source || !source.slug) continue;
+      const sourceSlug = String(source.slug);
+      if (sourceSlug === targetSlug) continue;
+      if (sourceSlug.startsWith(SYSTEM_PREFIX) || SYSTEM_SLUGS.has(sourceSlug)) continue;
+
+      const override = Object.prototype.hasOwnProperty.call(overrides, sourceSlug) ? overrides[sourceSlug] : undefined;
+      if (override === false) continue;
+      const overrideObj = (override && typeof override === 'object' && !Array.isArray(override)) ? override : null;
+      const overrideFk = overrideObj && typeof overrideObj.foreign_key === 'string' && overrideObj.foreign_key.trim()
+        ? overrideObj.foreign_key.trim()
+        : null;
+
+      const sourceFields = Array.isArray(source.fields) ? source.fields : [];
+      const inbound = [];
+      for (const field of sourceFields) {
+        if (!field || !field.name) continue;
+        if (!this._fieldReferencesEntity(field, targetSlug)) continue;
+        if (isUsersTarget && actorFieldNames && actorFieldNames.has(String(field.name))) continue;
+        if (childrenSet.has(`${sourceSlug}:${field.name}`)) continue;
+        if (overrideFk && String(field.name) !== overrideFk) continue;
+        inbound.push(field);
+      }
+      if (inbound.length === 0) continue;
+
+      const sourceLocalizedLabel = (() => {
+        if (this._language === 'tr') {
+          const picked = pickTrEntityDisplayName(sourceSlug, source.display_name);
+          if (picked) return String(picked);
+        }
+        return String(source.display_name || this._formatLabel(sourceSlug));
+      })();
+
+      const sourceDisplayField = this._guessDisplayField(source);
+      const sourceModule = this._getModuleKey(source);
+
+      for (const field of inbound) {
+        const fkName = String(field.name);
+        const sectionLabel = (() => {
+          if (overrideObj && typeof overrideObj.label === 'string' && overrideObj.label.trim()) {
+            return overrideObj.label.trim();
+          }
+          if (inbound.length > 1) {
+            const viaText = field.label && String(field.label).trim()
+              ? String(field.label).trim()
+              : this._formatLabel(fkName.replace(/_ids?$/, ''));
+            return `${sourceLocalizedLabel} (${viaText})`;
+          }
+          return sourceLocalizedLabel;
+        })();
+
+        const overrideCols = overrideObj && Array.isArray(overrideObj.columns)
+          ? overrideObj.columns.map((c) => String(c || '').trim()).filter(Boolean)
+          : null;
+
+        let pickedColNames;
+        if (overrideCols && overrideCols.length) {
+          pickedColNames = overrideCols;
+        } else {
+          const candidates = sourceFields
+            .filter((f) => f && f.name && !['id', 'created_at', 'updated_at'].includes(f.name) && f.name !== fkName)
+            .map((f) => String(f.name));
+          const ordered = [];
+          const seen = new Set();
+          const push = (n) => {
+            if (n && !seen.has(n) && candidates.includes(n)) {
+              ordered.push(n);
+              seen.add(n);
+            }
+          };
+          push(sourceDisplayField);
+          push('status');
+          for (const f of sourceFields) {
+            if (!f || !f.name) continue;
+            if (seen.has(f.name)) continue;
+            if (['id', 'created_at', 'updated_at', fkName].includes(f.name)) continue;
+            const t = String(f.type || '').toLowerCase();
+            if (t === 'date' || t === 'datetime') { push(f.name); break; }
+          }
+          for (const f of sourceFields) {
+            if (!f || !f.name) continue;
+            if (seen.has(f.name)) continue;
+            if (['id', 'created_at', 'updated_at', fkName].includes(f.name)) continue;
+            const t = String(f.type || '').toLowerCase();
+            if (t === 'decimal' || t === 'number' || t === 'integer' || t === 'money') { push(f.name); break; }
+          }
+          for (const c of candidates) {
+            if (ordered.length >= 4) break;
+            push(c);
+          }
+          pickedColNames = ordered.slice(0, 4);
+        }
+
+        const columnDefs = pickedColNames.map((colName) => {
+          const defField = sourceFields.find((f) => f && f.name === colName);
+          const label = this._resolveColumnLabel(colName, defField, allEntities);
+          const isReference = defField && (
+            defField.type === 'reference' ||
+            String(defField.name || '').endsWith('_id') ||
+            String(defField.name || '').endsWith('_ids')
+          );
+          let referenceEntity = null;
+          if (isReference) {
+            const explicitRef = defField.reference_entity || defField.referenceEntity;
+            const inferredBase = String(defField.name).replace(/_ids?$/, '');
+            const baseName = String(explicitRef || inferredBase);
+            const targetEntity = (allEntities || []).find((e) =>
+              e && (
+                e.slug === baseName ||
+                e.slug === baseName + 's' ||
+                e.slug === baseName + 'es' ||
+                (baseName.endsWith('y') && e.slug === baseName.slice(0, -1) + 'ies') ||
+                (typeof e.slug === 'string' && e.slug.startsWith(baseName))
+              )
+            );
+            referenceEntity = targetEntity ? targetEntity.slug : (explicitRef ? String(explicitRef) : null);
+          }
+          const multiple = defField && (
+            defField.multiple === true ||
+            defField.is_array === true ||
+            String(defField.name || '').endsWith('_ids')
+          );
+          return { key: colName, label, referenceEntity, multiple: !!multiple };
+        });
+
+        sections.push({
+          sourceSlug,
+          foreignKey: fkName,
+          label: sectionLabel,
+          columns: columnDefs,
+          displayField: sourceDisplayField,
+          sourceModule,
+        });
+      }
+    }
+
+    return sections;
+  },
+
+  // Plan H F1 helper — strict inbound-FK check. We require either an
+  // explicit `reference_entity`/`referenceEntity` matching the target slug,
+  // or `type === 'reference'` with name-based inference (strip `_id`/`_ids`
+  // and resolve via the same pluralization heuristics fieldUtils already
+  // uses for label fallback). Loose `_id`-suffix-only matches are excluded
+  // to keep auto-derive quiet on system/audit columns.
+  _fieldReferencesEntity(field, targetSlug) {
+    if (!field || !targetSlug) return false;
+    const explicitRef = field.reference_entity || field.referenceEntity;
+    if (explicitRef) return String(explicitRef) === String(targetSlug);
+    if (field.type !== 'reference') return false;
+    const inferredBase = String(field.name || '').replace(/_ids?$/, '');
+    if (!inferredBase) return false;
+    if (inferredBase === targetSlug) return true;
+    if (inferredBase + 's' === targetSlug) return true;
+    if (inferredBase + 'es' === targetSlug) return true;
+    if (inferredBase.endsWith('y') && inferredBase.slice(0, -1) + 'ies' === targetSlug) return true;
+    return false;
   },
 };

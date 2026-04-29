@@ -21,6 +21,9 @@ from .services.base_client import BaseAIClient
 from .schemas.sdf import SystemDefinitionFile
 from .schemas.clarify import ClarifyRequest
 from .schemas.multi_agent import AgentStepLog
+from .schemas.precheck import PrecheckRequest, PrecheckResponse
+from .services.precheck_service import PrecheckService
+from .services.chat_scope_guard import strip_offtopic_features
 from .prompts.sdf_generation import get_chat_prompt
 
 # Initialize FastAPI app
@@ -235,7 +238,14 @@ class ChatResponse(BaseModel):
     suggested_modules: List[str] = Field(default_factory=list)
     discussion_points: List[str] = Field(default_factory=list)
     confidence: str = "medium"
-    unsupported_features: List[str] = Field(default_factory=list)
+    # Plan K — bilingual feature objects: {name_en, name_native}. Strings
+    # remain accepted on the wire for backward compatibility, but the chat
+    # endpoint normalizes everything to dicts before returning.
+    unsupported_features: List[Dict[str, Any]] = Field(default_factory=list)
+    # Plan K — audit trail for off-topic suggestions stripped by the
+    # chat_scope_guard. Mirrors `inferred_dropped_modules` in the precheck
+    # response (Plan D §3.5). Empty in the happy path.
+    dropped_unsupported_features: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 _chatbot_client: Optional[BaseAIClient] = None
@@ -315,12 +325,20 @@ async def chat_endpoint(request: ChatRequest):
         )
 
         data = _parse_chat_json(result.text)
+        # Plan K — strip off-topic suggestions and surface them as audit. The
+        # guard normalizes string-shaped legacy entries into the bilingual
+        # `{name_en, name_native}` shape so downstream consumers only see
+        # one structure.
+        kept_features, dropped_features = strip_offtopic_features(
+            request.message, data.get("unsupported_features", []) or []
+        )
         chat_response = ChatResponse(
             reply=data.get("reply", "I'm sorry, I couldn't generate a response. Please try again."),
             suggested_modules=data.get("suggested_modules", []),
             discussion_points=data.get("discussion_points", []),
             confidence=data.get("confidence", "medium"),
-            unsupported_features=data.get("unsupported_features", []),
+            unsupported_features=kept_features,
+            dropped_unsupported_features=dropped_features,
         )
         chat_step = {
             "agent": "chatbot", "model": config.model,
@@ -435,6 +453,43 @@ async def analyze(request: AnalyzeRequest):
             await asyncio.sleep(10)
             _generation_progress.pop(pid, None)
         asyncio.create_task(_cleanup())
+
+
+# ── Module Precheck (Plan D follow-up #8) ─────────────────────────────
+#
+# Lightweight, single-LLM-call advisory endpoint. Reads ONLY the business
+# description and the modules the user has already selected. Returns
+# suggested modules (or `[]`) so the wizard UI can surface a dismissable
+# advisory banner. Does NOT mutate any state.
+
+_precheck_service: Optional[PrecheckService] = None
+
+
+def get_precheck_service() -> PrecheckService:
+    global _precheck_service
+    if _precheck_service is None:
+        _precheck_service = PrecheckService()
+    return _precheck_service
+
+
+@app.post("/ai/precheck_modules", response_model=PrecheckResponse, tags=["Module Precheck"])
+async def precheck_modules_endpoint(request: PrecheckRequest):
+    """Advisory module precheck (Plan D follow-up #8).
+
+    The endpoint is intentionally narrow: only `business_description`,
+    `selected_modules`, `language`. This shape eliminates platform-meta
+    cues (e.g. "5 people will use the system") at the source — they cannot
+    enter the prompt because they live in the wizard answers, which we do
+    not accept.
+    """
+    try:
+        service = get_precheck_service()
+        return await service.precheck_modules(request)
+    except Exception as e:
+        print(f"[ERROR] /ai/precheck_modules failed: {e}")
+        # Advisory endpoint — fail open with an empty list so the wizard
+        # UI does not block on transient gateway failures.
+        return PrecheckResponse(inferred_modules=[])
 
 
 @app.post("/ai/clarify", response_model=SystemDefinitionFile, response_model_exclude_none=True, tags=["SDF Generation"])

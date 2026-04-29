@@ -43,8 +43,15 @@ Do NOT include system-managed fields in `entity.fields`:
 The generator adds/maintains those automatically.
 
 # RELATIONSHIPS:
-Do NOT output a separate `relations` list.
-Represent relationships ONLY via reference fields (`type: "reference"`, `reference_entity: "<slug>"`).
+Relationships go in TWO places:
+  (1) Foreign keys belong on the field itself — use
+      `type: "reference"`, `reference_entity: "<slug>"`.
+  (2) Cross-feature behavior (status changes that fan out, server-derived fields,
+      forbidden overlaps, RBAC scopes) goes in `entity.relations[]` using the
+      coherence-layer primitives (reference_contract, status_propagation,
+      derived_field, invariant, permission_scope). See SDF schema reference
+      for the JSON shape of each primitive.
+Do NOT output a top-level `relations` list — relations live INSIDE each entity.
 
 # MODULE SELECTION (USE IF RELEVANT):
 If the description mentions inventory, stock, low-stock alerts, expiry, movements, scanning, etc., configure `modules` and per-entity configs:
@@ -82,7 +89,9 @@ When HR is enabled, ALWAYS create ALL THREE standard entities (do NOT wait for u
   - `email` (string, required, unique), `phone` (string)
   - `job_title` (string, required), `hire_date` (date, required)
   - department reference field (reference to departments entity, required)
-  - `salary` (decimal)
+  - `salary` (decimal) — current pay rate, optional
+  - `salary_currency` (string, options: ["TRY","USD","EUR"], default "TRY")
+  - `salary_frequency` (string, options: ["Monthly","Yearly"], default "Monthly")
   - `status` (string, options: ["Active", "Terminated", "On Leave"], required)
   - Set `features.audit_trail: true`
 - ALWAYS create a leaves entity (module: "hr") with AT MINIMUM these fields:

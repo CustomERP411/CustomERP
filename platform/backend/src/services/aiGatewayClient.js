@@ -134,9 +134,28 @@ async function validateDescription(description, options = {}) {
   });
 }
 
+// Plan D follow-up #8: advisory module precheck.
+// Returns shape: { inferred_modules: [{module, reason, confidence}] }.
+async function precheckModules(description, options = {}) {
+  if (!description || typeof description !== 'string') {
+    throw new Error('description must be a string');
+  }
+  const selectedModules = Array.isArray(options.selectedModules)
+    ? options.selectedModules
+        .filter((m) => typeof m === 'string' && m.trim())
+        .map((m) => m.trim())
+    : [];
+  return await postJson('/ai/precheck_modules', {
+    business_description: description,
+    selected_modules: selectedModules,
+    language: resolveLanguage(options),
+  });
+}
+
 module.exports = {
   analyzeDescription,
   validateDescription,
+  precheckModules,
   clarifySdf,
   finalizeSdf,
   editSdf,

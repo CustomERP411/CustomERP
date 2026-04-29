@@ -15,6 +15,7 @@
   },
   "errorFallback": "Üzgünüm, mesajınızı işleyemedim. Lütfen tekrar deneyin.",
   "recordedForFuture": "Gelecek geliştirmeler için kaydedildi:",
+  "weIgnored": "Konu dışı önerileri yok saydık:",
   "openChat": "Yapay zekâ asistanını aç",
   "closeChat": "Yapay zekâ asistanını kapat",
   "helpPrompt": {

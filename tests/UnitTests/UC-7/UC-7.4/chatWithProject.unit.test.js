@@ -206,12 +206,15 @@ describe('UC-7.4 / projectAiController.chatWithProject', () => {
       res,
     );
 
+    // Plan K §K4 — controllers now thread project.language through so
+    // chatbot-recorded features get persisted bilingually.
     expect(featureRequestService.recordFeatures).toHaveBeenCalledWith({
       userId: 'u-1',
       projectId: 'p-1',
       source: 'chatbot',
       features: unsupported,
       userPrompt: 'Can I use face recognition login?',
+      language: 'en',
     });
     expect(res.json).toHaveBeenCalledWith({
       reply: 'That feature is not supported yet.',

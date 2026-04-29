@@ -188,6 +188,22 @@
     "source_reference": "Kaynak Referansı",
     "started_at": "Başlangıç Zamanı",
     "supplier_name": "Tedarikçi Adı",
-    "unit_cost": "Birim Maliyet"
+    "unit_cost": "Birim Maliyet",
+    "approved_by": "Onaylayan",
+    "posted_by": "Kayıt Eden",
+    "cancelled_by": "İptal Eden",
+    "requested_by": "Talep Eden",
+    "recorded_by": "Kaydeden",
+    "submitted_by": "Gönderen",
+    "received_by": "Teslim Alan",
+    "counted_by": "Sayan",
+    "created_by": "Oluşturan",
+    "approver_id": "Onaylayan",
+    "user_id": "Kullanıcı",
+    "manager_id": "Yönetici",
+    "salary": "Maaş",
+    "salary_currency": "Maaş Para Birimi",
+    "salary_frequency": "Maaş Dönemi",
+    "termination_date": "İşten Ayrılma Tarihi"
   }
 }

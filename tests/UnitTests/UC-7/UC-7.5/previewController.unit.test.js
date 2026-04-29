@@ -72,6 +72,7 @@ beforeEach(() => {
     id: 'p-1',
     name: 'Acme ERP',
     language: 'tr',
+    status: 'Generated',
   });
 });
 

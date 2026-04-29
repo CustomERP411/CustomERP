@@ -265,6 +265,28 @@ class SDFService:
                     f"(not in selected_modules={sorted(normalized_selected)})"
                 )
 
+            # Plan D follow-up #8: union the orchestration clamp's drops
+            # with anything we caught here in the postfilter, so the audit
+            # trail is complete regardless of which guardrail tripped.
+            audit_seen: set[str] = set()
+            audit_drops: List[str] = []
+            for src in (
+                list(getattr(result, "inferred_dropped_modules", []) or []),
+                [k.lower() for k in dropped_module_keys if isinstance(k, str)],
+            ):
+                for slug in src:
+                    if slug and slug not in audit_seen:
+                        audit_seen.add(slug)
+                        audit_drops.append(slug)
+            if audit_drops:
+                # Refresh the pipeline result so callers downstream of the
+                # tuple-return path also see the union.
+                try:
+                    result.inferred_dropped_modules = audit_drops
+                except Exception:
+                    pass
+                data["inferred_dropped_modules"] = audit_drops
+
         if on_progress:
             on_progress("validating", 95, "Finalizing your ERP")
         try:

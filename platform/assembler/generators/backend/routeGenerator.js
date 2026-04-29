@@ -6,6 +6,8 @@ const path = require('path');
 module.exports = {
   async _generateEntityRoute(moduleSrcDir, entity, context) {
     const workflowRoutes = this._buildWorkflowRouteDefinitions(entity);
+    const draftRoute = this._buildDraftRouteDefinition(entity);
+    const extraRoutes = [draftRoute, workflowRoutes].filter(Boolean).join('\n');
     const routeTemplate = `
 const express = require('express');
 const router = express.Router();
@@ -18,7 +20,7 @@ router.get('/:id', (req, res) => controller.getById(req, res));
 router.post('/', (req, res) => controller.create(req, res));
 router.put('/:id', (req, res) => controller.update(req, res));
 router.delete('/:id', (req, res) => controller.delete(req, res));
-${workflowRoutes ? `\n${workflowRoutes}\n` : ''}
+${extraRoutes ? `\n${extraRoutes}\n` : ''}
 
 module.exports = router;
 `;
@@ -27,6 +29,16 @@ module.exports = router;
       path.join(moduleSrcDir, `routes/${entity.slug}Routes.js`),
       content
     );
+  },
+
+  // Plan H — emit POST /draft for entities that qualify for the auto-draft
+  // creation flow. The same RBAC `${slug}.create` permission gate that wraps
+  // the standard CRUD block applies here (mounted in routes/index.js), so no
+  // additional permission wiring is needed.
+  _buildDraftRouteDefinition(entity) {
+    if (typeof this._qualifiesForAutoDraft !== 'function') return '';
+    if (!this._qualifiesForAutoDraft(entity)) return '';
+    return `router.post('/draft', (req, res) => controller.runAction(req, res, 'createDraft', req.body || {}));`;
   },
 
   _buildWorkflowRouteDefinitions(entity) {

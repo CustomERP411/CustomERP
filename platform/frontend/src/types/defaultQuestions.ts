@@ -53,6 +53,52 @@ export interface ModuleTemplateVersionInfo {
   source_path?: string | null;
 }
 
+// Plan C — wizard wiring. The dependency graph the backend ships down so the
+// frontend can mirror coercion + render hints/badges. Same shape as
+// dependencyGraph.serializeForApi() in the backend.
+export interface DependencyHardRequire {
+  downstream: string;
+  upstream: string;
+  reason_key: string;
+  reason_default_en?: string;
+  reason_default_tr?: string;
+}
+
+export interface DependencyFeedsHint {
+  from: string;
+  to: string;
+  hint_key: string;
+  default_en?: string;
+  default_tr?: string;
+}
+
+export interface DependencyLinkToggle {
+  key: string;
+  pack_module: string;
+  requires_both: string[];
+  sdf_target: string;
+  default_on: boolean;
+}
+
+export interface DependencyGraph {
+  hard_requires: DependencyHardRequire[];
+  feeds_hints: DependencyFeedsHint[];
+  link_toggles: DependencyLinkToggle[];
+  actor_driven_packs: string[];
+  module_presence_keys: Record<string, string>;
+}
+
+export interface CoercedAnswer {
+  key: string;
+  was: string | string[] | null;
+  now: string | string[];
+  direction: 'auto_enable' | 'cascade_off';
+  driver: string;
+  reason_key: string;
+  question_id?: string | null;
+  driver_question_id?: string | null;
+}
+
 export interface DefaultQuestionStateResponse {
   modules: string[];
   template_versions: Record<string, ModuleTemplateVersionInfo>;
@@ -63,6 +109,8 @@ export interface DefaultQuestionStateResponse {
   prefilled_sdf_version?: number | null;
   prefill_validation?: DefaultQuestionCompletion;
   project?: Project;
+  dependency_graph?: DependencyGraph;
+  coerced?: CoercedAnswer[];
 }
 
 export interface SaveDefaultAnswersRequest {

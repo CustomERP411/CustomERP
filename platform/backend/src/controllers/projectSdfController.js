@@ -4,6 +4,7 @@ const aiGatewayClient = require('../services/aiGatewayClient');
 const SDF = require('../models/SDF');
 const { validateGeneratorSdf } = require('./projectHelpers');
 const featureRequestService = require('../services/featureRequestService');
+const { applyActorMigration } = require('../services/sdfActorMigration');
 
 function normalizeAcknowledgedFeatures(body) {
   const raw = body?.acknowledged_unsupported_features || body?.acknowledgedUnsupportedFeatures || [];
@@ -26,7 +27,13 @@ exports.getLatestSdf = async (req, res) => {
     }
 
     const latest = await SDF.findLatestByProject(projectId);
-    res.json({ sdf: latest?.sdf_json || null, sdf_version: latest?.version || null });
+    // Plan B follow-up #3: defensive read-time migration. Stored legacy SDFs
+    // (saved before the actor migration shipped) are upgraded in memory so
+    // the client always sees reference -> __erp_users actor fields and the
+    // matching coherence relations. The DB row is left untouched here; the
+    // one-shot CLI script (scripts/migrate_sdf_actors.js) handles persistence.
+    const migrated = applyActorMigration(latest?.sdf_json || null);
+    res.json({ sdf: migrated || null, sdf_version: latest?.version || null });
   } catch (err) {
     logger.error('Get latest SDF error:', err);
     const status = err.statusCode && Number.isFinite(err.statusCode) ? err.statusCode : 500;

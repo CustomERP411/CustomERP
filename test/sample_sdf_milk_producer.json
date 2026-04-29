@@ -194,6 +194,14 @@
         { "name": "best_before_date", "type": "date", "label": "Best Before Date", "required": true },
         { "name": "is_active", "type": "boolean", "label": "Active?", "required": false }
       ],
+      "relations": [
+        {
+          "kind": "permission_scope",
+          "permission": "inventory.dairy_skus.write",
+          "scope": "module",
+          "actions": ["create", "update", "delete"]
+        }
+      ],
       "features": {
         "batch_tracking": true,
         "audit_trail": true

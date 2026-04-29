@@ -58,10 +58,96 @@
   "module": "string (hr|invoice|inventory|shared)",
   "fields": [ ... ],
   "features": { "audit_trail": boolean, "print_invoice": boolean },
-  "ui": { "search": boolean, "csv_import": boolean, "csv_export": boolean },
+  "ui": { "search": boolean, "csv_import": boolean, "csv_export": boolean, "sections": [ ... ] },
   "inventory_ops": { "enabled": boolean, "quantity_field": "string", "receive": {...}, "adjust": {...} },
-  "children": [{ "entity": "string", "foreign_key": "string", "label": "string" }]
+  "children": [{ "entity": "string", "foreign_key": "string", "label": "string" }],
+  "rollups": { "<source_entity_slug>": false | { "label": "string", "columns": ["string", ...], "foreign_key": "string" } }
 }
+
+## Rollup overrides — `entity.rollups` (Plan H)
+Detail pages auto-render a read-only "rollup" section per inbound foreign-key
+reference targeting this entity. Customer detail lists invoices, Department
+detail lists employees, Employee detail lists leave requests — all without
+extra SDF authoring. The auto-derive picks `display_field` plus up to 3 more
+relevant columns (status, primary date, primary money column).
+
+`entity.rollups` is an OPTIONAL escape hatch: keys are SOURCE-entity slugs
+(the entity that owns the inbound FK), and values are either:
+  - `false`            — suppress the auto-derived rollup entirely.
+  - object with optional fields:
+      "label":       custom section heading (defaults to source's display name).
+      "columns":     ordered list of source-field names to render.
+      "foreign_key": narrow to a single FK when the source has multiple FKs
+                     pointing at this entity (e.g. invoices.customer_id vs
+                     invoices.bill_to_customer_id).
+
+Worked example — Customer detail surfacing the invoice-relevant columns:
+  {
+    "slug": "customers",
+    "rollups": {
+      "invoices": {
+        "columns": ["invoice_number", "issue_date", "status", "grand_total"]
+      }
+    }
+  }
+
+DIRECTIVE: only emit `rollups[X]` when the auto-derived columns would miss a
+business-critical column. Otherwise leave it unset and let the platform pick.
+Auto-derive already excludes system entities (`__erp_*`), actor fields
+(`approved_by`, `posted_by`, ...) on `__erp_users`, FKs already declared as
+this entity's `children[]`, and source entities in disabled modules.
+
+## UI sections — `entity.ui.sections`
+Optional opt-in primitive that lets a single entity declare an explicit
+form-page layout. When present, the form-page generator interleaves field
+groups with named slots (line items, rollups, totals, stock availability,
+companion-user) in the declared order — instead of always putting line
+items at the bottom of the form. Header-line transactional entities
+(invoices, purchase orders, GRNs, cycle-count sessions) should opt in;
+plain entities (customers, products, employees, departments) should NOT
+emit `ui.sections` at all and let the default layout apply.
+
+Section kinds (each entry is discriminated by `kind`):
+  - fields:             { id?, kind, heading?, fields: [string, ...] }
+  - line_items:         { id?, kind, child: string, heading? }
+  - rollups:            { id?, kind }
+  - totals:             { id?, kind }
+  - stock_availability: { id?, kind }
+  - companion_user:     { id?, kind }
+
+Rules:
+  - Each `fields[*]` entry must resolve to a field declared on this entity.
+  - Each field can appear in AT MOST one `fields` section.
+  - Each `line_items.child` must match an entry in `entity.children[]`.
+  - When `heading` is present it MUST be an i18n dot-key (e.g.
+    `form.sections.identity`, `form.sections.details`,
+    `form.sections.lifecycle`, `form.sections.notes`,
+    `form.sections.lineItems`, `form.sections.totals`). Raw English is
+    rejected by the localization lint on non-EN projects.
+  - Fields not referenced by any section are auto-appended in a trailing
+    unlabeled group, but you should reference all fields explicitly so
+    the layout is intentional.
+  - Section kinds that are not applicable to this entity (e.g. `totals`
+    on a non-invoice entity) are silently skipped at codegen.
+
+Worked example — invoices header (identity → lines → details → totals →
+rollups):
+  {
+    "slug": "invoices",
+    "ui": {
+      "sections": [
+        { "kind": "fields", "id": "identity",
+          "heading": "form.sections.identity",
+          "fields": ["invoice_number", "customer_id", "issue_date", "due_date", "status"] },
+        { "kind": "line_items", "child": "invoice_items" },
+        { "kind": "fields", "id": "details",
+          "heading": "form.sections.details",
+          "fields": ["tax_rate", "discount", "notes"] },
+        { "kind": "totals" },
+        { "kind": "rollups" }
+      ]
+    }
+  }
 
 ## Field Structure
 {
@@ -73,8 +159,73 @@
   "reference_entity": "string (when type=reference)",
   "options": ["array of strings (when type=choice or string with options)"],
   "multiple": boolean,
-  "computed": "boolean (optional, default false)"
+  "computed": "boolean (optional, default false)",
+  "computed_mode": "string (optional, 'lenient' (default) or 'strict' — only meaningful at the entity level; see Coherence layer below)",
+  "visibility_when": { "field": "<sibling_field>", "<operator>": <value> },
+  "default": "any (optional literal default; mutually exclusive with default_from)",
+  "default_from": "string (optional codegen-time path, e.g. 'modules.invoice.tax_rate')",
+  "help": "string (optional inline help text rendered under the input)"
 }
+
+## Default values: `default` vs `default_from` (Plan F)
+A field may carry exactly ONE of:
+- `default` — a literal initial value (string/number/boolean) used when the
+  user creates a new record.
+- `default_from` — a dot-separated path into the SDF resolved at codegen time.
+  The path begins with `modules.<module>.<key>...` and the resolver walks the
+  modules tree at build time. Example:
+  `{ "name": "tax_rate", "type": "decimal", "default_from": "modules.invoice.tax_rate" }`
+  ...emits whatever the wizard answer was for the project tax rate as the
+  field's initial value.
+
+These two are MUTUALLY EXCLUSIVE on the same field — the validator rejects
+fields that set both. Use `default_from` for any value that's a project-wide
+configurable default (the project tax rate, default currency, default
+payment terms, ...).
+
+## Conditional fields — `visibility_when` operators (Plan G)
+A field renders only when the predicate matches another field on the same
+record. Exactly one comparator key per predicate; the validator rejects
+zero, multiple, or unknown comparators. Six operators are supported:
+
+  { "field": "<sibling>", "equals":     <scalar> }     // string/number/bool only (no lists)
+  { "field": "<sibling>", "not_equals": <scalar> }
+  { "field": "<sibling>", "in":         [<scalar>, ...] }   // non-empty list
+  { "field": "<sibling>", "not_in":     [<scalar>, ...] }
+  { "field": "<sibling>", "is_set":     true|false }   // true = sibling has a non-empty value
+  { "field": "<sibling>", "is_unset":   true|false }   // inverse of is_set
+
+Worked example — termination_date renders only when status is Terminated:
+  {
+    "name": "termination_date",
+    "type": "date",
+    "label": "Termination date",
+    "visibility_when": { "field": "status", "equals": "Terminated" }
+  }
+
+CRITICAL: when a field that becomes visible via `visibility_when` is also
+REQUIRED (the user MUST fill it once it appears), you MUST pair the field
+with a sibling `conditional_required` invariant that mirrors the same
+predicate. The form hides the input when the predicate doesn't match; the
+invariant guards the API so direct callers can't bypass the form. See the
+"Conditional required (server mirror)" block under Coherence layer below.
+
+## Reference fields — strict contract (Plan E)
+Every column that represents a foreign key MUST set BOTH `type: "reference"`
+AND `reference_entity: "<target_slug>"`. The field's `label` MUST be a
+natural-language description of the relationship in the project language —
+NEVER the raw column name with title-case.
+
+Bad: `{ "name": "customer_id", "type": "string", "label": "Customer Id" }`
+Good: `{ "name": "customer_id", "type": "reference", "reference_entity": "customers", "label": "Customer" }`
+
+For actor fields (`approved_by`, `posted_by`, `cancelled_by`, `requested_by`,
+`recorded_by`, `created_by`, `received_by`, `counted_by`, `submitted_by`),
+`reference_entity` MUST be `__erp_users` and `label` MUST be the
+action-past-tense form ("Approved by", "Posted by", etc.).
+
+Bad: `{ "name": "approver_id", "type": "string", "label": "Approver Id" }`
+Good: `{ "name": "approved_by", "type": "reference", "reference_entity": "__erp_users", "label": "Approved by" }`
 
 ## Computed fields
 Set `"computed": true` on any field that is MAINTAINED BY SERVER-SIDE LOGIC and MUST NOT
@@ -89,6 +240,132 @@ Rules for computed fields:
 - When you add a computed field you MUST also ensure the server has a mechanism to maintain
   it (mixin, hook, or explicit recompute endpoint) — do not mark a field computed if nothing
   is maintaining it.
+- An entity may opt into `"computed_mode": "strict"` to make the backend RETURN A 400
+  with field_errors instead of silently stripping the value (default is "lenient").
+
+## Coherence layer: entity.relations[]
+Every entity MAY include a `relations` array describing cross-feature rules. The runtime
+mixin layer interprets the semantics; your job is to declare the intent.
+
+Five primitive kinds:
+
+1. reference_contract — promotes a `reference` field into a first-class link with cascade
+   semantics that other primitives can hang off:
+   {
+     "kind": "reference_contract",
+     "field": "approver_id",
+     "target": "__erp_users",
+     "on_delete": "set_null"
+   }
+
+2. status_propagation — when the source row reaches a status, fan out to the target entity:
+   {
+     "kind": "status_propagation",
+     "on":     { "field": "status", "to": "approved" },
+     "effect": { "action": "create_per_work_day(start=start_date, end=end_date)", "target_entity": "attendance" },
+     "reverse": {
+       "on":     { "field": "status", "to": "cancelled" },
+       "effect": { "action": "remove_emitted_rows()", "target_entity": "attendance" }
+     }
+   }
+   `on.field` defaults to `"status"` when omitted; supply `to` and/or `from`.
+
+   Canonical action handlers (runtime dispatches these names ONLY):
+     - create_per_work_day(target_entity=<slug>) — emit one child row per
+       working day in the source row's date range; tagged with origin_ref.
+     - remove_emitted_rows() — reverse companion to create_per_work_day;
+       deletes rows tagged with the source's origin_ref.
+     - add_ledger_line(target_entity=<slug>) — emit a single child row
+       (used for compensation_ledger Earning/Deduction lines).
+     - issue_stock(child_entity=<slug>, parent_field=<col>, item_field=<col>,
+       qty_field=<col>, location_field=<col>, stock_entity=<slug>) — Plan E.
+       Fan out per child row of the source (typically `invoice_items` of an
+       `invoices` row). For each line whose `item_field` is set, atomically
+       decrements the named `stock_entity` by the line's `qty_field` and
+       writes a `stock_movements` audit row of `movement_type: "Issue"`
+       tagged with origin_ref. Honors `modules.inventory.allow_negative_stock`.
+       Lines without an item ref (services / free-text) are skipped.
+     - reverse_issue_stock() — reverse companion to issue_stock. For each
+       stock_movements row tagged with the source's origin_ref, restores
+       the on-hand quantity and writes a compensating `Adjust` audit row
+       tagged `<origin_ref>:reverse`. The original `Issue` row is preserved
+       (audit history is immutable).
+
+3. derived_field — a server-maintained field computed from a formula or other rows:
+   {
+     "kind": "derived_field",
+     "computed_field": "grand_total",
+     "formula": "linear_combine(plus_fields=[subtotal, tax_total], minus_fields=[discount])",
+     "when": "modules.invoice.calculation_engine.enabled"
+   }
+   The matching `computed_field` MUST exist on this entity AND be marked `"computed": true`.
+
+   Canonical formula handlers (Plan F — runtime dispatches these names ONLY):
+     - sum_lines(child_entity=<slug>, parent_field=<col>, sum_field=<col>)
+         Sum a column across child rows joined by parent_field.
+         Example: `sum_lines(child_entity=invoice_items, parent_field=invoice_id, sum_field=line_total)`
+     - multiply_fields(<a_field>, <b_field>)
+         Pure numeric product. Missing inputs coerce to 0.
+         Example: `multiply_fields(quantity, unit_price)`
+     - percent_of(<value_field>, <rate_field>, denominator=100)
+         value × rate / denominator. Default denominator is 100 (percent).
+         Example: `percent_of(subtotal, tax_rate)`
+     - linear_combine(plus_fields=[a,b,…], minus_fields=[c,d,…])
+         Sum of pluses minus sum of minuses. Use for grand-total / net shapes.
+     - date_diff_days_inclusive(<start_field>, <end_field>)
+         Calendar-day difference + 1 (Mon→Wed = 3). Use for leave_days.
+     - working_days(<start_field>, <end_field>)
+         Like date_diff but only counts work_days configured on the module.
+     - count_lines(child_entity=<slug>, parent_field=<col>)
+         Count of child rows.
+     - qty_minus_reserved_committed(<qty>, <reserved>, <committed>)
+         Inventory availability shape.
+     - gross_minus_deductions(<gross_field>, <deduction_field>)
+         Two-field subtraction. NOT for child-row aggregation; use sum_lines + linear_combine instead.
+
+4. invariant — validation rule enforced by the backend before persisting:
+   {
+     "kind": "invariant",
+     "rule": "no_overlap_with(entity=leaves, group_by=employee_id)",
+     "severity": "block"
+   }
+   Severity values: `"block"` (default — rejects the operation) or `"warn"` (records a non-blocking warning).
+
+   Conditional required (server mirror of `visibility_when`) — Plan G:
+     {
+       "kind": "invariant",
+       "rule": "conditional_required(field=termination_date, when_field=status, when_equals=Terminated)",
+       "severity": "block"
+     }
+   DSL shape: `conditional_required(field=<required>, when_field=<source>, when_<operator>=<value>, message=<optional>)`.
+   Operators map 1:1 to `visibility_when`: `when_equals`, `when_not_equals`,
+   `when_in=[a,b]`, `when_not_in=[a,b]`, `when_is_set=true|false`, `when_is_unset=true|false`.
+
+   STRICT PAIRING RULE: every field with `visibility_when` whose predicate
+   gates a `required: true` user input MUST have a sibling
+   `conditional_required` invariant on the same entity that uses the SAME
+   source field and the matching operator/value. The form hides the input
+   when the predicate doesn't match; the invariant rejects API calls that
+   try to skip the field while the predicate matches.
+
+5. permission_scope — declares the RBAC scope for an action:
+   {
+     "kind": "permission_scope",
+     "permission": "hr.leaves.approve",
+     "scope": "manager_chain",
+     "actions": ["update"]
+   }
+   Scope values: "self" | "department" | "manager_chain" | "module" | "all".
+
+Tips:
+- Use `relations[]` to express "what should happen on status changes", "what fields are
+  server-derived", "what overlaps are forbidden", and "who can perform actions".
+- All relations may include a `when` clause referencing module toggles
+  (e.g. `"when": "modules.invoice.payments.enabled"`); when the toggle is off the rule
+  is silently skipped.
+- Unknown rule names are logged and skipped at runtime — they never crash the request.
+- Foreign-key relationships still belong on `field.reference_entity` — the relations[]
+  block is for behavior, not storage shape.
 
 ## Common Field Types
 - string: Short text (names, codes)

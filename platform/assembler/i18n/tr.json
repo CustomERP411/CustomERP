@@ -235,6 +235,15 @@
       "confirmDelete": "Bu satır kalemini silmek istiyor musunuz?",
       "deleteFailed": "Silinemedi"
     },
+    "rollupSections": {
+      "heading": "İlgili kayıtlar",
+      "help": "Sistemin diğer bölümlerinden bu kayda bağlı kayıtlar.",
+      "empty": "Henüz ilgili kayıt yok.",
+      "loading": "Yükleniyor…",
+      "add": "+ Ekle",
+      "saveFirst": "İlgili satırları görmek için bu kaydı önce kaydedin.",
+      "viewAll": "Tümünü gör ({{count}})"
+    },
     "invoiceTotals": {
       "heading": "Toplamlar",
       "subtotal": "Ara toplam",
@@ -262,6 +271,18 @@
       "recordUpdated": "Kayıt güncellendi",
       "recordCreated": "Kayıt oluşturuldu",
       "loadFailedDesc": "Kayıt yüklenemedi"
+    },
+    "draft": {
+      "creating": "Taslak hazırlanıyor…",
+      "failedFallback": "Taslak oluşturulamadı; formu manuel olarak doldurabilirsiniz."
+    },
+    "sections": {
+      "identity": "Kimlik",
+      "details": "Detaylar",
+      "lifecycle": "Durum ve yaşam döngüsü",
+      "notes": "Notlar",
+      "lineItems": "Satır kalemleri",
+      "totals": "Toplamlar"
     }
   },
   "dynamicForm": {
@@ -468,7 +489,10 @@
     "unallocated": "Tahsis edilmemiş",
     "allocated": "Tahsis edilen",
     "paymentLabel": "Ödeme",
-    "unknown": "Bilinmiyor"
+    "unknown": "Bilinmiyor",
+    "installmentsLabel": "Taksit",
+    "installmentsHelp": "Aylık taksit sayısı (1–36).",
+    "installmentsRequiredForCreditCard": "Ödeme yöntemi Kredi Kartı olduğunda taksit zorunludur."
   },
   "invoiceNotes": {
     "title": "{{entity}} Dekontları",
@@ -480,6 +504,8 @@
     "debit": "Borç",
     "amount": "Tutar",
     "taxTotal": "Vergi toplamı",
+    "taxNonNegative": "Vergi toplamı sıfır veya daha büyük olmalı",
+    "grandTotal": "Genel toplam",
     "issueDate": "Kesim tarihi",
     "reason": "Sebep",
     "note": "Not",
@@ -490,6 +516,23 @@
     "notesHeading": "Seçili fatura için dekontlar",
     "noNotes": "Henüz dekont kaydı yok.",
     "selectInvoice": "Bir fatura seçin."
+  },
+  "paymentWorkflow": {
+    "postPayment": "Tahsilatı Onayla",
+    "confirmPost": "Seçili tahsilat onaylansın mı?",
+    "posted": "Tahsilat onaylandı",
+    "cancelled": "Tahsilat iptal edildi"
+  },
+  "noteWorkflow": {
+    "subtitle": "Fatura iade/borç dekontlarını onayla veya iptal et.",
+    "note": "Dekont",
+    "noNotes": "Dekont yok",
+    "postNote": "Dekontu Onayla",
+    "cancelNote": "Dekontu İptal Et",
+    "confirmPost": "Seçili dekont onaylansın mı?",
+    "confirmCancel": "Seçili dekont iptal edilsin mi?",
+    "posted": "Dekont onaylandı",
+    "cancelled": "Dekont iptal edildi"
   },
   "leaveApprovals": {
     "title": "İzin Onayları",
@@ -600,7 +643,22 @@
     "filterAll": "Tümü",
     "filterPending": "Bekleyen",
     "filterApproved": "Onaylanan",
-    "filterRejected": "Reddedilen"
+    "filterRejected": "Reddedilen",
+    "newEmployee": "Yeni Çalışan",
+    "newDepartment": "Yeni Departman",
+    "newLeaveRequest": "Yeni İzin Talebi",
+    "leavePendingApproval": "onay bekliyor",
+    "leaveEmptyAll": "Henüz izin talebi yok. Başlamak için ilk talebi gönderin.",
+    "leaveEmptyFilter": "Bu durumda izin talebi yok:",
+    "leaveLoadFailed": "İzin talepleri yüklenemedi",
+    "statusActive": "Aktif",
+    "statusOnLeave": "İzinli",
+    "statusTerminated": "Ayrıldı",
+    "employeesEmptyAll": "Henüz çalışan yok. Başlamak için ilk çalışanı ekleyin.",
+    "employeesEmptyFilter": "Bu durumda çalışan yok:",
+    "employeesLoadFailed": "Çalışanlar yüklenemedi",
+    "departmentsEmpty": "Henüz departman yok. Başlamak için ilk departmanı oluşturun.",
+    "departmentsLoadFailed": "Departmanlar yüklenemedi"
   },
   "invoicePages": {
     "title": "Faturalar",
@@ -613,7 +671,203 @@
     "filterSent": "Gönderilen",
     "filterPaid": "Ödenen",
     "filterOverdue": "Gecikmiş",
-    "filterCancelled": "İptal Edilen"
+    "filterCancelled": "İptal Edilen",
+    "paymentsTitle": "Ödemeler",
+    "paymentsSubtitle": "Ödeme kayıtlarını gönderin veya iptal edin.",
+    "paymentsEmpty": "Henüz ödeme yok.",
+    "cancelPayment": "Ödemeyi İptal Et",
+    "cancelPaymentConfirm": "Bu ödeme iptal edilsin mi?",
+    "cancelFailed": "İptal başarısız"
+  },
+  "inventoryPages": {
+    "reservations": {
+      "title": "Rezervasyonlar",
+      "subtitle": "Stoğu net uygunluk kontrolüyle rezerve edin, bırakın veya kesinleştirin.",
+      "item": "Ürün",
+      "selectPlaceholder": "Seçin...",
+      "availabilitySnapshot": "Uygunluk Özeti",
+      "onHand": "Stokta",
+      "reserved": "Rezerve",
+      "committed": "Kesinleşti",
+      "available": "Müsait",
+      "quantity": "Miktar",
+      "referenceOptional": "Referans No (opsiyonel)",
+      "noteOptional": "Not (opsiyonel)",
+      "reserveStock": "Stoğu Rezerve Et",
+      "tableHeader": "Rezervasyonlar",
+      "colReservation": "Rezervasyon",
+      "colQuantity": "Miktar",
+      "colStatus": "Durum",
+      "colReference": "Referans",
+      "colActions": "İşlemler",
+      "release": "Bırak",
+      "commit": "Kesinleştir",
+      "empty": "Henüz rezervasyon yok",
+      "actionFailed": "İşlem başarısız",
+      "released": "Rezervasyon bırakıldı",
+      "committed": "Rezervasyon kesinleştirildi"
+    },
+    "grn": {
+      "cancelConfirm": "Bu mal kabul iptal edilsin mi?",
+      "cancelFailed": "İptal başarısız",
+      "cancelGrn": "Mal Kabulünü İptal Et"
+    },
+    "cycleCount": {
+      "updateCount": "Sayımı Güncelle",
+      "noLines": "Seçili oturum için sayım satırı yok",
+      "save": "Kaydet",
+      "cancel": "İptal"
+    }
+  },
+  "inventoryWorkflow": {
+    "common": {
+      "statusLabel": "Durum:",
+      "selectPlaceholder": "Seçin...",
+      "loadFailedTitle": "Yükleme başarısız"
+    },
+    "reservations": {
+      "couldNotLoadItems": "Ürünler yüklenemedi",
+      "couldNotLoadReservations": "Rezervasyonlar yüklenemedi",
+      "selectItemFirst": "Önce ürün seçin",
+      "quantityMustBePositive": "Miktar sıfırdan büyük olmalı",
+      "reservationCreated": "Rezervasyon oluşturuldu",
+      "reserveFailed": "Rezervasyon başarısız",
+      "confirmRelease": "Bu rezervasyon serbest bırakılsın mı?",
+      "confirmCommit": "Bu rezervasyon kesinleştirilsin mi?"
+    },
+    "grn": {
+      "subtitle": "Mal kabul satırlarını gözden geçirin ve stoğu güncellemek için onaylayın.",
+      "couldNotLoadReceipts": "Mal kabuller yüklenemedi",
+      "couldNotLoadLines": "Mal kabul satırları yüklenemedi",
+      "selectFirst": "Önce bir mal kabul seçin",
+      "confirmPost": "Bu mal kabul onaylansın mı? Stok ve sipariş ilerlemesi güncellenir.",
+      "posted": "Mal kabul onaylandı",
+      "postFailed": "Onaylama başarısız",
+      "cancelled": "Mal kabul iptal edildi",
+      "selectLabel": "Mal Kabul",
+      "poLabel": "Sipariş:",
+      "postButton": "Mal Kabulü Onayla",
+      "linesHeading": "Mal Kabul Satırları",
+      "colPoItem": "Sipariş Kalemi",
+      "colItem": "Ürün",
+      "colReceived": "Alınan",
+      "noLines": "Seçili mal kabul için satır yok"
+    },
+    "cycle": {
+      "subtitle": "Stoğu sayın, fark hesaplayın, onaylayın ve düzeltmeleri kayıt altına alın.",
+      "couldNotLoadSessions": "Sayım oturumları yüklenemedi",
+      "couldNotLoadLines": "Sayım satırları yüklenemedi",
+      "selectFirst": "Önce bir oturum seçin",
+      "actionStart": "Oturumu başlat",
+      "actionRecalculate": "Farkı yeniden hesapla",
+      "actionApprove": "Oturumu onayla",
+      "actionPost": "Düzeltmeleri kaydet",
+      "actionCompleteSuffix": "tamamlandı",
+      "actionFailedSuffix": "başarısız",
+      "countUpdated": "Sayım güncellendi",
+      "updateFailed": "Güncelleme başarısız",
+      "selectLabel": "Sayım Oturumu",
+      "btnStart": "Başlat",
+      "btnRecalculate": "Yeniden Hesapla",
+      "btnApprove": "Onayla",
+      "btnPost": "Kaydet",
+      "linesHeading": "Oturum Satırları",
+      "colItem": "Ürün",
+      "colExpected": "Beklenen",
+      "colCounted": "Sayılan",
+      "colVariance": "Fark",
+      "colStatus": "Durum",
+      "colActions": "İşlemler"
+    }
+  },
+  "formPage": {
+    "emailLabel": "E-posta"
+  },
+  "validation": {
+    "required": "{label} zorunludur",
+    "min_length": "{label} en az {min} karakter olmalıdır",
+    "max_length": "{label} en çok {max} karakter olmalıdır",
+    "must_be_one_of": "{label} şunlardan biri olmalıdır: {options}",
+    "must_be_number": "{label} bir sayı olmalıdır",
+    "must_be_unique": "{label} benzersiz olmalıdır"
+  },
+  "status": {
+    "leaves": {
+      "pending": "Bekliyor",
+      "approved": "Onaylandı",
+      "rejected": "Reddedildi",
+      "cancelled": "İptal edildi"
+    },
+    "attendance_entries": {
+      "present": "Mevcut",
+      "absent": "Yok",
+      "half_day": "Yarım Gün",
+      "on_leave": "İzinli"
+    },
+    "compensation_ledger": {
+      "draft": "Taslak",
+      "posted": "Gönderildi",
+      "cancelled": "İptal edildi"
+    },
+    "compensation_snapshots": {
+      "draft": "Taslak",
+      "posted": "Gönderildi"
+    },
+    "timesheet_entries": {
+      "draft": "Taslak",
+      "approved": "Onaylandı"
+    },
+    "invoices": {
+      "draft": "Taslak",
+      "sent": "Gönderildi",
+      "paid": "Ödendi",
+      "overdue": "Gecikti",
+      "cancelled": "İptal edildi",
+      "voided": "Geçersiz"
+    },
+    "invoice_payments": {
+      "draft": "Taslak",
+      "posted": "Gönderildi",
+      "cancelled": "İptal edildi"
+    },
+    "invoice_notes": {
+      "draft": "Taslak",
+      "posted": "Gönderildi",
+      "cancelled": "İptal edildi"
+    },
+    "purchase_orders": {
+      "draft": "Taslak",
+      "approved": "Onaylandı",
+      "closed": "Kapandı",
+      "cancelled": "İptal edildi"
+    },
+    "purchase_order_items": {
+      "open": "Açık",
+      "received": "Alındı",
+      "closed": "Kapandı"
+    },
+    "goods_receipts": {
+      "draft": "Taslak",
+      "posted": "Gönderildi",
+      "cancelled": "İptal edildi"
+    },
+    "stock_reservations": {
+      "pending": "Bekliyor",
+      "released": "Bırakıldı",
+      "committed": "Kesinleşti",
+      "cancelled": "İptal edildi"
+    },
+    "cycle_count_sessions": {
+      "draft": "Taslak",
+      "in_progress": "Devam ediyor",
+      "approved": "Onaylandı",
+      "posted": "Gönderildi",
+      "cancelled": "İptal edildi"
+    },
+    "cycle_count_lines": {
+      "pending": "Bekliyor",
+      "counted": "Sayıldı"
+    }
   },
   "auth": {
     "login": {
@@ -785,5 +1039,17 @@
     "reservedTooltip": "Açık satış rezervasyonları tarafından tutulan miktar. Henüz sevk edilmemiş veya onaylanmış bir siparişe bağlanmamıştır.",
     "committedTooltip": "Henüz sevk edilmemiş, onaylanmış satış siparişlerindeki miktar.",
     "infoIconAria": "Daha fazla bilgi"
+  },
+  "entity": {
+    "invoice_items": {
+      "field": {
+        "product_id": {
+          "label": "Ürün"
+        },
+        "location_id": {
+          "label": "Stok çıkış lokasyonu"
+        }
+      }
+    }
   }
 }

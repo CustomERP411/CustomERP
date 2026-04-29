@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import { ENTITIES } from '../config/entities';
 // Plan F A2/A3 — shared client evaluator for derived-field formulas. The
@@ -136,10 +136,35 @@ export default function DynamicForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [referenceOptions, setReferenceOptions] = useState<Record<string, any[]>>({});
 
+  // Re-seed formData only when the CONTENT of initialData changes, not on
+  // every reference change. Parent pages frequently pass a fresh object
+  // literal each render (e.g. `initialData={{ ...initialFromQuery,
+  // ...initialData }}`), and combined with the `onChange`/live-mirror
+  // pattern that lifts formData into parent state, every keystroke would
+  // re-render the parent → produce a new initialData reference → fire
+  // this effect → `setFormData(seed)` → wipe the user's in-progress edit.
+  // We compare via a JSON signature in a ref so genuine record switches
+  // (edit a different row, server-loaded payload arrives) still re-seed,
+  // but identical-content re-renders do not. The mount-time seed is
+  // already done by the useState initializer above; we skip the first
+  // run of this effect so we don't redundantly setState on mount.
+  const _initialDataKey = useMemo(() => {
+    try {
+      return JSON.stringify(initialData);
+    } catch {
+      return '';
+    }
+  }, [initialData]);
+  const _lastSeededKeyRef = useRef<string | null>(null);
   useEffect(() => {
+    if (_lastSeededKeyRef.current === _initialDataKey) return;
+    const isFirstSeed = _lastSeededKeyRef.current === null;
+    _lastSeededKeyRef.current = _initialDataKey;
+    if (isFirstSeed) return;
     setFormData(_seedInitialFormData(fields, initialData || {}));
     setErrors({});
-  }, [initialData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [_initialDataKey]);
 
   // Plan F B4 — notify the parent of every formData change so sibling
   // read-only panels (e.g. invoice totals panel) can mirror live values

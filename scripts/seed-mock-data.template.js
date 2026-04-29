@@ -80,7 +80,7 @@ if (!fs.existsSync(BACKEND_DIR)) {
 // drop-in script work zero-config even when the backend's node_modules is
 // only inside the Docker image.
 
-const DEPS = ['pg', 'uuid', 'bcryptjs'];
+const DEPS = ['pg', 'bcryptjs'];
 const HOST_BACKEND_NM = path.join(BACKEND_DIR, 'node_modules');
 const FALLBACK_DEPS_DIR = path.join(ROOT, '.seed-mock-data-deps');
 const FALLBACK_NM = path.join(FALLBACK_DEPS_DIR, 'node_modules');
@@ -125,14 +125,15 @@ function ensureFallbackDeps() {
 ensureFallbackDeps();
 
 const pgMod = loadDep('pg');
-const uuidMod = loadDep('uuid');
 const bcrypt = loadDep('bcryptjs');
-if (!pgMod || !uuidMod || !bcrypt) {
-  console.error('[seed-mock-data] Required dependencies (pg, uuid, bcryptjs) could not be loaded.');
+if (!pgMod || !bcrypt) {
+  const missing = [['pg', !!pgMod], ['bcryptjs', !!bcrypt]].filter(([, ok]) => !ok).map(([n]) => n).join(', ');
+  console.error(`[seed-mock-data] Required dependencies could not be loaded: ${missing}`);
   process.exit(2);
 }
 const { Pool } = pgMod;
-const { v4: uuid } = uuidMod;
+const { randomUUID } = require('crypto');
+const uuid = () => randomUUID();
 
 // ─────────────────────────────────────────────────────────────────────
 // 1. CLI args
@@ -1334,12 +1335,13 @@ async function seedSettlements() {
     pushCache(slug, settle);
     nP += 1;
     if (allocSlug && (await tableExists(allocSlug))) {
-      await insertRow(allocSlug, {
+      const allocRow = await insertRow(allocSlug, {
         payment_id: settle.id,
         invoice_id: invRow.id,
         allocated_amount: amount,
         allocation_date: invRow.issue_date,
       });
+      pushCache(allocSlug, allocRow);
       nA += 1;
     }
   }
@@ -1356,14 +1358,23 @@ async function seedAdjustments() {
     const invRow = pickFromCache(SLUGS.invoice);
     if (!invRow) break;
     const noteType = pickOne(['Credit', 'Debit']);
-    await insertRow(slug, {
+    const amount = floatBetween(10, 500);
+    const taxTotal = Number((amount * 0.18).toFixed(2));
+    const status = pickOne(['Draft', 'Posted', 'Cancelled']);
+    const row = await insertRow(slug, {
       note_number: `${noteType === 'Credit' ? 'CN' : 'DN'}-${7000 + i}`,
       source_invoice_id: invRow.id,
       note_type: noteType,
-      amount: floatBetween(10, 500),
-      status: pickOne(['Draft', 'Posted', 'Cancelled']),
+      amount,
+      status,
       reason: pickOne(['Pricing adjustment', 'Goods returned', 'Service correction', 'Discount applied']),
+      issue_date: invRow.issue_date,
+      tax_total: taxTotal,
+      grand_total: Number((amount + taxTotal).toFixed(2)),
+      posted_at: status === 'Posted' ? isoDt(daysAgo(intBetween(0, 30))) : null,
+      note: 'Auto-generated billing adjustment.',
     });
+    pushCache(slug, row);
     n += 1;
   }
   log(`✓ ${slug}: ${n} adjustments in ${((Date.now() - t0) / 1000).toFixed(2)}s`);
@@ -1382,7 +1393,7 @@ async function seedTimeOffBalances() {
       const consumed = intBetween(0, Math.floor(entitlement / 2));
       const accrued = entitlement;
       const remaining = accrued - consumed;
-      await insertRow(slug, {
+      const row = await insertRow(slug, {
         employee_id: emp.id,
         leave_type: lt,
         year,
@@ -1392,6 +1403,7 @@ async function seedTimeOffBalances() {
         carry_forward_days: 0,
         remaining_days: remaining,
       });
+      pushCache(slug, row);
       n += 1;
     }
   }
@@ -1416,7 +1428,7 @@ async function seedTimeOff() {
     const approver = status === 'Approved' || status === 'Rejected'
       ? (usersByCache.length ? usersByCache[i % usersByCache.length] : null)
       : null;
-    await insertRow(slug, {
+    const row = await insertRow(slug, {
       employee_id: emp.id,
       leave_type: pickOne(LEAVE_TYPES),
       start_date: isoDate(startDate),
@@ -1424,12 +1436,15 @@ async function seedTimeOff() {
       requested_days: days,
       reason: pickOne(['Family event', 'Vacation', 'Medical appointment', 'Personal day', 'Conference']),
       approval_status: status,
+      status,
       approved_by: approver ? approver.id : null,
       approved_at: status === 'Approved' ? isoDt(daysAgo(intBetween(0, 90))) : null,
       rejected_at: status === 'Rejected' ? isoDt(daysAgo(intBetween(0, 90))) : null,
       rejection_reason: status === 'Rejected' ? 'Conflict with project deadlines.' : null,
       decision_key: status === 'Pending' ? null : `DK-${uuid()}`,
+      cancelled_at: status === 'Cancelled' ? isoDt(daysAgo(intBetween(0, 60))) : null,
     });
+    pushCache(slug, row);
     n += 1;
   }
   log(`✓ ${slug}: ${n} requests in ${((Date.now() - t0) / 1000).toFixed(2)}s`);
@@ -1459,7 +1474,7 @@ async function seedAttendance() {
       const worked = status === 'Present' ? dailyHours
         : status === 'Half Day' ? Math.round(dailyHours / 2)
         : 0;
-      await insertRow(slug, {
+      const row = await insertRow(slug, {
         employee_id: emp.id,
         work_date: isoDate(d),
         check_in_at: status === 'Absent' || status === 'On Leave' ? null : isoDt(checkIn),
@@ -1468,6 +1483,7 @@ async function seedAttendance() {
         status,
         note: status === 'On Leave' ? 'Approved leave' : null,
       });
+      pushCache(slug, row);
       n += 1;
     }
   }
@@ -1485,16 +1501,25 @@ async function seedShifts() {
     const shifts = intBetween(2, 6);
     for (let i = 0; i < shifts; i++) {
       const start = daysAgo(intBetween(-7, 30));
-      start.setUTCHours(intBetween(6, 14));
-      const end = new Date(start); end.setUTCHours(start.getUTCHours() + intBetween(6, 10));
-      await insertRow(slug, {
+      const startHour = intBetween(6, 14);
+      start.setUTCHours(startHour);
+      const endHourOffset = intBetween(6, 10);
+      const end = new Date(start);
+      end.setUTCHours(startHour + endHourOffset);
+      const row = await insertRow(slug, {
         employee_id: emp.id,
         shift_name: pickOne(SHIFT_NAMES),
         start_at: isoDt(start),
         end_at: isoDt(end),
+        start_time: `${String(startHour).padStart(2, '0')}:00`,
+        end_time: `${String((startHour + endHourOffset) % 24).padStart(2, '0')}:00`,
+        work_days: 'Mon,Tue,Wed,Thu,Fri',
+        effective_from: isoDate(daysAgo(intBetween(0, 30))),
+        effective_to: isoDate(daysFromNow(intBetween(0, 60))),
         location: pickOne(CITIES),
         status: pickOneWeighted([['Scheduled', 30], ['Completed', 60], ['Cancelled', 10]]),
       });
+      pushCache(slug, row);
       n += 1;
     }
   }
@@ -1512,7 +1537,7 @@ async function seedTimesheets() {
     if (att.status === 'Absent' || att.status === 'On Leave') continue;
     const reg = att.status === 'Half Day' ? 4 : 8;
     const ot = rng() < 0.2 ? intBetween(1, 3) : 0;
-    await insertRow(slug, {
+    const row = await insertRow(slug, {
       employee_id: att.employee_id,
       work_date: att.work_date,
       regular_hours: reg,
@@ -1521,6 +1546,7 @@ async function seedTimesheets() {
       status: pickOneWeighted([['Draft', 10], ['Submitted', 20], ['Approved', 65], ['Rejected', 5]]),
       note: null,
     });
+    pushCache(slug, row);
     n += 1;
   }
   log(`✓ ${slug}: ${n} timesheets in ${((Date.now() - t0) / 1000).toFixed(2)}s`);
@@ -1535,7 +1561,7 @@ async function seedCompLedger() {
   const periods = [];
   const now = new Date();
   for (let i = 2; i >= 0; i--) {
-    const d = new Date(now); d.setUTCMonth(d.getUTCMonth() - i);
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     periods.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
   }
   for (const emp of cache[SLUGS.employee] || []) {
@@ -1552,15 +1578,17 @@ async function seedCompLedger() {
         { component_type: 'Deduction', amount: -floatBetween(0, monthly * 0.05, 0) },
       ];
       for (const line of lines) {
-        await insertRow(slug, {
+        const row = await insertRow(slug, {
           employee_id: emp.id,
           pay_period: period,
           component_type: line.component_type,
+          component: line.component_type,
           amount: line.amount,
           status,
           posted_at: status === 'Posted' ? isoDt(daysAgo(intBetween(0, 60))) : null,
           note: null,
         });
+        pushCache(slug, row);
         n += 1;
       }
     }
@@ -1574,23 +1602,61 @@ async function seedCompSnapshots() {
   if (!(await shouldSeedTable(slug))) return;
   const t0 = Date.now();
   let n = 0;
+  const cols = await getColumns(slug);
+  const hasEmployeeCol = cols.find((c) => c.column_name === 'employee_id');
+  const hasGrossAmount = cols.find((c) => c.column_name === 'gross_amount');
   const now = new Date();
   for (let i = 2; i >= 0; i--) {
-    const d = new Date(now); d.setUTCMonth(d.getUTCMonth() - i);
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     const period = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-    const headcount = (cache[SLUGS.employee] || []).length || V.staff;
-    const gross = Math.round(headcount * 4500);
-    const deductions = Math.round(gross * 0.22);
-    await insertRow(slug, {
-      pay_period: period,
-      snapshot_date: isoDate(daysAgo(i * 30)),
-      total_gross: gross,
-      total_deductions: deductions,
-      total_net: gross - deductions,
-      status: i === 0 ? 'Draft' : 'Posted',
-      posted_at: i === 0 ? null : isoDt(daysAgo(i * 30)),
-    });
-    n += 1;
+    const status = i === 0 ? 'Draft' : 'Posted';
+    const postedAt = i === 0 ? null : isoDt(daysAgo(i * 30));
+    if (hasEmployeeCol) {
+      // Per-employee snapshot rows
+      for (const emp of cache[SLUGS.employee] || []) {
+        const baseSal = Number(emp.base_salary) || 50000;
+        const monthly = Math.round(baseSal / 12);
+        const overtime = floatBetween(0, monthly * 0.1, 0);
+        const bonus = rng() < 0.3 ? floatBetween(100, 500, 0) : 0;
+        const gross = monthly + overtime + bonus;
+        const deductions = Math.round(monthly * 0.18) + floatBetween(0, monthly * 0.05, 0);
+        const net = Number((gross - deductions).toFixed(2));
+        const row = await insertRow(slug, {
+          employee_id: emp.id,
+          pay_period: period,
+          snapshot_date: isoDate(daysAgo(i * 30)),
+          total_gross: gross,
+          total_deductions: deductions,
+          total_net: net,
+          gross_amount: gross,
+          deduction_amount: deductions,
+          net_amount: net,
+          status,
+          posted_at: postedAt,
+          note: null,
+        });
+        pushCache(slug, row);
+        n += 1;
+      }
+    } else {
+      const headcount = (cache[SLUGS.employee] || []).length || V.staff;
+      const gross = Math.round(headcount * 4500);
+      const deductions = Math.round(gross * 0.22);
+      const row = await insertRow(slug, {
+        pay_period: period,
+        snapshot_date: isoDate(daysAgo(i * 30)),
+        total_gross: gross,
+        total_deductions: deductions,
+        total_net: gross - deductions,
+        gross_amount: hasGrossAmount ? gross : undefined,
+        deduction_amount: hasGrossAmount ? deductions : undefined,
+        net_amount: hasGrossAmount ? gross - deductions : undefined,
+        status,
+        posted_at: postedAt,
+      });
+      pushCache(slug, row);
+      n += 1;
+    }
   }
   log(`✓ ${slug}: ${n} snapshots in ${((Date.now() - t0) / 1000).toFixed(2)}s`);
 }
@@ -1735,12 +1801,18 @@ async function seedRemaining() {
 // 11. Summary
 // ─────────────────────────────────────────────────────────────────────
 
-function printSummary() {
+async function printSummary() {
   console.log('');
   header('Summary');
   const lines = [];
   for (const slug of ALL_SLUGS) {
-    const n = (cache[slug] && cache[slug].length) || 0;
+    let n = 0;
+    try {
+      const res = await pool.query(`SELECT COUNT(*)::int AS n FROM "${slug}"`);
+      n = res.rows[0].n;
+    } catch {
+      n = (cache[slug] && cache[slug].length) || 0;
+    }
     lines.push([slug, n]);
   }
   const widest = Math.max(...lines.map(([s]) => s.length));
@@ -1833,7 +1905,7 @@ async function main() {
   header('Generic fallback (unrecognised tables)');
   await seedRemaining();
 
-  printSummary();
+  await printSummary();
 
   await pool.end();
 }

@@ -694,7 +694,7 @@ ${enableBulkActions ? `                <td className="px-6 py-4 whitespace-nowra
                 </td>` : ''}
                 {tableColumns.map((col: any) => {
                   const value = getCellDisplay(item, col.key);
-                  const isStatusCol = col.key === 'status' && hasStatusField;
+                  const isStatusCol = col.key === 'status' && ${hasStatusField ? 'true' : 'false'};
                   return (
                     <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {isStatusCol ? (

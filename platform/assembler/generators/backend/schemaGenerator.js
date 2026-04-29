@@ -8,6 +8,35 @@ module.exports = {
     return `"${String(name).replace(/"/g, '""')}"`;
   },
 
+  // Plan H follow-up: an entity that exposes a "Draft" status option also has
+  // an `AUTO_DRAFT_ON_CREATE` form route that POSTs /<slug>/draft on /new
+  // mount BEFORE the user has had a chance to fill any reference field. The
+  // service-layer validator already relaxes "required" while status === Draft
+  // and re-engages it on transition out of Draft, so emitting a column-level
+  // NOT NULL on required FK columns just blocks the auto-draft INSERT and has
+  // no semantic value (the validator owns required-ness for these flows).
+  // For draft-capable entities we therefore emit reference fields as NULLable
+  // even when `field.required` is true. Non-reference required fields keep
+  // their NOT NULL because the createDraft helper auto-fills them with safe
+  // placeholders (auto-numbered IDs, today's date, etc.).
+  _entitySupportsDraft(entity) {
+    if (!entity) return false;
+    const fields = Array.isArray(entity.fields) ? entity.fields : [];
+    const statusField = fields.find((f) => f && f.name === 'status');
+    if (!statusField) return false;
+    const opts = Array.isArray(statusField.options) ? statusField.options : [];
+    return opts.some((o) => String(o || '').trim().toLowerCase() === 'draft');
+  },
+
+  _shouldEmitNotNull(field, entity) {
+    if (!field) return false;
+    if (!field.required) return false;
+    const fieldType = String(field.type || '').toLowerCase();
+    const looksReference = fieldType === 'reference';
+    if (looksReference && this._entitySupportsDraft(entity)) return false;
+    return true;
+  },
+
   _toPostgresType(field) {
     if (this._isFieldMultiple(field)) return 'JSONB';
 
@@ -85,7 +114,7 @@ module.exports = {
           notNull = ' NOT NULL';
           defaultClause = ' DEFAULT 0';
         } else {
-          notNull = field.required ? ' NOT NULL' : '';
+          notNull = this._shouldEmitNotNull(field, entity) ? ' NOT NULL' : '';
           defaultClause = this._isFieldMultiple(field) ? ` DEFAULT '[]'::jsonb` : '';
         }
         columns.push(`${this._quoteSqlIdentifier(fieldName)} ${pgType}${notNull}${defaultClause}`);
@@ -397,7 +426,7 @@ module.exports = {
           notNull = ' NOT NULL';
           defaultClause = ' DEFAULT 0';
         } else {
-          notNull = field.required ? ' NOT NULL' : '';
+          notNull = this._shouldEmitNotNull(field, entity) ? ' NOT NULL' : '';
           defaultClause = this._isFieldMultiple(field) ? ` DEFAULT '[]'` : '';
         }
 

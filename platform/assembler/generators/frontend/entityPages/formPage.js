@@ -405,7 +405,13 @@ export default function ${entityName}FormPage() {
         if (newId) {
           // Pre-arm \`loading\` so the GET that the /:id/edit branch fires
           // immediately after mount shows "Loading…" instead of an empty
-          // form flash.
+          // form flash. Also clear \`autoDraftCreating\` BEFORE the navigate,
+          // because react-router reuses this same component instance for
+          // /new → /:id/edit, so the \`useState(...)\` initialiser does NOT
+          // re-run; without this reset the spinner state would survive the
+          // URL change and the user would have to refresh the page to see
+          // the editable form.
+          setAutoDraftCreating(false);
           setLoading(true);
           navigate('/${entity.slug}/' + newId + '/edit', { replace: true });
           return;
@@ -1185,7 +1191,7 @@ export default function ${entityName}FormPage() {
         </div>
       </div>
 
-      {autoDraftCreating ? (
+      {!isEdit && autoDraftCreating ? (
         <div className="p-4 flex items-center gap-2 text-slate-600">
           <span
             aria-hidden="true"

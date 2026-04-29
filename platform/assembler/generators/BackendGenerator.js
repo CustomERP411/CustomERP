@@ -282,12 +282,21 @@ class BackendGenerator {
       );
     }
 
-    const relaxDraft = this._buildRelaxDraftFkSql(entities);
-    if (relaxDraft) {
-      await fs.writeFile(
-        path.join(migrationsDir, '003_relax_draft_fks.sql'),
-        relaxDraft
-      );
+    // 003_relax_draft_fks.sql is a Postgres-only ALTER migration that
+    // back-fills the FK-nullability fix for databases provisioned before
+    // schemaGenerator._shouldEmitNotNull() landed. Standalone preview builds
+    // use SQLite, which (a) already gets the relaxed columns from the new
+    // 001 and (b) does not understand DO $$ ... END $$;, so skipping the
+    // migration here avoids a "near \"DO\": syntax error" startup crash on
+    // the preview server.
+    if (!this._standalone) {
+      const relaxDraft = this._buildRelaxDraftFkSql(entities);
+      if (relaxDraft) {
+        await fs.writeFile(
+          path.join(migrationsDir, '003_relax_draft_fks.sql'),
+          relaxDraft
+        );
+      }
     }
   }
 

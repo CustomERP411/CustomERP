@@ -205,15 +205,30 @@ function applyToProject(projectRoot) {
     }
   }
 
-  const migrationsDir = path.join(
+  // Two layouts exist:
+  //   docker-compose / Postgres projects → backend/src/repository/migrations/
+  //   standalone / SQLite previews       → app/src/repository/migrations/
+  // 003_relax_draft_fks.sql is Postgres-only (DO $$ ... END $$;), so we
+  // ONLY emit it under the docker-compose layout. The standalone schema
+  // already has the relaxed FK columns courtesy of schemaGenerator's
+  // _shouldEmitNotNull() helper.
+  const pgMigrations = path.join(
     projectRoot,
     'backend',
     'src',
     'repository',
     'migrations'
   );
-  if (fs.existsSync(migrationsDir)) {
-    const target = path.join(migrationsDir, '003_relax_draft_fks.sql');
+  const sqliteMigrations = path.join(
+    projectRoot,
+    'app',
+    'src',
+    'repository',
+    'migrations'
+  );
+
+  if (fs.existsSync(pgMigrations) && !fs.existsSync(sqliteMigrations)) {
+    const target = path.join(pgMigrations, '003_relax_draft_fks.sql');
     const sql = buildRelaxDraftFkSql();
     let needWrite = true;
     if (fs.existsSync(target)) {
@@ -227,6 +242,20 @@ function applyToProject(projectRoot) {
       fs.writeFileSync(target, sql, 'utf8');
       stats.migrationWritten = true;
       console.log(`  wrote ${path.relative(REPO_ROOT, target)}`);
+    }
+  } else if (fs.existsSync(sqliteMigrations)) {
+    // Standalone preview project — skip and remove any stale Postgres-only
+    // 003 that a previous run of this script may have dropped here.
+    const stale = path.join(sqliteMigrations, '003_relax_draft_fks.sql');
+    if (fs.existsSync(stale)) {
+      try {
+        fs.unlinkSync(stale);
+        console.log(
+          `  removed ${path.relative(REPO_ROOT, stale)} (SQLite project)`
+        );
+      } catch {
+        /* fall through */
+      }
     }
   }
 

@@ -62,12 +62,33 @@ const ROOT = process.cwd();
 const BACKEND_DIR = path.join(ROOT, 'backend');
 
 if (!fs.existsSync(BACKEND_DIR)) {
-  console.error(
-    '[seed-mock-data] Could not find backend/ in the current directory.'
-  );
-  console.error(
-    '                 Run this script from the ROOT of a generated CustomERP project.'
-  );
+  console.error('[seed-mock-data] Could not find ./backend/ in the current directory.');
+  console.error(`                 CWD: ${ROOT}`);
+  console.error('                 This script must live next to backend/, frontend/, dev.ps1');
+  console.error('                 and docker-compose.yml — i.e. the ROOT of a generated');
+  console.error('                 CustomERP project.');
+  // If the user accidentally ran the script from the CustomERP platform repo
+  // root, point them at the generated ERPs they already have.
+  const platformDir = path.join(ROOT, 'platform');
+  const generatedDir = path.join(ROOT, 'generated');
+  if (fs.existsSync(platformDir) && fs.existsSync(generatedDir)) {
+    try {
+      const candidates = fs
+        .readdirSync(generatedDir, { withFileTypes: true })
+        .filter((d) => d.isDirectory() && fs.existsSync(path.join(generatedDir, d.name, 'backend')))
+        .map((d) => d.name);
+      if (candidates.length) {
+        console.error('');
+        console.error('                 You appear to be at the CustomERP platform root, not');
+        console.error('                 inside a generated ERP. Available generated ERPs:');
+        for (const name of candidates) console.error(`                   - generated${path.sep}${name}`);
+        console.error('');
+        console.error('                 cd into one of those folders and run the seeder from there.');
+      }
+    } catch {
+      // best-effort hint only
+    }
+  }
   process.exit(1);
 }
 

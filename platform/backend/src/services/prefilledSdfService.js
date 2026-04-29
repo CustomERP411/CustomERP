@@ -741,9 +741,17 @@ function buildHrEntities(answers) {
 }
 
 const { applyActorMigration } = require('./sdfActorMigration');
+// Resolve the assembler module via ASSEMBLER_PATH (set in docker-compose to
+// `/app/assembler` where the assembler is bind-mounted) with a fallback to
+// the local `platform/assembler` sibling directory. The relative-only path
+// breaks in Docker because the backend image ships only `/app/src/`.
+const _path = require('path');
+const _assemblerRoot =
+  process.env.ASSEMBLER_PATH ||
+  _path.resolve(__dirname, '../../../assembler');
 const {
   applyComputedFieldRegistry,
-} = require('../../../assembler/assembler/computedFieldRegistry');
+} = require(_path.join(_assemblerRoot, 'assembler', 'computedFieldRegistry'));
 const dependencyGraph = require('../defaultQuestions/dependencyGraph');
 
 function buildPrefilledSdfDraft({ projectName, modules, mandatoryAnswers, templateVersions }) {

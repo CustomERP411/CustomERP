@@ -65,6 +65,36 @@ module.exports = {
     await fs.writeFile(evaluatorDest, evaluatorSrc);
   },
 
+  // Plan TR-poly: an actor field is one whose name ends in `_by` or
+  // `_by_id` (e.g. `approved_by`, `posted_by_id`, `created_by`). The
+  // canonical SDF convention is to declare these as
+  // `type: "reference", reference_entity: "__erp_users"`, but the AI
+  // distributor sometimes emits them as plain strings holding a user UUID,
+  // which leaves the list page rendering raw IDs instead of usernames.
+  // We auto-promote them to references against whichever user-store the
+  // schema actually ships (system users first, then any workforce/staff
+  // entity that's present) so the generated frontend always knows which
+  // table to GET to resolve the display name.
+  _isActorFieldName(name) {
+    if (typeof name !== 'string') return false;
+    return /_by(?:_id)?$/i.test(name);
+  },
+
+  _resolveActorReferenceSlug(allEntities) {
+    const list = Array.isArray(allEntities) ? allEntities : [];
+    const candidates = [
+      '__erp_users',
+      'workforce_members',
+      'staff_members',
+      'employees',
+      'users',
+    ];
+    for (const slug of candidates) {
+      if (list.some((e) => e && e.slug === slug)) return slug;
+    }
+    return null;
+  },
+
   // Plan E C2: when a field is missing an explicit `label` AND it points
   // at another entity via reference_entity, fall back to that target's
   // display label (e.g. `customer_id` -> "Customer") rather than the raw
@@ -265,6 +295,17 @@ module.exports = {
       }
 
       const isReference = field.type === 'reference' || field.name.endsWith('_id') || field.name.endsWith('_ids');
+
+      // Plan TR-poly: actor-by fields (`approved_by`, `posted_by_id`, ...)
+      // are de-facto user references even when the SDF forgot the
+      // `type: 'reference'` / `reference_entity` declaration. Promote them
+      // here so the frontend knows which table to GET, and the list view
+      // resolves the display name instead of leaking the raw UUID.
+      const actorSlug =
+        !isReference && this._isActorFieldName(field.name)
+          ? this._resolveActorReferenceSlug(allEntities)
+          : null;
+
       if (isReference) {
         const explicitRef = field.reference_entity || field.referenceEntity;
         const inferredBase = String(field.name).replace(/_ids?$/, '');
@@ -287,6 +328,12 @@ module.exports = {
 
         const multiple = field.multiple === true || field.is_array === true || field.name.endsWith('_ids');
         if (multiple) extraParts.push(`multiple: true`);
+      } else if (actorSlug) {
+        extraParts.push(`referenceEntity: '${actorSlug}'`);
+        // Force EntitySelect so the form renders a user picker — the
+        // default widget for a `string`-typed field would otherwise be a
+        // plain text input that the user could only fill with a raw id.
+        widget = 'EntitySelect';
       }
 
       const extraProps = extraParts.length ? `, ${extraParts.join(', ')}` : '';

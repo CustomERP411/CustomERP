@@ -2,8 +2,6 @@ import { useTranslation } from 'react-i18next';
 import type { AiGatewaySdf } from '../../types/aiGateway';
 import type { ReviewHistoryItem } from './ReviewApprovalPanel';
 import ReviewApprovalPanel from './ReviewApprovalPanel';
-import SdfPreviewSection from './SdfPreviewSection';
-import { SlideIn } from './projectConstants';
 
 export interface PostGenerationPanelProps {
   sdf: AiGatewaySdf;
@@ -18,22 +16,6 @@ export interface PostGenerationPanelProps {
   onRequestRevision: (instructions: string) => void;
 
   onPreview: () => void;
-
-  showAdvancedView: boolean;
-  onToggleAdvancedView: () => void;
-  detectedPlatform: string;
-  standaloneRunning: string | null;
-  downloadStarted: string | null;
-  draftJson: string;
-  draftError: string;
-  aiEditText: string;
-  onSaveDraft: () => void;
-  onDownloadStandalone: (platform: string) => void;
-  onDownloadZip: () => void;
-  onApplyAiEdit: () => void;
-  onSetAiEditText: (text: string) => void;
-  onSetDraftJson: (json: string) => void;
-  onResetDraftJson: () => void;
 }
 
 export default function PostGenerationPanel({
@@ -41,11 +23,6 @@ export default function PostGenerationPanel({
   projectStatus, sdfVersion, reviewHistory, running,
   onApproveReview, onRejectReview, onRequestRevision,
   onPreview,
-  showAdvancedView, onToggleAdvancedView,
-  detectedPlatform, standaloneRunning, downloadStarted,
-  draftJson, draftError, aiEditText,
-  onSaveDraft, onDownloadStandalone, onDownloadZip,
-  onApplyAiEdit, onSetAiEditText, onSetDraftJson, onResetDraftJson,
 }: PostGenerationPanelProps) {
   const { t } = useTranslation('projectDetail');
   return (
@@ -109,28 +86,6 @@ export default function PostGenerationPanel({
           onRequestRevision={onRequestRevision}
           historyOnly
         />
-      )}
-
-      {preview && sdf && (
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={onToggleAdvancedView}
-            className="text-xs text-app-text-subtle hover:text-app-text-muted underline underline-offset-2 transition-colors"
-          >
-            {showAdvancedView ? t('postGeneration.hideDevDetails') : t('postGeneration.showDevDetails')}
-          </button>
-          <SlideIn show={showAdvancedView} className="mt-4 space-y-8">
-            <SdfPreviewSection
-              sdf={sdf} preview={preview} detectedPlatform={detectedPlatform}
-              running={running} standaloneRunning={standaloneRunning} downloadStarted={downloadStarted}
-              draftJson={draftJson} draftError={draftError} aiEditText={aiEditText}
-              onSaveDraft={onSaveDraft} onDownloadStandalone={onDownloadStandalone} onDownloadZip={onDownloadZip}
-              onApplyAiEdit={onApplyAiEdit} onSetAiEditText={onSetAiEditText} onSetDraftJson={onSetDraftJson}
-              onResetDraftJson={onResetDraftJson}
-            />
-          </SlideIn>
-        </div>
       )}
     </>
   );

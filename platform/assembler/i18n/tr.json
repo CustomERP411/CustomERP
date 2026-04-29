@@ -677,7 +677,13 @@
     "paymentsEmpty": "Henüz ödeme yok.",
     "cancelPayment": "Ödemeyi İptal Et",
     "cancelPaymentConfirm": "Bu ödeme iptal edilsin mi?",
-    "cancelFailed": "İptal başarısız"
+    "cancelFailed": "İptal başarısız",
+    "card": {
+      "customer": "Müşteri",
+      "issueDate": "Düzenleme Tarihi",
+      "dueDate": "Vade Tarihi",
+      "total": "Toplam"
+    }
   },
   "inventoryPages": {
     "reservations": {

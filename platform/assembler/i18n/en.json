@@ -677,7 +677,13 @@
     "paymentsEmpty": "No payments yet.",
     "cancelPayment": "Cancel Payment",
     "cancelPaymentConfirm": "Cancel this payment?",
-    "cancelFailed": "Cancel failed"
+    "cancelFailed": "Cancel failed",
+    "card": {
+      "customer": "Customer",
+      "issueDate": "Issue Date",
+      "dueDate": "Due Date",
+      "total": "Total"
+    }
   },
   "inventoryPages": {
     "reservations": {

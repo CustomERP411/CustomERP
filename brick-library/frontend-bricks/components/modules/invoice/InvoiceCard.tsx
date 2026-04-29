@@ -4,6 +4,12 @@ interface InvoiceCardProps {
   invoice: Record<string, any>;
   to: string;
   currency?: string;
+  onDelete?: (id: string) => void | Promise<void>;
+  deleteLabel?: string;
+  customerLabel?: string;
+  issueDateLabel?: string;
+  dueDateLabel?: string;
+  totalLabel?: string;
 }
 
 const displayText = (value: any, fallback = '—') => {
@@ -38,7 +44,17 @@ const statusClass = (status: string) => {
   }
 };
 
-export default function InvoiceCard({ invoice, to, currency = 'USD' }: InvoiceCardProps) {
+export default function InvoiceCard({
+  invoice,
+  to,
+  currency = 'USD',
+  onDelete,
+  deleteLabel = 'Delete',
+  customerLabel = 'Customer',
+  issueDateLabel = 'Issue Date',
+  dueDateLabel = 'Due Date',
+  totalLabel = 'Total',
+}: InvoiceCardProps) {
   const status = String(invoice?.status || 'Draft');
   const customer =
     invoice?.customer?.name ||
@@ -47,27 +63,48 @@ export default function InvoiceCard({ invoice, to, currency = 'USD' }: InvoiceCa
     invoice?.customer_id ||
     '—';
 
+  const handleDeleteClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onDelete) {
+      void onDelete(String(invoice?.id ?? ''));
+    }
+  };
+
   return (
-    <Link to={to} className="rounded-lg border bg-white p-4 shadow-sm hover:shadow">
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-900">
-          {displayText(invoice?.invoice_number || invoice?.id)}
+    <div className="rounded-lg border bg-white shadow-sm hover:shadow flex flex-col">
+      <Link to={to} className="block p-4 flex-1">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold text-slate-900">
+            {displayText(invoice?.invoice_number || invoice?.id)}
+          </div>
+          <span className={['rounded-full px-2 py-1 text-xs font-semibold', statusClass(status)].join(' ')}>
+            {status}
+          </span>
         </div>
-        <span className={['rounded-full px-2 py-1 text-xs font-semibold', statusClass(status)].join(' ')}>
-          {status}
-        </span>
-      </div>
-      <div className="mt-3 space-y-1 text-sm text-slate-600">
-        <div>Customer: {displayText(customer)}</div>
-        <div>Issue Date: {displayText(invoice?.issue_date)}</div>
-        <div>Due Date: {displayText(invoice?.due_date)}</div>
-      </div>
-      <div className="mt-4 flex items-center justify-between text-sm">
-        <span className="text-slate-500">Total</span>
-        <span className="font-semibold text-slate-900">
-          {formatMoney(invoice?.grand_total ?? invoice?.total ?? 0, currency)}
-        </span>
-      </div>
-    </Link>
+        <div className="mt-3 space-y-1 text-sm text-slate-600">
+          <div>{customerLabel}: {displayText(customer)}</div>
+          <div>{issueDateLabel}: {displayText(invoice?.issue_date)}</div>
+          <div>{dueDateLabel}: {displayText(invoice?.due_date)}</div>
+        </div>
+        <div className="mt-4 flex items-center justify-between text-sm">
+          <span className="text-slate-500">{totalLabel}</span>
+          <span className="font-semibold text-slate-900">
+            {formatMoney(invoice?.grand_total ?? invoice?.total ?? 0, currency)}
+          </span>
+        </div>
+      </Link>
+      {onDelete && (
+        <div className="border-t border-slate-100 px-4 py-2 flex justify-end">
+          <button
+            type="button"
+            onClick={handleDeleteClick}
+            className="text-xs font-medium text-rose-600 hover:text-rose-700 hover:underline"
+          >
+            {deleteLabel}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,11 +1,13 @@
 /**
- * Repo-wide patcher for the three Plan H bugs that ship with every generated
- * ERP under `generated/<project>/`. The corresponding template fixes live in:
+ * Repo-wide patcher for the bugs that ship with every generated ERP under
+ * `generated/<project>/`. The corresponding template fixes live in:
  *
- *   platform/assembler/generators/frontend/entityPages/listPage.js  (hasStatusField)
- *   platform/assembler/generators/frontend/entityPages/formPage.js  (autoDraft state)
- *   platform/assembler/generators/backend/schemaGenerator.js        (FK NOT NULL)
- *   platform/assembler/generators/BackendGenerator.js               (003 migration)
+ *   platform/assembler/generators/frontend/entityPages/listPage.js   (hasStatusField)
+ *   platform/assembler/generators/frontend/entityPages/formPage.js   (autoDraft state)
+ *   platform/assembler/generators/backend/schemaGenerator.js         (FK NOT NULL)
+ *   platform/assembler/generators/BackendGenerator.js                (003 migration)
+ *   platform/assembler/generators/frontend/invoicePages.js           (invoice delete)
+ *   brick-library/frontend-bricks/components/modules/invoice/InvoiceCard.tsx (onDelete prop)
  *
  * This script applies the same fixes to ALREADY-GENERATED projects in place,
  * so the user does not need to regenerate from scratch:
@@ -26,6 +28,12 @@
  *     migration runner is idempotent (tracks applied names in
  *     `_migrations`), so re-running this script is safe; the SQL itself
  *     also uses IS-NULLABLE guards so the ALTER is a no-op once dropped.
+ *
+ * (4) Invoice list pages: the card-style invoice list never shipped a
+ *     Delete button. We (a) overwrite InvoiceCard.tsx with the new version
+ *     that accepts an optional `onDelete` prop and (b) inject a
+ *     `handleDelete` flow into the *InvoicesPage*-style files plus pass
+ *     `onDelete={handleDelete}` to the card.
  *
  * Run from the repo root:
  *   node test/_patch_has_status_field.js
@@ -137,6 +145,154 @@ function buildRelaxDraftFkSql() {
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// (4) Invoice list pages — add handleDelete + wire it to <InvoiceCard />
+// ──────────────────────────────────────────────────────────────────────
+
+// Read the canonical InvoiceCard from the brick library so we don't have
+// to keep a duplicate copy in sync inside this script.
+const INVOICE_CARD_BRICK = path.join(
+  REPO_ROOT,
+  'brick-library',
+  'frontend-bricks',
+  'components',
+  'modules',
+  'invoice',
+  'InvoiceCard.tsx'
+);
+
+let _cachedCardSource = null;
+function getInvoiceCardSource() {
+  if (_cachedCardSource !== null) return _cachedCardSource;
+  try {
+    _cachedCardSource = fs.readFileSync(INVOICE_CARD_BRICK, 'utf8');
+  } catch {
+    _cachedCardSource = '';
+  }
+  return _cachedCardSource;
+}
+
+function patchInvoicesPage(file, text) {
+  // Heuristic: only touch files that actually use InvoiceCard.
+  if (!text.includes("import InvoiceCard from")) return null;
+  // Already patched? (Idempotent.)
+  if (/const handleDelete\s*=\s*async/.test(text)) return null;
+
+  // Extract the slug from the first `api.get('/<slug>')` call. We need it
+  // for the DELETE endpoint and the refresh refetch.
+  const slugMatch = text.match(/api\.get\('\/([\w-]+)'\)/);
+  if (!slugMatch) return null;
+  const slug = slugMatch[1];
+
+  let patched = text;
+
+  // (4a) Append delete-related keys to the I18N const. The existing block
+  // ends with `\n} as const;`. We don't want to clobber whatever's in there,
+  // just inject the missing keys before the closing brace.
+  const i18nClose = '\n} as const;';
+  const idxClose = patched.indexOf(i18nClose);
+  if (idxClose < 0) return null;
+
+  const i18nExtra = [
+    '  "delete": "Delete",',
+    '  "confirmDelete": "Are you sure you want to delete this?",',
+    '  "deletedToast": "Record deleted.",',
+    '  "deleteFailedToast": "Failed to delete record.",',
+    '  "deleteBlockedTitle": "Cannot delete",',
+    '  "cantDeleteRefBy": "This record is referenced by other records"',
+  ].join('\n');
+
+  // We're inserting BEFORE `\n} as const;`. The existing line above the
+  // close is something like `  "loadFailed": "Failed to load invoices"`
+  // (no trailing comma). Add a comma there before our extras.
+  const beforeClose = patched.slice(0, idxClose);
+  const afterClose = patched.slice(idxClose);
+  // Match the last property in the I18N object (a non-comma-terminated line)
+  // and add a comma. We only do this if the last char of beforeClose is `"`
+  // (i.e., a closing quote of the previous value).
+  const lastCharIdx = beforeClose.length - 1;
+  let beforeWithComma = beforeClose;
+  if (beforeClose[lastCharIdx] === '"') {
+    beforeWithComma = `${beforeClose},`;
+  }
+  patched = `${beforeWithComma}\n${i18nExtra}${afterClose}`;
+
+  // (4b) Inject refreshItems + handleDelete after the first `}, []);`
+  // (close of the load useEffect).
+  const useEffectMarker = '}, []);';
+  const ueIdx = patched.indexOf(useEffectMarker);
+  if (ueIdx < 0) return null;
+  const insertAt = ueIdx + useEffectMarker.length;
+
+  const helpers = `
+
+  const refreshItems = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/${slug}');
+      setItems(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      toast({ title: I18N.loadFailed, variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!id) return;
+    if (!confirm(I18N.confirmDelete)) return;
+    try {
+      await api.delete('/${slug}/' + id);
+      toast({ title: I18N.deletedToast, variant: 'success' });
+      await refreshItems();
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const payload = err?.response?.data;
+      if (status === 409) {
+        toast({
+          title: I18N.deleteBlockedTitle,
+          description: payload?.error || I18N.cantDeleteRefBy,
+          variant: 'warning',
+        });
+        return;
+      }
+      console.error('Delete failed:', err);
+      toast({
+        title: I18N.deleteFailedToast,
+        description: payload?.error || I18N.deleteFailedToast,
+        variant: 'error',
+      });
+    }
+  };`;
+
+  patched = patched.slice(0, insertAt) + helpers + patched.slice(insertAt);
+
+  // (4c) Add onDelete + deleteLabel props on the <InvoiceCard ... /> usage.
+  // The original block ends with `currency={currency}` followed by `\n            />`.
+  const cardCloseRe = /(<InvoiceCard\b[\s\S]*?currency=\{currency\})(\s*\/>)/;
+  if (!cardCloseRe.test(patched)) return null;
+  patched = patched.replace(
+    cardCloseRe,
+    `$1\n              onDelete={handleDelete}\n              deleteLabel={I18N.delete}$2`
+  );
+
+  return patched;
+}
+
+function patchInvoiceCard(file) {
+  const fresh = getInvoiceCardSource();
+  if (!fresh) return false;
+  let current = '';
+  try {
+    current = fs.readFileSync(file, 'utf8');
+  } catch {
+    return false;
+  }
+  if (current === fresh) return false;
+  fs.writeFileSync(file, fresh, 'utf8');
+  return true;
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // Driver
 // ──────────────────────────────────────────────────────────────────────
 
@@ -170,6 +326,8 @@ function applyToProject(projectRoot) {
     project: path.relative(REPO_ROOT, projectRoot),
     listPagesPatched: 0,
     formPagesPatched: 0,
+    invoicePagesPatched: 0,
+    invoiceCardsRewritten: 0,
     migrationWritten: false,
   };
 
@@ -189,6 +347,11 @@ function applyToProject(projectRoot) {
           patched = next;
           stats.listPagesPatched += 1;
         }
+        const invoiceNext = patchInvoicesPage(file, patched);
+        if (invoiceNext && invoiceNext !== patched) {
+          patched = invoiceNext;
+          stats.invoicePagesPatched += 1;
+        }
       }
       if (isFormPage) {
         const next = patchAutoDraftCreating(file, patched);
@@ -202,6 +365,35 @@ function applyToProject(projectRoot) {
         fs.writeFileSync(file, patched, 'utf8');
         console.log(`  patched ${path.relative(REPO_ROOT, file)}`);
       }
+    }
+  }
+
+  // Refresh the InvoiceCard.tsx component shipped with the project so the
+  // newly added `onDelete` prop has somewhere to land.
+  const invoiceCardCandidates = [
+    path.join(
+      projectRoot,
+      'frontend',
+      'src',
+      'components',
+      'modules',
+      'invoice',
+      'InvoiceCard.tsx'
+    ),
+    path.join(
+      projectRoot,
+      'app',
+      'src',
+      'components',
+      'modules',
+      'invoice',
+      'InvoiceCard.tsx'
+    ),
+  ];
+  for (const candidate of invoiceCardCandidates) {
+    if (fs.existsSync(candidate) && patchInvoiceCard(candidate)) {
+      stats.invoiceCardsRewritten += 1;
+      console.log(`  refreshed ${path.relative(REPO_ROOT, candidate)}`);
     }
   }
 
@@ -279,6 +471,8 @@ for (const s of all) {
   console.log(
     `  ${s.project}: ${s.listPagesPatched} list page(s), ` +
       `${s.formPagesPatched} form page(s), ` +
+      `${s.invoicePagesPatched} invoice list page(s), ` +
+      `${s.invoiceCardsRewritten} invoice card(s), ` +
       `migration: ${s.migrationWritten ? 'written' : 'up-to-date'}`
   );
 }

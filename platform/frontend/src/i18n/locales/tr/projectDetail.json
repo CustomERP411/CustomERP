@@ -376,9 +376,7 @@
     "readyBody": "ERP'nizi canlı önizleyin, deneyin ve ihtiyaç duyduğunuz değişiklikleri talep edin.",
     "moduleFallback": "Modül",
     "dataTypes": "{{count}} kayıt bölümü",
-    "previewBtn": "ERP'mi Önizle",
-    "hideDevDetails": "Geliştirici ayrıntılarını gizle",
-    "showDevDetails": "Geliştirici ayrıntılarını göster"
+    "previewBtn": "ERP'mi Önizle"
   },
   "generationModal": {
     "generating": "ERP'niz Oluşturuluyor",

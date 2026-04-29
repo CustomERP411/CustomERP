@@ -384,9 +384,7 @@
     "dataTypes_one": "{{count}} record area",
     "dataTypes_other": "{{count}} record areas",
     "dataTypes": "{{count}} record areas",
-    "previewBtn": "Preview My ERP",
-    "hideDevDetails": "Hide developer details",
-    "showDevDetails": "Show developer details"
+    "previewBtn": "Preview My ERP"
   },
   "generationModal": {
     "generating": "Generating Your ERP",

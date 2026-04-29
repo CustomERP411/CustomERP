@@ -24,6 +24,17 @@ function buildInvoiceListPage({ entity, entityName, importBase, invoiceConfig, i
     emptyAll: t('invoicePages.emptyAll'),
     emptyFilter: t('invoicePages.emptyFilter'),
     loadFailed: t('invoiceWorkflow.loadFailed'),
+    delete: t('list.rowActions.delete'),
+    confirmDelete: t('common.confirmDelete'),
+    deletedToast: t('list.toast.deleteSuccess'),
+    deleteFailedToast: t('list.toast.deleteFailed'),
+    deleteBlockedTitle: t('list.deleteBlocked.title'),
+    deleteBlockedFallback: t('list.deleteBlocked.body'),
+    cantDeleteRefBy: t('list.cannotDelete'),
+    customer: t('invoicePages.card.customer'),
+    issueDate: t('invoicePages.card.issueDate'),
+    dueDate: t('invoicePages.card.dueDate'),
+    total: t('invoicePages.card.total'),
   };
   const i18nJson = JSON.stringify(I18N, null, 2);
 
@@ -70,6 +81,45 @@ export default function ${entityName}Page() {
   const filteredItems = statusFilter === 'all' 
     ? items 
     : items.filter((inv) => String(inv?.status || 'Draft').toLowerCase() === statusFilter.toLowerCase());
+
+  const refreshItems = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/${entity.slug}');
+      setItems(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      toast({ title: I18N.loadFailed, variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!id) return;
+    if (!confirm(I18N.confirmDelete)) return;
+    try {
+      await api.delete('/${entity.slug}/' + id);
+      toast({ title: I18N.deletedToast, variant: 'success' });
+      await refreshItems();
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const payload = err?.response?.data;
+      if (status === 409) {
+        toast({
+          title: I18N.deleteBlockedTitle,
+          description: payload?.error || I18N.cantDeleteRefBy,
+          variant: 'warning',
+        });
+        return;
+      }
+      console.error('Delete failed:', err);
+      toast({
+        title: I18N.deleteFailedToast,
+        description: payload?.error || I18N.deleteFailedToast,
+        variant: 'error',
+      });
+    }
+  };
 
 ${enableCsvExport ? `  const exportCsv = () => {
     const escape = (v: any) => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') || s.includes('\\n') ? '"' + s.replace(/"/g, '""') + '"' : s; };
@@ -126,6 +176,12 @@ ${enableCsvExport ? `          <button onClick={exportCsv} className="rounded-lg
               invoice={invoice}
               to={'/${entity.slug}/' + invoice.id + '/edit'}
               currency={currency}
+              onDelete={handleDelete}
+              deleteLabel={I18N.delete}
+              customerLabel={I18N.customer}
+              issueDateLabel={I18N.issueDate}
+              dueDateLabel={I18N.dueDate}
+              totalLabel={I18N.total}
             />
           ))}
         </div>

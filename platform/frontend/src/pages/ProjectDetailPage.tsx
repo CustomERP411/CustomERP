@@ -28,7 +28,6 @@ import {
 import {
   MODULE_KEYS, useSteps, useBusinessQuestions, BUSINESS_QUESTION_IDS,
   SlideIn, IconCheck,
-  detectUserPlatform,
 } from '../components/project/projectConstants';
 import ReviewFeedbackModal from '../components/project/ReviewFeedbackModal';
 
@@ -77,19 +76,14 @@ export default function ProjectDetailPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [clarifying, setClarifying] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [standaloneRunning, setStandaloneRunning] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [draftJson, setDraftJson] = useState('');
-  const [draftError, setDraftError] = useState('');
   const [aiEditText, setAiEditText] = useState('');
-  const [downloadStarted, setDownloadStarted] = useState<string | null>(null);
   const [clarifyRound, setClarifyRound] = useState(0);
   const [, setSdfComplete] = useState(false);
   const [analyzePhase, setAnalyzePhase] = useState('');
   const [sdfVersion, setSdfVersion] = useState<number | null>(null);
   const [reviewHistory, setReviewHistory] = useState<ReviewHistoryItem[]>([]);
   const [reviewActionRunning, setReviewActionRunning] = useState(false);
-  const [showAdvancedView, setShowAdvancedView] = useState(false);
   const [genResult, setGenResult] = useState<'success' | 'error' | null>(null);
   const [genErrorMsg, setGenErrorMsg] = useState('');
   const [genProgress, setGenProgress] = useState<{ step: string; pct: number; detail: string } | null>(null);
@@ -124,7 +118,6 @@ export default function ProjectDetailPage() {
   const hasScrolledRef = useRef(false);
   const expectQuestionFetchRef = useRef(false);
   const savedDefaultAnswersRef = useRef<Record<string, string | string[]> | null>(null);
-  const detectedPlatform = useMemo(() => detectUserPlatform(), []);
   const running = analyzing || clarifying || saving || reviewActionRunning;
 
   const languageBlocked = useMemo(
@@ -360,7 +353,6 @@ export default function ProjectDetailPage() {
           setQuestions([]);
           setAnswersById({});
           setSdfComplete(false);
-          setDraftJson('');
         }
         // Project halted at the pre-distributor answer reviewer on the last
         // build attempt. Re-open the feedback modal so the user is told what
@@ -417,8 +409,6 @@ export default function ProjectDetailPage() {
     })();
     return () => { cancelled = true; };
   }, [projectId, selectedModulesKey]);
-
-  useEffect(() => { if (sdf) { setDraftJson(JSON.stringify(sdf, null, 2)); setDraftError(''); } }, [sdf]);
 
   useEffect(() => {
     if (!selectedModulesStorageKey || loading) return;
@@ -859,7 +849,7 @@ export default function ProjectDetailPage() {
       if (payload.project) setProject(payload.project);
       // Clear stale SDF so the user must complete business questions before
       // the post-generation panel re-appears.
-      if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); setDraftJson(''); }
+      if (sdf) { setSdf(null); setSdfVersion(null); setQuestions([]); }
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.saveAnswersFailed')); }
     finally { setSavingDefaultAnswers(false); }
   };
@@ -1028,7 +1018,6 @@ export default function ProjectDetailPage() {
         setQuestions([]);
         setAnswersById({});
         setSdfComplete(false);
-        setDraftJson('');
         setAnswerReview(res.answer_review);
         clearGeneratingFlag();
         // Hide the generation progress UI; the review modal takes over.
@@ -1168,20 +1157,6 @@ export default function ProjectDetailPage() {
     } finally { progressCancelled = true; setClarifying(false); }
   };
 
-  const saveDraft = async () => {
-    if (!projectId || !draftJson) return;
-    setSaving(true); setError(''); setDraftError('');
-    try {
-      let parsed: any;
-      try { parsed = JSON.parse(draftJson); } catch (e: any) { setDraftError(t('projectDetail:errors.invalidJson', { message: e?.message || t('projectDetail:errors.parseError') })); return; }
-      const res = await projectService.saveSdf(projectId, parsed);
-      setProject(res.project); setSdf(res.sdf ?? null); setQuestions(filterQuestions(res.questions || [])); setAnswersById({}); setDraftJson(JSON.stringify(res.sdf, null, 2));
-      setSdfVersion(typeof res.sdf_version === 'number' ? res.sdf_version : null);
-      appendReviewHistory({ action: 'manual_save', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.manualSave') });
-    } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.saveFailed')); }
-    finally { setSaving(false); }
-  };
-
   const applyAiEdit = async (acknowledgedUnsupportedFeatures?: string[]) => {
     const instructions = pendingChangeReview?.source === 'ai_edit'
       ? pendingChangeReview.instructions
@@ -1248,34 +1223,6 @@ export default function ProjectDetailPage() {
       appendReviewHistory({ action: 'ai_revision', version: typeof res.sdf_version === 'number' ? res.sdf_version : null, status: res.project.status || null, note: t('projectDetail:history.aiRevisionFromReview') });
     } catch (err: any) { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.revisionFailed')); }
     finally { setReviewActionRunning(false); }
-  };
-
-  const downloadZip = async () => {
-    if (!projectId) return;
-    setSaving(true); setError('');
-    try {
-      const blob = await projectService.generateErpZip(projectId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = ((sdf as any)?.project_name || project?.name || 'custom-erp') + '.zip'; a.click();
-      URL.revokeObjectURL(url);
-    } catch (err: any) {
-      try { const text = await (err?.response?.data instanceof Blob ? err.response.data.text() : Promise.resolve('')); const parsed = text ? JSON.parse(text) : null; setError(parsed?.error || err?.message || t('projectDetail:errors.generateFailed')); }
-      catch { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.generateFailed')); }
-    } finally { setSaving(false); }
-  };
-
-  const downloadStandalone = async (platform: string) => {
-    if (!projectId) return;
-    setStandaloneRunning(platform); setError('');
-    try {
-      const blob = await projectService.generateStandaloneErpZip(projectId, platform);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `${(sdf as any)?.project_name || project?.name || 'custom-erp'}-${platform}.zip`; a.click();
-      URL.revokeObjectURL(url); setDownloadStarted(platform);
-    } catch (err: any) {
-      try { const text = await (err?.response?.data instanceof Blob ? err.response.data.text() : Promise.resolve('')); const parsed = text ? JSON.parse(text) : null; setError(parsed?.error || err?.message || t('projectDetail:errors.standaloneFailed')); }
-      catch { setError(err?.response?.data?.error || err?.message || t('projectDetail:errors.standaloneFailed')); }
-    } finally { setStandaloneRunning(null); }
   };
 
   /* ── Render ─────────────────────────────────────────────── */
@@ -1495,13 +1442,6 @@ export default function ProjectDetailPage() {
             onRejectReview={() => { void rejectReview(); }}
             onRequestRevision={(instructions) => { void requestRevisionFromReview(instructions); }}
             onPreview={() => navigate(`/projects/${projectId}/preview`)}
-            showAdvancedView={showAdvancedView}
-            onToggleAdvancedView={() => setShowAdvancedView((v) => !v)}
-            detectedPlatform={detectedPlatform} standaloneRunning={standaloneRunning} downloadStarted={downloadStarted}
-            draftJson={draftJson} draftError={draftError} aiEditText={aiEditText}
-            onSaveDraft={saveDraft} onDownloadStandalone={downloadStandalone} onDownloadZip={downloadZip}
-            onApplyAiEdit={applyAiEdit} onSetAiEditText={setAiEditText} onSetDraftJson={setDraftJson}
-            onResetDraftJson={() => setDraftJson(JSON.stringify(sdf, null, 2))}
           />
         )}
         </SlideIn>

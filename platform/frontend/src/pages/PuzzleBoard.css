@@ -22,6 +22,15 @@
   cursor: default;
 }
 
+/* Interactive (link/button) pieces. Make the whole <g> read as tappable on
+ * iOS Safari: WebKit only treats elements with `cursor: pointer` and a small
+ * tap-highlight reset as proper tap targets, otherwise it falls back to its
+ * buggy <foreignObject>-first hit-test. */
+.piece.piece--interactive {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Clickable landing pieces: scale only the HTML inside foreignObject so the
  * SVG path (tabs/sockets) stays pixel-aligned with neighbours. Scaling the
  * whole <g> made right-edge knobs look like “extra” tabs next to Sign In. */
@@ -30,7 +39,18 @@
   transform-origin: center;
 }
 
-.piece.piece--interactive:hover .piece__content-inner,
+/* Only apply :hover scale on devices with a true hover capability. iOS Safari
+ * emulates :hover on first tap, so without this guard the first tap on a
+ * piece would just trigger the hover transform and a *second* tap would be
+ * needed to actually navigate — the exact “hitbox doesn’t function” symptom.
+ * `:focus-within` stays unguarded so keyboard / iPadOS keyboard users still
+ * get the affordance. */
+@media (hover: hover) {
+  .piece.piece--interactive:hover .piece__content-inner {
+    transform: scale(1.06);
+  }
+}
+
 .piece.piece--interactive:focus-within .piece__content-inner {
   transform: scale(1.06);
 }
@@ -87,6 +107,17 @@
   pointer-events: auto;
 }
 
+/* iOS Safari hit-test bug: a <foreignObject> with pointer-events: auto
+ * captures taps even when an SVG <a> sibling is painted on top of it, so
+ * the overlay link never fires. For interactive pieces the overlay <a> is
+ * the only intended click target (see PuzzlePiece.tsx — “the whole piece
+ * shape becomes a single click target”), so let pointer events fall
+ * straight through the foreignObject to the overlay on every platform.
+ * The piece__clickable path on top of the <a> still receives the tap. */
+.piece.piece--interactive .piece__content {
+  pointer-events: none;
+}
+
 .piece__content-inner {
   display: flex;
   align-items: center;
@@ -104,6 +135,10 @@
   stroke: none;
   cursor: pointer;
   pointer-events: all;
+  /* Suppress iOS Safari’s 300 ms tap delay and double-tap-zoom on the
+   * overlay so the link fires on the first tap. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .piece--interactive a:focus-visible .piece__clickable {

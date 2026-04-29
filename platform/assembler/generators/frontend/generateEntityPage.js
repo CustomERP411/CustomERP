@@ -204,6 +204,7 @@ module.exports = {
           fieldDefs,
           title: this._escapeJsString(entity.display_name || entityName),
           language: this._language,
+          allEntities,
         })
       : isEmployeeEntity
       ? buildEmployeeListPage({

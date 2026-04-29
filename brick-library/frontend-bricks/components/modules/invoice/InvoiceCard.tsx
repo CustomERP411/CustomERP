@@ -10,12 +10,34 @@ interface InvoiceCardProps {
   issueDateLabel?: string;
   dueDateLabel?: string;
   totalLabel?: string;
+  // Optional locale override (e.g. 'tr-TR') so a TR build renders
+  // 28.04.2026 instead of the API's raw ISO string. Falls back to the
+  // browser locale if omitted.
+  locale?: string;
 }
 
-const displayText = (value: any, fallback = '—') => {
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T|$)/;
+
+const formatDate = (value: any, locale?: string) => {
+  if (value === undefined || value === null || value === '') return null;
+  let d: Date | null = null;
+  if (value instanceof Date) d = value;
+  else if (typeof value === 'string' && ISO_DATE_RE.test(value)) d = new Date(value);
+  if (!d || isNaN(d.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
+};
+
+const displayText = (value: any, fallback = '—', locale?: string) => {
   if (value === undefined || value === null || value === '') return fallback;
-  if (Array.isArray(value)) return value.map((v) => displayText(v, '')).filter(Boolean).join(', ') || fallback;
-  if (value instanceof Date) return value.toISOString();
+  // Auto-format ISO date / datetime strings into the user's locale so
+  // the card never paints `2026-04-18T00:00:00.000Z` from the API.
+  const asDate = formatDate(value, locale);
+  if (asDate) return asDate;
+  if (Array.isArray(value)) return value.map((v) => displayText(v, '', locale)).filter(Boolean).join(', ') || fallback;
   if (typeof value === 'object') {
     return String(value.name || value.company_name || value.display_name || value.title || value.id || JSON.stringify(value));
   }
@@ -54,6 +76,7 @@ export default function InvoiceCard({
   issueDateLabel = 'Issue Date',
   dueDateLabel = 'Due Date',
   totalLabel = 'Total',
+  locale,
 }: InvoiceCardProps) {
   const status = String(invoice?.status || 'Draft');
   const customer =
@@ -83,9 +106,9 @@ export default function InvoiceCard({
           </span>
         </div>
         <div className="mt-3 space-y-1 text-sm text-slate-600">
-          <div>{customerLabel}: {displayText(customer)}</div>
-          <div>{issueDateLabel}: {displayText(invoice?.issue_date)}</div>
-          <div>{dueDateLabel}: {displayText(invoice?.due_date)}</div>
+          <div>{customerLabel}: {displayText(customer, '—', locale)}</div>
+          <div>{issueDateLabel}: {displayText(invoice?.issue_date, '—', locale)}</div>
+          <div>{dueDateLabel}: {displayText(invoice?.due_date, '—', locale)}</div>
         </div>
         <div className="mt-4 flex items-center justify-between text-sm">
           <span className="text-slate-500">{totalLabel}</span>

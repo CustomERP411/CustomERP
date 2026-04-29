@@ -56,6 +56,13 @@ async function main() {
       ['confirmDelete in I18N', /confirmDelete/.test(text)],
       ['onDelete prop on card', /<InvoiceCard[\s\S]*?onDelete=\{handleDelete\}/.test(text)],
       ['delete endpoint correct', /api\.delete\('\/[\w-]+\/'\s*\+\s*id\)/.test(text)],
+      ['REFERENCE_FIELDS declared', /REFERENCE_FIELDS:\s*Array</.test(text)],
+      ['REFERENCE_SLUGS declared', /REFERENCE_SLUGS:\s*string\[\]/.test(text)],
+      ['refMaps state', /const \[refMaps, setRefMaps\]/.test(text)],
+      ['enrichedItems memo', /const enrichedItems = useMemo/.test(text)],
+      ['filteredItems sources from enrichedItems', /filteredItems = statusFilter === 'all'\s*\n?\s*\?\s*enrichedItems/.test(text)],
+      ['locale prop on InvoiceCard', /<InvoiceCard[\s\S]*?locale=/.test(text)],
+      ['account_clients listed as ref slug', /"refSlug":\s*"account_clients"/.test(text)],
     ];
     console.log(`\n[smoke] ${rel}`);
     for (const [name, ok] of checks) {

@@ -560,6 +560,240 @@ function patchInvoiceCard(file) {
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// (6) Invoice list pages — resolve customer_id → customer_name so the
+//     card stops painting raw UUIDs. Mirrors the codegen change in
+//     platform/assembler/generators/frontend/invoicePages.js (REFERENCE_FIELDS,
+//     REFERENCE_SLUGS, refMaps state, ref-loading useEffect, enrichedItems).
+// ──────────────────────────────────────────────────────────────────────
+
+function _resolveRefSlugForPatcher(field, sdf) {
+  if (!field) return null;
+  const explicit = field.reference_entity || field.referenceEntity;
+  const name = String(field.name || '');
+  const inferredBase = name.replace(/_ids?$/, '');
+  const baseName = String(explicit || inferredBase);
+  if (!baseName) return null;
+  const entities = Array.isArray(sdf && sdf.entities) ? sdf.entities : [];
+  const target = entities.find((e) =>
+    e.slug === baseName ||
+    e.slug === baseName + 's' ||
+    e.slug === baseName + 'es' ||
+    (baseName.endsWith('y') && e.slug === baseName.slice(0, -1) + 'ies') ||
+    e.slug.startsWith(baseName)
+  );
+  return target ? target.slug : (explicit ? String(explicit) : null);
+}
+
+function _isRefFieldForPatcher(field) {
+  if (!field) return false;
+  if (field.type === 'reference') return true;
+  const name = String(field.name || '');
+  return /_ids?$/.test(name) && !!(field.reference_entity || field.referenceEntity);
+}
+
+function _displayFieldForPatcher(slug, sdf) {
+  const entities = Array.isArray(sdf && sdf.entities) ? sdf.entities : [];
+  const e = entities.find((x) => x && x.slug === slug);
+  return (e && (e.display_field || e.displayField)) || 'name';
+}
+
+function _projectLanguage(sdf) {
+  const meta = (sdf && (sdf.metadata || sdf.meta)) || {};
+  const lang = String(meta.language || meta.lang || 'en').toLowerCase();
+  return lang;
+}
+
+function patchInvoicesPageRefResolution(file, text, sdf) {
+  if (!text.includes("import InvoiceCard from")) return null;
+  if (text.includes('REFERENCE_FIELDS')) return null; // Already migrated.
+
+  // Slug from the first api.get('/<slug>')
+  const slugMatch = text.match(/api\.get\('\/([\w-]+)'\)/);
+  if (!slugMatch) return null;
+  const slug = slugMatch[1];
+
+  const entities = Array.isArray(sdf && sdf.entities) ? sdf.entities : [];
+  const entity = entities.find((e) => e && e.slug === slug);
+  if (!entity) return null;
+  const fields = Array.isArray(entity.fields) ? entity.fields : [];
+  const refFields = fields
+    .map((f) => {
+      if (!_isRefFieldForPatcher(f)) return null;
+      const refSlug = _resolveRefSlugForPatcher(f, sdf);
+      if (!refSlug) return null;
+      const fieldName = String(f.name || '');
+      const baseName = fieldName.endsWith('_id')
+        ? fieldName.slice(0, -3)
+        : fieldName.endsWith('_ids')
+        ? fieldName.slice(0, -4)
+        : fieldName;
+      return {
+        fieldName,
+        baseName,
+        refSlug,
+        displayField: _displayFieldForPatcher(refSlug, sdf),
+        multiple: !!(f.multiple || f.is_array || /_ids$/.test(fieldName)),
+      };
+    })
+    .filter(Boolean);
+  if (refFields.length === 0) return null;
+
+  const refSlugs = Array.from(new Set(refFields.map((r) => r.refSlug)));
+  const refMetaJson = JSON.stringify(refFields, null, 2);
+  const refSlugsJson = JSON.stringify(refSlugs);
+  const lang = _projectLanguage(sdf);
+  const displayLocale = lang === 'tr' ? 'tr-TR' : lang === 'en' ? 'en-US' : lang;
+
+  let next = text;
+
+  // (6a) Ensure useMemo is imported alongside useEffect / useState.
+  next = next.replace(
+    /import\s*\{\s*([^}]*)\}\s*from\s*'react';/,
+    (m, names) => {
+      const tokens = names.split(',').map((s) => s.trim()).filter(Boolean);
+      if (!tokens.includes('useMemo')) tokens.push('useMemo');
+      return `import { ${tokens.join(', ')} } from 'react';`;
+    }
+  );
+
+  // (6b) Inject REFERENCE_FIELDS / REFERENCE_SLUGS constants right before
+  // `export default function`.
+  const exportIdx = next.indexOf('export default function');
+  if (exportIdx < 0) return null;
+  const constsBlock = `const REFERENCE_FIELDS: Array<{
+  fieldName: string;
+  baseName: string;
+  refSlug: string;
+  displayField: string;
+  multiple: boolean;
+}> = ${refMetaJson};
+const REFERENCE_SLUGS: string[] = ${refSlugsJson};
+
+`;
+  next = next.slice(0, exportIdx) + constsBlock + next.slice(exportIdx);
+
+  // (6c) Add refMaps + refsLoading state right after the existing
+  // statusFilter declaration.
+  const statusFilterMarker = "const [statusFilter, setStatusFilter] = useState<string>('all');";
+  if (!next.includes(statusFilterMarker)) return null;
+  next = next.replace(
+    statusFilterMarker,
+    `${statusFilterMarker}
+  const [refMaps, setRefMaps] = useState<Record<string, Record<string, string>>>({});
+  const [refsLoading, setRefsLoading] = useState(REFERENCE_SLUGS.length > 0);`
+  );
+
+  // (6d) Inject the ref-loading useEffect AFTER the items-loading
+  // useEffect's closing `}, []);` (the first one in the file).
+  const firstUEMarker = '}, []);';
+  const firstUEIdx = next.indexOf(firstUEMarker);
+  if (firstUEIdx < 0) return null;
+  const ueInsertAt = firstUEIdx + firstUEMarker.length;
+  const refUE = `
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (REFERENCE_SLUGS.length === 0) {
+        setRefsLoading(false);
+        return;
+      }
+      try {
+        const entries = await Promise.all(
+          REFERENCE_SLUGS.map(async (slug) => {
+            try {
+              const res = await api.get('/' + slug);
+              const rows = Array.isArray(res.data) ? res.data : [];
+              const map: Record<string, string> = {};
+              const displayField = REFERENCE_FIELDS.find((r) => r.refSlug === slug)?.displayField || 'name';
+              for (const r of rows) {
+                if (!r?.id) continue;
+                const v = r[displayField] ?? r.name ?? r.code ?? r.id;
+                map[String(r.id)] = String(v ?? '');
+              }
+              return [slug, map] as const;
+            } catch (e) {
+              console.error('Failed to load reference list:', slug, e);
+              return [slug, {} as Record<string, string>] as const;
+            }
+          })
+        );
+        if (cancelled) return;
+        setRefMaps(Object.fromEntries(entries));
+      } finally {
+        if (!cancelled) setRefsLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, []);`;
+  next = next.slice(0, ueInsertAt) + refUE + next.slice(ueInsertAt);
+
+  // (6e) Replace the existing filteredItems derivation with one that
+  // sources from enrichedItems (denormalised <base>_name fields).
+  const filterRe = /const filteredItems = statusFilter === 'all'\s*\n?\s*\?\s*items\s*\n?\s*:\s*items\.filter\(\(inv\) => String\(inv\?\.status \|\| 'Draft'\)\.toLowerCase\(\) === statusFilter\.toLowerCase\(\)\);/;
+  if (!filterRe.test(next)) return null;
+  next = next.replace(
+    filterRe,
+    `const enrichedItems = useMemo(() => {
+    if (REFERENCE_FIELDS.length === 0) return items;
+    return items.map((row) => {
+      const enriched: Record<string, any> = { ...row };
+      for (const ref of REFERENCE_FIELDS) {
+        const raw = row?.[ref.fieldName];
+        const map = refMaps[ref.refSlug] || {};
+        const resolveOne = (id: any) => {
+          const sId = String(id ?? '');
+          if (!sId) return '';
+          const hit = map[sId];
+          if (hit) return hit;
+          return refsLoading ? '\u2026' : sId;
+        };
+        const resolved = ref.multiple
+          ? (Array.isArray(raw) ? raw.map(resolveOne).filter(Boolean).join(', ') : '')
+          : (raw ? resolveOne(raw) : '');
+        enriched[ref.baseName + '_name'] = resolved;
+      }
+      return enriched;
+    });
+  }, [items, refMaps, refsLoading]);
+
+  const filteredItems = statusFilter === 'all'
+    ? enrichedItems
+    : enrichedItems.filter((inv) => String(inv?.status || 'Draft').toLowerCase() === statusFilter.toLowerCase());`
+  );
+
+  return next;
+}
+
+// (6f) — Independent patch step that adds `locale` + per-label props to
+// the <InvoiceCard /> usage. Runs separately so it works on pages that
+// already have REFERENCE_FIELDS but were originally emitted before
+// label/locale plumbing landed.
+function patchInvoiceCardProps(file, text, sdf) {
+  if (!text.includes("import InvoiceCard from")) return null;
+  if (!/<InvoiceCard\b/.test(text)) return null;
+  if (/locale=/.test(text)) return null; // Already wired.
+
+  const lang = _projectLanguage(sdf);
+  const displayLocale = lang === 'tr' ? 'tr-TR' : lang === 'en' ? 'en-US' : lang;
+
+  const i18nMissing = [];
+  if (!/customerLabel=/.test(text)) i18nMissing.push('              customerLabel={(I18N as any).customer ?? "Customer"}');
+  if (!/issueDateLabel=/.test(text)) i18nMissing.push('              issueDateLabel={(I18N as any).issueDate ?? "Issue Date"}');
+  if (!/dueDateLabel=/.test(text)) i18nMissing.push('              dueDateLabel={(I18N as any).dueDate ?? "Due Date"}');
+  if (!/totalLabel=/.test(text)) i18nMissing.push('              totalLabel={(I18N as any).total ?? "Total"}');
+  const localeLine = `              locale="${displayLocale}"`;
+  const extras = [...i18nMissing, localeLine].join('\n');
+
+  // Anchor on `deleteLabel={I18N.delete}` (always present after step 4)
+  // followed by the self-closing `/>` of the JSX element.
+  const re = /(deleteLabel=\{I18N\.delete\})(\s*\/>)/;
+  if (!re.test(text)) return null;
+  return text.replace(re, `$1\n${extras}$2`);
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // Driver
 // ──────────────────────────────────────────────────────────────────────
 
@@ -594,10 +828,20 @@ function applyToProject(projectRoot) {
     listPagesPatched: 0,
     formPagesPatched: 0,
     invoicePagesPatched: 0,
+    invoicePagesRefResolved: 0,
     invoiceCardsRewritten: 0,
     servicesCascaded: 0,
     migrationWritten: false,
   };
+
+  // SDF for ref-resolution lookup; missing SDF means we skip the
+  // ref-resolution step but everything else still runs.
+  let projectSdf = null;
+  try {
+    projectSdf = JSON.parse(
+      fs.readFileSync(path.join(projectRoot, 'sdf.json'), 'utf8')
+    );
+  } catch {/* leave null */}
 
   // Backend services — cascade-delete owned children. Both layouts ship
   // their service files under `<root>/modules/<mod>/src/services/*Service.js`,
@@ -642,6 +886,19 @@ function applyToProject(projectRoot) {
         if (invoiceNext && invoiceNext !== patched) {
           patched = invoiceNext;
           stats.invoicePagesPatched += 1;
+        }
+        if (projectSdf) {
+          const refNext = patchInvoicesPageRefResolution(file, patched, projectSdf);
+          if (refNext && refNext !== patched) {
+            patched = refNext;
+            stats.invoicePagesRefResolved += 1;
+            console.log(`  ref-resolved ${path.relative(REPO_ROOT, file)}`);
+          }
+          const propNext = patchInvoiceCardProps(file, patched, projectSdf);
+          if (propNext && propNext !== patched) {
+            patched = propNext;
+            console.log(`  invoice-card-props ${path.relative(REPO_ROOT, file)}`);
+          }
         }
       }
       if (isFormPage) {
@@ -763,6 +1020,7 @@ for (const s of all) {
     `  ${s.project}: ${s.listPagesPatched} list page(s), ` +
       `${s.formPagesPatched} form page(s), ` +
       `${s.invoicePagesPatched} invoice list page(s), ` +
+      `${s.invoicePagesRefResolved} invoice page(s) with ref-resolution, ` +
       `${s.invoiceCardsRewritten} invoice card(s), ` +
       `${s.servicesCascaded} service(s) with cascade delete, ` +
       `migration: ${s.migrationWritten ? 'written' : 'up-to-date'}`

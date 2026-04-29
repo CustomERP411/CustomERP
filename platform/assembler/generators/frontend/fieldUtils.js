@@ -8,6 +8,14 @@ const { resolveEffectiveRequired } = require('../shared/fieldRequired');
 module.exports = {
   async generateDynamicForm(outputDir) {
     const t = tFor(this._language || 'en');
+    // DynamicForm's resolveHeading() walks dotted i18n keys (e.g.
+    // "form.sections.details") against the labels JSON we inject below.
+    // The AI generators emit those exact dot-keys for every section heading,
+    // so the labels object MUST mirror that namespace; otherwise the lookup
+    // falls back to the raw key and the user sees "form.sections.details"
+    // sitting in the form. Mirror the canonical sections from en/tr.json so
+    // any of the documented headings (`identity`, `details`, `lifecycle`,
+    // `notes`, `lineItems`, `totals`) resolve.
     const labels = {
       cancel: t('dynamicForm.cancel'),
       save: t('dynamicForm.save'),
@@ -21,6 +29,25 @@ module.exports = {
         max: t('dynamicForm.validation.max'),
         oneOf: t('dynamicForm.validation.oneOf'),
         invalid: t('dynamicForm.validation.invalid'),
+      },
+      form: {
+        sections: {
+          identity: t('form.sections.identity'),
+          details: t('form.sections.details'),
+          lifecycle: t('form.sections.lifecycle'),
+          notes: t('form.sections.notes'),
+          lineItems: t('form.sections.lineItems'),
+          totals: t('form.sections.totals'),
+          // Tolerate the singular spelling some generators emit.
+          section: {
+            identity: t('form.sections.identity'),
+            details: t('form.sections.details'),
+            lifecycle: t('form.sections.lifecycle'),
+            notes: t('form.sections.notes'),
+            lineItems: t('form.sections.lineItems'),
+            totals: t('form.sections.totals'),
+          },
+        },
       },
     };
     const template = await this.brickRepo.getTemplate('DynamicForm.tsx');

@@ -35,11 +35,12 @@ async function main() {
   const brickRepo = new BrickRepository(path.join(REPO_ROOT, 'brick-library'));
   const assembler = new ProjectAssembler(brickRepo, outputRoot);
 
-  const genId = `_smoke_preview-${Date.now()}`;
-  console.log(`[smoke] Assembling standalone preview ${genId} from ${sdfPath}`);
+  const language = process.env.SMOKE_LANG || 'en';
+  const genId = `_smoke_preview-${language}-${Date.now()}`;
+  console.log(`[smoke] Assembling standalone preview ${genId} (lang=${language}) from ${sdfPath}`);
   let outputDir;
   try {
-    outputDir = await assembler.assemble(genId, sdf, { standalone: true, language: 'en' });
+    outputDir = await assembler.assemble(genId, sdf, { standalone: true, language });
   } catch (err) {
     console.error('[smoke] ASSEMBLE FAILED:', err && err.stack ? err.stack : err);
     process.exit(2);

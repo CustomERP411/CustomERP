@@ -158,12 +158,44 @@ const getStatusBadgeClass = (status: string) => {
   return 'inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-slate-100 text-slate-700';
 };
 
+// Locale used for client-side date / datetime / number formatting. We
+// resolve it from the assembler's \`language\` build flag rather than from
+// the runtime browser locale so a generated TR ERP renders 28.04.2026
+// regardless of the operator's system settings.
+const DISPLAY_LOCALE = '${language === 'tr' ? 'tr-TR' : language === 'en' ? 'en-US' : language}' as const;
+const DATE_FORMATTER = new Intl.DateTimeFormat(DISPLAY_LOCALE, { year: 'numeric', month: '2-digit', day: '2-digit' });
+const DATETIME_FORMATTER = new Intl.DateTimeFormat(DISPLAY_LOCALE, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+const NUMBER_FORMATTER = new Intl.NumberFormat(DISPLAY_LOCALE);
+
+const formatDateCell = (raw: any, type?: string) => {
+  if (raw === null || raw === undefined || raw === '') return '';
+  const t = new Date(String(raw)).getTime();
+  if (!Number.isFinite(t)) return String(raw);
+  const d = new Date(t);
+  return type === 'datetime' ? DATETIME_FORMATTER.format(d) : DATE_FORMATTER.format(d);
+};
+
+const formatNumberCell = (raw: any) => {
+  if (raw === null || raw === undefined || raw === '') return '';
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isFinite(n)) return String(raw);
+  return NUMBER_FORMATTER.format(n);
+};
+
 export default function ${entityName}Page() {
   const { toast } = useToast();
   const [items, setItems] = useState<${entityName}Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteBlocked, setDeleteBlocked] = useState<DeleteBlockedState | null>(null);
   const [refMaps, setRefMaps] = useState<Record<string, Record<string, string>>>({});
+  // \`refsLoading\` masks the brief window between items being fetched and
+  // the per-reference \`GET /<slug>\` round-trips completing. Without it the
+  // first paint shows raw FK ids (e.g. \`01J9...\`) and only flips to the
+  // resolved customer / product display name a moment later — which the
+  // user reads as "references appear as ids". When refsLoading is true we
+  // render an em-dash instead of the raw id; once the maps resolve, lookup
+  // misses still fall back to the id so debug data isn't lost.
+  const [refsLoading, setRefsLoading] = useState(true);
 ${enableSearch ? `  const [search, setSearch] = useState('');` : ''}
   const [sorts, setSorts] = useState<SortSpec[]>([]);
   const [pageSize, setPageSize] = useState(25);
@@ -195,7 +227,11 @@ ${enableBulkUpdate ? `  const [bulkUpdateOpen, setBulkUpdateOpen] = useState(fal
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      if (referenceSlugs.length === 0) return;
+      if (referenceSlugs.length === 0) {
+        setRefsLoading(false);
+        return;
+      }
+      setRefsLoading(true);
       const entries = await Promise.all(
         referenceSlugs.map(async (slug) => {
           try {
@@ -215,6 +251,7 @@ ${enableBulkUpdate ? `  const [bulkUpdateOpen, setBulkUpdateOpen] = useState(fal
       );
       if (cancelled) return;
       setRefMaps(Object.fromEntries(entries));
+      setRefsLoading(false);
     };
     run();
     return () => { cancelled = true; };
@@ -223,15 +260,33 @@ ${enableBulkUpdate ? `  const [bulkUpdateOpen, setBulkUpdateOpen] = useState(fal
   const getCellDisplay = (item: any, key: string) => {
     const def = FIELD_BY_NAME[key];
     const raw = item?.[key];
+    const type = String(def?.type || '');
 
     if (def?.referenceEntity) {
       const map = refMaps[def.referenceEntity] || {};
+      const resolveOne = (id: any) => {
+        const sId = String(id ?? '');
+        if (!sId) return '';
+        const hit = map[sId];
+        if (hit) return hit;
+        // Don't leak raw FK ids while the per-reference GETs are still in
+        // flight — render an em-dash instead. Only after refsLoading flips
+        // to false do we surface the bare id, and even then only because
+        // showing nothing would hide debug-relevant context.
+        return refsLoading ? '…' : '—';
+      };
       if (def.multiple) {
         const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
-        return arr.map((id: any) => map[String(id)] || String(id)).join(', ');
+        return arr.map(resolveOne).filter(Boolean).join(', ');
       }
-      return map[String(raw)] || String(raw ?? '');
+      return raw ? resolveOne(raw) : '';
     }
+
+    // Plan TR-poly: format dates/datetimes via Intl using the build-time
+    // locale so TR ERPs render 28.04.2026 instead of the raw ISO string
+    // the API hands back, and numeric amounts get a thousands separator.
+    if (type === 'date' || type === 'datetime') return formatDateCell(raw, type);
+    if (type === 'integer' || type === 'decimal' || type === 'number') return formatNumberCell(raw);
 
     if (Array.isArray(raw)) return raw.join('; ');
     return String(raw ?? '');

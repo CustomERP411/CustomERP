@@ -267,6 +267,12 @@ export default function ${entityName}FormPage() {
   // falls back to today's standard /new flow with a one-time toast.
   const [autoDraftCreating, setAutoDraftCreating] = useState<boolean>(!isEdit && AUTO_DRAFT_ON_CREATE);
   const [autoDraftFailed, setAutoDraftFailed] = useState<boolean>(false);
+  // Plan H follow-up — \`isAutoDraft\` tracks whether the row that the form
+  // is currently editing is an orphaned auto-draft (created by the /new →
+  // /:id/edit redirect above). When true, Cancel deletes the row instead
+  // of leaving it behind in the list. handleSubmit clears this flag on
+  // successful save so saved rows are never auto-deleted.
+  const [isAutoDraft, setIsAutoDraft] = useState<boolean>(false);
 
   const companionEnabled = !!COMPANION_USER_CFG;
   const hasLinkedUser = companionEnabled && isEdit && !!(initialData && (initialData as any).user_id);
@@ -412,6 +418,7 @@ export default function ${entityName}FormPage() {
           // URL change and the user would have to refresh the page to see
           // the editable form.
           setAutoDraftCreating(false);
+          setIsAutoDraft(true);
           setLoading(true);
           navigate('/${entity.slug}/' + newId + '/edit', { replace: true });
           return;
@@ -615,6 +622,7 @@ export default function ${entityName}FormPage() {
         if (!validateCompanion()) return;
         await api.post('/${entity.slug}/with-user', { employee: data, companion_user: buildCompanionPayload() });
         toast({ title: I18N.saveSuccessTitle, description: I18N.companionCreatedWithLogin, variant: 'success' });
+        setIsAutoDraft(false);
         navigate('/${entity.slug}');
         return;
       }
@@ -635,10 +643,26 @@ export default function ${entityName}FormPage() {
         await api.post('/${entity.slug}', data);
         toast({ title: I18N.saveSuccessTitle, description: I18N.saveSuccessCreated, variant: 'success' });
       }
+      setIsAutoDraft(false);
       navigate('/${entity.slug}');
     } catch (err: any) {
       toast({ title: I18N.saveFailedTitle, description: err.response?.data?.error || err.message || I18N.unknownError, variant: 'error' });
     }
+  };
+
+  // Plan H follow-up — leaving an auto-drafted row without saving cleans
+  // it up. Without this, every "New" → back-out leaks a placeholder Draft
+  // row into the list. Failure to delete is swallowed because the row
+  // will be visible to the user in the list and can be deleted manually.
+  const handleCancel = async () => {
+    if (isAutoDraft && id) {
+      try {
+        await api.delete('/${entity.slug}/' + id);
+      } catch (e) {
+        // Swallow — the user can still delete the orphan from the list.
+      }
+    }
+    navigate('/${entity.slug}');
   };
 
   const toggleCompanionGroup = (gid: string) => {
@@ -1212,7 +1236,7 @@ export default function ${entityName}FormPage() {
               fields={fieldDefinitions as any}
               initialData={isEdit ? initialData : { ...initialFromQuery, ...initialData }}
               onSubmit={handleSubmit}
-              onCancel={() => navigate('/${entity.slug}')}
+              onCancel={handleCancel}
               derivedRelations={DERIVED_RELATIONS as any}
               childItemsBySlug={childItemsBySlug}
               onChange={setLiveFormData}
@@ -1269,7 +1293,7 @@ export default function ${entityName}FormPage() {
               fields={fieldDefinitions as any}
               initialData={isEdit ? initialData : { ...initialFromQuery, ...initialData }}
               onSubmit={handleSubmit}
-              onCancel={() => navigate('/${entity.slug}')}
+              onCancel={handleCancel}
               derivedRelations={DERIVED_RELATIONS as any}
               childItemsBySlug={childItemsBySlug}
               onChange={setLiveFormData}

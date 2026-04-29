@@ -628,8 +628,25 @@ async createDraft(payload, context = {}) {
     return code;
   },
 
+  // Owned children — entities that the current entity OWNS via its
+  // `children[]` SDF declaration (inline line-items / docket lines / etc.).
+  // Their rows must be cascade-deleted before the parent is removed; they
+  // never block the parent delete with a 409. External references (other
+  // entities that happen to point at this one) keep blocking as before.
+  _ownedChildSlugsFor(entity) {
+    const owned = new Set();
+    const children = Array.isArray(entity && entity.children) ? entity.children : [];
+    for (const ch of children) {
+      if (!ch || typeof ch !== 'object') continue;
+      const slug = String(ch.entity || ch.slug || '').trim();
+      if (slug) owned.add(slug);
+    }
+    return owned;
+  },
+
   _buildDeleteRestrictionSnippet(entity, allEntities) {
     const dependentsByEntity = new Map();
+    const ownedSlugs = this._ownedChildSlugsFor(entity);
 
     for (const other of allEntities) {
       if (!other || other.slug === entity.slug) continue;
@@ -653,29 +670,77 @@ async createDraft(payload, context = {}) {
 
     if (dependentsByEntity.size === 0) return '';
 
+    // Split dependents into "owned children" (cascade) and "external"
+    // (block with 409). Cascade runs FIRST so any rows that would have been
+    // counted as dependents are gone by the time the external check runs.
+    const cascadeEntries = [];
+    const blockEntries = [];
+    for (const [slug, info] of dependentsByEntity.entries()) {
+      if (ownedSlugs.has(slug)) cascadeEntries.push([slug, info]);
+      else blockEntries.push([slug, info]);
+    }
+
     let code = `
-      // Delete protection (generated): prevent deleting a record that is referenced by others
-      const dependents = [];
+      // Delete cascade + protection (generated). Owned children
+      // (entity.children[]) are cascade-deleted first; external references
+      // still raise a 409 with a dependents payload.
 `;
 
-    for (const [otherSlug, info] of dependentsByEntity.entries()) {
-      const otherEntity = info.entity;
-      const displayField = this._guessDisplayField(otherEntity);
-      const displayFieldEsc = this._escapeJsString(displayField);
-
-      // Build per-row match condition across all referencing fields
-      const checks = info.fields.map((f) => {
-        const key = this._escapeJsString(f.name);
-        if (f.multiple) {
-          return `(Array.isArray(row['${key}']) && row['${key}'].some((v) => String(v) === String(id)))`;
-        }
-        return `String(row['${key}'] ?? '') === String(id)`;
-      });
-      const matchExpr = checks.join(' || ') || 'false';
-
-      const viaFields = info.fields.map((f) => `'${this._escapeJsString(f.name)}'`).join(', ');
-
+    if (cascadeEntries.length) {
       code += `
+      // Cascade-delete owned child rows.
+`;
+      for (const [otherSlug, info] of cascadeEntries) {
+        const checks = info.fields.map((f) => {
+          const key = this._escapeJsString(f.name);
+          if (f.multiple) {
+            return `(Array.isArray(row['${key}']) && row['${key}'].some((v) => String(v) === String(id)))`;
+          }
+          return `String(row['${key}'] ?? '') === String(id)`;
+        });
+        const matchExpr = checks.join(' || ') || 'false';
+
+        code += `
+      {
+        const __ownedRows = await this.repository.findAll('${this._escapeJsString(otherSlug)}');
+        for (const row of __ownedRows) {
+          if (${matchExpr}) {
+            try {
+              await this.repository.delete('${this._escapeJsString(otherSlug)}', row.id);
+            } catch (e) {
+              // Surface as 409 so the caller can react; the parent is still intact.
+              const __cascadeErr = new Error('Cannot delete: failed to remove owned child row in ${this._escapeJsString(otherSlug)} (' + (e && e.message ? e.message : 'unknown error') + ')');
+              __cascadeErr.statusCode = 409;
+              throw __cascadeErr;
+            }
+          }
+        }
+      }
+`;
+      }
+    }
+
+    if (blockEntries.length) {
+      code += `
+      const dependents = [];
+`;
+      for (const [otherSlug, info] of blockEntries) {
+        const otherEntity = info.entity;
+        const displayField = this._guessDisplayField(otherEntity);
+        const displayFieldEsc = this._escapeJsString(displayField);
+
+        const checks = info.fields.map((f) => {
+          const key = this._escapeJsString(f.name);
+          if (f.multiple) {
+            return `(Array.isArray(row['${key}']) && row['${key}'].some((v) => String(v) === String(id)))`;
+          }
+          return `String(row['${key}'] ?? '') === String(id)`;
+        });
+        const matchExpr = checks.join(' || ') || 'false';
+
+        const viaFields = info.fields.map((f) => `'${this._escapeJsString(f.name)}'`).join(', ');
+
+        code += `
       {
         const rows = await this.repository.findAll('${this._escapeJsString(otherSlug)}');
         const matches = rows.filter((row) => ${matchExpr});
@@ -689,9 +754,9 @@ async createDraft(payload, context = {}) {
         }
       }
 `;
-    }
+      }
 
-    code += `
+      code += `
       if (dependents.length) {
         const err = new Error('Cannot delete: this record is referenced by other records');
         err.statusCode = 409;
@@ -699,6 +764,7 @@ async createDraft(payload, context = {}) {
         throw err;
       }
 `;
+    }
 
     return code;
   },

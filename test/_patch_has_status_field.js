@@ -65,11 +65,26 @@ function patchHasStatusField(file, text) {
 // (2) autoDraftCreating fix — runs on every form page (`*FormPage.tsx`)
 // ──────────────────────────────────────────────────────────────────────
 
-const AUTO_DRAFT_RESET_MARKER = 'setAutoDraftCreating(false);\n          setLoading(true);';
+// Anchor marker only checks for the autoDraft reset call. Patch (2c) below
+// inserts `setIsAutoDraft(true);` between this and `setLoading(true);`, so
+// matching the literal pair would falsely re-fire (2a). Just look for the
+// reset call presence — its only emitter is patch (2a) itself.
+const AUTO_DRAFT_RESET_MARKER = 'setAutoDraftCreating(false);';
 
 function patchAutoDraftCreating(file, text) {
   let next = text;
   let changed = false;
+
+  // Idempotency cleanup — earlier patcher runs (before AUTO_DRAFT_RESET_MARKER
+  // was relaxed) could re-fire (2a) once (2c) had inserted setIsAutoDraft
+  // between the lines, leaving a duplicate `setAutoDraftCreating(false);`
+  // sitting right next to the canonical one. Strip the dupe so the form
+  // never schedules the same state setter twice.
+  const dupeRe = /(setAutoDraftCreating\(false\);\s*\n\s*setIsAutoDraft\(true\);\s*\n\s*)setAutoDraftCreating\(false\);\s*\n\s*/;
+  if (dupeRe.test(next)) {
+    next = next.replace(dupeRe, '$1');
+    changed = true;
+  }
 
   // (2a) Reset autoDraftCreating before navigate in the success branch.
   // Old shape (single line indented 10 spaces):
@@ -94,6 +109,94 @@ function patchAutoDraftCreating(file, text) {
   if (next.includes(renderNeedle) && !next.includes(renderReplacement)) {
     next = next.split(renderNeedle).join(renderReplacement);
     changed = true;
+  }
+
+  // (2c) Auto-draft cleanup on Cancel. When the form's load redirected
+  // /new → /:id/edit it left a placeholder Draft row; if the user clicks
+  // Cancel WITHOUT saving, that row leaks into the list. Track the
+  // "draft-but-not-yet-saved" condition with `isAutoDraft` and have a
+  // dedicated `handleCancel` issue a DELETE before navigating away.
+  if (
+    next.includes('autoDraftCreating') &&
+    !next.includes('const [isAutoDraft,')
+  ) {
+    // (i) Add isAutoDraft state right after autoDraftFailed.
+    const stateAnchor =
+      'const [autoDraftFailed, setAutoDraftFailed] = useState<boolean>(false);';
+    if (next.includes(stateAnchor)) {
+      next = next.replace(
+        stateAnchor,
+        `${stateAnchor}\n  const [isAutoDraft, setIsAutoDraft] = useState<boolean>(false);`
+      );
+      changed = true;
+    }
+
+    // (ii) Flip isAutoDraft on right after we kick off the navigate.
+    const flipAnchor = 'setAutoDraftCreating(false);\n          setLoading(true);';
+    if (next.includes(flipAnchor) && !next.includes('setIsAutoDraft(true);')) {
+      next = next.replace(
+        flipAnchor,
+        'setAutoDraftCreating(false);\n          setIsAutoDraft(true);\n          setLoading(true);'
+      );
+      changed = true;
+    }
+
+    // (iii) Insert handleCancel right after the closing of handleSubmit.
+    // We anchor on the unique edit-path call `await api.put('/<slug>/' + id, data);`,
+    // walk forward to the next standalone `};` that closes the function,
+    // and inject our handler immediately after it.
+    if (!next.includes('const handleCancel = async')) {
+      const slugMatch = next.match(/api\.delete\('\/([\w_-]+)\/'\s*\+\s*id\)/);
+      const apiPutMatch = next.match(
+        /await api\.put\('\/([\w_-]+)\/'\s*\+\s*id, data\);/
+      );
+      const slug = (slugMatch && slugMatch[1]) || (apiPutMatch && apiPutMatch[1]);
+      // Find the end of handleSubmit by locating the next `\n  };` after the
+      // first `const handleSubmit = async (data: any) => {`.
+      const submitStart = next.indexOf('const handleSubmit = async (data: any) => {');
+      if (slug && submitStart >= 0) {
+        // Walk forward and bracket-count.
+        let depth = 0;
+        let endIdx = -1;
+        let started = false;
+        for (let i = submitStart; i < next.length; i += 1) {
+          const c = next[i];
+          if (c === '{') {
+            depth += 1;
+            started = true;
+          } else if (c === '}') {
+            depth -= 1;
+            if (started && depth === 0) {
+              endIdx = i;
+              break;
+            }
+          }
+        }
+        if (endIdx > 0) {
+          // Look for the `;` that follows the closing brace of `};`.
+          // Insert the helper RIGHT after the closing `};` of handleSubmit.
+          const after = next.indexOf(';', endIdx);
+          if (after > 0) {
+            const insertion = `\n\n  const handleCancel = async () => {\n    if (isAutoDraft && id) {\n      try {\n        await api.delete('/${slug}/' + id);\n      } catch (e) {\n        // Swallow — orphan can still be deleted from the list.\n      }\n    }\n    navigate('/${slug}');\n  };`;
+            next = next.slice(0, after + 1) + insertion + next.slice(after + 1);
+            changed = true;
+          }
+        }
+      }
+    }
+
+    // (iv) Wire <DynamicForm onCancel={...}> to the new handler. Replaces
+    // BOTH callsites (UI-sections branch + default-layout branch).
+    const cancelOld = `onCancel={() => navigate('/${
+      // re-derive slug from any DELETE call; keep the regex liberal
+      ''
+    }')}`;
+    // We can't statically interpolate the slug here, so use a regex:
+    const cancelNeedleRe = /onCancel=\{\(\)\s*=>\s*navigate\('\/[\w_-]+'\)\}/g;
+    if (cancelNeedleRe.test(next)) {
+      next = next.replace(cancelNeedleRe, 'onCancel={handleCancel}');
+      changed = true;
+    }
   }
 
   return changed ? next : null;
@@ -142,6 +245,170 @@ function buildRelaxDraftFkSql() {
   ];
 
   return `${header.join('\n')}\nDO $$\nBEGIN\n${blocks.join('\n\n')}\nEND $$;\n`;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// (5) Cascade-delete owned children — patch service files in place
+// ──────────────────────────────────────────────────────────────────────
+
+// Build a cascade replacement block matching the new shape emitted by
+// platform/assembler/generators/backend/validationCodegen.js.
+function _buildCascadeBlock(otherSlug, fields) {
+  const escSlug = otherSlug.replace(/'/g, "\\'");
+  const checks = fields
+    .map((f) => `String(row['${f}'] ?? '') === String(id)`)
+    .join(' || ');
+  return `      {
+        const __ownedRows = await this.repository.findAll('${escSlug}');
+        for (const row of __ownedRows) {
+          if (${checks}) {
+            try {
+              await this.repository.delete('${escSlug}', row.id);
+            } catch (e) {
+              // Surface as 409 so the caller can react; the parent is still intact.
+              const __cascadeErr = new Error('Cannot delete: failed to remove owned child row in ${escSlug} (' + (e && e.message ? e.message : 'unknown error') + ')');
+              __cascadeErr.statusCode = 409;
+              throw __cascadeErr;
+            }
+          }
+        }
+      }`;
+}
+
+// Read the SDF for a project, indexed by entity.slug → set of owned-child slugs.
+function _ownedSlugMapForProject(projectRoot) {
+  const sdfPath = path.join(projectRoot, 'sdf.json');
+  let sdf;
+  try {
+    sdf = JSON.parse(fs.readFileSync(sdfPath, 'utf8'));
+  } catch {
+    return null;
+  }
+  const entities = Array.isArray(sdf && sdf.entities) ? sdf.entities : [];
+  const map = new Map();
+  for (const e of entities) {
+    if (!e || !e.slug) continue;
+    const owned = new Set();
+    const children = Array.isArray(e.children) ? e.children : [];
+    for (const ch of children) {
+      if (!ch) continue;
+      const slug = String(ch.entity || ch.slug || '').trim();
+      if (slug) owned.add(slug);
+    }
+    if (owned.size) map.set(e.slug, owned);
+  }
+  return map;
+}
+
+function patchDeleteCascade(file, text, ownedMap) {
+  if (!/Service\.js$/.test(file)) return null;
+  if (!text.includes('// @HOOK: BEFORE_DELETE_VALIDATION')) return null;
+  // Idempotent — already migrated to the new emitter.
+  if (text.includes('Delete cascade + protection (generated)')) return null;
+
+  const slugMatch = text.match(/this\.slug\s*=\s*'([\w_-]+)'/);
+  if (!slugMatch) return null;
+  const slug = slugMatch[1];
+
+  const ownedSlugs = ownedMap.get(slug);
+  if (!ownedSlugs || ownedSlugs.size === 0) return null;
+
+  // Each existing dependents block is shaped like:
+  //
+  //   {
+  //     const rows = await this.repository.findAll('OTHER');
+  //     const matches = rows.filter((row) => ... );
+  //     if (matches.length) {
+  //       dependents.push({
+  //         entity: 'OTHER',
+  //         via: [...],
+  //         count: matches.length,
+  //         preview: ...,
+  //       });
+  //     }
+  //   }
+  //
+  // We keep blocks for external references and rewrite blocks for owned
+  // children into cascading deletes. We walk by `findAll('SLUG')` anchors
+  // and bracket-match outwards to find the enclosing `{ ... }` boundaries.
+  const anchorRe = /const rows = await this\.repository\.findAll\('([\w_-]+)'\);/g;
+  const replacements = [];
+  let m;
+  while ((m = anchorRe.exec(text)) !== null) {
+    const otherSlug = m[1];
+    if (!ownedSlugs.has(otherSlug)) continue; // External — keep block as-is.
+
+    // Walk back from the match to the opening `{`.
+    let openIdx = m.index;
+    while (openIdx > 0 && text[openIdx] !== '{') openIdx -= 1;
+    if (openIdx <= 0) continue;
+    // Walk back further to capture the leading whitespace before `{`.
+    let blockStart = openIdx;
+    while (blockStart > 0 && (text[blockStart - 1] === ' ' || text[blockStart - 1] === '\n')) {
+      // Stop when we've crossed at most one newline; we want to keep prior
+      // statements untouched.
+      if (text[blockStart - 1] === '\n' && text.slice(blockStart - 1, openIdx).includes('\n', 1)) break;
+      blockStart -= 1;
+      if (text[blockStart] === '\n') break;
+    }
+
+    // Now bracket-match forward from openIdx to find matching `}`.
+    let depth = 0;
+    let closeIdx = -1;
+    for (let i = openIdx; i < text.length; i += 1) {
+      const c = text[i];
+      if (c === '{') depth += 1;
+      else if (c === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          closeIdx = i;
+          break;
+        }
+      }
+    }
+    if (closeIdx < 0) continue;
+
+    // Pull `via: [ ... ]` out of the block so we know which FK fields to
+    // match on. Same regex shape as the codegen.
+    const blockSrc = text.slice(openIdx, closeIdx + 1);
+    const viaMatch = blockSrc.match(/via:\s*\[([^\]]*)\]/);
+    if (!viaMatch) continue;
+    const fields = viaMatch[1]
+      .split(',')
+      .map((s) => s.replace(/['"]/g, '').trim())
+      .filter(Boolean);
+    if (!fields.length) continue;
+
+    replacements.push({
+      from: openIdx,
+      to: closeIdx + 1,
+      replacement: _buildCascadeBlock(otherSlug, fields).replace(/^ {6}/, ''),
+    });
+  }
+
+  if (!replacements.length) return null;
+
+  // Apply replacements right-to-left so earlier indices stay valid.
+  replacements.sort((a, b) => b.from - a.from);
+  let out = text;
+  for (const r of replacements) {
+    out = out.slice(0, r.from) + r.replacement + out.slice(r.to);
+  }
+
+  // Mark the file as patched so re-runs are no-ops. We add a one-line
+  // comment immediately under `// @HOOK: BEFORE_DELETE_VALIDATION` rather
+  // than touching unrelated code.
+  const marker = '// @HOOK: BEFORE_DELETE_VALIDATION';
+  const markerIdx = out.indexOf(marker);
+  if (markerIdx >= 0) {
+    const insertAt = markerIdx + marker.length;
+    out =
+      out.slice(0, insertAt) +
+      '\n    // Delete cascade + protection (generated)' +
+      out.slice(insertAt);
+  }
+
+  return out;
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -328,8 +595,32 @@ function applyToProject(projectRoot) {
     formPagesPatched: 0,
     invoicePagesPatched: 0,
     invoiceCardsRewritten: 0,
+    servicesCascaded: 0,
     migrationWritten: false,
   };
+
+  // Backend services — cascade-delete owned children. Both layouts ship
+  // their service files under `<root>/modules/<mod>/src/services/*Service.js`,
+  // either rooted at `backend/` (Postgres compose layout) or `app/`
+  // (standalone preview layout).
+  const ownedMap = _ownedSlugMapForProject(projectRoot);
+  if (ownedMap && ownedMap.size > 0) {
+    const backendBases = ['backend', 'app'];
+    for (const base of backendBases) {
+      const moduleRoot = path.join(projectRoot, base, 'modules');
+      if (!fs.existsSync(moduleRoot)) continue;
+      for (const file of walk(moduleRoot)) {
+        if (!/Service\.js$/.test(file)) continue;
+        const original = fs.readFileSync(file, 'utf8');
+        const patched = patchDeleteCascade(file, original, ownedMap);
+        if (patched && patched !== original) {
+          fs.writeFileSync(file, patched, 'utf8');
+          stats.servicesCascaded += 1;
+          console.log(`  cascaded ${path.relative(REPO_ROOT, file)}`);
+        }
+      }
+    }
+  }
 
   const frontendModules = path.join(projectRoot, 'frontend', 'modules');
   if (fs.existsSync(frontendModules)) {
@@ -473,6 +764,7 @@ for (const s of all) {
       `${s.formPagesPatched} form page(s), ` +
       `${s.invoicePagesPatched} invoice list page(s), ` +
       `${s.invoiceCardsRewritten} invoice card(s), ` +
+      `${s.servicesCascaded} service(s) with cascade delete, ` +
       `migration: ${s.migrationWritten ? 'written' : 'up-to-date'}`
   );
 }

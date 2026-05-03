@@ -50,6 +50,9 @@ coverage/
 .nyc_output/
 htmlcov/
 
+# Test results / artifacts (never commit)
+test-results/
+
 # Local data files
 *.json.backup
 platform/backend/data/
@@ -60,5 +63,6 @@ backups/
 # TLS certificates (generated locally by deploy script)
 certbot/
 
+# Stray local env files
 env.example
 .env.dev

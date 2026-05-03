@@ -1,8 +1,8 @@
 # CustomERP Technical Blueprint
 
-> **Project Context & Architectural Blueprint for CustomERP v1.0 — Increment 1**
-> 
-> This document serves as the authoritative technical reference for all current and future development of the CustomERP platform.
+> **Architectural Blueprint for CustomERP** — the authoritative technical reference for the platform.
+>
+> This doc covers stable architecture. For the current state of shipped modules see §12; for in-flight work see `git log` and the issue tracker. For the SDF JSON contract see [`SDF_REFERENCE.md`](SDF_REFERENCE.md). For day-to-day onboarding see [`README.md`](README.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ---
 
@@ -19,7 +19,7 @@
 9. [Use Case Workflows](#9-use-case-workflows)
 10. [Component Architecture](#10-component-architecture)
 11. [Security & Error Handling](#11-security--error-handling)
-12. [Increment 1 Deliverables](#12-increment-1-deliverables)
+12. [Current State](#12-current-state)
 
 ---
 
@@ -61,20 +61,22 @@ CustomERP is an **Orchestration & Assembly Engine**. Unlike traditional code gen
 
 | Layer | Technology | Version | Specification |
 |:------|:-----------|:--------|:--------------|
-| **Platform Core** | Node.js / Express.js | 20.x / 4.x | Manages project lifecycle, assembly engine, REST API |
-| **Platform Database** | PostgreSQL | 16.x | Stores users, projects, SDFs, audit logs |
-| **AI Gateway** | Python / Google GenAI SDK | 3.11 / latest | Translates natural language → SDF JSON |
-| **Generated ERP (BE)** | Node.js / Express.js | 20.x | Assembled from modular Service Bricks |
+| **Platform Core** | Node.js / Express.js | 20.x / 5.x | Manages project lifecycle, assembly engine, REST API |
+| **Platform Database** | PostgreSQL | 16.x | Stores users, projects, SDFs, conversations, training data, audit logs |
+| **AI Gateway** | Python / FastAPI / Google GenAI / Azure OpenAI | 3.11 / 0.115 / 0.8 / 1.40 | Translates natural language → SDF JSON |
+| **Platform Frontend** | React / Vite / TypeScript / Tailwind | 18.3 / 6.x / 5.x / 3.x | Dashboard SPA, i18next (English + Turkish) |
+| **Generated ERP (BE)** | Node.js / Express.js | 20.x / 5.x | Assembled from modular Service Bricks + Mixins |
 | **Generated ERP (FE)** | React / Tailwind CSS | 18.x / 3.x | Assembled from Metadata-Aware Components |
-| **Data Layer (Inc. 1)** | JSON Flat-Files | — | Persistence for generated ERP entities |
+| **Data Layer** | Flat-File / SQLite / PostgreSQL | — | Three providers shipped — selected per generated ERP |
 | **Containerization** | Docker / Docker Compose | 24+ / 2.x | Artifact packaging and deployment |
 
 ### 2.2 External Dependencies
 
 | Service | Purpose | Interface |
 |:--------|:--------|:----------|
-| **Google AI Studio (Gemini 3 Pro)** | NLP processing, entity extraction, SDF generation | HTTPS REST, JSON |
-| **Docker Hub** | Base images (node:20-alpine, postgres:16-alpine) | Docker pull |
+| **Google AI Studio (Gemini)** | NLP processing, entity extraction, SDF generation | HTTPS REST, JSON |
+| **Azure OpenAI (alternative)** | Drop-in replacement for Gemini; supports reasoning models (gpt-5*, o-series) | HTTPS REST, JSON |
+| **Docker Hub** | Base images (node:20-alpine, postgres:16-alpine, python:3.11-slim) | Docker pull |
 
 ---
 
@@ -101,11 +103,12 @@ CustomERP is an **Orchestration & Assembly Engine**. Unlike traditional code gen
 │                        │              │                                     │
 │                        ▼              ▼                                     │
 │  ┌──────────────┐    ┌──────────────────────────┐                          │
-│  │ Google AI    │    │     BRICK LIBRARY        │                          │
-│  │ Gemini 3 Pro │    ├──────────────────────────┤                          │
-│  │ (External)   │    │ • Backend Bricks         │                          │
-│  └──────────────┘    │ • Frontend Bricks        │                          │
-│                      │ • Template Bricks        │                          │
+│  │  AI Provider │    │     BRICK LIBRARY        │                          │
+│  │ Gemini /     │    ├──────────────────────────┤                          │
+│  │ Azure OpenAI │    │ • Backend Bricks         │                          │
+│  │  (External)  │    │ • Frontend Bricks        │                          │
+│  └──────────────┘    │ • Template Bricks        │                          │
+│                      │ • Mixins (Inv/Inv/HR)    │                          │
 │                      └────────────┬─────────────┘                          │
 │                                   │                                         │
 │                                   ▼                                         │
@@ -202,41 +205,65 @@ The audit field `sdf.inferred_dropped_modules: List[str]` carries the union of o
 
 ### 4.1 Brick Categories
 
-The Brick Library contains pre-written, tested code modules organized by function:
+The Brick Library contains pre-written, tested code modules. Three flavors:
 
 ```
 brick-library/
 ├── backend-bricks/
-│   ├── controllers/
-│   │   └── BaseController.js         # Generic CRUD entry point
-│   ├── services/
-│   │   ├── InventoryService.js       # Stock management logic
-│   │   ├── StockValidationLogic.js   # Prevents negative stock
-│   │   ├── AlertTriggerLogic.js      # Low-stock threshold alerts
-│   │   └── AuditTrailLogic.js        # Entity change logging
-│   └── repository/
-│       ├── RepositoryInterface.js    # DAL contract
-│       ├── FlatFileProvider.js       # JSON file implementation
-│       └── PostgreSQLProvider.js     # SQL implementation (Inc. 2)
+│   ├── core/                         # CRUD scaffolding templates
+│   │   ├── BaseController.js.hbs
+│   │   └── BaseService.js.hbs
+│   ├── rbac/                         # Role-based access control
+│   │   ├── rbacMiddleware.js
+│   │   ├── rbacRoutes.js
+│   │   ├── rbacSeed.js
+│   │   └── scopeEvaluator.js
+│   ├── repository/                   # Pluggable storage providers
+│   │   ├── RepositoryInterface.js
+│   │   ├── FlatFileProvider.js       # JSON-on-disk
+│   │   ├── SQLiteProvider.js         # Embedded SQLite (standalone packaging)
+│   │   ├── PostgresProvider.js       # PostgreSQL
+│   │   ├── runMigrations.js
+│   │   └── runSQLiteMigrations.js
+│   └── mixins/                       # 30+ reusable feature modules
+│       ├── Inventory: InventoryMixin, InventoryInboundWorkflow,
+│       │             InventoryReservationWorkflow, InventoryCycleCount,
+│       │             InventoryTransactionSafety, InventoryLifecycle,
+│       │             InventoryReservation, BatchTracking, SerialTracking,
+│       │             InventoryCycleCountLine
+│       ├── Invoice:   InvoiceMixin, InvoiceCalculationEngine,
+│       │             InvoicePaymentWorkflow, InvoiceNoteWorkflow,
+│       │             InvoiceTransactionSafety, InvoiceLifecycle,
+│       │             InvoiceItems, SalesOrderCommitment
+│       ├── HR:        HREmployeeMixin, HREmployeeStatus, HRDepartment,
+│       │             HRLeaveMixin, HRLeaveBalance, HRLeaveApproval,
+│       │             HRAttendanceTimesheet, HRCompensationLedger
+│       └── Cross-cut: AuditMixin, RelationRuleRunnerMixin,
+│                     UserEmployeeLinkMixin, LocationMixin
 │
 ├── frontend-bricks/
-│   ├── layouts/
-│   │   ├── DashboardLayout.jsx       # Main app shell
-│   │   └── EntityLayout.jsx          # Single-entity view wrapper
 │   ├── components/
-│   │   ├── BasicTableView.jsx        # Simple data list
-│   │   ├── InventoryDashboard.jsx    # Stock + alerts view
-│   │   ├── CategorizedListView.jsx   # Hierarchical entities
-│   │   ├── EntityForm.jsx            # Dynamic CRUD form
-│   │   └── AlertBanner.jsx           # Notification display
-│   └── registry/
-│       └── EntityRegistry.js         # Component-to-entity mapping
+│   │   ├── DynamicForm.tsx           # Metadata-driven form builder
+│   │   ├── ImportCsvTool.tsx         # CSV import with field mapping
+│   │   ├── derivedFieldEvaluator.ts  # Computed columns
+│   │   ├── modules/                  # Pre-built UI per module
+│   │   │   ├── inventory/
+│   │   │   ├── invoice/
+│   │   │   └── hr/
+│   │   └── ...modal, toast, helpers
+│   └── layouts/                      # Dashboard, sidebar, navigation
 │
 └── templates/
-    ├── Dockerfile.template           # Node.js container
-    ├── docker-compose.template.yml   # Multi-service orchestration
-    ├── package.json.template         # Dependencies manifest
-    └── README.template.md            # Deployment guide
+    ├── Dockerfile.template
+    ├── docker-compose.template.yml
+    ├── dev.{sh,ps1}.template
+    ├── index.js.template
+    ├── package.json.template
+    ├── README.template.md
+    └── standalone/                   # Self-contained executable starter
+        ├── index.js.template
+        ├── package.json.template
+        └── start.{sh,bat,command}    # OS-specific launchers
 ```
 
 ### 4.2 Backend Assembly: The Strategy Pattern
@@ -635,6 +662,31 @@ CREATE TABLE log_entries (
 );
 ```
 
+### 6.3 Schema evolution (migrations 002–017)
+
+The base schema above is migration `001`. Sixteen further migrations have shipped — see `platform/backend/migrations/` for the canonical source:
+
+| # | What it adds |
+|---|---|
+| 002 | Soft-delete columns (`is_deleted`) on core tables |
+| 003 | Review workflow (`reviews`, status transitions) |
+| 004 | Mode flag and `project_conversations` table |
+| 005 | Fix soft-delete columns |
+| 006 | `admin_flag` on users |
+| 007 | `training_data` table for prompt-tuning feedback |
+| 008 | Corrective-instruction column on training data |
+| 009 | `feature_requests` table |
+| 010 | Feature-request enhancements + `feature_request_messages` |
+| 011 | `training_step_reviews` |
+| 012 | Fix `feature_request.source` |
+| 013 | `user_blocks` (admin moderation) |
+| 014 | `user_language` preference |
+| 015 | `project_language` preference |
+| 016 | `answer_review` |
+| 017 | Bilingual `feature_requests` (`name_en`, `name_native`, `language`) |
+
+The ERD in §6.1 shows the original spine; treat the migration files as authoritative for current shape.
+
 ---
 
 ## 7. Generated ERP Data Layer
@@ -654,7 +706,17 @@ class RepositoryInterface {
 }
 ```
 
-### 7.2 Flat-File Provider (Increment 1)
+Three concrete providers ship today; the assembler picks one per generated ERP based on SDF configuration:
+
+| Provider | File | When |
+|---|---|---|
+| **Flat-File** | `FlatFileProvider.js` | Quick prototypes, demo mode |
+| **SQLite** | `SQLiteProvider.js` | Standalone packaging (single-file embedded DB, runs without external services) |
+| **PostgreSQL** | `PostgresProvider.js` | Multi-user / production deployments |
+
+Migration runners ship alongside the SQL providers (`runMigrations.js`, `runSQLiteMigrations.js`).
+
+### 7.2 Flat-File Provider
 
 ```javascript
 // FlatFileProvider.js
@@ -697,11 +759,11 @@ generated-erp/
     └── _audit_log.json    # [{ entity, action, data, timestamp }]
 ```
 
-### 7.4 Future: PostgreSQL Provider (Increment 2+)
+### 7.4 SQL Providers (SQLite & PostgreSQL)
 
 ```javascript
-// PostgreSQLProvider.js
-class PostgreSQLProvider extends RepositoryInterface {
+// PostgresProvider.js (sketch)
+class PostgresProvider extends RepositoryInterface {
   constructor(connectionString) {
     super();
     this.pool = new Pool({ connectionString });
@@ -711,11 +773,15 @@ class PostgreSQLProvider extends RepositoryInterface {
     const result = await this.pool.query(`SELECT * FROM ${entitySlug}`);
     return result.rows;
   }
-  // ... other methods using SQL
+  // ... other methods using parameterised SQL
 }
+
+// SQLiteProvider.js — same shape, embedded better-sqlite3 backend.
+// Used by StandalonePackager.js to ship a generated ERP as a single
+// executable with no external DB dependency.
 ```
 
-**Migration Path:** Because we use a DAL, swapping `FlatFileProvider` for `PostgreSQLProvider` requires zero changes to business logic bricks.
+**Why three?** They share `RepositoryInterface`, so business-logic bricks don't care which one is wired in. Swap is a one-line config change in the generated ERP.
 
 ---
 
@@ -723,22 +789,44 @@ class PostgreSQLProvider extends RepositoryInterface {
 
 ### 8.1 Platform API Endpoints
 
+Routes mounted from `platform/backend/src/routes/`: `authRoutes`, `projectRoutes`, `previewRoutes`, `adminRoutes`, `featureRequestRoutes`, `trainingRoutes`.
+
+**Auth** (`authRoutes.js`)
+
 | Method | Endpoint | Description |
 |:-------|:---------|:------------|
 | `POST` | `/api/auth/register` | Create new user account |
 | `POST` | `/api/auth/login` | Authenticate and receive JWT |
+| `GET` | `/api/auth/me` | Current user from token |
+
+**Projects** (`projectRoutes.js`)
+
+| Method | Endpoint | Description |
+|:-------|:---------|:------------|
 | `GET` | `/api/projects` | List user's projects |
 | `POST` | `/api/projects` | Create new project |
-| `GET` | `/api/projects/:id` | Get project details |
-| `PUT` | `/api/projects/:id` | Update project |
-| `DELETE` | `/api/projects/:id` | Delete project |
+| `GET\|PUT\|DELETE` | `/api/projects/:id` | Project CRUD |
 | `POST` | `/api/projects/:id/analyze` | Send description to AI |
 | `POST` | `/api/projects/:id/clarify` | Submit clarification answer |
-| `GET` | `/api/projects/:id/sdf` | Get current SDF |
-| `POST` | `/api/projects/:id/generate` | Trigger assembly |
-| `GET` | `/api/projects/:id/preview` | Get schema/API preview |
-| `POST` | `/api/projects/:id/approve` | Approve generated module |
-| `GET` | `/api/projects/:id/download` | Download artifact ZIP |
+| `POST` | `/api/projects/:id/chat` | Conversational refinement |
+| `POST` | `/api/projects/:id/ai/precheck-modules` | Module feasibility precheck |
+| `GET` | `/api/projects/:id/sdf/latest` | Get latest SDF |
+| `POST` | `/api/projects/:id/sdf/save` | Persist SDF revision |
+| `POST` | `/api/projects/:id/sdf/ai-edit` | Targeted AI rewrite of SDF section |
+| `POST` | `/api/projects/:id/generate` | Assemble + zip standard ERP |
+| `POST` | `/api/projects/:id/generate/standalone` | Assemble standalone executable |
+| `POST` | `/api/projects/:id/regenerate` | Regenerate from current SDF |
+| `GET` | `/api/projects/:id/download` | Download generated artifact |
+| `POST` | `/api/projects/:id/approve` | Approval workflow |
+| `*` | `/api/projects/:id/reviews/...` | Review workflow |
+
+**Preview proxy** (`previewRoutes.js`)
+
+| Method | Endpoint | Description |
+|:-------|:---------|:------------|
+| `*` | `/preview/:previewId/...` | Token-gated reverse proxy to a locally running generated ERP |
+
+**Admin / training / feature requests** — see `adminRoutes.js`, `trainingRoutes.js`, `featureRequestRoutes.js` for moderation, feedback collection, and user-submitted feature requests.
 
 ### 8.2 Generated ERP API Endpoints (Template)
 
@@ -765,9 +853,15 @@ DELETE /api/products/abc-123 → Delete product
 
 | Method | Endpoint | Description |
 |:-------|:---------|:------------|
-| `POST` | `/ai/analyze` | Initial description analysis |
-| `POST` | `/ai/clarify` | Process clarification answer |
-| `POST` | `/ai/finalize` | Generate final SDF |
+| `GET` | `/health` | Service status |
+| `POST` | `/ai/precheck_modules` | Feasibility check before analysis |
+| `POST` | `/ai/analyze` | First-pass SDF (entities, fields, relations) |
+| `POST` | `/ai/clarify` | Refine via Q&A |
+| `POST` | `/ai/finalize` | Polish, normalize, lint |
+| `POST` | `/ai/edit` | Targeted rewrite of an existing SDF section |
+| `POST` | `/ai/chat` | Conversational mode (streaming) |
+| `GET` | `/ai/progress/{project_id}` | Generation progress tracker |
+| `GET` | `/ai/training/{sessions, sessions/:id, stats}` | Training-data inspection |
 
 **Request/Response Example:**
 
@@ -797,6 +891,8 @@ DELETE /api/products/abc-123 → Delete product
 ---
 
 ## 9. Use Case Workflows
+
+> **Scope note.** §9 documents the original UC-1 through UC-6 spine (intake → generation → review). The working test suite has grown to UC-1 through UC-13 — see [`tests/UnitTests/`](tests/UnitTests) for the full list, and [`docs/customerp_use_cases.md`](docs/customerp_use_cases.md) for a current catalog. The diagrams below remain accurate for the core flow.
 
 ### 9.1 UC-1 to UC-3: Project Intake & SDF Generation
 
@@ -933,7 +1029,7 @@ DELETE /api/products/abc-123 → Delete product
 │  └─────────────────┘                                         │         │
 │                                                              │         │
 │  ┌─────────────────┐     ┌─────────────────┐                 │         │
-│  │AIServiceGateway │────▶│ Gemini 3 Pro API│                │         │
+│  │AIServiceGateway │────▶│ Gemini / OpenAI │                │         │
 │  ├─────────────────┤     │   (External)    │                │         │
 │  │ + analyze(desc) │     └─────────────────┘                │         │
 │  │ + clarify(q, a) │                                        │         │
@@ -1050,70 +1146,77 @@ App
 
 ---
 
-## 12. Increment 1 Deliverables
+## 12. Current State
 
-### 12.1 Scope Summary
+> **Note.** The original Blueprint framed scope as "Increment 1 — Inventory only." That framing is obsolete. The platform has shipped Inventory + Invoice + HR. This section reflects current reality.
 
-| Aspect | Specification |
-|:-------|:--------------|
-| **Module Focus** | Inventory Management |
-| **AI Accuracy Target** | 70% for SDF form completion |
-| **Data Strategy** | DAL-abstracted JSON flat-files |
-| **Frontend** | Metadata-driven React components |
-| **Output** | Standalone Docker container |
+### 12.1 Modules in production
 
-### 12.2 Functional Deliverables
+| Module | Mixins | Notable features |
+|:---|:---|:---|
+| **Inventory** | `InventoryMixin`, `InventoryInboundWorkflow`, `InventoryReservationWorkflow`, `InventoryCycleCount`, `InventoryTransactionSafety`, `InventoryLifecycle`, `BatchTracking`, `SerialTracking` | Receive / Issue / Transfer / Adjust wizards, low-stock alerts, expiry tracking, cycle counts, reservations, QR labels + scanning, time-travel diffs |
+| **Invoice** | `InvoiceMixin`, `InvoiceCalculationEngine`, `InvoicePaymentWorkflow`, `InvoiceNoteWorkflow`, `InvoiceTransactionSafety`, `InvoiceLifecycle`, `InvoiceItems`, `SalesOrderCommitment` | Lifecycle states, calculation engine, payments, notes, transaction safety, PDF / print |
+| **HR** | `HREmployeeMixin`, `HREmployeeStatus`, `HRDepartment`, `HRLeaveMixin`, `HRLeaveBalance`, `HRLeaveApproval`, `HRAttendanceTimesheet`, `HRCompensationLedger` | Employees, leave balance + approvals, attendance / timesheets, compensation ledger, user ↔ employee linking |
+| **Cross-cutting** | `AuditMixin`, `RelationRuleRunnerMixin`, `UserEmployeeLinkMixin`, `LocationMixin` | Audit trail, declarative cross-entity rules, role-based access, multi-location |
 
-- [ ] User authentication (register, login, logout)
-- [ ] Project CRUD with status tracking
-- [ ] AI-powered description analysis
-- [ ] Clarification dialogue system
-- [ ] SDF generation and storage
-- [ ] Inventory module assembly from bricks
-- [ ] Schema visualization (ERD-style)
-- [ ] API endpoint preview
-- [ ] Module approval workflow
-- [ ] Docker artifact packaging
-- [ ] ZIP download of generated ERP
+### 12.2 Capabilities shipped
 
-### 12.3 Generated Artifact Structure
+- Auth (register, login, JWT, RBAC, admin moderation, user blocks)
+- Project CRUD + status tracking + soft delete
+- AI pipeline: precheck → analyze → clarify → finalize → edit
+- Conversational chat mode (streaming)
+- SDF persistence (versioned JSONB) + AI-driven targeted edits
+- Three-module assembly (Inventory + Invoice + HR) with mixin composition
+- Schema + API preview via iframe proxy with token-gated routing
+- Approval / review workflow
+- Docker packaging + standalone executable packaging (single-file, embedded SQLite)
+- ZIP download of generated artifact
+- Bilingual (English + Turkish) — UI, SDF localization linting, generated app i18n
+- Training-data collection for prompt tuning
+- User-submitted feature requests (bilingual)
+
+### 12.3 Generated artifact structure (current)
+
+Standard mode (Docker-deployed):
 
 ```
-my-electronics-shop-erp.zip
+generated-erp.zip
 ├── docker-compose.yml
 ├── Dockerfile
-├── README.md                    # Deployment instructions
+├── README.md
 ├── package.json
 ├── src/
-│   ├── index.js                 # Express entry point
-│   ├── routes/
-│   │   └── productRoutes.js     # Generated CRUD routes
-│   ├── services/
-│   │   ├── InventoryService.js  # Stock management brick
-│   │   └── AlertService.js      # Threshold alert brick
-│   └── repository/
-│       └── FlatFileProvider.js  # Data access layer
+│   ├── index.js
+│   ├── routes/             # one file per entity, generated
+│   ├── services/           # base + composed mixins
+│   ├── controllers/
+│   ├── middleware/         # auth, RBAC, audit
+│   └── repository/         # one of FlatFile / SQLite / Postgres
 ├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── components/          # UI bricks
-│   │   └── config/
-│   │       └── ui-config.json   # Metadata for dynamic rendering
-│   └── package.json
-└── data/
-    ├── product.json             # Empty initial data
-    └── category.json
+│   └── src/                # React + Tailwind, metadata-driven
+└── data/                   # entity JSON (flat-file mode only)
 ```
 
-### 12.4 Success Criteria
+Standalone mode (no external services):
+
+```
+generated-erp-standalone-<os>-<arch>/
+├── start.{sh,bat,command}  # OS-specific launcher
+├── server                  # Embedded Node.js binary
+├── app.db                  # SQLite database
+└── public/                 # Bundled frontend
+```
+
+### 12.4 Success criteria (current targets)
 
 | Metric | Target |
 |:-------|:-------|
 | SDF generation accuracy | ≥70% of entities correctly identified |
-| Assembly success rate | 100% of generated artifacts compile |
+| Assembly success rate | 100% of generated artifacts compile and start |
 | Docker deployment | Artifact runs with `docker compose up` |
+| Standalone executable | Runs on Windows / macOS / Linux without external deps |
 | End-to-end time | < 15 minutes from approval to download |
-| Documentation | README enables deployment without support |
+| Localization | English + Turkish parity on platform UI and generated apps |
 
 ---
 
@@ -1133,11 +1236,13 @@ my-electronics-shop-erp.zip
 ## Appendix B: References
 
 - Google AI Studio / Gemini API Documentation
+- Azure OpenAI Service Documentation (alternative AI backend)
 - PostgreSQL 16 Official Documentation
-- Express.js 4.x API Reference
+- Express.js 5.x API Reference
 - React 18 Documentation
+- FastAPI 0.115 Documentation
 - Docker Compose Specification
 
 ---
 
-*Last Updated: January 2026 — Increment 1 Development Phase*
+*Last reviewed: May 2026 — Inventory + Invoice + HR modules in production. See `git log` for ongoing changes; this document captures stable architecture, not in-flight work.*

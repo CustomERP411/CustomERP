@@ -284,6 +284,7 @@ These are non-negotiable; if you find yourself fighting them, stop and re-read [
 
 ## 8. Where to look next
 
+- **The generator deep dive (assembler internals): [`docs/GENERATOR.md`](GENERATOR.md)**
 - Conceptual overview, friendlier prose: [`docs/overview.md`](overview.md)
 - The full assembly pipeline narrative: [`Blueprint.md`](../Blueprint.md)
 - SDF JSON schema reference: [`SDF_REFERENCE.md`](../SDF_REFERENCE.md)

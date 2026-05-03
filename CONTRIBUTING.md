@@ -179,7 +179,8 @@ If you change the schema you must update all four. AI prompt expectations are do
 ## 10. When in doubt
 
 - Architecture question → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- "How does the assembly actually work?" → [Blueprint.md](Blueprint.md)
+- "How does the generator actually turn an SDF into code?" → [docs/GENERATOR.md](docs/GENERATOR.md)
+- "How does the assembly fit into the bigger picture?" → [Blueprint.md](Blueprint.md)
 - "What can go in an SDF?" → [SDF_REFERENCE.md](SDF_REFERENCE.md)
 - Cross-module behavior → [module_coherence_design.md](module_coherence_design.md)
 - "What's broken right now?" → [observed_issues_grouping.md](observed_issues_grouping.md)

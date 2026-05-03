@@ -183,6 +183,7 @@ CustomERP/
 |---|---|
 | [README.md](README.md) | This file — orientation + quick start |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System map: subsystems, data flow, brick library, DB schema |
+| [docs/GENERATOR.md](docs/GENERATOR.md) | Deep dive: how the assembler turns an SDF into a runnable ERP |
 | [docs/overview.md](docs/overview.md) | End-to-end conceptual overview (UC-1 → UC-7) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Dev setup, code style, branch workflow, ownership |
 | [Blueprint.md](Blueprint.md) | Deep technical reference (assembly logic, generators) |
